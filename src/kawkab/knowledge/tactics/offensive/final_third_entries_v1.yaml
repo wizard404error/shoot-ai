@@ -1,0 +1,74 @@
+rule:
+  id: poor_final_third_entries_v1
+  category: offensive
+  subcategory: chance_creation
+  severity: medium
+  names:
+    en: Poor Final Third Entries
+    ar: ضعف الدخول في الثلث الأخير
+  description:
+    en: |
+      Team struggles to get the ball into dangerous areas in the final third,
+      resulting in few shots and low xG per game.
+    ar: |
+      الفريق يعاني في إيصال الكرة إلى المناطق الخطرة في الثلث الأخير،
+      مما ينتج عنه تسديدات قليلة وقيمة توقع أهداف منخفضة.
+  pattern_signature:
+    type: low_final_third_entries
+    thresholds:
+      min_matches: 3
+      min_entries_per_match: 15
+      shots_per_match: "<8"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: slow_ball_progression
+      weight: 0.35
+      names:
+        en: Slow Ball Progression
+        ar: تقدم بطيء بالكرة
+      evidence_required:
+        - metric: avg_time_to_reach_final_third
+          threshold: ">12s"
+        - metric: passes_per_sequence_in_middle_third
+          threshold: ">8"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The team is being forced to pass sideways or backwards in midfield.
+          Need vertical passing drills and creative midfielders.
+        ar: |
+          الفريق مجبر على التمرير الجانبي أو الخلفي في الوسط. تحتاج
+          تدريبات على التمرير العمودي والوسطاء المبدعين.
+    - hypothesis_id: wing_play_underutilized
+      weight: 0.3
+      names:
+        en: Wing Play Underutilized
+        ar: اللعب الجانبي غير مستغل
+      evidence_required:
+        - metric: width_of_attack_m
+          threshold: "<35m"
+        - metric: touches_in_wide_areas_pct
+          threshold: "<0.30"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          The team attacks too centrally. Need to stretch the opponent by
+          using width better. Wide players need more involvement.
+        ar: |
+          الفريق يهاجم بشكل مركزي أكثر من اللازم. يحتاج لمد الملعب
+          واستخدام العرض بشكل أفضل. الجناحون يحتاجون لمشاركة أكبر.
+  recommended_drills:
+    primary:
+      - drill_id: wing_play_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: vertical_passing_patterns
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Chance Creation Patterns"
+    - "Tifo Football: Breaking Down Low Blocks"
+    - "Coaches' Voice: Building Attacking Patterns"

@@ -1,0 +1,77 @@
+rule:
+  id: compactness_issues_v1
+  category: defensive
+  subcategory: defensive_shape
+  severity: medium
+  names:
+    en: Team Lacks Compactness
+    ar: الفريق يفتقر للتكثيف
+  description:
+    en: |
+      Team's defensive shape is too spread out, leaving gaps between lines
+      and between players. Opponents can play through the team too easily.
+    ar: |
+      الشكل الدفاعي للفريق منتشر بشكل كبير، تاركاً فراغات بين الخطوط
+      وبين اللاعبين. يمكن للخصم اللعب عبر الفريق بسهولة.
+  pattern_signature:
+    type: low_compactness
+    thresholds:
+      min_matches: 3
+      avg_distance_between_lines_m: ">15"
+      avg_distance_between_players_m: ">12"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: pressing_too_high
+      weight: 0.4
+      names:
+        en: Lines Too Far Apart (Pressing Too High)
+        ar: الخطوط متباعدة جداً (الضغط عالي جداً)
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The defensive line is too high relative to the midfield. Need
+          compactness drills and trigger-based stepping.
+        ar: |
+          خط الدفاع عالي جداً بالنسبة للوسط. يحتاج تدريبات على التكثيف
+          والصعود بناءً على المحفزات.
+    - hypothesis_id: no_central_corridors
+      weight: 0.3
+      names:
+        en: No Compactness in Central Areas
+        ar: لا تكثيف في المنطقة المركزية
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Team leaves space through the middle. Need central compactness
+          drills and clear zonal responsibilities.
+        ar: |
+          الفريق يترك فراغات في الوسط. يحتاج تدريبات على التكثيف المركزي
+          ومسؤوليات مناطقية واضحة.
+    - hypothesis_id: wide_players_too_wide
+      weight: 0.3
+      names:
+        en: Wide Players Too Wide
+        ar: لاعبو الأجنحة عريضون جداً
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Wide players are stretching the shape too much. Need
+          wide-play compactness drills.
+        ar: |
+          لاعبو الأجنحة يمدون الشكل بشكل كبير. يحتاج تدريبات على تكثيف
+          اللعب الجانبي.
+  recommended_drills:
+    primary:
+      - drill_id: compactness_5v5
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: defensive_shape_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Team Shape and Compactness"
+    - "Spielverlagerung: Defensive Compactness"
+    - "Tifo Football: How Teams Stay Compact"

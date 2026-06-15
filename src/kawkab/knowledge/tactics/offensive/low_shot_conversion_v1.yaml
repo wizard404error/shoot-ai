@@ -1,0 +1,77 @@
+rule:
+  id: low_shot_conversion_v1
+  category: offensive
+  subcategory: finishing
+  severity: high
+  names:
+    en: Low Shot Conversion Rate
+    ar: معدل تحويل التسديدات منخفض
+  description:
+    en: |
+      Team creates chances and gets shots on goal but fails to convert them
+      at a reasonable rate, suggesting finishing or composure issues.
+    ar: |
+      الفريق يخلق فرصاً ويسدد على المرمى لكنه يفشل في تحويلها بنسبة
+      معقولة، مما يشير إلى مشاكل في إنهاء الهجمات أو الهدوء أمام المرمى.
+  pattern_signature:
+    type: low_shot_conversion
+    thresholds:
+      min_matches: 3
+      shots_per_match: ">8"
+      conversion_rate: "<0.20"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_composure
+      weight: 0.4
+      names:
+        en: Lack of Composure in Front of Goal
+        ar: قلة الهدوء أمام المرمى
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are rushing shots or panicking in the box. Need composure
+          drills and finishing exercises under pressure.
+        ar: |
+          اللاعبون يتعجلون التسديد أو يشعرون بالذعر داخل المنطقة. تحتاج
+          تدريبات على الهدوء وتمارين إنهاء الهجمات تحت الضغط.
+    - hypothesis_id: wrong_shot_selection
+      weight: 0.35
+      names:
+        en: Poor Shot Selection
+        ar: اختيار تسديد خاطئ
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are taking low-percentage shots. Need decision-making drills
+          about when to shoot, when to pass, when to dribble.
+        ar: |
+          اللاعبون يسددون من مواقع منخفضة الاحتمال. يحتاجون تدريبات على
+          اتخاذ القرار متى يسدد ومتى يمرر ومتى يراوغ.
+    - hypothesis_id: poor_technique
+      weight: 0.25
+      names:
+        en: Poor Finishing Technique
+        ar: تقنية إنهاء ضعيفة
+      confidence_boost: 0.2
+      coaching_notes:
+        en: |
+          When shooting, technique is poor (placement, power, body shape).
+          Need specific finishing technique drills.
+        ar: |
+          عند التسديد، التقنية ضعيفة (التموضع، القوة، وضع الجسم). يحتاج
+          تدريبات محددة على تقنية إنهاء الهجمات.
+  recommended_drills:
+    primary:
+      - drill_id: finishing_under_pressure
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: shot_selection_4v3
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Finishing Drills"
+    - "Spielverlagerung: Conversion Rate Analysis"
+    - "Tifo Football: The Art of Finishing"

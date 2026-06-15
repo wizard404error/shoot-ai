@@ -1,0 +1,41 @@
+- drill_id: first_touch_circles
+  name: First Touch Circle Drill
+  name_ar: تمرين دائرة اللمسة الأولى
+  category: technical
+  targets:
+    - first_touch
+    - close_control
+    - body_shape
+    - receiving_under_pressure
+  duration_min: 10
+  players_required: 6
+  intensity: medium
+  equipment: [balls, cones]
+  space: 15x15m
+  setup: |
+    4-6 players form a circle, 5-7m apart. One player in the middle.
+    Players on the outside pass to the middle player, who must control
+    and pass back in one touch.
+  rules:
+    - "Middle player must control + pass in ONE touch"
+    - "Rotate middle player every 60 seconds"
+    - "Outside players vary the type of pass (lofted, driven, soft)"
+    - "1 point for clean one-touch control, 0 for mishit"
+  progressions:
+    - "Add a second defender in middle (1v1 pressure)"
+    - "Limit middle player to specific body part (left foot only)"
+    - "Outside players must call the type of pass before playing it"
+  regressions:
+    - "Allow two touches"
+    - "Use a bigger circle (10m apart) for easier first touch"
+  coaching_points:
+    - "Open body to see the field before receiving"
+    - "Cushion the ball with the inside of the foot"
+    - "First touch should set up the next pass (play forward)"
+    - "Eyes up, scan before receiving"
+  addresses_problems:
+    - poor_first_touch
+    - possession_turnover
+  source: "UEFA B License: First Touch Training"
+  age_groups: [u11, u13, u15, u17, senior]
+  skill_level: beginner

@@ -1,0 +1,42 @@
+- drill_id: high_intensity_intervals
+  name: High-Intensity Interval Training (HIIT)
+  name_ar: تدريب الفواصل عالية الكثافة
+  category: fitness
+  targets:
+    - aerobic_capacity
+    - repeated_sprint_ability
+    - late_game_fitness
+    - recovery_between_efforts
+  duration_min: 25
+  players_required: 6
+  intensity: very_high
+  equipment: [cones, balls, stopwatch]
+  space: 40x30m
+  setup: |
+    Set up 4 cones in a square (40x30m area). Players perform repeated
+    high-intensity efforts with short recovery periods. Mimics match
+    demands with ball to maintain football-specific fitness.
+  rules:
+    - "30 seconds maximum effort (sprints, changes of direction, ball work)"
+    - "30 seconds active recovery (jog, ball control)"
+    - "Repeat 8-10 times"
+    - "Include 4-5 sets of 30m sprints at max effort"
+    - "Track distance covered per interval (aim for consistent)"
+  progressions:
+    - "Reduce recovery to 20s (harder)"
+    - "Increase sprint distance to 50m"
+    - "Add ball work at end of each sprint (shoot/pass)"
+  regressions:
+    - "Increase recovery to 45s"
+    - "Reduce sprint distance to 20m"
+  coaching_points:
+    - "Max effort during work periods (90%+ of max)"
+    - "Active recovery (don't stand still)"
+    - "Stay on feet, ready for next rep"
+    - "Hydrate between sets"
+  addresses_problems:
+    - late_game_fatigue
+    - poor_fitness
+  source: "UEFA Pro License: Periodization"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

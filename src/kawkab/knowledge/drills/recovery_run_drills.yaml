@@ -1,0 +1,43 @@
+- drill_id: recovery_run_drills
+  name: Sprint Recovery Runs Drill
+  name_ar: تدريبات الجري العائد السريع
+  category: fitness
+  targets:
+    - sprint_recovery
+    - defensive_transition
+    - reaction_speed
+    - first_5m_acceleration
+  duration_min: 15
+  players_required: 8
+  intensity: very_high
+  equipment: [balls, cones, stopwatch]
+  space: Full half-pitch
+  setup: |
+    Attacker starts with ball, dribbles 20m forward. Defender starts 5m
+    behind. When coach blows whistle, attacker plays a pass forward and
+    the defender must sprint to recover and stop the next attacker.
+  rules:
+    - "Attacker dribbles 20m at pace"
+    - "On whistle, attacker passes to a target 30m ahead"
+    - "Defender sprints to catch up to the next attacker"
+    - "Defender must reach the attacker within 6 seconds"
+    - "Rotate roles every 4 reps"
+  progressions:
+    - "Reduce recovery time to 4 seconds"
+    - "Add second attacker (1v2 transition)"
+    - "Make the recovery distance longer"
+  regressions:
+    - "Allow 8 seconds to recover"
+    - "Start defender only 3m behind"
+  coaching_points:
+    - "First 5m is crucial: explosive start"
+    - "Don't ball-watch: read the play, anticipate"
+    - "Recovery run should be diagonal to close the angle"
+    - "Once caught up, slow down and contain"
+  addresses_problems:
+    - slow_recovery
+    - no_collective_press
+    - slow_defensive_transition
+  source: "Coaches' Voice: Recovery Run Drills"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

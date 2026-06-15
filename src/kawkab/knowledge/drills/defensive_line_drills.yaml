@@ -1,0 +1,42 @@
+- drill_id: defensive_line_drills
+  name: 4v4 Defensive Line Coordination
+  name_ar: تمرين 4 ضد 4 لتنسيق خط الدفاع
+  category: defensive_shape
+  targets:
+    - line_coordination
+    - communication
+    - offsides_trap
+    - shifting_as_a_unit
+  duration_min: 20
+  players_required: 8
+  intensity: medium
+  equipment: [balls, cones, bibs, 2 small goals]
+  space: 40x30m
+  setup: |
+    4 defenders vs 4 attackers on a 40x30m pitch with 2 small goals.
+    Defenders must stay level as a unit. The offside line is enforced
+    at the second-to-last defender.
+  rules:
+    - "Defenders must coordinate their line height"
+    - "One defender calls the line, others follow"
+    - "Attackers try to break the line with runs"
+    - "If attacker caught offside, possession turns over"
+    - "If attacker beats the line cleanly, 1v1 vs GK"
+  progressions:
+    - "Add a 'sweeper' behind the line"
+    - "Reduce communication (coaches ban talking)"
+    - "Add a deep-lying playmaker to thread through balls"
+  regressions:
+    - "Allow one defender to drop as cover"
+    - "Add offside line markers on the ground"
+  coaching_points:
+    - "Communication is key: 'Hold!', 'Step!', 'Drop!'"
+    - "Line should be at most 2m apart vertically"
+    - "Center-backs set the tone, full-backs match"
+    - "Eyes on the ball AND the attacker"
+  addresses_problems:
+    - high_defensive_line_exposure
+    - cbs_no_coordination
+  source: "UEFA Pro License: Defensive Line Tactics"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: intermediate

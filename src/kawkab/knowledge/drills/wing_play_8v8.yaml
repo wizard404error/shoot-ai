@@ -1,0 +1,43 @@
+- drill_id: wing_play_8v8
+  name: 8v8 Wide Play Focused Game
+  name_ar: تمرين 8 ضد 8 مع التركيز على اللعب الجانبي
+  category: attacking_patterns
+  targets:
+    - wide_play
+    - overlapping_runs
+    - crosses
+    - stretching_the_field
+  duration_min: 25
+  players_required: 16
+  intensity: high
+  equipment: [balls, cones, bibs, 2 full-size goals]
+  space: 70x50m
+  setup: |
+    Two teams of 8+GK play on a 70x50m pitch with full-size goals. Pitch
+    is divided into 3 zones: central corridor (no play allowed) and two
+    wide channels (must use for build-up).
+  rules:
+    - "Play must go through the wide channels at least once per attack"
+    - "Wide players must overlap full-backs at least every 3 attacks"
+    - "Bonus point for crosses that lead to shots"
+    - "Normal goals count as 1, headers from crosses count as 2"
+  progressions:
+    - "Reduce wide channels to 10m each (more central pressure)"
+    - "Add rule: must complete 2 passes in wide area before crossing"
+    - "Restrict center forward from entering wide channels"
+  regressions:
+    - "Widen the channels to 20m each"
+    - "Allow 2 passes through center for variety"
+  coaching_points:
+    - "Width creates space centrally"
+    - "Full-backs provide overlapping runs to create 2v1 vs winger"
+    - "Wingers: receive on the half-turn, look up before crossing"
+    - "Forwards: time runs into the box, attack far post for cutbacks"
+  addresses_problems:
+    - poor_wide_play
+    - low_cross_volume
+    - wing_play_underutilized
+    - poor_final_third_entries
+  source: "Coaches' Voice: Wide Play Patterns"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

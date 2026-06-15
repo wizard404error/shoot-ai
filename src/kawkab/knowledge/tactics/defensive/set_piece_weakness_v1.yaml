@@ -1,0 +1,85 @@
+rule:
+  id: set_piece_defensive_weakness_v1
+  category: defensive
+  subcategory: set_pieces
+  severity: high
+  names:
+    en: Set Piece Defensive Weakness
+    ar: ضعف دفاع الكرات الثابتة
+  description:
+    en: |
+      Team concedes a high percentage of goals from set pieces (corners,
+      free kicks, throw-ins), suggesting poor set piece organization.
+    ar: |
+      الفريق يستقبل نسبة عالية من الأهداف من الكرات الثابتة (الركنيات،
+      الركلات الحرة، الرميات الجانبية)، مما يشير إلى ضعف التنظيم.
+  pattern_signature:
+    type: set_piece_goals_conceded
+    thresholds:
+      min_matches: 3
+      min_events: 3
+      min_percentage: 0.30
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: poor_marking
+      weight: 0.4
+      names:
+        en: Poor Man-Marking
+        ar: ترقب فردي ضعيف
+      evidence_required:
+        - metric: avg_distance_between_marker_and_attacker
+          threshold: ">2m"
+        - metric: unmarked_attackers_in_box
+          threshold: ">2"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Defenders are losing their marks on set pieces. Need zonal vs
+          man-marking drills, plus concentration exercises.
+        ar: |
+          المدافعون يفقدون خصومهم في الكرات الثابتة. تحتاج تدريبات على
+          الترقب المناطقي والفردي، وتمارين التركيز.
+    - hypothesis_id: poor_gk_positioning
+      weight: 0.3
+      names:
+        en: Poor Goalkeeper Positioning
+        ar: سوء تمركز الحارس
+      evidence_required:
+        - metric: gk_avg_position_on_corners
+          threshold: "off_line"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Your goalkeeper isn't commanding the box on set pieces. Need
+          specific GK distribution and command drills.
+        ar: |
+          حارسك لا يسيطر على منطقة الجزاء في الكرات الثابتة. تحتاج
+          تدريبات خاصة على قيادة المنطقة من الحارس.
+    - hypothesis_id: no_zonal_coverage
+      weight: 0.3
+      names:
+        en: No Zonal Coverage
+        ar: لا توجد تغطية مناطقية
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Defenders don't know their zonal responsibilities. Need clear
+          zonal marking system with video review.
+        ar: |
+          المدافعون لا يعرفون مسؤولياتهم المناطقية. تحتاج نظام ترقب
+          مناطقي واضح مع مراجعة فيديو.
+  recommended_drills:
+    primary:
+      - drill_id: set_piece_defense_8v8
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: corner_kick_defense
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Defending Set Pieces"
+    - "Spielverlagerung: Set Piece Defensive Systems"
+    - "Tifo Football: Set Piece Analytics"

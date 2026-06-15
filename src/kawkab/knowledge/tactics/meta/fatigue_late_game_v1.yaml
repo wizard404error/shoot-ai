@@ -1,0 +1,69 @@
+rule:
+  id: fatigue_late_game_v1
+  category: meta
+  subcategory: game_phases
+  severity: medium
+  names:
+    en: Late-Game Fatigue
+    ar: إرهاق في نهاية المباراة
+  description:
+    en: |
+      Team's performance drops significantly in the final 15-20 minutes of
+      matches, with more goals conceded and fewer chances created.
+    ar: |
+      أداء الفريق ينخفض بشكل ملحوظ في آخر 15-20 دقيقة من المباريات،
+      مع استقبال أهداف أكثر وخلق فرص أقل.
+  pattern_signature:
+    type: late_game_decline
+    thresholds:
+      min_matches: 3
+      last_15_min_goals_conceded_pct: ">0.40"
+      last_15_min_shots_pct: "<0.20"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_fitness
+      weight: 0.5
+      names:
+        en: Poor Physical Conditioning
+        ar: لياقة بدنية ضعيفة
+      evidence_required:
+        - metric: avg_distance_covered_last_15_min
+          threshold: "<1000m"
+        - metric: max_speed_last_15_min
+          threshold: "<70% of first_half"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          The team isn't fit enough to maintain intensity. Need fitness
+          sessions focused on repeated high-intensity efforts.
+        ar: |
+          الفريق ليس لائقاً بما يكفي للحفاظ على الكثافة. تحتاج جلسات
+          لياقة تركز على الجهود المتكررة عالية الكثافة.
+    - hypothesis_id: no_substitutions
+      weight: 0.3
+      names:
+        en: No Fresh Legs From Bench
+        ar: لا يوجد بدائل من الدكة
+      evidence_boost: 0.25
+      coaching_notes:
+        en: |
+          You might not be using your bench effectively. Consider 3-5
+          substitutions between 60-75 minutes.
+        ar: |
+          قد لا تستخدم دكة البدلاء بفعالية. ضع في اعتبارك 3-5 تبديلات
+          بين 60-75 دقيقة.
+  recommended_drills:
+    primary:
+      - drill_id: high_intensity_intervals
+        duration_min: 25
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: game_conditioned_11v11
+        duration_min: 30
+        sessions_per_week: 1
+        weeks: [3, 4]
+  sources:
+    - "Coaches' Voice: Managing Fatigue in Modern Football"
+    - "UEFA Pro License: Periodization"
+    - "Tifo Football: The Science of Fitness"

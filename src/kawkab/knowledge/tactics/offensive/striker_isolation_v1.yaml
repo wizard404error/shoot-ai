@@ -1,0 +1,66 @@
+rule:
+  id: striker_isolation_v1
+  category: offensive
+  subcategory: chance_creation
+  severity: medium
+  names:
+    en: Striker Too Isolated
+    ar: المهاجم معزول
+  description:
+    en: |
+      The center forward receives too few passes and has limited support
+      from midfielders, making them easy to defend against.
+    ar: |
+      المهاجم يتلقى تمريرات قليلة ويحصل على دعم محدود من الوسطاء،
+      مما يجعله سهل الدفاع ضده.
+  pattern_signature:
+    type: striker_isolated
+    thresholds:
+      min_matches: 3
+      passes_received_per_match: "<15"
+      avg_distance_to_nearest_midfielder: ">15m"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: midfield_too_deep
+      weight: 0.4
+      names:
+        en: Midfield Playing Too Deep
+        ar: الوسط يلعب بعمق كبير
+      evidence_required:
+        - metric: midfielder_avg_position_x
+          threshold: "<35m"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Your midfielders are sitting too deep. They need to push up
+          to connect with the striker. Need coordinated attacking runs.
+        ar: |
+          لاعبو الوسط يجلسون في عمق كبير. يحتاجون للصعود للتواصل مع
+          المهاجم. تحتاج لتحركات هجومية منسقة.
+    - hypothesis_id: no_10_role_missing
+      weight: 0.3
+      names:
+        en: No Link-Up Player
+        ar: لا يوجد لاعب ربط
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          There's no player connecting midfield to attack. Consider a
+          10-role player or a false 9 system.
+        ar: |
+          لا يوجد لاعب يربط الوسط بالهجوم. ضع في اعتبارك لاعب رقم 10
+          أو نظام المهاجم الكاذب.
+  recommended_drills:
+    primary:
+      - drill_id: striker_link_up_play
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: forward_combinations_6v6
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Supporting the Striker"
+    - "Inverting the Pyramid, Ch. 11: The False 9 Revolution"

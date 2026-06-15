@@ -1,0 +1,43 @@
+- drill_id: compactness_5v5
+  name: 5v5 Compactness Game
+  name_ar: تمرين 5 ضد 5 - التكثيف الدفاعي
+  category: defensive_shape
+  targets:
+    - team_compactness
+    - distance_between_lines
+    - shifting_as_unit
+    - pressing_triggers
+  duration_min: 20
+  players_required: 10
+  intensity: high
+  equipment: [balls, cones, bibs, 2 small goals]
+  space: 25x20m (small to force compactness)
+  setup: |
+    Two teams of 5 on a deliberately small 25x20m pitch with 2 small
+    goals. The small space forces players to stay compact and learn to
+    defend in tight areas.
+  rules:
+    - "Normal 5v5 game"
+    - "Pitch is small: maximum 20m gap between any two players"
+    - "Coach calls 'COMPACT!' — players must immediately reduce space"
+    - "If team stretches >25m wide, opposition gets a free goal"
+    - "5-minute games, 3-min rest"
+  progressions:
+    - "Reduce pitch to 20x15m (very tight)"
+    - "Add rule: when opposition has the ball, distances must be <10m"
+    - "Make pitch asymmetric to force specific compactness"
+  regressions:
+    - "Increase pitch to 30x25m"
+    - "Allow more space between lines"
+  coaching_points:
+    - "Compact = short distances between players and lines"
+    - "When opponent has ball, shift toward them as a unit"
+    - "Don't chase the ball — cover the space it might go to"
+    - "Communication: 'SHIFT!', 'HOLD!', 'PRESS!'"
+  addresses_problems:
+    - compactness_issues
+    - poor_defensive_coordination
+    - pressing_too_high
+  source: "Coaches' Voice: Building Team Compactness"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: intermediate

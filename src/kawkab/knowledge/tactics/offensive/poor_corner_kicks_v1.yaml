@@ -1,0 +1,66 @@
+rule:
+  id: poor_corner_kicks_v1
+  category: offensive
+  subcategory: set_pieces
+  severity: medium
+  names:
+    en: Ineffective Corner Kicks
+    ar: ركلات ركنية غير فعالة
+  description:
+    en: |
+      Team takes corners but rarely creates shots or goals from them, suggesting
+      poor delivery, movement, or organization in the box.
+    ar: |
+      الفريق يأخذ ركلات ركنية لكنه نادراً ما يخلق تسديدات أو أهدافاً منها،
+      مما يشير إلى ضعف في التسليم أو الحركة أو التنظيم في منطقة الجزاء.
+  pattern_signature:
+    type: poor_corner_kicks
+    thresholds:
+      min_matches: 3
+      corners_per_match: ">6"
+      shots_from_corners_per_match: "<1.5"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_delivery
+      weight: 0.4
+      names:
+        en: Poor Corner Delivery
+        ar: تسليم ضعيف للركنية
+      evidence_required:
+        - metric: corner_delivery_accuracy
+          threshold: "<0.30"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Corners are not reaching dangerous areas. Need delivery practice
+          with inswinging, outswinging, and short corner routines.
+        ar: |
+          الركلات لا تصل إلى المناطق الخطرة. تحتاج تدريب على التسليم
+          بأنواعه (داخلي، خارجي، قصير).
+    - hypothesis_id: poor_movement
+      weight: 0.35
+      names:
+        en: Poor Attacking Movement in Box
+        ar: ضعف الحركة الهجومية في المنطقة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Attackers are not making intelligent runs in the box on corners.
+          Need specific corner movement patterns.
+        ar: |
+          المهاجمون لا يقومون بتحركات ذكية في المنطقة عند الركنيات.
+          تحتاج أنماط حركة محددة للركنيات.
+  recommended_drills:
+    primary:
+      - drill_id: corner_routines_8v6
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: attacking_movement_box
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Attacking Set Pieces"
+    - "Tifo Football: Set Piece Analytics"

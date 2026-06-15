@@ -1,0 +1,44 @@
+- drill_id: gk_distribution_drills
+  name: Goalkeeper Distribution Circuit
+  name_ar: تمرين دائرة توزيع الحارس
+  category: individual_position
+  targets:
+    - gk_passing
+    - gk_throwing
+    - distribution_tactics
+    - gk_decision_making
+  duration_min: 15
+  players_required: 6
+  intensity: medium
+  equipment: [balls, cones, 1 full goal, mannequins]
+  space: 40x30m
+  setup: |
+    GK in goal. 4 servers positioned at varying distances/angles. GK must
+    distribute to the open server using the correct technique (short, medium,
+    long). Add 2 mannequins to simulate pressure.
+  rules:
+    - "Coach calls a server number (1-4)"
+    - "GK must distribute within 5 seconds using correct technique"
+    - "Short (5-15m): inside of foot, on ground"
+    - "Medium (15-30m): driven pass, half-volley acceptable"
+    - "Long (30m+): punt or overarm throw"
+    - "Server returns ball immediately"
+  progressions:
+    - "Add time pressure (3 seconds)"
+    - "Add defender mannequin blocking line to GK"
+    - "Servers move after each pass (GK must track movement)"
+  regressions:
+    - "Remove mannequins"
+    - "Allow 10 seconds to distribute"
+  coaching_points:
+    - "Scan the field before receiving back-pass"
+    - "Choose correct technique based on distance"
+    - "Accuracy over power — placed passes beat fast wild ones"
+    - "Communicate: 'Mine!', 'Away!', 'Turn!'"
+  addresses_problems:
+    - gk_distribution_issues
+    - poor_passing_technique
+    - wrong_target_selection
+  source: "UEFA A License: Goalkeeper Distribution"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

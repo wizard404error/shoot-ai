@@ -1,0 +1,42 @@
+- drill_id: build_out_under_pressure
+  name: 6v3+GK Build-Out Under Pressure
+  name_ar: تمرين 6 ضد 3 مع الحارس - البناء تحت الضغط
+  category: build_up_play
+  targets:
+    - passing_under_pressure
+    - goalkeeper_distribution
+    - finding_free_players
+  duration_min: 20
+  players_required: 10
+  intensity: high
+  equipment: [balls, cones, bibs, 2 mini-goals]
+  space: 30x20m
+  setup: |
+    Goalkeeper + 5 outfielders build out from the back. Three attackers
+    press high. The build-out team must complete 5 passes then play into
+    one of two mini-goals to score. If attackers win the ball, they can
+    score in the main goal.
+  rules:
+    - "GK starts play with feet or hands"
+    - "Build-out team: max 2 touches in own half"
+    - "Attackers press for 8 seconds, then drop to halfway line"
+    - "If attackers win ball: 1v1 vs GK to score"
+  progressions:
+    - "Add 2 attackers (8v3+GK)"
+    - "Require 8 passes before scoring"
+    - "Limit GK distribution to one half of the goal"
+  regressions:
+    - "Reduce to 2 attackers (6v2+GK)"
+    - "Allow build-out team 3 touches"
+  coaching_points:
+    - "GK scans before receiving back-pass"
+    - "CB splits wide to stretch attackers"
+    - "Midfielder drops between CBs to offer pass"
+  addresses_problems:
+    - possession_loss_under_press
+    - cb_passing_under_pressure
+    - gk_distribution
+  source: "Coaches' Voice: Building from the Back"
+  video_reference: "https://youtube.com/results?search_query=build+out+under+pressure"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

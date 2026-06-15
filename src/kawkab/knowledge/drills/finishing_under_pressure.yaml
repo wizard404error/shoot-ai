@@ -1,0 +1,44 @@
+- drill_id: finishing_under_pressure
+  name: Finishing Under Pressure Circuit
+  name_ar: تمرين دائرة إنهاء الهجمات تحت الضغط
+  category: finishing
+  targets:
+    - composure_in_box
+    - quick_finishing
+    - shot_selection
+    - first_time_striking
+  duration_min: 20
+  players_required: 8
+  intensity: high
+  equipment: [balls, cones, 1 full goal, mannequins]
+  space: 30x20m
+  setup: |
+    Set up 4 stations around the box: (1) Cross + volley, (2) Through
+    ball + 1v1 with GK, (3) Cutback + finish, (4) Rebound + reaction.
+    Players rotate every 4 minutes.
+  rules:
+    - "1 minute at each station, 30s rest"
+    - "All finishes must be first-time (no control)"
+    - "After each shot, sprint to halfway line and back (fitness element)"
+    - "Score: 1 point per goal, 0.5 for shots on target"
+    - "Defender adds passive pressure at stations 2 and 3"
+  progressions:
+    - "Reduce time at each station to 45 seconds"
+    - "Add active defender at all stations"
+    - "Limit touches: max 2 before finishing"
+  regressions:
+    - "Allow control before finishing"
+    - "Remove fitness element (no sprint)"
+  coaching_points:
+    - "Composure: head up, pick spot, finish calmly"
+    - "First-time finishing: no time for nerves"
+    - "Shot placement beats power (aim for corners)"
+    - "Placement varies by angle (far post vs near post)"
+  addresses_problems:
+    - low_shot_conversion
+    - poor_composure
+    - wrong_shot_selection
+    - poor_technique
+  source: "Coaches' Voice: Finishing Drills"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: intermediate

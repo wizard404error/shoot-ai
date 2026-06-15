@@ -1,0 +1,43 @@
+- drill_id: gegenpressing_8v8
+  name: 8v8 Gegenpressing Game
+  name_ar: تمرين 8 ضد 8 - الضغط المرتد
+  category: pressing
+  targets:
+    - gegenpressing
+    - pressing_triggers
+    - collective_pressing
+    - quick_transitions
+  duration_min: 25
+  players_required: 16
+  intensity: very_high
+  equipment: [balls, cones, bibs, 2 full goals]
+  space: 60x40m
+  setup: |
+    Two teams of 8+GK play on a 60x40m pitch. The key rule: when a team
+    loses the ball, the 3 nearest players must immediately press to win
+    it back. If they don't, they do 5 push-ups.
+  rules:
+    - "Normal 8v8 game"
+    - "On loss of possession: 3 nearest players MUST press for 5s"
+    - "If opponent escapes the press: 3 players do 5 push-ups each"
+    - "If team wins ball back in 5s: 1 bonus point"
+    - "5-minute games, 3-min rest"
+  progressions:
+    - "Reduce to 2 nearest players pressing"
+    - "Counter-press window of just 3 seconds"
+    - "Bigger pitch (70x50) to make it harder"
+  regressions:
+    - "3 nearest players + 1 midfielder joins press"
+    - "Counter-press window of 8 seconds"
+  coaching_points:
+    - "Press starts IMMEDIATELY on loss (first 3-5 seconds are critical)"
+    - "Triangle of pressure (3 players surround the ball)"
+    - "Cut off passing lanes, not just chase the ball"
+    - "If press fails, recover shape quickly"
+  addresses_problems:
+    - counter_attack_vulnerability
+    - no_counter_press
+  source: "Jürgen Klopp's Gegenpressing Drills"
+  video_reference: "https://youtube.com/results?search_query=gegenpressing+8v8+drill"
+  age_groups: [u15, u17, senior]
+  skill_level: advanced

@@ -1,0 +1,77 @@
+rule:
+  id: poor_wide_play_v1
+  category: offensive
+  subcategory: chance_creation
+  severity: medium
+  names:
+    en: Poor Wide Play / Crosses
+    ar: ضعف اللعب العرضي / الكرات العرضية
+  description:
+    en: |
+      Team struggles to create chances from wide areas. Crosses are often
+      inaccurate or poorly timed, and the wide players are underutilized.
+    ar: |
+      الفريق يعاني في خلق فرص من الأجنحة. الكرات العرضية غالباً غير
+      دقيقة أو في توقيت خاطئ، واللاعبون الجانبيون غير مستغلين بشكل كاف.
+  pattern_signature:
+    type: poor_wide_play
+    thresholds:
+      min_matches: 3
+      crosses_per_match: "<8"
+      cross_accuracy_pct: "<0.20"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: low_cross_volume
+      weight: 0.3
+      names:
+        en: Low Cross Volume
+        ar: حجم عرضيات منخفض
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          The team isn't getting into crossing positions often enough.
+          Need wide play drills and overlapping runs.
+        ar: |
+          الفريق لا يدخل في مراكز العرض كثيراً. تحتاج تدريبات اللعب
+          الجانبي والتداخلات.
+    - hypothesis_id: inaccurate_crosses
+      weight: 0.4
+      names:
+        en: Inaccurate Crosses
+        ar: عرضيات غير دقيقة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          When crossing, the quality is poor. Need crossing technique
+          drills and decision-making about when to cross vs cut inside.
+        ar: |
+          عند العرض، الجودة ضعيفة. تحتاج تدريبات على تقنية العرض
+          واتخاذ قرار متى تعرض ومتى تتوغل للداخل.
+    - hypothesis_id: no_box_presence
+      weight: 0.3
+      names:
+        en: No Attackers in the Box
+        ar: لا يوجد مهاجمون في منطقة الجزاء
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Not enough attackers are getting into the box to receive
+          crosses. Need runs into the box and timing drills.
+        ar: |
+          عدد قليل من المهاجمين يدخل منطقة الجزاء لاستقبال العرضيات.
+          تحتاج تدريبات على الدخول لمنطقة الجزاء والتوقيت.
+  recommended_drills:
+    primary:
+      - drill_id: crossing_and_finishing
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: wide_play_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Crossing Patterns"
+    - "Tifo Football: The Art of the Cross"
+    - "Spielverlagerung: Wide Play in Modern Football"

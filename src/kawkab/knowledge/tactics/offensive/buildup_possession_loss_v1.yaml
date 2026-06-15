@@ -1,0 +1,63 @@
+rule:
+  id: possession_lost_in_buildup_v1
+  category: offensive
+  subcategory: build_up_play
+  severity: high
+  names:
+    en: Possession Lost in Build-Up Phase
+    ar: فقدان الاستحواذ في مرحلة البناء
+  description:
+    en: |
+      Team frequently loses possession in the defensive third when trying
+      to build attacks from the back, suggesting issues with passing under
+      pressure or movement off the ball.
+    ar: |
+      الفريق يفقد الاستحواذ بشكل متكرر في الثلث الدفاعي عند محاولة
+      بناء الهجمات من الخلف، مما يشير إلى مشاكل في التمرير تحت الضغط.
+  pattern_signature:
+    type: zone_based_possession_loss
+    zone: defensive_third
+    thresholds:
+      min_matches: 3
+      min_events: 8
+      min_percentage: 0.3
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: cb_passing_under_pressure
+      weight: 0.35
+      names:
+        en: Center Backs Panicking Under Pressure
+        ar: قلوب الدفاع يفقدون السيطرة تحت الضغط
+      evidence_required:
+        - metric: cb_passes_completed_under_pressure_pct
+          threshold: "<0.65"
+        - metric: avg_time_to_pass_under_pressure
+          threshold: ">2.0s"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Your center backs are taking too long or making poor decisions
+          when pressured. They need rondo drills to improve scanning and
+          quick passing under pressure.
+        ar: |
+          قلوب الدفاع يأخذون وقتاً طويلاً أو يتخذون قرارات سيئة تحت
+          الضغط. يحتاجون تدريبات روندو لتحسين المسح والتمرير السريع.
+      recommended_drills:
+        - rondo_4v2
+        - rondo_3v1
+        - build_out_under_pressure
+  recommended_drills:
+    primary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: build_out_under_pressure
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Build-Up Patterns in Modern Football"
+    - "Coaches' Voice: How to Build from the Back"
+    - "Inverting the Pyramid, Ch. 9: The False 9 Era"

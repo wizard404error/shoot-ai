@@ -1,0 +1,77 @@
+rule:
+  id: weak_left_back_offensive_v1
+  category: individual
+  subcategory: fullback_play
+  severity: low
+  names:
+    en: Left Back Not Contributing Offensively
+    ar: الظهير الأيسر لا يساهم هجومياً
+  description:
+    en: |
+      Left back is too defensive and not providing width, crosses, or
+      attacking support. Team's left channel is predictable.
+    ar: |
+      الظهير الأيسر دفاعي جداً ولا يوفر العرض أو الكرات العرضية أو
+      الدعم الهجومي. الجهة اليسرى للفريق متوقعة.
+  pattern_signature:
+    type: fullback_not_attacking
+    thresholds:
+      min_matches: 3
+      fb_touches_in_attacking_third: "<5"
+      fb_crosses_per_match: "<1"
+    required_confidence: 0.55
+  hypotheses:
+    - hypothesis_id: tactical_instruction
+      weight: 0.35
+      names:
+        en: Tactical Instruction Too Defensive
+        ar: تعليمات تكتيكية دفاعية جداً
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Coach may be telling LB to stay back. Review tactical instructions
+          and find a better balance.
+        ar: |
+          ربما المدرب يطلب من الظهير البقاء في الخلف. راجع التعليمات
+          التكتيكية وابحث عن توازن أفضل.
+    - hypothesis_id: no_overlapping_runner
+      weight: 0.3
+      names:
+        en: No Overlapping Runner
+        ar: لا يوجد متداخل
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          No midfielder is overlapping the LB. Need coordinated full-back
+          + winger movement patterns.
+        ar: |
+          لا يوجد لاعب وسط يتداخل مع الظهير. يحتاج أنماط حركة منسقة
+          بين الظهير والجناح.
+    - hypothesis_id: poor_crossing
+      weight: 0.35
+      names:
+        en: Poor Crossing When Going Forward
+        ar: ضعف العرض عند التقدم
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          When LB does go forward, crosses are poor. Need crossing
+          technique and decision-making drills.
+        ar: |
+          عندما يتقدم الظهير، العرض ضعيف. يحتاج تدريبات على تقنية
+          العرض واتخاذ القرار.
+  recommended_drills:
+    primary:
+      - drill_id: fullback_attacking_patterns
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: overlapping_runs_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Modern Fullback Play"
+    - "Tifo Football: The Inverted Fullback"
+    - "Spielverlagerung: Fullback Attacking Patterns"

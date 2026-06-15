@@ -1,0 +1,76 @@
+rule:
+  id: poor_passing_accuracy_v1
+  category: offensive
+  subcategory: possession
+  severity: medium
+  names:
+    en: Poor Passing Accuracy
+    ar: دقة تمرير ضعيفة
+  description:
+    en: |
+      Team's overall passing accuracy is below professional/amateur standards,
+      leading to frequent possession losses and broken attacking moves.
+    ar: |
+      دقة التمرير الكلية للفريق أقل من المعايير المعقولة، مما يؤدي إلى
+      فقدان متكرر للاستحواذ وكسر التحركات الهجومية.
+  pattern_signature:
+    type: low_passing_accuracy
+    thresholds:
+      min_matches: 3
+      total_passes_per_match: ">200"
+      pass_completion_pct: "<0.70"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_first_touch
+      weight: 0.4
+      names:
+        en: Poor First Touch
+        ar: لمسة أولى ضعيفة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are miscontrolling passes, leading to broken play. Need
+          first-touch drills in tight spaces.
+        ar: |
+          اللاعبون يفقدون السيطرة على التمريرات، مما يكسر اللعب. يحتاج
+          تدريبات على اللمسة الأولى في مساحات ضيقة.
+    - hypothesis_id: wrong_weight_pass
+      weight: 0.3
+      names:
+        en: Wrong Pass Weight
+        ar: وزن تمرير خاطئ
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Passes are too hard or too soft. Need passing technique drills
+          focused on weight of pass.
+        ar: |
+          التمريرات إما قوية جداً أو خفيفة. يحتاج تدريبات على تقنية
+          التمرير مع التركيز على وزن الكرة.
+    - hypothesis_id: pressure_decisions
+      weight: 0.3
+      names:
+        en: Rushed Decisions Under Pressure
+        ar: قرارات متسرعة تحت الضغط
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players are passing inaccurately when pressed. Need composure
+          and pressure drills (rondos).
+        ar: |
+          اللاعبون يمررون بشكل غير دقيق عند الضغط. يحتاج تدريبات على
+          الهدوء والضغط (روندو).
+  recommended_drills:
+    primary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: first_touch_circles
+        duration_min: 10
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "UEFA Pro License: Passing Under Pressure"
+    - "Coaches' Voice: Passing Technique"

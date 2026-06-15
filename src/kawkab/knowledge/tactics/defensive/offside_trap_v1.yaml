@@ -1,0 +1,76 @@
+rule:
+  id: weak_offside_trap_v1
+  category: defensive
+  subcategory: defensive_line_height
+  severity: medium
+  names:
+    en: Weak Offside Trap
+    ar: مصيدة التسلل ضعيفة
+  description:
+    en: |
+      Team attempts to play the offside trap but is caught out, suggesting
+      poor timing or coordination between defenders.
+    ar: |
+      الفريق يحاول تطبيق مصيدة التسلل لكنه يُمسك به، مما يشير إلى ضعف
+      التوقيت أو التنسيق بين المدافعين.
+  pattern_signature:
+    type: offside_failed
+    thresholds:
+      min_matches: 3
+      offside_attempted_per_match: ">5"
+      offside_success_rate: "<0.50"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_timing
+      weight: 0.4
+      names:
+        en: Poor Trap Timing
+        ar: توقيت ضعيف للمصيدة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Defenders are stepping up at different times. Need timing drills
+          with visual and verbal cues.
+        ar: |
+          المدافعون يتقدمون في أوقات مختلفة. يحتاجون تدريبات على التوقيت
+          مع إشارات بصرية ولفظية.
+    - hypothesis_id: gk_too_deep
+      weight: 0.35
+      names:
+        en: Goalkeeper Too Deep
+        ar: الحارس عميق جداً
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          GK is staying too deep to cover in behind. Need sweeping
+          goalkeeper drills.
+        ar: |
+          الحارس يبقى عميقاً جداً لتغطية الفراغ خلف الدفاع. يحتاج تدريبات
+          على الحارس المتقدم.
+    - hypothesis_id: gk_too_high
+      weight: 0.25
+      names:
+        en: Defensive Line Inconsistent with GK
+        ar: خط الدفاع غير منسجم مع الحارس
+      confidence_boost: 0.2
+      coaching_notes:
+        en: |
+          The defensive line and GK aren't on the same page about depth.
+          Need clear tactical roles and communication.
+        ar: |
+          خط الدفاع والحارس ليسا على نفس الصفحة. يحتاجان أدوار تكتيكية
+          واضحة وتواصل.
+  recommended_drills:
+    primary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gk_sweeping_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "UEFA Pro License: Defensive Line Tactics"
+    - "Coaches' Voice: The Offside Trap"

@@ -1,0 +1,80 @@
+rule:
+  id: gk_distribution_issues_v1
+  category: individual
+  subcategory: goalkeeper_play
+  severity: medium
+  names:
+    en: Goalkeeper Distribution Issues
+    ar: مشاكل في توزيع الحارس
+  description:
+    en: |
+      Goalkeeper's distribution (passing, throwing) is causing possession losses
+      or slowing down the team's build-up play.
+    ar: |
+      توزيع الحارس (التمرير، الرمي) يسبب فقدان الاستحواذ أو يبطئ بناء
+      الهجمات.
+  pattern_signature:
+    type: gk_distribution_loss
+    thresholds:
+      min_matches: 3
+      gk_passes_attempted_per_match: ">15"
+      gk_pass_completion_pct: "<0.60"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_passing_technique
+      weight: 0.35
+      names:
+        en: Poor Passing Technique
+        ar: تقنية تمرير ضعيفة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Goalkeeper's distribution technique needs work. Need specific GK
+          distribution drills focusing on accuracy and weight of pass.
+        ar: |
+          تقنية توزيع الحارس تحتاج تحسين. يحتاج تدريبات محددة على دقة
+          ووزن التمرير.
+    - hypothesis_id: wrong_target_selection
+      weight: 0.35
+      names:
+        en: Wrong Distribution Target
+        ar: اختيار خاطئ لهدف التوزيع
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Goalkeeper isn't finding the right players. Need tactical GK
+          distribution drills (short, medium, long options).
+        ar: |
+          الحارس لا يجد اللاعبين المناسبين. يحتاج تدريبات تكتيكية على
+          التوزيع (قصير، متوسط، طويل).
+    - hypothesis_id: no_distribution_options
+      weight: 0.3
+      names:
+        en: No Distribution Options
+        ar: لا توجد خيارات توزيع
+      evidence_required:
+        - metric: cb_positioning_split
+          threshold: "<5m apart"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          The team isn't offering good distribution options. CBs need to
+          split wide, midfielders need to drop, etc.
+        ar: |
+          الفريق لا يوفر خيارات توزيع جيدة. يحتاج المدافعون للتفرق على
+          الأطراف، والوسطاء للنزول لاستقبال الكرة.
+  recommended_drills:
+    primary:
+      - drill_id: gk_distribution_drills
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: build_out_under_pressure
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Modern Goalkeeper Training"
+    - "UEFA A License: Goalkeeper Distribution"
+    - "Tifo Football: The Modern Goalkeeper"

@@ -1,0 +1,42 @@
+- drill_id: fullback_defending_1v1
+  name: 1v1 Fullback Defending Drill
+  name_ar: تمرين 1 ضد 1 للظهير
+  category: individual_position
+  targets:
+    - 1v1_defending
+    - jockeying
+    - tackling_technique
+    - recovery_runs
+  duration_min: 15
+  players_required: 4
+  intensity: high
+  equipment: [balls, cones]
+  space: 20x15m
+  setup: |
+    A 20x15m grid with a small goal at one end. The winger starts with
+    the ball at the other end. The fullback starts 3m away, facing the
+    winger.
+  rules:
+    - "Winger tries to dribble past fullback and score in 8 seconds"
+    - "Fullback tries to dispossess, tackle, or force winger out of bounds"
+    - "If fullback wins ball, they dribble to opposite end (counter)"
+    - "Rotate roles every 5 reps"
+  progressions:
+    - "Add a runner behind fullback (cover shadow practice)"
+    - "Winger can pass to a target man and run past"
+    - "Reduce time to 5 seconds (more pressure)"
+  regressions:
+    - "Fullback can use hands on shoulders (for youth)"
+    - "Winger must use weak foot only"
+  coaching_points:
+    - "Jockey: stay on balls of feet, knees bent, side-on stance"
+    - "Force winger to weak foot (show them to your strong side)"
+    - "Don't dive in! Wait for the right moment"
+    - "If beaten, sprint to recover, don't give up"
+  addresses_problems:
+    - fullback_isolated_defensively
+    - fb_pace_weakness
+    - opponent_targeting
+  source: "UEFA A License: Defending 1v1"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: beginner

@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+*.spec.bak
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Application data (user data, never commit)
+/data/sample_matches/*.mp4
+/data/sample_matches/*.mov
+/data/sample_matches/*.avi
+/data/models/*.pt
+/data/models/*.onnx
+/data/models/*.weights
+/data/cache/
+/data/exports/
+
+# Sample videos (too large for git)
+# /data/sample_football.mp4
+# /data/real_match.mp4
+data/*.mp4
+data/*.mov
+data/*.avi
+!data/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+KawkabAI.spec.bak
+build/
+dist/
+*.exe
+*.dmg
+*.AppImage
+
+# Graphify (dev tool)
+graphify-out/
+
+# Large files
+*.mp4
+*.mov
+*.avi
+*.zip
+*.tar.gz
+*.7z
+
+# ML model weights (downloaded at runtime, not committed)
+*.pt
+*.onnx
+*.weights
+*.pkl
+*.joblib
+
+# YOLO model files specifically
+yolo11*.pt
+yolov8*.pt

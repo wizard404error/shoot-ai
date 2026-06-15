@@ -1,0 +1,123 @@
+rule:
+  id: goals_conceded_left_channel_v1
+  version: 1
+  category: defensive
+  subcategory: goal_conceded_patterns
+  severity: high
+  confidence_baseline: 0.6
+
+  names:
+    en: Goals Conceded from Left Channel
+    ar: الأهداف المستقبلة من الجهة اليسرى
+
+  description:
+    en: |
+      Team concedes goals repeatedly from the left attacking channel,
+      suggesting structural issues on that side (left back, left mid, or
+      defensive shape).
+    ar: |
+      يستقبل الفريق أهدافًا متكررة من الجهة اليسرى الهجومية،
+      مما يشير إلى مشاكل هيكلية في ذلك الجانب.
+
+  pattern_signature:
+    type: zone_based_goal_concession
+    zone: left_third
+    thresholds:
+      min_matches: 3
+      min_goals: 3
+      min_percentage: 0.5
+    required_confidence: 0.7
+
+  hypotheses:
+    - id: lb_slow_recovery
+      weight: 0.4
+      names:
+        en: Left Back Slow Recovery
+        ar: الظهير الأيسر بطيء في العودة
+
+      evidence_required:
+        - metric: lb_avg_recovery_seconds
+          threshold: ">2.0"
+          comparison: team_avg_recovery_seconds
+        - metric: lb_distance_to_backline_avg
+          threshold: ">5m"
+          comparison: team_avg_distance_to_backline
+
+      confidence_boost: 0.3
+      minimum_evidence_count: 2
+
+      coaching_notes:
+        en: |
+          Your left back is taking too long to recover after losing the ball.
+          This is leaving the left center-back exposed against counter-attacks.
+          The fix is defensive transition drills focused on the left channel.
+        ar: |
+          ظهيرك الأيسر يأخذ وقتًا طويلاً للعودة بعد فقدان الكرة.
+          هذا يترك قلب الدفاع الأيسر مكشوفًا ضد الهجمات المرتدة.
+          الحل هو تدريبات الانتقال الدفاعي المركزة على الجهة اليسرى.
+
+    - id: lm_not_covering
+      weight: 0.25
+      names:
+        en: Left Midfielder Not Covering
+        ar: لاعب الوسط الأيسر لا يغطي
+
+      evidence_required:
+        - metric: lm_avg_distance_to_lb_during_opp_attack
+          threshold: ">8m"
+        - metric: lm_interceptions_in_defensive_third
+          threshold: "<2_per_match"
+
+      confidence_boost: 0.25
+
+      coaching_notes:
+        en: |
+          Your left midfielder is not dropping to help defensively. They need
+          positional discipline training and understanding of cover shadows.
+        ar: |
+          لاعب الوسط الأيسر لا ينخفض للمساعدة دفاعيًا. يحتاج إلى تدريب
+          على الانضباط التكتيكي وفهم التغطية الدفاعية.
+
+    - id: high_line_exposure
+      weight: 0.2
+      names:
+        en: High Defensive Line Exposed
+        ar: خط دفاعي مرتفع مكشوف
+
+      evidence_required:
+        - metric: defensive_line_avg_height
+          threshold: ">45m"
+        - metric: goals_conceded_from_through_balls
+          threshold: ">2_per_match"
+
+      confidence_boost: 0.2
+
+      coaching_notes:
+        en: |
+          Your defensive line is too high and is being exposed by through balls.
+          Consider lowering the line 5-10m or improving offside trap coordination.
+        ar: |
+          خط دفاعك مرتفع جدًا ومكشوف من الكرات الطويلة. فكر في إنزال الخط
+          5-10 أمتار أو تحسين التنسيق في مصيدة التسلل.
+
+  recommended_drills:
+    primary:
+      - drill_id: transition_4v4_lb
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: defensive_shape_8v8
+        duration_min: 25
+        sessions_per_week: 1
+        weeks: [2, 3, 4]
+
+  sources:
+    - "Spielverlagerung: Defensive Transitions in Modern Football"
+    - "UEFA Pro License, Module 4: Defensive Phase"
+    - "Tifo Football: How to defend as a fullback"
+
+  test_cases:
+    - match_id: test_match_001
+      expected_hypothesis: lb_slow_recovery
+      expected_confidence: ">0.7"

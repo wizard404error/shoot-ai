@@ -1,0 +1,42 @@
+- drill_id: vertical_passing_patterns
+  name: Vertical Passing Patterns
+  name_ar: تمرير أنماط التمرير العمودي
+  category: passing
+  targets:
+    - vertical_passing
+    - line_breaking_passes
+    - midfielder_creativity
+    - progressive_passing
+  duration_min: 15
+  players_required: 8
+  intensity: medium
+  equipment: [balls, cones, bibs, 2 small goals]
+  space: 40x30m
+  setup: |
+    3 zones: defensive (4 players), middle (2 pivots), attacking (2
+    forwards). Goal: complete 3 vertical passes in a row to reach
+    the forwards who then attack 2v2 on goal.
+  rules:
+    - "Defenders start with ball, must play forward, not sideways"
+    - "Each pass must gain 5+ meters of territory"
+    - "3 successful vertical passes = forwards can shoot"
+    - "Pivots can receive and turn, or one-touch pass"
+    - "Forwards must time runs between lines"
+  progressions:
+    - "Forbid more than 1 second between receiving and passing"
+    - "Pivots limited to 2 touches"
+    - "Add offside line (forwards must time runs)"
+  regressions:
+    - "Allow sideways passes as a reset option"
+    - "Pivots can dribble through middle"
+  coaching_points:
+    - "Defenders: scan forward before receiving, look for line-breaking pass"
+    - "Pivots: arrive between lines, receive on the half-turn"
+    - "Forwards: check then attack the space behind defense"
+    - "Quality over speed - bad vertical pass is worse than good horizontal one"
+  addresses_problems:
+    - slow_ball_progression
+    - poor_final_third_entries
+  source: "Coaches' Voice: Building Progressive Passes"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

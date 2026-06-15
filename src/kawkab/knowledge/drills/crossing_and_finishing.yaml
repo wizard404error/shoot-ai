@@ -1,0 +1,45 @@
+- drill_id: crossing_and_finishing
+  name: Crossing and Finishing Circuit
+  name_ar: تمرين دائرة العرض والتسديد
+  category: finishing
+  targets:
+    - crossing_technique
+    - finishing
+    - movement_in_box
+    - timing_of_runs
+  duration_min: 20
+  players_required: 8
+  intensity: high
+  equipment: [balls, cones, 1 full goal]
+  space: 40x30m
+  setup: |
+    Station-based drill: 2 wide players on each side (alternating), 2
+    attackers making runs into the box, 1 goalkeeper. Wide players
+    cross, attackers finish.
+  rules:
+    - "Wide player dribbles to byline and crosses"
+    - "Two attackers make runs: one near post, one far post"
+    - "First attacker takes near post, second attacks far post"
+    - "After cross, wide player runs into box for cutback"
+    - "Rotate roles every 6 crosses"
+  progressions:
+    - "Insist on first-time finishing only"
+    - "Add defender who tries to block cross"
+    - "Mix crosses with low driven balls and high lofts"
+  regressions:
+    - "Allow attacker to control before shooting"
+    - "Remove GK pressure (use a mannequin)"
+  coaching_points:
+    - "Cross with the INSIDE of the foot for accuracy"
+    - "Place cross 6-12 yards from goal (not on the line)"
+    - "Near post attacker: attack with head or near-post foot"
+    - "Far post attacker: arrive at pace, attack the ball"
+    - "Wide player: follow the cross for cutbacks"
+  addresses_problems:
+    - poor_wide_play
+    - inaccurate_crosses
+    - no_box_presence
+    - low_shot_conversion
+  source: "Coaches' Voice: Crossing and Finishing"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: intermediate

@@ -1,0 +1,63 @@
+rule:
+  id: low_possession_turnover_rate_v1
+  category: offensive
+  subcategory: possession
+  severity: medium
+  names:
+    en: High Possession Turnover Rate
+    ar: معدل فقدان استحواذ مرتفع
+  description:
+    en: |
+      Team loses possession too easily in their own half or midfield, often
+      through poor first touches or rushed passes.
+    ar: |
+      الفريق يفقد الاستحواذ بسهولة في نصفه أو الوسط، غالباً بسبب
+      لمسات أولى سيئة أو تمريرات مستعجلة.
+  pattern_signature:
+    type: high_turnover_rate
+    thresholds:
+      min_matches: 3
+      turnovers_per_match: ">40"
+      turnovers_in_own_half_pct: ">0.25"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_first_touch
+      weight: 0.35
+      names:
+        en: Poor First Touch
+        ar: لمس أول ضعيف
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are taking too many touches or miscontrolling the ball.
+          Need first-touch drills in tight spaces.
+        ar: |
+          اللاعبون يأخذون لمسات كثيرة أو يفقدون السيطرة على الكرة.
+          تحتاج تدريبات اللمسة الأولى في مساحات ضيقة.
+    - hypothesis_id: pressure_under_press
+      weight: 0.4
+      names:
+        en: Rushed Decisions Under Pressure
+        ar: قرارات متسرعة تحت الضغط
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players panic when pressured. Need rondo and pressure drills
+          to improve composure on the ball.
+        ar: |
+          اللاعبون يشعرون بالذعر عند الضغط. تحتاج تدريبات روندو وضغط
+          لتحسين الهدوء مع الكرة.
+  recommended_drills:
+    primary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: first_touch_circles
+        duration_min: 10
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "UEFA Pro License: First Touch Under Pressure"
+    - "Coaches' Voice: Building Composure on the Ball"

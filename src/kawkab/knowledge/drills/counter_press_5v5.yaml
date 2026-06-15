@@ -1,0 +1,43 @@
+- drill_id: counter_press_5v5
+  name: 5v5 Counter-Press Drill
+  name_ar: تمرين 5 ضد 5 مع الضغط المرتد
+  category: transitions
+  targets:
+    - counter_pressing
+    - immediate_reaction_to_loss
+    - 5_second_rule
+  duration_min: 20
+  players_required: 10
+  intensity: very_high
+  equipment: [balls, cones, bibs, 2 small goals]
+  space: 40x30m
+  setup: |
+    Two teams of 5+GK play on a 40x30m pitch. The team in possession tries
+    to play through. The moment possession is lost, the team that lost it
+    has 5 seconds to win it back (counter-press window).
+  rules:
+    - "Normal 5v5 game with goals"
+    - "If team loses ball, they MUST press for 5 seconds"
+    - "If they win it back within 5s = goal counts double"
+    - "If opponent survives 5s, regular play continues"
+    - "4-minute games, 2-min rest"
+  progressions:
+    - "Reduce counter-press window to 3 seconds"
+    - "Add rule: must win ball back in 2 touches"
+    - "Make pitch bigger (60x40) to make it harder"
+  regressions:
+    - "Increase counter-press window to 8 seconds"
+    - "Make pitch smaller (30x20) to make it easier"
+  coaching_points:
+    - "Intense pressing starts IMMEDIATELY after loss"
+    - "Closest player presses ball, nearest teammate supports"
+    - "Surround the ball (triangle of pressure)"
+    - "If counter-press fails, recover defensive shape quickly"
+  addresses_problems:
+    - counter_attack_vulnerability
+    - slow_defensive_transition
+    - no_counter_press
+  source: "Spielverlagerung: Gegenpressing Drills"
+  video_reference: "https://youtube.com/results?search_query=gegenpressing+drill"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

@@ -1,0 +1,76 @@
+rule:
+  id: counter_attack_vulnerability_v1
+  category: defensive
+  subcategory: transitions
+  severity: high
+  names:
+    en: Vulnerable to Counter-Attacks
+    ar: عرضة للهجمات المرتدة
+  description:
+    en: |
+      Team frequently concedes goals or shots immediately after losing possession
+      in the attacking half, suggesting poor defensive transition (counter-press).
+    ar: |
+      الفريق يستقبل أهدافاً أو تسديدات مباشرة بعد فقدان الاستحواذ في
+      نصفه الهجومي، مما يشير إلى ضعف الانتقال الدفاعي.
+  pattern_signature:
+    type: counter_attack_conceded
+    thresholds:
+      min_matches: 3
+      min_events: 4
+      time_window_seconds: 8
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: no_counter_press
+      weight: 0.45
+      names:
+        en: No Counter-Press
+        ar: لا يوجد ضغط بعد فقدان الكرة
+      evidence_required:
+        - metric: opponent_shots_within_8s_of_loss_pct
+          threshold: ">0.20"
+        - metric: avg_distance_to_ball_after_loss
+          threshold: ">15m"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Your team isn't pressing the ball immediately after losing it. The
+          opponent has too much time to launch counters. You need Gegenpressing
+          drills focused on the first 5 seconds after losing possession.
+        ar: |
+          فريقك لا يضغط على الكرة فور فقدانها. الخصم لديه وقت كافٍ لشن
+          هجمات مرتدة. تحتاج إلى تدريبات ضغط فوري تركز على أول 5 ثوانٍ.
+      recommended_drills:
+        - counter_press_5v5
+        - gegenpressing_8v8
+    - hypothesis_id: slow_defensive_transition
+      weight: 0.3
+      names:
+        en: Slow Defensive Transition
+        ar: انتقال دفاعي بطيء
+      evidence_required:
+        - metric: avg_time_to_recover_defensive_shape
+          threshold: ">6s"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players take too long to recognize the loss and transition back
+          defensively. Need transition drills with clear triggers.
+        ar: |
+          اللاعبون يأخذون وقتاً طويلاً لإدراك فقدان الكرة والعودة
+          دفاعياً. تحتاج تدريبات انتقال ذات محفزات واضحة.
+  recommended_drills:
+    primary:
+      - drill_id: counter_press_5v5
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gegenpressing_8v8
+        duration_min: 25
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Gegenpressing - The Art of Counter-Pressing"
+    - "Coaches' Voice: Counter-Pressing in Modern Football"
+    - "Inverting the Pyramid, Ch. 14: The German Revolution"

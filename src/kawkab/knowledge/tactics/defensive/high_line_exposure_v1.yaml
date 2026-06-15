@@ -1,0 +1,81 @@
+rule:
+  id: high_defensive_line_exposure_v1
+  category: defensive
+  subcategory: defensive_line_height
+  severity: high
+  names:
+    en: High Defensive Line Exposed
+    ar: خط دفاعي مرتفع مكشوف
+  description:
+    en: |
+      Team plays with a high defensive line but is being caught out by
+      balls played in behind, suggesting lack of coordination between
+      the defensive line and the goalkeeper.
+    ar: |
+      الفريق يلعب بخط دفاعي مرتفع لكن يتم استغلاله من خلال الكرات
+      الطويلة خلف الدفاع، مما يشير إلى ضعف التنسيق بين الدفاع والحارس.
+  pattern_signature:
+    type: through_balls_behind_defense
+    zone: behind_defensive_line
+    thresholds:
+      min_matches: 3
+      min_events: 4
+      min_percentage: 0.4
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: cbs_no_coordination
+      weight: 0.4
+      names:
+        en: Center Backs Not Coordinating Line Height
+        ar: قلوب الدفاع لا ينسقون ارتفاع الخط
+      evidence_required:
+        - metric: defensive_line_height_variance
+          threshold: ">5m"
+        - metric: offside_line_breaks
+          threshold: ">3"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Your center backs are not staying level. The defensive line is
+          inconsistent. They need drills focused on line movement and
+          communication.
+        ar: |
+          قلوب الدفاع لا يحافظون على نفس المستوى. خط الدفاع غير منتظم.
+          يحتاجون تدريبات على حركة الخط والتواصل.
+      recommended_drills:
+        - defensive_line_drills
+        - coordinated_pressing_8v8
+    - hypothesis_id: gk_no_sweeper_keeper
+      weight: 0.3
+      names:
+        en: No Sweeper Keeper
+        ar: غياب حارس متقدم
+      evidence_required:
+        - metric: gk_avg_position_x
+          threshold: "<-15m"
+        - metric: goals_from_through_balls
+          threshold: ">2"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Your goalkeeper is staying on the line instead of sweeping behind
+          a high defensive line. This creates a huge gap that opponents
+          exploit.
+        ar: |
+          حارس المرمى يبقى على خط المرمى بدلا من التقدم خلف خط الدفاع
+          المرتفع. هذا يخلق فراغا كبيرا يستغله الخصم.
+  recommended_drills:
+    primary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gk_sweeping_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: How to Manage a High Defensive Line"
+    - "Spielverlagerung: Defensive Line Coordination"
+    - "Tifo Football: The Sweeper Keeper"

@@ -1,0 +1,88 @@
+rule:
+  id: fullback_isolated_defensively_v1
+  category: individual
+  subcategory: fullback_play
+  severity: medium
+  names:
+    en: Fullback Isolated Defensively
+    ar: الظهير معزول دفاعياً
+  description:
+    en: |
+      Fullbacks are frequently caught 1v1 against opposition wingers without
+      cover from midfield, leading to goals or dangerous chances.
+    ar: |
+      الظهيرون يجدون أنفسهم في مواقف 1 ضد 1 ضد الأجنحة بدون تغطية
+      من الوسطاء، مما يؤدي إلى أهداف أو فرص خطيرة.
+  pattern_signature:
+    type: fullback_isolated_1v1
+    thresholds:
+      min_matches: 3
+      min_1v1_situations_per_match: 5
+      opponent_success_rate: ">0.55"
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: no_midfielder_cover
+      weight: 0.4
+      names:
+        en: No Midfielder Cover
+        ar: لا يوجد تغطية من الوسط
+      evidence_required:
+        - metric: avg_distance_between_fb_and_midfielder
+          threshold: ">12m"
+        - metric: midfielder_interceptions_in_wide_area
+          threshold: "<2"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Your wide midfielder isn't dropping to cover the fullback. Need
+          coordinated defending drills between fullback and winger/midfielder.
+        ar: |
+          لاعب الوسط الجانبي لا ينخفض لتغطية الظهير. تحتاج تدريبات
+          على الدفاع المنسق بين الظهير والجناح/لاعب الوسط.
+    - hypothesis_id: fb_positioning_error
+      weight: 0.35
+      names:
+        en: Fullback Positioning Error
+        ar: خطأ في تمركز الظهير
+      evidence_required:
+        - metric: fb_avg_position_x_vs_defensive_line
+          threshold: ">5m ahead"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Fullback is positioning too high, leaving space in behind. Need
+          positioning drills and clear defensive line discipline.
+        ar: |
+          الظهير يتمركز في موقع متقدم جداً، تاركاً فراغاً خلفه. يحتاج
+          تدريبات على التمركز والانضباط الدفاعي.
+    - hypothesis_id: fb_pace_weakness
+      weight: 0.25
+      names:
+        en: Fullback Lacks Pace
+        ar: الظهير يفتقر للسرعة
+      evidence_required:
+        - metric: fb_max_speed_kmh
+          threshold: "<26"
+      confidence_boost: 0.2
+      coaching_notes:
+        en: |
+          Your fullback can't recover when beaten for pace. Consider
+          positional adjustments to play to their strengths.
+        ar: |
+          ظهيرك لا يستطيع التعويض عندما يُهزم بالسرعة. ضع في اعتبارك
+          تعديلات تكتيكية للاستفادة من نقاط قوته.
+  recommended_drills:
+    primary:
+      - drill_id: fullback_defending_1v1
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: coordinated_pressing_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Defending as a Fullback"
+    - "Spielverlagerung: Fullback Play in Modern Football"
+    - "Tifo Football: The Evolution of the Fullback"

@@ -1,0 +1,43 @@
+- drill_id: coordinated_pressing_8v8
+  name: 8v8 Coordinated Pressing Triggers
+  name_ar: تمرين 8 ضد 8 - الضغط المنسق
+  category: pressing
+  targets:
+    - pressing_triggers
+    - coordinated_pressing
+    - cover_shadows
+    - pressing_as_a_unit
+  duration_min: 25
+  players_required: 16
+  intensity: high
+  equipment: [balls, cones, bibs, 2 full goals]
+  space: 60x50m
+  setup: |
+    Two teams of 8+GK. The defending team works on pressing triggers.
+    When the ball goes to a specific zone (e.g., full-back), the team
+    presses as a coordinated unit.
+  rules:
+    - "Coach calls pressing trigger: 'Ball to FB!' or 'CB receives back!'"
+    - "Pressing team shifts up as a unit, cuts passing lane to target"
+    - "Pressing team wins ball = counter-attack 4v3"
+    - "If team doesn't shift together, opposition has easy pass forward"
+    - "5-minute games with trigger-focused periods"
+  progressions:
+    - "Multiple triggers in sequence (build to coordinated press)"
+    - "Add rule: pressing team must win ball in 6 seconds"
+    - "Counter-press if possession is lost"
+  regressions:
+    - "Only one trigger at a time"
+    - "Allow 10 seconds to press after trigger"
+  coaching_points:
+    - "Trigger = cue to press (specific pass, touch, position)"
+    - "Shift as a unit, not individually"
+    - "Cover shadows: nearest player presses, next player covers lane"
+    - "Don't dive in - force play to weak side"
+  addresses_problems:
+    - high_line_exposure
+    - poor_defensive_coordination
+    - fullback_isolated
+  source: "Coaches' Voice: Pressing Triggers and Cover Shadows"
+  age_groups: [u15, u17, senior]
+  skill_level: advanced

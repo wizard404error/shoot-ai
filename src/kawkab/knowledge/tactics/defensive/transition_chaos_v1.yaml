@@ -1,0 +1,87 @@
+rule:
+  id: defensive_transition_chaos_v1
+  category: defensive
+  subcategory: transitions
+  severity: high
+  names:
+    en: Defensive Transition Chaos
+    ar: فوضى في الانتقال الدفاعي
+  description:
+    en: |
+      Team loses shape and organization immediately after losing possession,
+      leading to opposition chances. Defensive transition is the moment between
+      attack and defense.
+    ar: |
+      الفريق يفقد التنظيم والشكل فور فقدان الاستحواذ، مما يؤدي إلى فرص
+      للخصم. الانتقال الدفاعي هو اللحظة بين الهجوم والدفاع.
+  pattern_signature:
+    type: poor_defensive_transition
+    thresholds:
+      min_matches: 3
+      opp_shots_within_5s_of_loss: ">2"
+      opp_chances_from_transition: ">3"
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: no_collective_press
+      weight: 0.45
+      names:
+        en: No Collective Counter-Press
+        ar: لا يوجد ضغط جماعي بعد فقدان الكرة
+      evidence_required:
+        - metric: avg_players_in_press_window
+          threshold: "<2"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          The team doesn't press collectively after losing the ball. Need
+          gegenpressing drills and clear counter-press triggers.
+        ar: |
+          الفريق لا يضغط بشكل جماعي بعد فقدان الكرة. يحتاج تدريبات على
+          الضغط المرتد ومحفزات واضحة.
+    - hypothesis_id: slow_recovery
+      weight: 0.35
+      names:
+        en: Slow Defensive Recovery
+        ar: بطء في العودة الدفاعية
+      evidence_required:
+        - metric: avg_player_speed_after_loss
+          threshold: "<5 m/s"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players jog back instead of sprinting. Need recovery run drills
+          and clear sprint-back triggers.
+        ar: |
+          اللاعبون يركضون عائدين بدلاً من العدو. يحتاجون تدريبات على
+          الجري العائد ومحفزات واضحة.
+    - hypothesis_id: no_shape_recovery
+      weight: 0.2
+      names:
+        en: No Shape Recovery
+        ar: عدم استعادة الشكل
+      evidence_required:
+        - metric: team_width_after_loss_m
+          threshold: ">50"
+      confidence_boost: 0.2
+      coaching_notes:
+        en: |
+          Team doesn't recover its defensive shape quickly. Need shape
+          recovery drills and team compactness training.
+        ar: |
+          الفريق لا يستعيد شكله الدفاعي بسرعة. يحتاج تدريبات على استعادة
+          الشكل والتكثيف.
+  recommended_drills:
+    primary:
+      - drill_id: counter_press_5v5
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: recovery_run_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Spielverlagerung: Defensive Transitions"
+    - "Tifo Football: Counter-Pressing"
+    - "Coaches' Voice: Transition Drills"

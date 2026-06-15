@@ -1,0 +1,62 @@
+rule:
+  id: no_offside_pressure_v1
+  category: defensive
+  subcategory: pressing
+  severity: medium
+  names:
+    en: No Offside Pressure
+    ar: لا يوجد ضغط على التسلل
+  description:
+    en: |
+      Team doesn't actively push up to play opponents offside, allowing
+      them to receive the ball comfortably in advanced positions.
+    ar: |
+      الفريق لا يدفع بنشاط للأعلى للعب على تسلل الخصم، مما يسمح لهم
+      باستقبال الكرة بشكل مريح في مراكز متقدمة.
+  pattern_signature:
+    type: low_offside_pressure
+    thresholds:
+      min_matches: 3
+      offsides_won_per_match: "<1"
+    required_confidence: 0.5
+  hypotheses:
+    - hypothesis_id: defensive_line_too_deep
+      weight: 0.4
+      names:
+        en: Defensive Line Too Deep
+        ar: خط الدفاع عميق جداً
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The defensive line is sitting too deep to play the offside trap.
+          Need confidence and timing drills.
+        ar: |
+          خط الدفاع يجلس عميقاً جداً للعب مصيدة التسلل. يحتاج تدريبات
+          على الثقة والتوقيت.
+    - hypothesis_id: no_gk_sweeper
+      weight: 0.35
+      names:
+        en: No Sweeping Goalkeeper
+        ar: لا يوجد حارس متقدم
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Without a GK who sweeps, the team can't play a high line. Need
+          specific GK sweeping drills.
+        ar: |
+          بدون حارس متقدم، لا يمكن للفريق اللعب بخط دفاعي مرتفع. يحتاج
+          تدريبات خاصة على الحارس المتقدم.
+  recommended_drills:
+    primary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gk_sweeping_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "UEFA Pro License: High Defensive Line"
+    - "Coaches' Voice: Playing the Offside Trap"

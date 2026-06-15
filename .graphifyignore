@@ -1,0 +1,14 @@
+# Ignore everything not source code for fast code-only graph
+*
+# Whitelist only source code
+!src/
+!src/**
+!tests/
+!tests/**
+
+# Allow these markdown files if we want to process them with LLM later
+# (comment out to skip)
+# !README.md
+# !PLAN.md
+# !AGENTS.md
+# !docs/

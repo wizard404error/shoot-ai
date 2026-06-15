@@ -1,0 +1,40 @@
+- drill_id: rondo_3v1
+  name: 3v1 Rondo (Triangle Rondo)
+  name_ar: روندو 3 ضد 1
+  category: possession
+  targets:
+    - quick_passing
+    - scanning
+    - close_control
+  duration_min: 10
+  players_required: 4
+  intensity: medium
+  equipment: [balls, cones, bibs]
+  space: 5x5m
+  setup: |
+    Three attackers form a triangle in a 5x5m grid. One defender in
+    the middle. The attackers try to keep possession; the defender
+    tries to win the ball.
+  rules:
+    - "Two-touch limit for attackers"
+    - "Defender can move freely in the middle"
+    - "5 consecutive passes = 1 point for attackers"
+    - "If defender wins ball, swap roles"
+  progressions:
+    - "Reduce space to 4x4m"
+    - "Add two neutral players who play with attackers"
+    - "Limit attackers to 1-touch"
+  regressions:
+    - "Remove touch limit"
+    - "Add a second defender (2v2)"
+  coaching_points:
+    - "Watch the defender's shoulders, not the ball"
+    - "Constant body feints and scanning"
+    - "Quick transitions when winning the ball"
+  addresses_problems:
+    - possession_loss_under_press
+    - cb_passing_under_pressure
+    - slow_decision_making
+  source: "UEFA A License Manual"
+  age_groups: [u11, u13, u15, u17, senior]
+  skill_level: beginner

@@ -1,0 +1,78 @@
+rule:
+  id: midfield_creativity_deficit_v1
+  category: offensive
+  subcategory: chance_creation
+  severity: medium
+  names:
+    en: Midfield Creativity Deficit
+    ar: نقص الإبداع في خط الوسط
+  description:
+    en: |
+      Team's midfield lacks creative moments — through balls, line-breaking
+      passes, key passes, and dribbles that create chances.
+    ar: |
+      خط وسط الفريق يفتقر للحظات الإبداعية — التمريرات الحاسمة، الكرات
+      بين الخطوط، المراوغات التي تخلق الفرص.
+  pattern_signature:
+    type: low_creative_actions
+    thresholds:
+      min_matches: 3
+      key_passes_per_match: "<3"
+      through_balls_per_match: "<1"
+      successful_dribbles_in_final_third: "<5"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: no_creative_player
+      weight: 0.35
+      names:
+        en: No Creative Player in Middle
+        ar: لا يوجد لاعب مبدع في الوسط
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          No player is taking responsibility for creating. Consider tactical
+          adjustments to give a player more freedom (10-role, free 8).
+        ar: |
+          لا يوجد لاعب يتحمل مسؤولية الإبداع. ضع في اعتبارك تعديلات
+          تكتيكية لمنح لاعب حرية أكبر (رقم 10، الوسط الحر).
+    - hypothesis_id: safe_playing_culture
+      weight: 0.35
+      names:
+        en: Safe-Playing Culture
+        ar: ثقافة اللعب الآمن
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are playing it too safe. Encourage risk-taking in training
+          and reward creative actions.
+        ar: |
+          اللاعبون يلعبون بشكل آمن جداً. شجع المخاطرة في التدريب
+          وكافئ الحركات الإبداعية.
+    - hypothesis_id: no_pockets_of_space
+      weight: 0.3
+      names:
+        en: No Pockets of Space to Receive
+        ar: لا توجد فراغات لاستقبال الكرة
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Midfielders aren't finding space to receive. Need movement
+          drills and understanding of half-spaces.
+        ar: |
+          لاعبو الوسط لا يجدون فراغات لاستقبال الكرة. يحتاجون تدريبات
+          على الحركة وفهم المساحات النصفية.
+  recommended_drills:
+    primary:
+      - drill_id: creativity_drills_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: half_space_movement
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Chance Creation in Modern Football"
+    - "Tifo Football: The Creative Midfielder"
+    - "Coaches' Voice: Building Creativity"

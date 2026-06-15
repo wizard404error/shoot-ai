@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kawkab AI - Football Coach</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div id="app">
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">⚽ Kawkab AI</h1>
+                <span class="app-subtitle">Football Coach</span>
+            </div>
+            <div class="header-right">
+                <select id="language-selector" class="lang-select">
+                    <option value="en">English</option>
+                    <option value="ar">العربية</option>
+                </select>
+                <span id="llm-status" class="llm-status">🔴 LLM: Checking...</span>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <section id="upload-section" class="section">
+                <h2>📹 Upload Match Video</h2>
+                <div id="drop-zone" class="drop-zone">
+                    <p>Drag & drop your match video here</p>
+                    <p>or</p>
+                    <button id="browse-btn" class="btn btn-primary">Browse Files</button>
+                    <p class="hint">Supports MP4, MOV, AVI (up to 4GB)</p>
+                </div>
+                <input type="file" id="file-input" accept="video/*" hidden>
+            </section>
+
+            <section id="analysis-section" class="section hidden">
+                <h2>⚙️ Analysis</h2>
+                <div class="analysis-controls">
+                    <input type="text" id="match-name" placeholder="Match name (e.g., Team A vs Team B)" class="input">
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="enable-stabilization" checked> Stabilize video</label>
+                        <label><input type="checkbox" id="enable-denoising" checked> Reduce noise</label>
+                        <label><input type="checkbox" id="enable-sharpening" checked> Sharpen</label>
+                    </div>
+                    <button id="analyze-btn" class="btn btn-primary btn-large">🚀 Analyze Match</button>
+                </div>
+                <div id="progress-container" class="progress-container hidden">
+                    <div id="progress-bar" class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-message" class="progress-message">Initializing...</p>
+                </div>
+            </section>
+
+            <section id="results-section" class="section hidden">
+                <h2>📊 Analysis Results</h2>
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>Match Summary</h3>
+                        <div id="match-summary" class="match-summary"></div>
+                    </div>
+                    <div class="result-card">
+                        <h3>Possession</h3>
+                        <div id="possession-chart" class="chart"></div>
+                    </div>
+                    <div class="result-card">
+                        <h3>Home Team Stats</h3>
+                        <div id="home-stats" class="stats-list"></div>
+                    </div>
+                    <div class="result-card">
+                        <h3>Away Team Stats</h3>
+                        <div id="away-stats" class="stats-list"></div>
+                    </div>
+                </div>
+
+                <div class="confidence-indicator">
+                    <span>Overall Confidence: </span>
+                    <span id="confidence-value" class="confidence-value"></span>
+                    <div id="confidence-bar" class="confidence-bar"></div>
+                </div>
+
+                <div class="actions">
+                    <button id="generate-report-btn" class="btn btn-primary">🤖 Generate Coach Report</button>
+                    <button id="export-pdf-btn" class="btn btn-secondary">📄 Export PDF</button>
+                </div>
+            </section>
+
+            <section id="report-section" class="section hidden">
+                <h2>🤖 Coach Report</h2>
+                <div id="report-content" class="report-content"></div>
+            </section>
+
+            <section id="history-section" class="section">
+                <h2>📚 Match History</h2>
+                <div id="match-list" class="match-list"></div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>Kawkab AI v0.1.0 - 100% Private & Offline</p>
+            <p id="kb-stats">Knowledge Base: Loading...</p>
+        </footer>
+    </div>
+
+    <script src="js/qwebchannel.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

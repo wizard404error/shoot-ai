@@ -1,0 +1,42 @@
+- drill_id: striker_link_up_play
+  name: Striker Link-Up Play (Target Man)
+  name_ar: تمرين ربط اللعب مع المهاجم
+  category: attacking_patterns
+  targets:
+    - link_up_play
+    - hold_up_play
+    - wall_passes
+    - striker_movement
+  duration_min: 20
+  players_required: 8
+  intensity: medium
+  equipment: [balls, cones, bibs, 2 small goals]
+  space: 30x20m
+  setup: |
+    1 striker, 4 midfielders, 3 defenders (or 2v4 setup). Striker
+    plays with back to goal, midfielders try to play off the striker.
+  rules:
+    - "Striker must receive with back to goal, hold for 2 seconds"
+    - "Striker lays off to supporting midfielder"
+    - "Midfielder returns ball to striker who has spun/checked"
+    - "After 3 successful combinations, can attack goal"
+    - "Defenders try to win the ball"
+  progressions:
+    - "Add second striker (2 strikers rotating)"
+    - "Defenders can press the moment striker receives"
+    - "Limit striker to 2 touches (must release quickly)"
+  regressions:
+    - "Allow striker to receive facing goal"
+    - "No defenders (free play, just focus on technique)"
+  coaching_points:
+    - "Striker: check shoulders before receiving, attack the ball"
+    - "Quality of lay-off matters: firm, accurate, to feet"
+    - "Striker should make a different run after laying off"
+    - "Midfielders: arrive late at pace, don't ball-watch"
+  addresses_problems:
+    - striker_isolated
+    - no_link_up_play
+    - poor_final_third_entries
+  source: "Coaches' Voice: Link-Up Play Patterns"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

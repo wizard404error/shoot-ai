@@ -1,0 +1,76 @@
+rule:
+  id: central_defender_poor_positioning_v1
+  category: individual
+  subcategory: center_back_play
+  severity: high
+  names:
+    en: Center Back Poor Positioning
+    ar: سوء تمركز قلب الدفاع
+  description:
+    en: |
+      Center backs are frequently out of position, leaving space in behind
+      for opposition attackers to exploit.
+    ar: |
+      قلوب الدفاع غالباً ما يكونون خارج مركزهم، تاركين فراغاً خلفهم
+      يستغله مهاجمو الخصم.
+  pattern_signature:
+    type: cb_positioning_error
+    thresholds:
+      min_matches: 3
+      cb_offside_trapped: ">2"
+      cb_beaten_in_behind: ">3"
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: stepping_when_should_hold
+      weight: 0.4
+      names:
+        en: Steps Up When Should Hold Line
+        ar: يتقدم للأعلى بدلاً من تثبيت الخط
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          CB is stepping up aggressively and getting beaten by runners
+          in behind. Need positioning discipline and read-the-game drills.
+        ar: |
+          قلب الدفاع يتقدم بعدوانية ويُهزم من قبل مهاجمين خلفه. يحتاج
+          تدريب على الانضباط التكتيكي وقراءة اللعب.
+    - hypothesis_id: poor_communication
+      weight: 0.3
+      names:
+        en: Poor CB Communication
+        ar: ضعف التواصل بين قلبي الدفاع
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          CBs aren't communicating who steps and who holds. Need
+          communication and partnership drills.
+        ar: |
+          قلوب الدفاع لا يتواصلون حول من يتقدم ومن يثبت. يحتاجون
+          تدريبات على التواصل والشراكة.
+    - hypothesis_id: ball_watching
+      weight: 0.3
+      names:
+        en: Ball-Watching Instead of Scanning
+        ar: مشاهدة الكرة بدلاً من المسح
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          CBs are watching the ball instead of scanning for runners. Need
+          scanning drills and awareness training.
+        ar: |
+          قلوب الدفاع يراقبون الكرة بدلاً من مسح الأرض بحثاً عن مهاجمين.
+          يحتاجون تدريبات على المسح والوعي.
+  recommended_drills:
+    primary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: cb_partnership_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "UEFA Pro License: Center Back Play"
+    - "Coaches' Voice: Defending as a Center Back"

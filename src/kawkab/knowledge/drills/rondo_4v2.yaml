@@ -1,0 +1,51 @@
+- drill_id: rondo_4v2
+  name: 4v2 Rondo
+  name_ar: روندو 4 ضد 2
+  category: possession
+  targets:
+    - passing_under_pressure
+    - quick_decision_making
+    - scanning
+    - first_touch
+  duration_min: 15
+  players_required: 6
+  intensity: medium
+  equipment:
+    - balls
+    - cones
+    - bibs
+  space: 8x8m
+  setup: |
+    4 attackers in an 8x8m grid, 2 defenders in the middle.
+    Attackers must keep possession, defenders try to win the ball.
+
+  rules:
+    - Max 2 touches per player
+    - Defenders win ball = swap with attacker who lost it
+    - 3 consecutive passes = 1 point
+
+  progressions:
+    - level_1: Static positions, 2-touch limit
+    - level_2: Add neutral joker, 1-touch in middle
+    - level_3: Add 2 mini-goals, transition to attack
+
+  regressions:
+    - level_-1: Remove touch limit
+    - level_-2: 6v2 (easier for attackers)
+
+  coaching_points:
+    - Reward quick scanning before receiving
+    - Praise first touch away from pressure
+    - Encourage body shape to see the field
+    - Watch for players ball-watching
+
+  addresses_problems:
+    - possession_loss_under_press
+    - slow_decision_making
+    - poor_scanning
+    - passing_accuracy_under_pressure
+
+  source: "UEFA Pro License Manual, p.47"
+  video_reference: "https://youtube.com/watch?v=example"
+  age_groups: [u11, u13, u15, u17, senior]
+  skill_level: intermediate

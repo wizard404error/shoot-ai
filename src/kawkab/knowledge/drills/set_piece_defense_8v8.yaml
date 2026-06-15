@@ -1,0 +1,42 @@
+- drill_id: set_piece_defense_8v8
+  name: 8v8 Set Piece Defensive Organization
+  name_ar: تمرين 8 ضد 8 - تنظيم الدفاع عن الكرات الثابتة
+  category: set_pieces
+  targets:
+    - zonal_marking
+    - man_marking
+    - gk_command
+    - second_ball_coverage
+  duration_min: 15
+  players_required: 16
+  intensity: medium
+  equipment: [balls, cones, 1 full goal]
+  space: Full pitch half
+  setup: |
+    Defending team (8) sets up to defend a corner kick vs 8 attackers.
+    Practice both zonal and man-marking systems. GK commands the box.
+  rules:
+    - "Defending team in zonal or man-marking (coach's choice)"
+    - "1 defender on the post (covering short side)"
+    - "GK must call for the ball or organize the wall"
+    - "Score: 1 point for each goal conceded, 0 for clean defense"
+    - "Rotate roles every 5 corners"
+  progressions:
+    - "Add runner from deep (edge of box)"
+    - "Mix corner routines (inswinging, outswinging, short)"
+    - "Reduce marking (only 6 defenders vs 8 attackers)"
+  regressions:
+    - "Allow 2 players on each post"
+    - "Use just zonal (no man-marking element)"
+  coaching_points:
+    - "GK: 'Mine!' or 'Away!' - clear communication"
+    - "Front post: head it back across (away from goal)"
+    - "Center of box: jump to attack the ball, don't ball-watch"
+    - "Edge of box: pick up second balls and clear"
+  addresses_problems:
+    - set_piece_defensive_weakness
+    - poor_marking
+    - poor_gk_positioning
+  source: "Coaches' Voice: Defending Set Pieces"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate
