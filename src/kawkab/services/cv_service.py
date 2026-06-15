@@ -73,6 +73,7 @@ class CVService:
         min_bbox_area_ratio: float = 0.002,
         max_bbox_area_ratio: float = 0.15,
         expected_player_count: int = 22,
+        max_keep_top_n: int = 28,
     ) -> None:
         self.model_size = model_size
         self.confidence_threshold = confidence_threshold
@@ -82,13 +83,15 @@ class CVService:
         self.min_bbox_area = min_bbox_area_ratio
         self.max_bbox_area = max_bbox_area_ratio
         self.expected_player_count = expected_player_count
+        self.max_keep_top_n = max_keep_top_n
         self._model: Any = None
         self._initialized = False
 
         logger.info(
             f"CVService v2: model=yolo11{model_size}, "
             f"conf={confidence_threshold}, iou={iou_threshold}, gpu={gpu_enabled}, "
-            f"min_track_life={min_track_lifetime_frames}"
+            f"min_track_life={min_track_lifetime_frames}, "
+            f"max_keep={max_keep_top_n or 'unlimited'}"
         )
 
     async def initialize(self) -> None:
@@ -152,6 +155,8 @@ class CVService:
         h, w = frame.shape[:2]
         frame_area = w * h
 
+        pitch_mask = self._compute_pitch_mask(frame)
+
         if results and len(results) > 0:
             result = results[0]
             boxes = result.boxes
@@ -174,6 +179,13 @@ class CVService:
                         area_ratio < self.min_bbox_area or area_ratio > self.max_bbox_area
                     ):
                         continue
+
+                    if cls_name == "person" and pitch_mask is not None:
+                        foot_x = int((bbox[0] + bbox[2]) / 2)
+                        foot_y = int(min(bbox[3] + 5, h - 1))
+                        if 0 <= foot_y < h and 0 <= foot_x < w:
+                            if not pitch_mask[foot_y, foot_x]:
+                                continue
 
                     detections.append(
                         Detection(
@@ -279,6 +291,17 @@ class CVService:
                 continue
             valid_player_tracks.add(tid)
 
+        if self.max_keep_top_n and len(valid_player_tracks) > self.max_keep_top_n:
+            top_by_lifetime = sorted(
+                valid_player_tracks,
+                key=lambda tid: track_appearances[tid],
+                reverse=True,
+            )
+            valid_player_tracks = set(top_by_lifetime[:self.max_keep_top_n])
+            logger.info(
+                f"Truncated to top {self.max_keep_top_n} tracks by lifetime"
+            )
+
         track_registry: dict[int, dict[str, Any]] = {}
         for tid in valid_player_tracks:
             track_registry[tid] = {
@@ -292,12 +315,14 @@ class CVService:
             }
 
         fragmentation_rate = raw_tracks / max(1, len(valid_player_tracks))
-        quality = self._assess_tracking_quality(fragmentation_rate)
+
+        count_ratio = len(valid_player_tracks) / max(1, self.expected_player_count)
+        quality = self._assess_tracking_quality(fragmentation_rate, count_ratio)
 
         logger.info(
             f"After filtering: {len(valid_player_tracks)} validated player tracks "
             f"(raw: {raw_tracks}, fragmentation: {fragmentation_rate:.2f}x, "
-            f"quality: {quality})"
+            f"count ratio: {count_ratio:.2f}x, quality: {quality})"
         )
 
         return MatchTrackData(
@@ -317,15 +342,44 @@ class CVService:
             },
         )
 
-    def _assess_tracking_quality(self, fragmentation_rate: float) -> str:
-        """Assess tracking quality based on fragmentation rate."""
-        if fragmentation_rate <= 1.5:
+    def _compute_pitch_mask(self, frame):
+        """Compute binary mask of pitch (green) area using HSV color.
+
+        Returns boolean array where True = pitch, False = sideline/crowd.
+        Used to filter detections of refs/spectators on the sidelines.
+        """
+        try:
+            import cv2
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            lower_green = np.array([25, 40, 40])
+            upper_green = np.array([90, 255, 255])
+            mask = cv2.inRange(hsv, lower_green, upper_green)
+            kernel = np.ones((15, 15), np.uint8)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            contours, _ = cv2.findContours(
+                mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+            if not contours:
+                return None
+            largest = max(contours, key=cv2.contourArea)
+            filled = np.zeros_like(mask)
+            cv2.drawContours(filled, [largest], -1, 255, -1)
+            return filled > 0
+        except Exception:
+            return None
+
+    def _assess_tracking_quality(
+        self, fragmentation_rate: float, count_ratio: float = 1.0
+    ) -> str:
+        """Assess tracking quality based on count ratio (closer to 1.0 = better)."""
+        if 0.8 <= count_ratio <= 1.3:
             return "excellent"
-        elif fragmentation_rate <= 2.0:
+        elif count_ratio <= 1.5:
             return "good"
-        elif fragmentation_rate <= 3.0:
+        elif count_ratio <= 2.0:
             return "fair"
-        elif fragmentation_rate <= 5.0:
+        elif count_ratio <= 3.0:
             return "poor"
         else:
             return "very_poor"

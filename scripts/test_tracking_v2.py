@@ -22,17 +22,16 @@ async def main() -> int:
     raw = metrics["raw_tracks_detected"]
     valid = metrics["validated_player_tracks"]
     expected = metrics["expected_player_count"]
-    frag = metrics["fragmentation_rate"]
+    count_ratio = metrics.get("count_ratio_vs_expected", 1.0)
     quality = metrics["tracking_quality"]
     print(f"  Raw tracks (before filtering): {raw}")
     print(f"  Validated player tracks:      {valid}")
-    print(f"  Fragmentation rate:           {frag}x")
+    print(f"  Count ratio vs expected:      {count_ratio}x")
     print(f"  Tracking quality:              {quality}")
     print(f"  Expected (real match):         {expected} players")
     print()
     if valid > 0:
-        ratio = valid / expected
-        print(f"  Detection vs Expected: {valid} / {expected} = {ratio:.2f}x")
+        print(f"  Detection vs Expected: {valid} / {expected} = {count_ratio:.2f}x")
     print()
     print("Top 10 longest-lived tracks:")
     sorted_tracks = sorted(
