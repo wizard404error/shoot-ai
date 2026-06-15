@@ -36,6 +36,35 @@ class LLMProvider(ABC):
         """Check if this provider is available/ready."""
         ...
 
+    def build_match_context(
+        self,
+        track_data_duration: float,
+        is_clip: bool = False,
+        final_score: str | None = None,
+        goals: list[dict] | None = None,
+        cards: list[dict] | None = None,
+    ) -> dict:
+        """Build context dict for LLM report generation.
+
+        Args:
+            track_data_duration: How many seconds of video we analyzed
+            is_clip: True if this is a highlight clip, not full match
+            final_score: If known, the final score (e.g., "2-1")
+            goals: List of detected goals [{time, scorer, team}]
+            cards: List of cards [{time, player, type, team}]
+
+        Returns:
+            Context dict for generate_coach_report()
+        """
+        return {
+            "duration_seconds": track_data_duration,
+            "is_clip": is_clip,
+            "full_match_threshold_sec": 1500,
+            "final_score": final_score,
+            "goals": goals or [],
+            "cards": cards or [],
+        }
+
     @abstractmethod
     async def generate(self, prompt: str, system: str | None = None) -> str:
         """Generate a response from the LLM.
@@ -212,6 +241,24 @@ class GoogleProvider(LLMProvider):
 class LLMService:
     """Multi-provider LLM service with automatic fallback."""
 
+    def build_match_context(
+        self,
+        track_data_duration: float,
+        is_clip: bool = False,
+        final_score: str | None = None,
+        goals: list[dict] | None = None,
+        cards: list[dict] | None = None,
+    ) -> dict:
+        """Build context dict for LLM report generation."""
+        return {
+            "duration_seconds": track_data_duration,
+            "is_clip": is_clip,
+            "full_match_threshold_sec": 1500,
+            "final_score": final_score,
+            "goals": goals or [],
+            "cards": cards or [],
+        }
+
     def __init__(self, config: LLMConfig) -> None:
         self.config = config
         self.providers: list[LLMProvider] = []
@@ -274,40 +321,83 @@ class LLMService:
         self,
         match_analysis_summary: str,
         language: str = "en",
+        match_context: dict | None = None,
     ) -> str:
         """Generate a friendly coach report from match analysis.
 
         Args:
             match_analysis_summary: Summary of the match analysis
             language: "en" or "ar" for English/Arabic
-
-        Returns:
-            Coach-friendly report text
+            match_context: Optional context dict with:
+                - duration_seconds: actual match duration
+                - is_clip: True if this is a clip, not a full match
+                - final_score: known score (if available)
+                - cards: list of cards (if detected)
+                - goals: list of goals (if detected)
         """
+        match_context = match_context or {}
+        is_clip = match_context.get("is_clip", False)
+        duration = match_context.get("duration_seconds", 0)
+
         if language == "ar":
             system = """أنت مساعد مدرب كرة قدم. تساعد المدربين الهاويين على فهم بيانات مبارياتهم.
-القواعد:
+
+قواعد صارمة:
 1. استشهد بطوابع زمنية للفيديو لكل ادعاء.
 2. إذا لم تكن تملك بيانات لشيء معين، قل "لا أعرف" - لا تخترع أبداً.
 3. استخدم لغة بسيطة، كأنك تتحدث مع صديق مدرب.
 4. تكلم بالعربية بشكل طبيعي.
 5. لا تدّعي يقيناً ليس لديك. استخدم "يبدو أن"، "نعتقد".
-6. الهيكل: ملخص → النتائج الرئيسية (مع مقاطع فيديو) → التوصيات → ما لا نعرفه."""
+6. الهيكل: ملخص → النتائج الرئيسية (مع مقاطع فيديو) → التوصيات → ما لا نعرفه.
+
+قواعد حرجة (مهم جداً):
+7. إذا كانت البيانات من مقطع قصير (أقل من 10 دقائق)، اذكر ذلك بوضوح في أول سطر.
+8. لا تخمن نتيجة المباراة. إذا لم يكن لديك بيانات النتيجة، قل "النتيجة غير معروفة من البيانات".
+9. لا تقل إن فريق "هيمن" أو "سيطر" بناءً على مقطع قصير. قصص المباريات تتغير.
+10. إذا كانت البيانات غير كافية لاستنتاج تكتيكي، قل "أحتاج لمزيد من البيانات".
+
+تذكر: مهمتك هي مساعدة المدرب، ليس إقناعه بشيء قد يكون خاطئاً."""
         else:
             system = """You are a friendly football coach assistant. You help amateur coaches understand their match data.
-RULES:
+
+STRICT RULES:
 1. Cite video timestamps for EVERY claim.
 2. If you don't have data for something, say "I don't know" — never invent.
 3. Use simple language, like talking to a friend coach.
 4. Speak the coach's selected language naturally.
 5. Never claim certainty you don't have. Use "it looks like", "we believe".
-6. Structure: TL;DR → Key findings (with clips) → Recommendations → What we don't know."""
+6. Structure: TL;DR → Key findings (with clips) → Recommendations → What we don't know.
+
+CRITICAL RULES (very important):
+7. If the data is from a SHORT CLIP (under 10 minutes), state this clearly in the first line.
+8. NEVER guess the match result. If the score is not in the data, say "Result unknown from data".
+9. NEVER claim a team "dominated" or "controlled" based on a short clip. Matches change over 90 minutes.
+10. If data is insufficient for a tactical conclusion, say "I need more data".
+
+Remember: your job is to help the coach, not to convince them of something that might be wrong."""
+
+        clip_warning = ""
+        if is_clip:
+            clip_warning = (
+                f"\n\nIMPORTANT CONTEXT: This analysis is from a {duration:.0f}-second CLIP, not a full match. "
+                "Match outcomes, dominance, and momentum can completely change over 90 minutes. "
+                "Do NOT make claims about who won, who dominated, or final state. "
+                "Frame all observations as 'in this clip' or 'from this segment'."
+            )
+        elif duration < 600:
+            clip_warning = (
+                f"\n\nCONTEXT: This is from a short match ({duration:.0f}s). "
+                "Frame observations as 'in this match' rather than generalizing."
+            )
 
         prompt = f"""Match Analysis Data:
 {match_analysis_summary}
+{clip_warning}
 
 Please generate a coach-friendly report following the structure above.
 Focus on the most important 3-5 findings and 3-5 actionable recommendations.
+REMEMBER: If the data is from a short clip, you cannot make claims about
+match outcomes or who dominated. Be specific about what the data shows.
 """
 
         return await self.generate(prompt, system)
