@@ -2,18 +2,20 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> ⚠️ **Honest status (v0.3.1):** Foundation implemented but **not validated on real amateur footage**.
-> See [STATUS.md](STATUS.md) for what's actually working vs what's aspirational.
+> ✅ **v0.4.0 status:** Homography integrated, real meters for distance/formations.
+> ⚠️ **Tracking still "fair"** (91 tracks for 22 players). See [STATUS.md](STATUS.md).
 
 ---
 
-## What It Does (When Working)
+## What It Does (v0.4.0)
 
-- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT (state-of-the-art CV)
-- **Computes statistics**: possession %, passes, distance, player speeds
+- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT with smart filters
+- **Team color clustering** auto-assigns home/away (no manual labels)
+- **Camera calibration (homography)** — coach clicks 4 pitch corners, stats become real meters
+- **Computes statistics in meters**: possession %, passes, distance, player speeds, xG, xT
+- **Detects formations**: 4-3-3, 4-4-2, 4-2-3-1, 3-5-2, etc.
 - **Generates coach-friendly reports** in English or Arabic using a local LLM
 - **Identifies tactical patterns** via a knowledge base of 22 rules + 19 drills
-- **Recommends training drills** based on detected issues
 - **Generates 4-week training plans** with progressive overload
 
 ---
@@ -87,12 +89,23 @@ ollama pull ministral-3:14b
 # Verify everything is set up
 uv run python scripts/verify_system.py
 
-# Process a sample match (download one first if you don't have one)
+# Test improved tracking (v0.4.0)
 uv run python scripts/test_tracking_v2.py --video path/to/match.mp4
+
+# Test homography integration (v0.4.0)
+uv run python scripts/test_homography.py
 
 # Launch the desktop app
 uv run python -m kawkab
 ```
+
+### v0.4.0 Workflow
+
+1. Drop a match video in the app
+2. Click "Analyze" — YOLO tracks players, K-means assigns teams by color
+3. Click 4 pitch corners — calibration saved as homography matrix
+4. Re-analyze with homography — distance/formations now in real meters
+5. Generate coach report — LLM produces tactical narrative with evidence
 
 ---
 

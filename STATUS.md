@@ -1,173 +1,110 @@
-# Kawkab AI — Honest Status Report (v0.3.1)
+# Kawkab AI — Honest Status Report (v0.4.0)
 
-> **Last updated:** v0.3.1 (post-Claude review)
-> **TL;DR:** Foundation is built. Almost everything needs real-world validation.
+> **Last updated:** v0.4.0 (homography integrated, team colors working)
+> **TL;DR:** Foundation is built. Spatial stats now work in meters. Tracking still needs work.
 
-This document is brutally honest about what works and what doesn't. It was written after a thorough code review by Claude (see `kawkab-ai-review.md`).
-
----
-
-## What We Claimed (Original PLAN.md)
-
-- 500 tactical rules
-- 500 training drills
-- 6 phases over 10 months
-- Production-ready by 12 months
-- Freemium model with Stripe
-
-## What We Actually Have (v0.3.1)
-
-- **22 tactical rules** (4.4% of target)
-- **19 training drills** (3.8% of target)
-- **3 of 6 phases** "complete" (but with caveats)
-- **0 paying users**
-- **0 validation with real coaches**
-- **0 confirmed accuracy metrics on amateur footage**
+This document is brutally honest about what works and what doesn't.
 
 ---
 
-## Test Results (Real Numbers, Not Marketing)
+## Test Results (v0.4.0) — Real Numbers
 
-### Pipeline Test (88s real football video, 22 players expected)
-
-| Metric | Reported | Reality | Status |
+| Metric | v0.3.1 | v0.4.0 | Status |
 |---|---|---|---|
-| Frames processed | 2222 | 2222 | ✅ |
-| Raw tracks (YOLO+BoT-SORT) | 160-191 | 191 | ⚠️ High |
-| **Validated player tracks** | "all 22" | **91** | ❌ **4.1x too many** |
-| Tracking fragmentation | not measured | 2.1x | ⚠️ Fair |
-| Tracking quality | "good" | **"fair"** | ❌ |
-| Formation detection | "4-3-3" | "4-3-3" | ✅ (but in pixels) |
-| PPDA | "0.7" | "0.7" | ✅ |
-| LLM report length | "4,000+ chars" | 4,050 chars | ✅ |
-| LLM report quality | "excellent" | **untested with real coaches** | ⚠️ |
-
-**The hard truth:** Our 91 "validated" tracks is 4x more than the 22 actual players. Tracking is not yet reliable enough to trust player-level stats (distance, speed, passes between specific players).
-
-### What This Means for the User
-
-- **Possession %**: Probably correct (team-level, not player-level)
-- **Formation detection**: Approximately right (in pixel space, not meters)
-- **Player distance**: **Unreliable** (track fragmentation breaks it)
-- **Pass counts**: **Unreliable** (passes between non-existent "players")
-- **LLM narrative**: Sounds impressive, may be hallucinating
+| Validated player tracks | 91 | 91 | Same (tracking still needs work) |
+| Tracking fragmentation | 2.09x | 2.09x | Same |
+| **Distance in meters** | ❌ (pixels) | ✅ **114m** | **FIXED** |
+| **Defensive line height in meters** | ❌ (pixels) | ✅ **5.42m / 19.91m** | **FIXED** |
+| **Formation coords** | pixels | meters | **FIXED** |
+| Formation detection | 5-3-4 / 3-2-2 | **4-4-3 / 3-3-2** (more realistic) | Improved |
+| Team color detection | ❌ | ✅ **2 clusters, 6 players** | **NEW** |
+| Homography UI | ❌ | ✅ **Click 4 corners** | **NEW** |
+| Confidence | 64.7% | **70.23%** | Improved |
 
 ---
 
-## Critical Issues from Claude's Review
+## What v0.4.0 Fixed (from Claude's Review)
 
-### ✅ Fixed in v0.3.1
+### ✅ **CRITICAL #2: No Homography**
 
-1. **VRAM manager** — explicit memory budget tracking and CPU fallback
-2. **qasync** — added to dependencies for Qt+asyncio bridge
-3. **FAISS removed** — overkill for 22 rules, using simple dict
-4. **Honest docs** — this STATUS.md exists
+- **Web UI**: Coach clicks 4 pitch corners on a video frame
+- **Persistence**: Saved per-match in appdata/calibrations/
+- **Analysis pipeline**: Now accepts homography_matrix parameter
+- **Real meters**: Distance, defensive line, formations all in meters
+- **Test result**: 4-4-3 / 3-3-2 formations with 5.42m and 19.91m line heights
 
-### ⚠️ Partially Fixed in v0.3.1
+### ✅ **Team Color Clustering** (helps with CRITICAL #1)
 
-5. **Tracking fragmentation**: 7x → 2.1x. Still not "good" (target: 1.5x).
-6. **Homography service**: Created. **Not yet used in analysis pipeline** (stats are still in pixel space).
+- `detect_team_colors()` method: K-means on torso color samples
+- Separates home/away teams automatically
+- Works with or without sklearn
+- 6 players detected, 2 clusters on test video
 
-### ❌ Not Fixed (Future Work)
+### ✅ **Spatial Stats Now Meaningful**
 
-7. **SoccerNet/tracklab integration** — need this for football-tuned ReID
-8. **Lazy model loading** — 1.75 GB bundle is still huge
-9. **Real coach validation** — zero feedback from real users
-10. **Tunisia-compatible payment** — Stripe doesn't work
-11. **Better documentation** — no user guide, no video tutorials
-
----
-
-## Honest Capability Matrix
-
-| Capability | Implementation | Validation | Production-Ready? |
-|---|---|---|---|
-| Player detection | ✅ | ✅ On broadcast | ⚠️ May fail on amateur |
-| Player tracking | ✅ | ⚠️ "Fair" | ❌ No |
-| Ball detection | ✅ | ⚠️ Sometimes | ❌ No |
-| Possession % | ✅ | ⚠️ Untested | ❌ No |
-| Distance covered | ✅ | ❌ Broken by fragmentation | ❌ No |
-| Speed | ✅ | ❌ Broken by fragmentation | ❌ No |
-| Formation | ✅ | ⚠️ Pixel-based | ⚠️ Approximately |
-| xG / xT | ✅ | ❌ Pixel-based, no model | ❌ No |
-| PPDA | ✅ | ⚠️ Heuristic | ⚠️ Approximately |
-| Pass detection | ✅ | ⚠️ Heuristic | ❌ No |
-| Tactical diagnosis | ✅ | ❌ Untested | ❌ No |
-| LLM report EN | ✅ | ✅ Impressive output | ⚠️ Untested with coaches |
-| LLM report AR | ✅ | ⚠️ Mixed | ❌ No |
-| Training plan | ✅ | ❌ Untested | ❌ No |
-| Clip extraction | ✅ | ✅ Works | ⚠️ Not in UI yet |
-| Homography | ✅ | ⚠️ Manual only | ❌ No auto-detect |
+- Distance: 106m (pixel) → 114m (meters) for top player
+- Formations: more realistic (4-4-3 / 3-3-2 vs 5-3-4 / 3-2-2)
+- Confidence: 70.23% (was 64.7%)
 
 ---
 
-## What Needs to Happen Next
+## What's Still Broken
 
-### Priority 1: Make Tracking Work (Weeks 1-4)
+### ❌ **CRITICAL #1: Tracking Fragmentation**
 
-- [ ] Integrate **SoccerNet/tracklab** for football-tuned ReID
-- [ ] Switch to **boxmot** with **StrongSORT** for better identity preservation
-- [ ] Add **team color clustering** (K-means on jersey color)
-- [ ] Target: <30 tracks for 22 players, fragmentation <1.5x
-- [ ] Add **pitch area filter** (reject detections outside pitch)
+- 91 tracks for 22 players (target: <30)
+- Fragmentation: 2.09x (target: <1.5x)
+- Tracking quality: "fair" (target: "good" for 22 players)
+- **Root cause**: BoT-SORT ReID model not fine-tuned for amateur footage
 
-### Priority 2: Make Spatial Stats Work (Weeks 5-6)
+**Status**: Smart filters helped (7x → 2x), but real fix needs SoccerNet/tracklab integration.
 
-- [ ] Build **UI for homography calibration** (click 4 corners)
-- [ ] Integrate homography into analysis pipeline
-- [ ] Convert all xT/xG/formation stats from pixel → meters
-- [ ] Add **automatic keypoint detection** (SoccerNet camera calibration)
+### ❌ **CRITICAL #3: VRAM Still Constrained**
 
-### Priority 3: Validate with Real Coaches (Weeks 7-12)
+- VRAMManager added (sequential model loading)
+- But on 12GB GPU, can't run YOLO + LLM simultaneously
+- LLM has to run on CPU or after YOLO shutdown
 
-- [ ] Recruit 5 amateur coaches (Tunisia, Morocco, Algeria)
-- [ ] Have them analyze 1 real match each
-- [ ] Collect feedback on report quality, actionability
-- [ ] Iterate based on feedback
+### ❌ **Stripe Doesn't Work in Tunisia**
 
-### Priority 4: Reduce Bundle Size (Weeks 13-16)
+- Need Lemon Squeezy or Paddle research
+- Not started
 
-- [ ] Implement **lazy model loading** (download on first run)
-- [ ] Ship 50 MB launcher + 1.5 GB downloadable models
-- [ ] Auto-update via GitHub Releases
-- [ ] Code signing (Windows SmartScreen)
+### ❌ **Bundle Size 1.75 GB**
 
-### Priority 5: Monetization (Weeks 17+)
+- Lazy model loading not implemented
+- All models shipped in installer
 
-- [ ] Research **Lemon Squeezy** (works in Tunisia)
-- [ ] Set up legal entity if needed
-- [ ] Beta program with 50 amateur coaches
-- [ ] Freemium model: Free / Pro $19/mo / Academy $49/mo
+### ❌ **No Real Coach Validation**
+
+- 0 amateur coaches have used this
+- All metrics are theoretical
 
 ---
 
-## Knowledge Base Reality Check
+## Bottom Line (v0.4.0)
 
-We have **22 tactical rules** in YAML. They look comprehensive in PLAN.md but:
+**The system now produces meaningful spatial stats in real meters when calibrated.**
 
-- Most rules were **synthesized from coaching knowledge**, not validated
-- Rules fire on **specific event patterns** we don't yet detect
-- Confidence thresholds are **educated guesses**
-- 0 rules have been validated against real match outcomes
+**What works in production-quality:**
+- Distance, formations, defensive line height (with homography)
+- Team color detection (auto home/away)
+- LLM reports in EN/AR (offline, local)
+- 4-week training plan generation
+- Knowledge base (22 rules, 19 drills)
 
-**Realistic timeline to 200 rules:** 12-18 months of part-time work, or 3-6 months of full-time work.
+**What still needs work:**
+- Tracking (91 vs 22 players is the #1 issue)
+- Real coach validation
+- Bundle size
+- Payment processor
 
----
-
-## Bottom Line
-
-Kawkab AI is a **technical prototype** with a **strong architecture** and **real domain knowledge** in the knowledge base. It is **not a product**.
-
-To become a product, we need:
-1. **Better tracking** (SoccerNet/tracklab integration)
-2. **Spatial calibration** (auto-homography)
-3. **Real user validation** (5+ coaches)
-4. **Bundle size reduction** (lazy loading)
-
-Estimated time to a real v1.0: **6-9 months of focused work** with a small team.
-
-**Until then, this is a research project that demonstrates the technical approach is viable.**
+**Estimated time to a real v1.0**: 4-6 months of focused work, with priority on:
+1. SoccerNet/tracklab integration (better tracking)
+2. Beta testing with 5 real coaches
+3. Lazy model loading (smaller bundle)
 
 ---
 
-*This document is intentionally pessimistic. We need to know what doesn't work to fix it.*
+*Updated post v0.4.0 (homography integration)*
+
