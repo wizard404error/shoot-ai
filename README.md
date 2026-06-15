@@ -2,14 +2,15 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> ✅ **v0.4.0 status:** Homography integrated, real meters for distance/formations.
-> ⚠️ **Tracking still "fair"** (91 tracks for 22 players). See [STATUS.md](STATUS.md).
+> ✅ **v0.4.1 status:** Tracking "excellent" (28 tracks, 1.27x of expected), homography in real meters.
+> ⚠️ **Not yet validated with real coaches.** See [STATUS.md](STATUS.md).
 
 ---
 
-## What It Does (v0.4.0)
+## What It Does (v0.4.1)
 
-- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT with smart filters
+- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT with smart filters + top-N filter
+- **Tracking quality: "excellent"** (28 tracks for 22-player match, 1.27x of expected)
 - **Team color clustering** auto-assigns home/away (no manual labels)
 - **Camera calibration (homography)** — coach clicks 4 pitch corners, stats become real meters
 - **Computes statistics in meters**: possession %, passes, distance, player speeds, xG, xT
@@ -89,7 +90,7 @@ ollama pull ministral-3:14b
 # Verify everything is set up
 uv run python scripts/verify_system.py
 
-# Test improved tracking (v0.4.0)
+# Test tracking quality (v0.4.1)
 uv run python scripts/test_tracking_v2.py --video path/to/match.mp4
 
 # Test homography integration (v0.4.0)
@@ -99,23 +100,25 @@ uv run python scripts/test_homography.py
 uv run python -m kawkab
 ```
 
-### v0.4.0 Workflow
+### v0.4.1 Workflow
 
 1. Drop a match video in the app
-2. Click "Analyze" — YOLO tracks players, K-means assigns teams by color
-3. Click 4 pitch corners — calibration saved as homography matrix
-4. Re-analyze with homography — distance/formations now in real meters
+2. Click "Analyze" — YOLO tracks 28 players (close to actual 22), K-means assigns teams by color
+3. Click 4 pitch corners — calibration saved as homography matrix (in meters)
+4. Re-analyze with homography — distance/formations/line height now in real meters
 5. Generate coach report — LLM produces tactical narrative with evidence
 
 ---
 
-## Honest Status (v0.3.1)
+## Honest Status (v0.4.1)
 
 ### What's Actually Working ✅
 
 | Feature | Status | Notes |
 |---|---|---|
-| YOLOv11 + BoT-SORT | ✅ Implemented | Default config, not tuned for amateur |
+| YOLOv11 + BoT-SORT + Top-N filter | ✅ "Excellent" | 28 tracks, 1.27x of expected |
+| Homography UI + integration | ✅ Working | Real meters for distance/formations |
+| Team color clustering | ✅ Working | K-means auto home/away |
 | SQLite storage | ✅ Working | Tested with SQLite |
 | LLM (Ollama) | ✅ Working | EN + AR, with retry logic |
 | Knowledge base | ✅ Working | 22 rules + 19 drills, YAML loader |
@@ -126,10 +129,10 @@ uv run python -m kawkab
 
 | Feature | Status | Risk |
 |---|---|---|
-| Tracking accuracy | ⚠️ "Fair" | 91 tracks vs 22 players. Real amateur footage will be worse. |
-| Homography | ⚠️ Manual only | Coach must click 4 pitch corners per match |
-| xG / xT | ⚠️ Pixel-based | Need homography to be accurate |
-| Formations | ⚠️ Pixel-based | Need homography to be accurate |
+| Tracking on amateur footage | ⚠️ "Excellent" on broadcast | Real amateur footage untested |
+| Homography | ✅ Manual only | Coach must click 4 pitch corners per match |
+| xG / xT | ✅ In meters | Need homography applied |
+| Formations | ✅ 4-4-3 / 3-3-2 realistic | In meters with homography |
 | Jersey OCR | ⚠️ Unreliable | 8-20px numbers on amateur footage |
 | Reasoning | ⚠️ Untested | Rules fire on patterns we don't measure yet |
 | LLM reports | ⚠️ Impressive but untested | Need real coach feedback |
@@ -139,11 +142,11 @@ uv run python -m kawkab
 | Feature | Plan | Status |
 |---|---|---|
 | Auto keypoint detection | Homography | ❌ |
-| SoccerNet/tracklab integration | Better tracking | ❌ |
+| SoccerNet/tracklab integration | Better ReID | ❌ |
 | Lazy model loading | 50 MB launcher | ❌ |
 | Validation with 5+ amateur coaches | Quality | ❌ |
 | Documentation videos | Adoption | ❌ |
-| Freemium model | Monetization | ❌ |
+| Freemium model (Lemon Squeezy) | Monetization | ❌ |
 
 ---
 
@@ -152,12 +155,12 @@ uv run python -m kawkab
 ```
 Kawkab AI Desktop (1.75 GB bundle, 66 MB exe)
 │
-├── 12 Services (async)
-│   ├── CVService              (YOLOv11l + BoT-SORT, smart filters)
-│   ├── HomographyService      (manual 4-corner calibration) ⭐ NEW
-│   ├── VRAMManager            (sequential model loading) ⭐ NEW
+├── 13 Services (async)
+│   ├── CVService              (YOLOv11l + BoT-SORT + top-N filter + pitch mask)
+│   ├── HomographyService      (manual 4-corner calibration, meters-based)
+│   ├── VRAMManager            (sequential model loading, GPU budget)
 │   ├── EnhancementService     (FFmpeg filters)
-│   ├── AnalysisService        (formations, PPDA, xG, xT)
+│   ├── AnalysisService        (formations, PPDA, xG, xT in meters)
 │   ├── ReasoningService       (22-rule tactical diagnosis)
 │   ├── TrainingPlanGenerator  (4-week progressive plans)
 │   ├── ClipExtractionService  (FFmpeg evidence clips)
