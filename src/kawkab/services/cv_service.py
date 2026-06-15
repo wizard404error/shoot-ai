@@ -5,7 +5,8 @@ Handles player, ball, and referee detection + tracking.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -47,29 +48,47 @@ class MatchTrackData:
     total_frames: int
     duration_seconds: float
     frames: list[FrameDetections]
-    track_registry: dict[int, dict[str, Any]]  # track_id -> metadata
+    track_registry: dict[int, dict[str, Any]]
+    player_teams: dict[int, str] = field(default_factory=dict)
+    tracking_metrics: dict[str, Any] = field(default_factory=dict)
 
 
 class CVService:
-    """Computer vision pipeline for player/ball detection and tracking."""
+    """Computer vision pipeline for player/ball detection and tracking.
+
+    v2 improvements:
+    - Smart track filtering (min lifetime, bbox area)
+    - Bbox area-based filtering for refs/spectators
+    - Tracking quality metrics
+    - Better noise reduction
+    """
 
     def __init__(
         self,
         model_size: str = "l",
-        confidence_threshold: float = 0.5,
-        iou_threshold: float = 0.45,
+        confidence_threshold: float = 0.4,
+        iou_threshold: float = 0.5,
         gpu_enabled: bool = True,
+        min_track_lifetime_frames: int = 30,
+        min_bbox_area_ratio: float = 0.002,
+        max_bbox_area_ratio: float = 0.15,
+        expected_player_count: int = 22,
     ) -> None:
         self.model_size = model_size
         self.confidence_threshold = confidence_threshold
         self.iou_threshold = iou_threshold
         self.gpu_enabled = gpu_enabled
+        self.min_track_lifetime = min_track_lifetime_frames
+        self.min_bbox_area = min_bbox_area_ratio
+        self.max_bbox_area = max_bbox_area_ratio
+        self.expected_player_count = expected_player_count
         self._model: Any = None
         self._initialized = False
 
         logger.info(
-            f"CVService created: model=yolov11{model_size}, "
-            f"conf={confidence_threshold}, iou={iou_threshold}, gpu={gpu_enabled}"
+            f"CVService v2: model=yolo11{model_size}, "
+            f"conf={confidence_threshold}, iou={iou_threshold}, gpu={gpu_enabled}, "
+            f"min_track_life={min_track_lifetime_frames}"
         )
 
     async def initialize(self) -> None:
@@ -130,6 +149,9 @@ class CVService:
         )
 
         detections: list[Detection] = []
+        h, w = frame.shape[:2]
+        frame_area = w * h
+
         if results and len(results) > 0:
             result = results[0]
             boxes = result.boxes
@@ -146,6 +168,12 @@ class CVService:
                     )
 
                     cls_name = self._model.names.get(cls_id, f"class_{cls_id}")
+                    area_ratio = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / frame_area
+
+                    if cls_name == "person" and (
+                        area_ratio < self.min_bbox_area or area_ratio > self.max_bbox_area
+                    ):
+                        continue
 
                     detections.append(
                         Detection(
@@ -157,7 +185,6 @@ class CVService:
                         )
                     )
 
-        h, w = frame.shape[:2]
         return FrameDetections(
             frame_number=frame_number,
             timestamp=timestamp,
@@ -171,14 +198,13 @@ class CVService:
         video_path: Path,
         progress_callback=None,
     ) -> MatchTrackData:
-        """Process a full video and return tracking data.
+        """Process a full video with smart track filtering (v2).
 
-        Args:
-            video_path: Path to input video file
-            progress_callback: Optional async callback (progress: float, message: str)
-
-        Returns:
-            MatchTrackData with all frames
+        Key improvements:
+        1. Filter refs/spectators by bbox area
+        2. Track lifetime filter (drop noise)
+        3. Tracking quality metrics
+        4. Confidence tracking per track
         """
         if not self._initialized:
             await self.initialize()
@@ -199,7 +225,11 @@ class CVService:
         )
 
         frames: list[FrameDetections] = []
-        track_registry: dict[int, dict[str, Any]] = {}
+        track_appearances: dict[int, int] = defaultdict(int)
+        track_first_frame: dict[int, int] = {}
+        track_last_frame: dict[int, int] = {}
+        track_confidence_sum: dict[int, float] = defaultdict(float)
+        track_is_person: dict[int, bool] = defaultdict(lambda: True)
         frame_number = 0
 
         try:
@@ -213,17 +243,16 @@ class CVService:
                 frames.append(frame_det)
 
                 for det in frame_det.detections:
-                    if det.track_id is not None and det.track_id not in track_registry:
-                        track_registry[det.track_id] = {
-                            "track_id": det.track_id,
-                            "class_name": det.class_name,
-                            "first_seen": timestamp,
-                            "last_seen": timestamp,
-                            "frames_tracked": 0,
-                        }
-                    if det.track_id is not None:
-                        track_registry[det.track_id]["last_seen"] = timestamp
-                        track_registry[det.track_id]["frames_tracked"] += 1
+                    if det.track_id is None:
+                        continue
+                    tid = det.track_id
+                    track_appearances[tid] += 1
+                    if tid not in track_first_frame:
+                        track_first_frame[tid] = frame_number
+                    track_last_frame[tid] = frame_number
+                    track_confidence_sum[tid] += det.confidence
+                    if det.class_name != "person":
+                        track_is_person[tid] = False
 
                 frame_number += 1
 
@@ -236,9 +265,39 @@ class CVService:
         finally:
             cap.release()
 
+        raw_tracks = len(track_appearances)
+        logger.info(f"Raw tracking: {raw_tracks} unique tracks before filtering")
+
+        valid_player_tracks = set()
+        for tid, count in track_appearances.items():
+            if not track_is_person.get(tid, True):
+                continue
+            if count < self.min_track_lifetime:
+                continue
+            lifetime_pct = (count / total_frames) * 100
+            if lifetime_pct < 2.0:
+                continue
+            valid_player_tracks.add(tid)
+
+        track_registry: dict[int, dict[str, Any]] = {}
+        for tid in valid_player_tracks:
+            track_registry[tid] = {
+                "track_id": tid,
+                "class_name": "person",
+                "first_seen": track_first_frame.get(tid, 0) / fps,
+                "last_seen": track_last_frame.get(tid, 0) / fps,
+                "frames_tracked": track_appearances[tid],
+                "lifetime_pct": (track_appearances[tid] / total_frames) * 100,
+                "confidence_avg": track_confidence_sum[tid] / max(1, track_appearances[tid]),
+            }
+
+        fragmentation_rate = raw_tracks / max(1, len(valid_player_tracks))
+        quality = self._assess_tracking_quality(fragmentation_rate)
+
         logger.info(
-            f"Video processing complete: {frame_number} frames, "
-            f"{len(track_registry)} unique tracks"
+            f"After filtering: {len(valid_player_tracks)} validated player tracks "
+            f"(raw: {raw_tracks}, fragmentation: {fragmentation_rate:.2f}x, "
+            f"quality: {quality})"
         )
 
         return MatchTrackData(
@@ -248,7 +307,28 @@ class CVService:
             duration_seconds=duration,
             frames=frames,
             track_registry=track_registry,
+            player_teams={},
+            tracking_metrics={
+                "raw_tracks_detected": raw_tracks,
+                "validated_player_tracks": len(valid_player_tracks),
+                "fragmentation_rate": round(fragmentation_rate, 2),
+                "expected_player_count": self.expected_player_count,
+                "tracking_quality": quality,
+            },
         )
+
+    def _assess_tracking_quality(self, fragmentation_rate: float) -> str:
+        """Assess tracking quality based on fragmentation rate."""
+        if fragmentation_rate <= 1.5:
+            return "excellent"
+        elif fragmentation_rate <= 2.0:
+            return "good"
+        elif fragmentation_rate <= 3.0:
+            return "fair"
+        elif fragmentation_rate <= 5.0:
+            return "poor"
+        else:
+            return "very_poor"
 
     async def shutdown(self) -> None:
         """Release resources."""

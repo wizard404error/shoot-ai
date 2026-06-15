@@ -10,6 +10,7 @@ keywords = ["football", "soccer", "ai", "coach", "tactics", "video-analysis", "y
 
 dependencies = [
     "PySide6>=6.6.0",
+    "qasync>=0.27.1",
     "ultralytics>=8.0.0",
     "opencv-python>=4.9.0",
     "numpy>=1.26.0",
@@ -25,11 +26,11 @@ dependencies = [
     "kloppy>=3.12.0",
     "networkx>=3.2.0",
     "httpx>=0.27.0",
-    "faiss-cpu>=1.8.0",
     "matplotlib>=3.8.0",
     "Pillow>=10.2.0",
     "tqdm>=4.66.0",
     "lap>=0.4.0",
+    "easyocr>=1.7.0",
 ]
 
 [project.optional-dependencies]
