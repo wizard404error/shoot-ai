@@ -501,3 +501,128 @@ class CVService:
         if 0 < estimated < 100:
             return estimated
         return None
+    async def detect_team_colors(
+        self,
+        video_path: Path,
+        sample_frames: int = 20,
+    ) -> dict[int, dict]:
+        """Detect dominant jersey color for each tracked player."""
+        import cv2
+
+        if not self._initialized:
+            await self.initialize()
+
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return {}
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_positions = [
+            int(i * (total_frames - 1) / max(1, sample_frames - 1))
+            for i in range(sample_frames)
+        ]
+
+        track_colors = defaultdict(list)
+
+        for target_frame in frame_positions:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+
+            results = self._model.track(
+                frame, persist=True, conf=self.confidence_threshold,
+                classes=[0], verbose=False,
+            )
+            if not results or len(results) == 0:
+                continue
+            boxes = results[0].boxes
+            if boxes is None or len(boxes) == 0:
+                continue
+
+            for i in range(len(boxes)):
+                if boxes.id is None:
+                    continue
+                track_id = int(boxes.id[i].cpu().numpy())
+                bbox = boxes.xyxy[i].cpu().numpy()
+                x1, y1, x2, y2 = map(int, bbox)
+                torso_y1 = max(0, y1 + int((y2 - y1) * 0.25))
+                torso_y2 = min(frame.shape[0], y1 + int((y2 - y1) * 0.55))
+                torso_x1 = max(0, x1 + int((x2 - x1) * 0.2))
+                torso_x2 = min(frame.shape[1], x2 - int((x2 - x1) * 0.2))
+                if torso_x2 <= torso_x1 or torso_y2 <= torso_y1:
+                    continue
+                torso = frame[torso_y1:torso_y2, torso_x1:torso_x2]
+                if torso.size == 0:
+                    continue
+                avg_color = self._get_dominant_color(torso)
+                if avg_color:
+                    track_colors[track_id].append(avg_color)
+
+        cap.release()
+
+        result = {}
+        for tid, colors in track_colors.items():
+            if len(colors) < 3:
+                continue
+            avg = (
+                int(np.mean([c[0] for c in colors])),
+                int(np.mean([c[1] for c in colors])),
+                int(np.mean([c[2] for c in colors])),
+            )
+            result[tid] = {
+                "primary_color": avg,
+                "color_hex": f"#{avg[2]:02x}{avg[1]:02x}{avg[0]:02x}",
+                "samples": len(colors),
+            }
+
+        clusters = self._cluster_team_colors(result)
+        for tid, cluster_id in clusters.items():
+            if tid in result:
+                result[tid]["cluster_id"] = cluster_id
+
+        n_teams = len(set(clusters.values()))
+        logger.info(f"Team color detection: {len(result)} players, {n_teams} clusters")
+        return result
+
+    def _get_dominant_color(self, img_region):
+        """Get dominant non-white, non-black color from a region (BGR)."""
+        if img_region.size == 0:
+            return None
+        h, w = img_region.shape[:2]
+        if h < 5 or w < 5:
+            return None
+        pixels = img_region.reshape(-1, 3)
+        mask = ~((pixels[:, 0] > 230) & (pixels[:, 1] > 230) & (pixels[:, 2] > 230))
+        pixels = pixels[mask]
+        mask2 = ~((pixels[:, 0] < 30) & (pixels[:, 1] < 30) & (pixels[:, 2] < 30))
+        pixels = pixels[mask2]
+        if len(pixels) < 5:
+            return None
+        return (
+            int(np.mean(pixels[:, 0])),
+            int(np.mean(pixels[:, 1])),
+            int(np.mean(pixels[:, 2])),
+        )
+
+    def _cluster_team_colors(self, color_data, n_clusters=2):
+        """Cluster players into teams based on jersey color."""
+        if len(color_data) < 2:
+            return {tid: 0 for tid in color_data}
+        try:
+            from sklearn.cluster import KMeans
+            tids = list(color_data.keys())
+            colors = np.array([color_data[tid]["primary_color"] for tid in tids])
+            actual_clusters = min(n_clusters, len(tids))
+            kmeans = KMeans(n_clusters=actual_clusters, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(colors)
+            return {tids[i]: int(labels[i]) for i in range(len(tids))}
+        except ImportError:
+            tids = list(color_data.keys())
+            sorted_by_color = sorted(
+                tids, key=lambda t: sum(color_data[t]["primary_color"])
+            )
+            result = {}
+            for i, tid in enumerate(sorted_by_color):
+                result[tid] = 0 if i < len(sorted_by_color) / 2 else 1
+            return result

@@ -233,9 +233,46 @@ body {
 
 .results-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.calibration-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    margin-top: 20px;
+}
+
+#calibration-canvas {
+    border: 2px solid var(--primary-color, #50c878);
+    cursor: crosshair;
+    max-width: 100%;
+    background: #1a1a2e;
+}
+
+.calibration-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    min-width: 300px;
+}
+
+.calibration-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.calibration-info #clicks-count {
+    font-weight: bold;
+    color: var(--primary-color, #50c878);
 }
 
 .result-card {

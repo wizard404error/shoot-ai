@@ -106,23 +106,24 @@ class AnalysisService:
         )
 
     async def analyze_match(
-        self, track_data: MatchTrackData, match_id: int = 0
+        self, track_data: MatchTrackData, match_id: int = 0, homography_matrix=None
     ) -> MatchAnalysis:
         """Compute full match analysis from tracking data.
 
         Args:
             track_data: Output from CVService.process_video
             match_id: Database ID for this match
+            homography_matrix: Optional HomographyMatrix for meter-based stats
 
         Returns:
             Complete MatchAnalysis with stats, events, patterns
         """
         logger.info(f"Analyzing match: {track_data.total_frames} frames")
 
-        players = self._compute_player_stats(track_data)
-        events = self._detect_events(track_data)
-        team_stats = self._compute_team_stats(players, events, track_data)
-        possession = self._compute_possession(track_data)
+        players = self._compute_player_stats(track_data, homography_matrix)
+        events = self._detect_events(track_data, homography_matrix)
+        team_stats = self._compute_team_stats(players, events, track_data, homography_matrix)
+        possession = self._compute_possession(track_data, homography_matrix)
         pass_network = self._compute_pass_network(events)
 
         home = TeamStats(team_name="Home")
@@ -142,17 +143,19 @@ class AnalysisService:
                 if event.get("on_target"):
                     target.shots_on_target += 1
 
-        home_formation = self.detect_formation(track_data, team="home")
-        away_formation = self.detect_formation(track_data, team="away")
-        home_ppda = self.compute_ppda(track_data, team="home")
-        away_ppda = self.compute_ppda(track_data, team="away")
+        home_formation = self.detect_formation(track_data, team="home", homography_matrix=homography_matrix)
+        away_formation = self.detect_formation(track_data, team="away", homography_matrix=homography_matrix)
+        home_ppda = self.compute_ppda(track_data, team="home", homography_matrix=homography_matrix)
+        away_ppda = self.compute_ppda(track_data, team="away", homography_matrix=homography_matrix)
 
         confidence = self._compute_confidence(track_data, events)
 
+        coords = "meters" if homography_matrix else "pixels"
         logger.info(
             f"Analysis complete: {len(players)} players, "
             f"{len(events)} events, confidence={confidence:.2%}, "
-            f"formations: {home_formation['formation']}/{away_formation['formation']}"
+            f"formations: {home_formation['formation']}/{away_formation['formation']}, "
+            f"coords={coords}"
         )
 
         return MatchAnalysis(
@@ -172,9 +175,13 @@ class AnalysisService:
         )
 
     def _compute_player_stats(
-        self, track_data: MatchTrackData
+        self, track_data: MatchTrackData, homography_matrix=None
     ) -> dict[int, PlayerStats]:
-        """Compute per-player statistics from tracking data."""
+        """Compute per-player statistics from tracking data.
+
+        If homography_matrix is provided, distances are in meters.
+        Otherwise, pixel-based estimates using pitch width assumption.
+        """
         players: dict[int, PlayerStats] = {}
         prev_positions: dict[int, tuple[float, float]] = {}
         max_speed_per_player: dict[int, float] = {}
@@ -196,6 +203,12 @@ class AnalysisService:
                 x1, y1, x2, y2 = det.bbox
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
+
+                if homography_matrix is not None:
+                    cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
+                else:
+                    pass
+
                 current_positions[tid] = (cx, cy)
 
                 players[tid].positions.append((frame.timestamp, cx, cy))
@@ -204,8 +217,12 @@ class AnalysisService:
                     px, py = prev_positions[tid]
                     dx = cx - px
                     dy = cy - py
-                    pixel_distance = math.sqrt(dx * dx + dy * dy)
-                    meters = pixel_distance / pixels_per_meter
+
+                    if homography_matrix is not None:
+                        meters = math.sqrt(dx * dx + dy * dy)
+                    else:
+                        pixel_distance = math.sqrt(dx * dx + dy * dy)
+                        meters = pixel_distance / pixels_per_meter
                     players[tid].distance_covered_m += meters
 
                     if fps > 0:
@@ -228,7 +245,7 @@ class AnalysisService:
         return players
 
     def _detect_events(
-        self, track_data: MatchTrackData
+        self, track_data: MatchTrackData, homography_matrix=None
     ) -> list[dict]:
         """Detect basic events (passes, shots, tackles) from tracking.
 
@@ -298,6 +315,7 @@ class AnalysisService:
         players: dict[int, PlayerStats],
         events: list[dict],
         track_data: MatchTrackData,
+        homography_matrix=None,
     ) -> dict[str, TeamStats]:
         """Aggregate per-team statistics."""
         home = TeamStats(team_name="Home")
@@ -314,7 +332,7 @@ class AnalysisService:
         return {"home": home, "away": away}
 
     def _compute_possession(
-        self, track_data: MatchTrackData
+        self, track_data: MatchTrackData, homography_matrix=None
     ) -> dict[str, float]:
         """Compute possession percentage per team.
 
@@ -411,7 +429,8 @@ class AnalysisService:
         return min(1.0, (ball_pct * 0.4 + player_pct * 0.6))
 
     def detect_formation(
-        self, track_data: MatchTrackData, team: str = "home", n_players: int = 11
+        self, track_data: MatchTrackData, team: str = "home", n_players: int = 11,
+        homography_matrix=None,
     ) -> dict:
         """Detect team formation (e.g., 4-3-3, 4-4-2) using k-means clustering.
 
@@ -419,10 +438,11 @@ class AnalysisService:
             track_data: Match tracking data
             team: "home" or "away"
             n_players: Expected number of outfield players (default 10 + GK = 11)
+            homography_matrix: Optional HomographyMatrix to convert to meters
 
         Returns:
             Dict with formation (e.g., "4-3-3"), defensive line height,
-            and player positions
+            and player positions (in meters if homography provided)
         """
         import math
         from collections import defaultdict
@@ -443,6 +463,10 @@ class AnalysisService:
                 x1, y1, x2, y2 = det.bbox
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
+
+                if homography_matrix is not None:
+                    cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
+
                 team_player_positions[det.track_id].append((cx, cy))
                 track_lifetimes[det.track_id] += 1
 
@@ -458,7 +482,9 @@ class AnalysisService:
                 "formation": "unknown",
                 "confidence": 0.0,
                 "line_height": None,
+                "line_height_m": None,
                 "player_count": len(team_player_positions),
+                "coordinates": "meters" if homography_matrix else "pixels",
             }
 
         avg_positions = {
@@ -502,7 +528,13 @@ class AnalysisService:
             sum(avg_positions[t][0] for t in defenders) / len(defenders)
             if defenders else 0
         )
-        def_line_pct = def_line_height / 1280.0 if def_line_height else 0.5
+
+        if homography_matrix is not None:
+            def_line_height_m = round(def_line_height, 2)
+            def_line_pct = def_line_height / homography_matrix.pitch_length_m
+        else:
+            def_line_height_m = None
+            def_line_pct = def_line_height / 1280.0 if def_line_height else 0.5
 
         formation_str = f"{n_def}-{n_mid}-{n_att}"
 
@@ -519,15 +551,17 @@ class AnalysisService:
         return {
             "formation": formation_str,
             "confidence": confidence,
-            "line_height": round(def_line_pct, 2),
+            "line_height": round(def_line_pct, 3),
+            "line_height_m": def_line_height_m,
             "player_count": n,
             "defenders": defenders,
             "midfielders": midfielders,
             "attackers": attackers,
+            "coordinates": "meters" if homography_matrix else "pixels",
         }
 
     def compute_ppda(
-        self, track_data: MatchTrackData, team: str = "home"
+        self, track_data: MatchTrackData, team: str = "home", homography_matrix=None
     ) -> dict:
         """Compute PPDA (Passes Per Defensive Action) - measure of pressing.
 

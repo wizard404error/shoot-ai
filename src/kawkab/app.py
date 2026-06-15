@@ -20,6 +20,7 @@ from kawkab.services import (
     AnalysisService,
     CVService,
     EnhancementService,
+    HomographyService,
     KnowledgeService,
     LLMConfig,
     LLMService,
@@ -86,6 +87,8 @@ class MainWindow(QMainWindow):
             enable_whistle_detection=True,
             gpu_enabled=self.settings.gpu_enabled,
         )
+
+        self.homography = HomographyService()
 
     def _init_ui(self) -> None:
         """Initialize the web view UI."""
@@ -170,6 +173,7 @@ class MainWindow(QMainWindow):
             knowledge_service=self.knowledge,
             storage_service=self.storage,
             audio_service=self.audio,
+            homography_service=self.homography,
             parent=self,
         )
 

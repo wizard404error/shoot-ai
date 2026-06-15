@@ -5,6 +5,7 @@ The frontend calls these methods directly via QWebChannel.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
@@ -25,6 +26,7 @@ class Bridge(QObject):
     analysisComplete = Signal(dict)
     analysisError = Signal(str)
     matchSaved = Signal(int)
+    calibrationSaved = Signal(int, dict)
 
     def __init__(
         self,
@@ -35,6 +37,7 @@ class Bridge(QObject):
         knowledge_service,
         storage_service,
         audio_service,
+        homography_service=None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -45,8 +48,113 @@ class Bridge(QObject):
         self.knowledge_service = knowledge_service
         self.storage_service = storage_service
         self.audio_service = audio_service
+        self.homography_service = homography_service
 
         logger.info("Bridge initialized")
+
+    @Slot(int, result=str)
+    async def get_first_frame(self, match_id: int) -> str:
+        """Return path to a frame image for calibration UI.
+
+        Args:
+            match_id: Database ID of the match
+
+        Returns:
+            JSON with frame path or error
+        """
+        try:
+            match = await self.storage_service.get_match(match_id)
+            if not match or not match.get("video_path"):
+                return json.dumps({"error": "No video found"})
+            return json.dumps({
+                "path": match["video_path"],
+                "match_id": match_id,
+            })
+        except Exception as e:
+            logger.error(f"get_first_frame failed: {e}")
+            return json.dumps({"error": str(e)})
+
+    @Slot(int, str, float, float, result=str)
+    async def save_homography(
+        self,
+        match_id: int,
+        corners_json: str,
+        pitch_length_m: float = 105.0,
+        pitch_width_m: float = 68.0,
+    ) -> str:
+        """Save homography calibration for a match.
+
+        Args:
+            match_id: Database ID of the match
+            corners_json: JSON string with 4 corner points, or "auto" for estimated
+            pitch_length_m: Real pitch length
+            pitch_width_m: Real pitch width
+
+        Returns:
+            JSON with success status and confidence
+        """
+        try:
+            if self.homography_service is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "HomographyService not initialized",
+                })
+
+            if corners_json == "auto":
+                match = await self.storage_service.get_match(match_id)
+                if not match:
+                    return json.dumps({"success": False, "error": "Match not found"})
+
+                import cv2
+                cap = cv2.VideoCapture(match["video_path"])
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                cap.release()
+
+                matrix = self.homography_service.compute_homography_from_visible_markings(
+                    frame_width=w, frame_height=h
+                )
+            else:
+                corners = json.loads(corners_json)
+                matrix = self.homography_service.compute_homography_from_corners(
+                    pixel_corners=[(c["x"], c["y"]) for c in corners],
+                    pitch_length_m=pitch_length_m,
+                    pitch_width_m=pitch_width_m,
+                )
+
+            self.homography_service.save_calibration(match_id, matrix)
+
+            self.calibrationSaved.emit(match_id, {
+                "confidence": matrix.confidence,
+                "error_px": matrix.error_px,
+            })
+
+            return json.dumps({
+                "success": True,
+                "confidence": matrix.confidence,
+                "error_px": matrix.error_px,
+            })
+        except Exception as e:
+            logger.error(f"save_homography failed: {e}")
+            return json.dumps({"success": False, "error": str(e)})
+
+    @Slot(int, result=str)
+    async def get_homography(self, match_id: int) -> str:
+        """Get saved homography for a match."""
+        try:
+            if self.homography_service is None:
+                return json.dumps({"error": "Service not initialized"})
+            matrix = self.homography_service.load_calibration(match_id)
+            if matrix is None:
+                return json.dumps({"error": "No calibration saved"})
+            return json.dumps({
+                "matrix": matrix.matrix,
+                "pitch_length_m": matrix.pitch_length_m,
+                "pitch_width_m": matrix.pitch_width_m,
+                "confidence": matrix.confidence,
+            })
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
     @Slot(str, str, result=int)
     async def save_match(self, name: str, video_path: str) -> int:
