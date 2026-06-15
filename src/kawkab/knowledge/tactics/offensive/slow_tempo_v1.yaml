@@ -1,0 +1,64 @@
+rule:
+  id: slow_tempo_v1
+  category: offensive
+  subcategory: possession
+  severity: low
+  names:
+    en: Slow Tempo / Lack of Verticality
+    ar: إيقاع بطيء / قلة التمرير العمودي
+  description:
+    en: |
+      Team plays too many horizontal passes, lacking vertical progression.
+      This makes it easy for opponents to set defensive shape and
+      limits goal-scoring opportunities.
+    ar: |
+      الفريق يلعب تمريرات أفقية كثيرة، مع قلة التقدم العمودي.
+      مما يسهل على الخصم تنظيم الدفاع ويحد من فرص التسجيل.
+  pattern_signature:
+    type: low_vertical_progression
+    thresholds:
+      min_matches: 3
+      backward_passes_pct: ">0.30"
+      forward_pass_distance_avg: "<10m"
+    required_confidence: 0.55
+  hypotheses:
+    - hypothesis_id: lacking_progressive_passes
+      weight: 0.4
+      names:
+        en: Lacking Progressive Pass Options
+        ar: قلة خيارات التمرير التقدمية
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Midfielders aren't finding vertical passing lanes. Need
+          training on playing through lines with progressive passes.
+        ar: |
+          لاعبو الوسط لا يجدون ممرات للتمرير العمودي. يحتاجون تدريباً
+          على اللعب عبر الخطوط بتمريرات تقدمية.
+    - hypothesis_id: afraid_of_risk
+      weight: 0.35
+      names:
+        en: Afraid of Risky Passes
+        ar: الخوف من التمريرات الخطرة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are playing it safe, avoiding risky but progressive
+          passes. Need to encourage calculated risk-taking in training.
+        ar: |
+          اللاعبون يلعبون بأمان، يتجنبون التمريرات الخطرة لكنها تقدمية.
+          يحتاجون تشجيعاً على المخاطرة المحسوبة في التدريب.
+  recommended_drills:
+    primary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: vertical_passing_patterns
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Progressive Passing"
+    - "Spielverlagerung: Vertical Passing Patterns"

@@ -1,0 +1,64 @@
+rule:
+  id: poor_time_management_v1
+  category: meta
+  subcategory: game_management
+  severity: low
+  names:
+    en: Poor Time Management
+    ar: سوء إدارة الوقت
+  description:
+    en: |
+      Team concedes too many goals in the last 15 minutes, often
+      due to mental fatigue, tactical indiscipline, or poor game
+      management (e.g., not slowing the game down when leading).
+    ar: |
+      الفريق يستقبل أهدافاً كثيرة في آخر 15 دقيقة، غالباً بسبب
+      الإرهاق الذهني أو الانضباط التكتيكي الضعيف أو سوء إدارة
+      المباراة (مثل عدم إبطاء اللعب عند التقدم).
+  pattern_signature:
+    type: late_goals_conceded
+    thresholds:
+      min_matches: 3
+      goals_conceded_last_15min: ">0.40"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: mental_fatigue
+      weight: 0.4
+      names:
+        en: Mental Fatigue Late in Game
+        ar: إرهاق ذهني في نهاية المباراة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players lose concentration near the end. Need mental
+          toughness training and game management practice.
+        ar: |
+          اللاعبون يفقدون التركيز قرب النهاية. يحتاجون تدريباً
+          على الصلابة الذهنية وممارسة إدارة المباراة.
+    - hypothesis_id: poor_game_management
+      weight: 0.35
+      names:
+        en: Poor Game Management When Leading
+        ar: سوء إدارة المباراة عند التقدم
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Team doesn't slow the game down when leading. Need to teach
+          game management skills.
+        ar: |
+          الفريق لا يبطئ اللعب عند التقدم. يحتاج لتعليم مهارات
+          إدارة المباراة.
+  recommended_drills:
+    primary:
+      - drill_id: game_conditioned_11v11
+        duration_min: 30
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: mental_toughness_drills
+        duration_min: 20
+        sessions_per_week: 1
+        weeks: [3, 4]
+  sources:
+    - "Coaches' Voice: Game Management"
+    - "UEFA Pro License: Late-Game Tactics"

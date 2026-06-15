@@ -1,0 +1,66 @@
+rule:
+  id: redundant_passes_v1
+  category: offensive
+  subcategory: possession
+  severity: low
+  names:
+    en: Redundant / Safe Passing
+    ar: التمريرات المتكررة/الآمنة
+  description:
+    en: |
+      Team makes many passes but rarely progresses up the pitch.
+      Possession is high but chance creation is low, suggesting
+      circulation without penetration.
+    ar: |
+      الفريق يقوم بتمريرات كثيرة لكنه نادراً ما يتقدم للأمام.
+      الاستحواذ مرتفع لكن خلق الفرص منخفض، مما يشير إلى دوران
+      بدون اختراق.
+  pattern_signature:
+    type: high_possession_low_progression
+    thresholds:
+      min_matches: 3
+      possession_pct: ">55"
+      shots_per_match: "<6"
+      passes_per_match: ">400"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: afraid_to_penetrate
+      weight: 0.4
+      names:
+        en: Afraid to Penetrate
+        ar: الخوف من الاختراق
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players avoid risky passes that could lead to chances.
+          Need risk-taking training and creative passing drills.
+        ar: |
+          اللاعبون يتجنبون التمريرات الخطرة التي قد تؤدي لفرص.
+          يحتاجون تدريباً على المخاطرة والإبداع في التمرير.
+    - hypothesis_id: no_pockets_of_space
+      weight: 0.35
+      names:
+        en: No Movement to Create Pockets
+        ar: لا حركة لخلق الفراغات
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players aren't making runs between lines to receive
+          progressive passes. Need movement patterns training.
+        ar: |
+          اللاعبون لا يقومون بتحركات بين الخطوط لاستقبال التمريرات
+          التقدمية. يحتاجون تدريباً على أنماط الحركة.
+  recommended_drills:
+    primary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: half_space_movement
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Chance Creation"
+    - "Spielverlagerung: Building Attacks"

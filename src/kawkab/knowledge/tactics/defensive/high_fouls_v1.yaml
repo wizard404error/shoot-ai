@@ -1,0 +1,77 @@
+rule:
+  id: high_fouls_v1
+  category: defensive
+  subcategory: discipline
+  severity: medium
+  names:
+    en: High Foul Count
+    ar: عدد كبير من المخالفات
+  description:
+    en: |
+      Team commits significantly more fouls than opponents, often in
+      dangerous areas. This leads to free kicks against and player
+      suspensions.
+    ar: |
+      الفريق يرتكب مخالفات أكثر بكثير من الخصم، غالباً في مناطق
+      خطرة. مما يؤدي إلى ركلات حرة ضد الفريق وإيقافات اللاعبين.
+  pattern_signature:
+    type: high_foul_rate
+    thresholds:
+      min_matches: 3
+      fouls_per_match: ">15"
+      fouls_in_dangerous_area_pct: ">0.25"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: late_tackles
+      weight: 0.4
+      names:
+        en: Late Tackles
+        ar: تدخلات متأخرة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are arriving late to tackles, missing the ball and
+          hitting the player. Need timing drills on standing tackles.
+        ar: |
+          اللاعبون يصلون متأخرين للتدخل، يخطئون الكرة ويضربون
+          اللاعب. يحتاجون تدريبات على توقيت التدخلات الثابتة.
+    - hypothesis_id: poor_positioning
+      weight: 0.3
+      names:
+        en: Poor Defensive Positioning Forces Fouls
+        ar: سوء التمركز الدفاعي يجبر على المخالفات
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players are out of position, leading to desperate fouls.
+          Need positioning and anticipation drills.
+        ar: |
+          اللاعبون خارج مركزهم، مما يؤدي إلى مخالفات يائسة. يحتاجون
+          تدريبات على التمركز والاستباق.
+    - hypothesis_id: tactical_fouls
+      weight: 0.3
+      names:
+        en: Tactical Fouls to Stop Counter-Attacks
+        ar: مخالفات تكتيكية لإيقاف الهجمات المرتدة
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players are committing tactical fouls to stop dangerous
+          counter-attacks. Need better defensive transitions.
+        ar: |
+          اللاعبون يرتكبون مخالفات تكتيكية لإيقاف الهجمات المرتدة
+          الخطرة. يحتاجون انتقالاً دفاعياً أفضل.
+  recommended_drills:
+    primary:
+      - drill_id: timing_tackles_4v4
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: defensive_positioning_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Defensive Discipline"
+    - "UEFA Pro License: Tactical Fouls"

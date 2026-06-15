@@ -1,0 +1,65 @@
+rule:
+  id: poor_dribbling_v1
+  category: offensive
+  subcategory: individual_skill
+  severity: low
+  names:
+    en: Poor Dribbling Success Rate
+    ar: ضعف نسبة نجاح المراوغة
+  description:
+    en: |
+      Team's dribbling attempts have low success rate, leading to
+      possession losses in dangerous areas. Suggests poor close
+      control or wrong decision-making on when to dribble.
+    ar: |
+      محاولات المراوغة للفريق لها نسبة نجاح منخفضة، مما يؤدي إلى
+      فقدان الاستحواذ في مناطق خطرة. يشير إلى ضعف التحكم القريب
+      أو اتخاذ قرار خاطئ حول متى يراوغ.
+  pattern_signature:
+    type: low_dribble_success
+    thresholds:
+      min_matches: 3
+      dribbles_per_match: ">15"
+      dribble_success_rate: "<0.40"
+    required_confidence: 0.55
+  hypotheses:
+    - hypothesis_id: poor_close_control
+      weight: 0.4
+      names:
+        en: Poor Close Control
+        ar: ضعف التحكم القريب
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are losing the ball in 1v1 situations. Need
+          close control drills in tight spaces.
+        ar: |
+          اللاعبون يفقدون الكرة في مواقف 1 ضد 1. يحتاجون تدريبات
+          على التحكم القريب في مساحات ضيقة.
+    - hypothesis_id: wrong_decisions
+      weight: 0.35
+      names:
+        en: Wrong Dribbling Decisions
+        ar: قرارات مراوغة خاطئة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are trying to dribble when they should pass. Need
+          decision-making drills about when to dribble vs pass.
+        ar: |
+          اللاعبون يحاولون المراوغة عندما يجب أن يمرروا. يحتاجون
+          تدريبات على اتخاذ القرار بين المراوغة والتمرير.
+  recommended_drills:
+    primary:
+      - drill_id: close_control_circles
+        duration_min: 10
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: 1v1_attacking_patterns
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Dribbling Under Pressure"
+    - "UEFA A License: 1v1 Attacking"

@@ -1,0 +1,65 @@
+rule:
+  id: overuse_one_side_v1
+  category: offensive
+  subcategory: chance_creation
+  severity: medium
+  names:
+    en: Overuse of One Side
+    ar: الإفراط في استخدام جهة واحدة
+  description:
+    en: |
+      Team attacks almost exclusively down one side of the pitch,
+      making them predictable and easy to defend. Opponents can
+      overload that side.
+    ar: |
+      الفريق يهاجم بشكل حصري تقريباً من جهة واحدة من الملعب،
+      مما يجعله متوقعاً وسهل الدفاع ضده. يمكن للخصم تكثيف
+      الدفاع في تلك الجهة.
+  pattern_signature:
+    type: lopsided_attack
+    thresholds:
+      min_matches: 3
+      left_side_pct: ">0.65"
+      right_side_pct: "<0.20"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: weak_side_players
+      weight: 0.4
+      names:
+        en: Weak Players on Underused Side
+        ar: لاعبون ضعفاء في الجهة غير المستخدمة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The weak side of the team has poor players. Need to either
+          develop them or use position-specific tactics.
+        ar: |
+          الجهة الضعيفة من الفريق بها لاعبين ضعفاء. تحتاج إما تطويرهم
+          أو استخدام تكتيكات خاصة بمراكزهم.
+    - hypothesis_id: predictable_patterns
+      weight: 0.35
+      names:
+        en: Predictable Attack Patterns
+        ar: أنماط هجوم متوقعة
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The team has developed habits that are too predictable.
+          Need tactical variety training and pattern rotation.
+        ar: |
+          الفريق طور عادات متوقعة جداً. يحتاج تدريباً على التنوع
+          التكتيكي وتدوير الأنماط.
+  recommended_drills:
+    primary:
+      - drill_id: wing_play_8v8
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: crossing_and_finishing
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Tactical Variety"
+    - "Spielverlagerung: Attacking Patterns"

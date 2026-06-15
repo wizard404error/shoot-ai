@@ -1,0 +1,65 @@
+rule:
+  id: poor_offside_trap_v1
+  category: defensive
+  subcategory: defensive_line_height
+  severity: low
+  names:
+    en: Inconsistent Offside Trap
+    ar: مصيدة التسلل غير متسقة
+  description:
+    en: |
+      Team attempts to play the offside trap but with inconsistent
+      timing between defenders, leading to attackers being caught
+      onside or defenders being caught too high.
+    ar: |
+      الفريق يحاول تطبيق مصيدة التسلل لكن بتوقيت غير متسق بين
+      المدافعين، مما يؤدي إلى إمساك المهاجمين أو إمساك المدافعين
+      في مواقع متقدمة جداً.
+  pattern_signature:
+    type: offside_trap_ineffective
+    thresholds:
+      min_matches: 3
+      offside_calls_per_match: ">5"
+      opposition_offside_success_rate: "<0.50"
+    required_confidence: 0.55
+  hypotheses:
+    - hypothesis_id: poor_communication
+      weight: 0.45
+      names:
+        en: Poor CB Communication
+        ar: ضعف التواصل بين قلبي الدفاع
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Center backs aren't communicating the offside line. Need
+          verbal cue training and partnership drills.
+        ar: |
+          قلوب الدفاع لا يتواصلون حول خط التسلل. يحتاجون تدريباً
+          على الإشارات اللفظية والشراكة.
+    - hypothesis_id: wrong_timing
+      weight: 0.35
+      names:
+        en: Wrong Step-Up Timing
+        ar: توقيت خاطئ للصعود
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Defenders are stepping up at different times, leaving
+          gaps. Need coordinated stepping drills.
+        ar: |
+          المدافعون يصعدون في أوقات مختلفة، تاركين فراغات. يحتاجون
+          تدريبات على الصعود المنسق.
+  recommended_drills:
+    primary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gk_sweeping_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "UEFA Pro License: Defensive Line Coordination"
+    - "Coaches' Voice: The Offside Trap"

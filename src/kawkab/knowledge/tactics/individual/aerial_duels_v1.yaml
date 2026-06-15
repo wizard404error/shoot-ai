@@ -1,0 +1,77 @@
+rule:
+  id: weak_aerial_duels_v1
+  category: individual
+  subcategory: aerial_play
+  severity: medium
+  names:
+    en: Weak in Aerial Duels
+    ar: ضعيف في الكرات الهوائية
+  description:
+    en: |
+      Team loses a high percentage of aerial duels (headers, long balls),
+      leading to second balls and possession losses in key areas.
+    ar: |
+      الفريق يخسر نسبة عالية من الكرات الهوائية (الرؤوس، الكرات
+      الطويلة)، مما يؤدي إلى الكرات الثانية وفقدان الاستحواذ في
+      مناطق مهمة.
+  pattern_signature:
+    type: low_aerial_win_rate
+    thresholds:
+      min_matches: 3
+      aerial_duels_per_match: ">20"
+      aerial_win_rate: "<0.40"
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: weak_jumping
+      weight: 0.35
+      names:
+        en: Weak Jumping/Timing
+        ar: ضعف القفز/التوقيت
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are losing headers because of poor jumping or timing.
+          Need aerial technique drills.
+        ar: |
+          اللاعبون يخسرون الكرات الرأسية بسبب ضعف القفز أو التوقيت.
+          يحتاجون تدريبات على تقنية الكرات الهوائية.
+    - hypothesis_id: poor_positioning_aerial
+      weight: 0.35
+      names:
+        en: Poor Positioning for Aerial Balls
+        ar: سوء التمركز للكرات الهوائية
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are not getting into good positions for aerial
+          duels. Need movement and anticipation training.
+        ar: |
+          اللاعبون لا يدخلون في مراكز جيدة للكرات الهوائية. يحتاجون
+          تدريباً على الحركة والاستباق.
+    - hypothesis_id: short_team
+      weight: 0.3
+      names:
+        en: Lack of Aerial Specialists
+        ar: قلة المتخصصين في الكرات الهوائية
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          The team lacks tall players who excel in the air. Consider
+          recruiting or using set-piece routines to compensate.
+        ar: |
+          الفريق يفتقر للاعبين طوال القامة يتفوقون في الكرات الهوائية.
+          ضع في اعتبارك التعاقد أو استخدام تكتيكات الركنيات للتعويض.
+  recommended_drills:
+    primary:
+      - drill_id: aerial_duels_practice
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: set_piece_attack_8v6
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+  - "Coaches' Voice: Winning Aerial Duels"
+  - "UEFA Pro License: Aerial Play"
