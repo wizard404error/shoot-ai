@@ -2,19 +2,44 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-Kawkab AI analyzes your match videos with professional-grade computer vision and generates coach-friendly reports using a local AI assistant. Everything runs on your machine — no cloud, no subscriptions, no data leaving your computer.
+> ⚠️ **Honest status (v0.3.1):** Foundation implemented but **not validated on real amateur footage**.
+> See [STATUS.md](STATUS.md) for what's actually working vs what's aspirational.
 
 ---
 
-## What It Does
+## What It Does (When Working)
 
-- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT (state-of-the-art computer vision)
-- **Computes statistics**: possession %, passes, shots, distance covered, player speeds
-- **Generates coach-friendly reports** in English or Arabic using a local LLM (Ollama + Qwen/Ministral/Gemma)
-- **Identifies tactical patterns** across multiple matches
-- **Recommends training drills** from a curated knowledge base
-- **Suggests 4-week training plans** to fix detected problems
-- **Works fully offline** — no internet required after setup
+- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT (state-of-the-art CV)
+- **Computes statistics**: possession %, passes, distance, player speeds
+- **Generates coach-friendly reports** in English or Arabic using a local LLM
+- **Identifies tactical patterns** via a knowledge base of 22 rules + 19 drills
+- **Recommends training drills** based on detected issues
+- **Generates 4-week training plans** with progressive overload
+
+---
+
+## ⚠️ Read This First
+
+This project was built in 3 intensive sessions using AI-assisted development.
+**It is not production-ready.** Critical foundation work is still needed.
+
+**What works:**
+- ✅ Desktop app launches and shows the UI
+- ✅ All 12 services import and initialize
+- ✅ YOLO detects players/ball on broadcast-quality footage
+- ✅ LLM generates coach reports in EN/AR
+- ✅ 22 rules + 19 drills in knowledge base
+- ✅ 4-week training plan generator
+- ✅ PyInstaller .exe builds (1.75 GB bundle)
+
+**What doesn't work (honestly):**
+- ❌ **Tracking fragmentation**: 91 tracks for 22 players (target: <30). Real amateur footage will be worse.
+- ❌ **No homography by default**: All spatial stats are in pixel space, not meters. Coach must calibrate first.
+- ❌ **Jersey OCR is unreliable**: 8-20px numbers on amateur footage are very hard to read.
+- ❌ **No validation with real coaches**: Everything is theoretical until tested in the wild.
+- ❌ **Bundle is 1.75 GB**: Way too big for amateur adoption.
+
+**Read [STATUS.md](STATUS.md) for the full honest assessment.**
 
 ---
 
@@ -23,10 +48,11 @@ Kawkab AI analyzes your match videos with professional-grade computer vision and
 ### Prerequisites
 
 - **Windows 10/11** (also works on macOS/Linux)
-- **Python 3.12+** (we recommend installing via [uv](https://docs.astral.sh/uv/))
-- **NVIDIA GPU** recommended (RTX 3060+ with 8GB+ VRAM) — works on CPU too, but slower
-- **8GB+ RAM**, **2GB+ disk** for models
+- **Python 3.12+** (we recommend [uv](https://docs.astral.sh/uv/))
+- **NVIDIA GPU** with 8GB+ VRAM (RTX 3060+, RTX 4070 recommended)
+- **8GB+ RAM**
 - **Ollama** for local LLM: [ollama.com/download](https://ollama.com/download)
+- **FFmpeg** for video processing
 
 ### Installation
 
@@ -37,175 +63,115 @@ winget install astral-sh.uv
 # 2. Install Ollama
 winget install Ollama.Ollama
 
-# 3. Clone this repository
-git clone https://github.com/yourusername/kawkab-ai.git
+# 3. Install FFmpeg
+winget install Gyan.FFmpeg
+
+# 4. Clone this repository
+git clone https://github.com/jraya106/kawkab-ai.git
 cd kawkab-ai
 
-# 4. Install dependencies
+# 5. Install dependencies (includes qasync for Qt+asyncio bridge)
 uv sync --extra gpu --extra audio --extra tactical --extra dev
 
-# 5. Install CUDA PyTorch (for GPU acceleration)
+# 6. Install CUDA-enabled PyTorch (CRITICAL for GPU)
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 --reinstall
 
-# 6. Pull a local LLM
+# 7. Pull a local LLM (8-9 GB)
 ollama pull ministral-3:14b
-# Or alternatives: qwen2.5:14b-instruct-q4_K_M, gemma4:12b
+# Alternatives: qwen3:14b, gemma4:12b
 ```
 
-### Launch the App
+### First Run
 
 ```powershell
-# Run the desktop application
-uv run kawkab
-```
-
-The app opens a native window. Drop a match video, click "Analyze", and wait 5-15 minutes for results.
-
-### Command-Line Analysis (No GUI)
-
-For testing or batch processing:
-
-```powershell
-# Run end-to-end pipeline test
-uv run python scripts/end_to_end_test.py --video path/to/match.mp4
-
-# Generate a 30-second synthetic test video (requires FFmpeg)
-uv run python scripts/generate_synthetic_video.py --duration 30
-
-# Verify system is ready
+# Verify everything is set up
 uv run python scripts/verify_system.py
 
-# Test the LLM integration
-uv run python scripts/smoke_test_llm.py
+# Process a sample match (download one first if you don't have one)
+uv run python scripts/test_tracking_v2.py --video path/to/match.mp4
+
+# Launch the desktop app
+uv run python -m kawkab
 ```
 
 ---
 
-## System Requirements
+## Honest Status (v0.3.1)
 
-| Component | Minimum | Recommended |
+### What's Actually Working ✅
+
+| Feature | Status | Notes |
 |---|---|---|
-| OS | Windows 10, macOS 11, Ubuntu 20.04 | Windows 11, macOS 13+ |
-| Python | 3.12 | 3.12 |
-| GPU | Any NVIDIA 8GB+ | RTX 4070 / RTX 3080+ |
-| RAM | 8 GB | 16 GB+ |
-| Disk | 5 GB | 20 GB+ (for video storage) |
-| VRAM | 6 GB (CPU mode) | 12 GB (GPU mode) |
+| YOLOv11 + BoT-SORT | ✅ Implemented | Default config, not tuned for amateur |
+| SQLite storage | ✅ Working | Tested with SQLite |
+| LLM (Ollama) | ✅ Working | EN + AR, with retry logic |
+| Knowledge base | ✅ Working | 22 rules + 19 drills, YAML loader |
+| Desktop app | ✅ Launches | PySide6 + QWebChannel bridge |
+| PyInstaller | ✅ Builds | 1.75 GB bundle |
+
+### What Needs Validation ⚠️
+
+| Feature | Status | Risk |
+|---|---|---|
+| Tracking accuracy | ⚠️ "Fair" | 91 tracks vs 22 players. Real amateur footage will be worse. |
+| Homography | ⚠️ Manual only | Coach must click 4 pitch corners per match |
+| xG / xT | ⚠️ Pixel-based | Need homography to be accurate |
+| Formations | ⚠️ Pixel-based | Need homography to be accurate |
+| Jersey OCR | ⚠️ Unreliable | 8-20px numbers on amateur footage |
+| Reasoning | ⚠️ Untested | Rules fire on patterns we don't measure yet |
+| LLM reports | ⚠️ Impressive but untested | Need real coach feedback |
+
+### What's Not Started ❌
+
+| Feature | Plan | Status |
+|---|---|---|
+| Auto keypoint detection | Homography | ❌ |
+| SoccerNet/tracklab integration | Better tracking | ❌ |
+| Lazy model loading | 50 MB launcher | ❌ |
+| Validation with 5+ amateur coaches | Quality | ❌ |
+| Documentation videos | Adoption | ❌ |
+| Freemium model | Monetization | ❌ |
 
 ---
 
 ## Architecture
 
 ```
-Kawkab AI Desktop (.exe)
+Kawkab AI Desktop (1.75 GB bundle, 66 MB exe)
 │
-├── PySide6 MainWindow
-│   └── QWebEngineView (Vue 3 + Tailwind UI)
-│       └── QWebChannel (JS ↔ Python bridge)
-│           └── Service Layer
-│               ├── CVService (YOLOv11 + BoT-SORT)
-│               ├── EnhancementService (FFmpeg filters)
-│               ├── AnalysisService (stats, patterns)
-│               ├── ReasoningService (tactical diagnosis)
-│               ├── KnowledgeService (500+ rules + drills)
-│               ├── LLMService (Ollama / Groq / Google)
-│               ├── AudioService (Whisper transcription)
-│               └── StorageService (SQLite + FAISS)
+├── 12 Services (async)
+│   ├── CVService              (YOLOv11l + BoT-SORT, smart filters)
+│   ├── HomographyService      (manual 4-corner calibration) ⭐ NEW
+│   ├── VRAMManager            (sequential model loading) ⭐ NEW
+│   ├── EnhancementService     (FFmpeg filters)
+│   ├── AnalysisService        (formations, PPDA, xG, xT)
+│   ├── ReasoningService       (22-rule tactical diagnosis)
+│   ├── TrainingPlanGenerator  (4-week progressive plans)
+│   ├── ClipExtractionService  (FFmpeg evidence clips)
+│   ├── KnowledgeService       (22 rules + 19 drills)
+│   ├── LLMService             (Ollama local, EN+AR)
+│   ├── AudioService           (Whisper, whistle)
+│   └── StorageService         (SQLite)
 │
-├── GPU: NVIDIA CUDA (PyTorch)
-├── Storage: SQLite + Local Filesystem
-└── LLM: Ollama local (Qwen/Ministral/Gemma) or cloud (Groq/Google)
+├── GPU: RTX 4070 (CUDA 12.1, PyTorch 2.5.1)
+├── LLM: Ollama + Ministral/Qwen/Gemma (local, free)
+└── Distribution: PyInstaller → GitHub Releases
 ```
 
 ---
 
-## Features
-
-### ✅ Phase 1: Foundation (Complete)
-
-- [x] **YOLOv11 + BoT-SORT** player & ball detection + tracking
-- [x] **FFmpeg preprocessing**: stabilization, denoising, sharpening
-- [x] **Basic stats**: possession %, passes, shots, distance, speeds
-- [x] **Video player with player overlays** (track IDs, team colors)
-- [x] **SQLite storage** of all matches, players, events
-- [x] **Local LLM reports** in English & Arabic
-- [x] **PySide6 desktop app** with embedded web UI
-- [x] **PyInstaller .exe builder** (66 MB exe + 1.75 GB bundle)
-
-### ✅ Phase 2: The Analyst (Complete)
-
-- [x] **Formation detection** (4-3-3, 4-4-2, etc.) with k-means
-- [x] **PPDA calculation** (Passes Per Defensive Action) — pressing intensity
-- [x] **xG computation** (Expected Goals from shot distance + angle)
-- [x] **xT computation** (Expected Threat from pass location)
-- [x] **Defensive line height** tracking
-- [x] **Pass networks** (NetworkX graphs)
-- [x] **Tactical reasoning engine** — diagnoses issues using rules
-- [x] **Knowledge base**: 22 tactical rules + 18 training drills
-- [x] **Multi-language reports**: English + Arabic
-
-### ✅ Phase 3: The Detective (Complete)
-
-- [x] **Auto video clip extraction** (FFmpeg-based) for evidence
-- [x] **Player jersey number OCR** (EasyOCR + YOLO torso detection)
-- [x] **Tactical reasoning engine** with 22+ rule patterns
-- [x] **4-week training plan generator** (Foundation → Building → Application → Mastery)
-- [x] **Drill library** with 18+ curated training drills
-- [x] **QWebChannel proper setup** (deferred to page load)
-- [x] **Knowledge base expansion** to 22 rules + 18 drills
-
-### 🚧 Phase 4: The Coach (In Progress)
-
-- [ ] Drill visualizations (SVG diagrams)
-- [ ] Print plan as PDF
-- [ ] Re-test mechanism (auto-compare before/after plan)
-- [ ] Coach feedback loop
-- [ ] Multi-match pattern aggregation
-- [ ] Validation with 5+ amateur coaches
-
-### 💰 Phase 5: Scale & Monetize (Planned)
-
-- [ ] Beta program with 20-50 amateur coaches
-- [ ] Freemium model: Free, Pro ($19/mo), Academy ($49/mo)
-- [ ] Multi-language polish
-- [ ] Basketball support
-- [ ] B2B licensing to federations
-
----
-
-## Knowledge Base
-
-The tactical knowledge is stored in versioned YAML files:
-
-```
-src/kawkab/knowledge/
-├── tactics/
-│   ├── defensive/      # Goal conceded patterns, line height, etc.
-│   ├── offensive/      # Build-up play, chance creation, etc.
-│   ├── transitions/    # Defensive/offensive transitions
-│   └── individual/     # Position-specific analysis
-├── drills/             # Training drills with rules, progressions
-└── mappings/           # Problem → drill mapping
-```
-
-**Current:** 3 tactical rules + 3 drills (seed data)
-**Target:** 500 rules + 500 drills over 10 months
-
-To add a new rule, create a YAML file in the appropriate subdirectory. See the existing rules for the format.
-
----
-
-## Open-Source Tools We Build On
+## Resources We Build On
 
 - **[Ultralytics YOLOv11](https://github.com/ultralytics/ultralytics)** — Object detection
-- **[roboflow/sports](https://github.com/roboflow/sports)** — Sports CV reference
-- **[SoccerNet](https://github.com/SoccerNet)** — Football event detection
-- **[socceraction](https://github.com/ML-KULeuven/socceraction)** — Action valuation (VAEP/xT)
+- **[SoccerNet](https://github.com/SoccerNet)** — Football CV (we should integrate SoccerNet/tracklab next)
+- **[boxmot](https://github.com/mikel-brostrom/boxmot)** — Multi-tracker library (next integration)
+- **[socceraction](https://github.com/ML-KULeuven/socceraction)** — Action valuation
 - **[Ollama](https://ollama.com)** — Local LLM runner
 - **[FFmpeg](https://ffmpeg.org)** — Video preprocessing
 - **[mplsoccer](https://github.com/andrewjohnsonsports/mplsoccer)** — Pitch visualizations
 - **[Kloppy](https://github.com/PySport/kloppy)** — Sports data standardization
 - **[PySide6](https://wiki.qt.io/Qt_for_Python)** — Desktop UI framework
+- **[qasync](https://github.com/CabbageDevelopment/qasync)** — Qt + asyncio bridge ⭐ NEW
 
 ---
 
@@ -218,19 +184,27 @@ kawkab-ai/
 ├── src/kawkab/
 │   ├── app.py                  # Main PySide6 window
 │   ├── core/                   # Config, logging, paths
-│   ├── services/               # 8 async services
+│   ├── services/               # 12 async services
+│   │   ├── cv_service.py       # YOLO + BoT-SORT (v2: smart filters)
+│   │   ├── homography_service.py  # ⭐ NEW: pixel->pitch conversion
+│   │   ├── vram_manager.py     # ⭐ NEW: GPU memory management
+│   │   ├── enhancement_service.py
+│   │   ├── analysis_service.py
+│   │   ├── reasoning_service.py
+│   │   ├── training_plan_service.py
+│   │   ├── clip_service.py
+│   │   ├── knowledge_service.py
+│   │   ├── llm_service.py
+│   │   ├── audio_service.py
+│   │   └── storage_service.py
 │   ├── ui/                     # QWebChannel bridge
 │   ├── web/                    # Frontend (HTML/JS/CSS)
-│   ├── knowledge/              # YAML rules + drills
-│   └── __main__.py             # CLI entry point
+│   └── knowledge/              # YAML rules + drills
 ├── scripts/                    # Test & utility scripts
-│   ├── verify_system.py        # Full system check
-│   ├── end_to_end_test.py      # Pipeline test with real video
-│   ├── smoke_test_cv.py        # YOLO loading test
-│   └── smoke_test_llm.py       # LLM integration test
-├── data/                       # User videos, models
-├── pyproject.toml              # All dependencies
-└── PLAN.md                     # Full development plan
+├── tests/                      # Unit tests
+├── data/                       # User videos
+├── docs/                       # Additional documentation
+└── PLAN.md                     # Original development plan
 ```
 
 ### Running Tests
@@ -238,6 +212,9 @@ kawkab-ai/
 ```powershell
 # Verify all services work
 uv run python scripts/verify_system.py
+
+# Test tracking quality (NEW v2)
+uv run python scripts/test_tracking_v2.py --video path/to/match.mp4
 
 # Test YOLO on GPU
 uv run python scripts/smoke_test_cv.py
@@ -251,75 +228,7 @@ uv run python scripts/end_to_end_test.py --video your_match.mp4
 
 ### Building the Installer
 
-```powershell
-# Install PyInstaller
-uv sync --extra build
-
-# Build Windows .exe
-uv run pyinstaller KawkabAI.spec
-
-# Result: dist/KawkabAI.exe (single-file installer)
-```
-
----
-
-## Roadmap
-
-| Phase | Weeks | Status | Focus |
-|---|---|---|---|
-| 1. Foundation | 1-4 | ✅ Done | Detection, basic stats, LLM reports |
-| 2. The Analyst | 5-12 | 🚧 In Progress | Formations, patterns, xG |
-| 3. The Detective | 13-24 | 📋 Planned | Tactical reasoning, diagnoses |
-| 4. The Coach | 25-36 | 📋 Planned | Drill prescriptions, training plans |
-| 5. The Product | 37-48 | 📋 Planned | Polish, beta, monetization |
-| 6. Scale | 49+ | 📋 Planned | B2B, basketball, enterprise |
-
-See [PLAN.md](PLAN.md) for the full development plan.
-
----
-
-## Performance
-
-Tested on **RTX 4070 (12GB VRAM)** with 88-second match video:
-
-| Metric | Value |
-|---|---|
-| Processing speed | 26 FPS |
-| CV pipeline time | ~85s |
-| Formations detected | 4-3-3 / 4-2-3 |
-| PPDA | 0.7 (heavy press detected) |
-| Players detected | 160 unique tracks |
-| Events detected | 61 passes |
-| Confidence | 64.7% |
-| LLM report length | 4,000+ chars |
-| Knowledge base | 22 rules + 18 drills |
-
-For 90-minute match (5400s): ~6 minutes CV + ~1 minute LLM = **~7 minutes total**
-
----
-
-## Privacy
-
-Kawkab AI is **100% private**:
-- All videos stay on your computer
-- All processing happens locally
-- LLM runs locally via Ollama (or optionally via Groq/Google with opt-in)
-- No telemetry, no analytics, no tracking
-- No account required
-
-Your tactical secrets are yours.
-
----
-
-## Contributing
-
-We welcome contributions! See [PLAN.md](PLAN.md) for the roadmap and priorities.
-
-**Most needed:**
-- Tactical rules (YAML format in `src/kawkab/knowledge/tactics/`)
-- Training drills (YAML format in `src/kawkab/knowledge/drills/`)
-- Bug reports and feature requests
-- Translations (especially Arabic native reviews)
+See [BUILD.md](BUILD.md) for detailed build instructions.
 
 ---
 
@@ -329,11 +238,19 @@ MIT License — see [LICENSE](LICENSE)
 
 ---
 
-## Acknowledgments
+## Bottom Line
 
-Built with the help of:
-- The open-source football analytics community
-- Coaches' Voice, Tifo Football, Spielverlagerung (tactical knowledge)
-- All the open-source maintainers whose tools make this possible
+This is a **viable technical architecture** with **real domain knowledge** in the knowledge base, but it is **not yet a finished product**. The next 3-6 months need to focus on:
 
-**The vision:** Every amateur team deserves the same quality of analysis that professional teams have. Kawkab AI makes that free, private, and offline.
+1. **Validating tracking accuracy** on real amateur footage (currently "fair")
+2. **Integrating SoccerNet/tracklab** for football-tuned ReID
+3. **Testing with 5+ amateur coaches** to see if reports are actually useful
+4. **Reducing bundle size** via lazy model loading
+
+Until those happen, this is a research project, not a product.
+
+**The vision is sound. The execution needs validation.**
+
+---
+
+*Reviewed by Claude (kawkab-ai-review.md). Many critical issues identified and being addressed.*
