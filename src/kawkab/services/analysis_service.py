@@ -181,6 +181,10 @@ class AnalysisService:
 
         If homography_matrix is provided, distances are in meters.
         Otherwise, pixel-based estimates using pitch width assumption.
+
+        Per-frame delta is capped at MAX_FRAME_DELTA_M to filter
+        broadcast-cut teleport artifacts (where same track ID
+        briefly jumps across the pitch during camera switches).
         """
         players: dict[int, PlayerStats] = {}
         prev_positions: dict[int, tuple[float, float]] = {}
@@ -189,8 +193,20 @@ class AnalysisService:
         fps = track_data.fps
         pixels_per_meter = 720.0 / self.pitch_width
 
+        frame_skip = max(1, track_data.tracking_metrics.get("frame_skip", 1))
+
+        if homography_matrix is not None:
+            max_frame_delta_m = 0.4
+        else:
+            max_frame_delta_m = 25.0
+
+        prev_timestamps: dict[int, float] = {}
+        is_skip_frame = lambda fno: fno % frame_skip != 0
+
         for frame in track_data.frames:
             current_positions: dict[int, tuple[float, float]] = {}
+            ts = frame.timestamp
+            frame_is_skipped = is_skip_frame(frame.frame_number)
 
             for det in frame.detections:
                 if det.class_name != "person" or det.track_id is None:
@@ -206,12 +222,14 @@ class AnalysisService:
 
                 if homography_matrix is not None:
                     cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
-                else:
-                    pass
 
                 current_positions[tid] = (cx, cy)
 
-                players[tid].positions.append((frame.timestamp, cx, cy))
+                if frame_is_skipped:
+                    players[tid].positions.append((ts, cx, cy))
+                    continue
+
+                players[tid].positions.append((ts, cx, cy))
 
                 if tid in prev_positions:
                     px, py = prev_positions[tid]
@@ -223,17 +241,25 @@ class AnalysisService:
                     else:
                         pixel_distance = math.sqrt(dx * dx + dy * dy)
                         meters = pixel_distance / pixels_per_meter
+
+                    if meters > max_frame_delta_m:
+                        meters = 0.0
+
                     players[tid].distance_covered_m += meters
 
-                    if fps > 0:
-                        time_delta = 1.0 / fps
-                        speed_mps = meters / time_delta if time_delta > 0 else 0
-                        speed_kmh = speed_mps * 3.6
-                        max_speed_per_player[tid] = max(
-                            max_speed_per_player.get(tid, 0), speed_kmh
-                        )
+                    if meters > 0 and tid in prev_timestamps:
+                        dt = ts - prev_timestamps[tid]
+                        if dt > 0:
+                            speed_mps = meters / dt
+                            speed_kmh = speed_mps * 3.6
+                            max_speed_per_player[tid] = max(
+                                max_speed_per_player.get(tid, 0), speed_kmh
+                            )
 
-            prev_positions = current_positions
+                prev_timestamps[tid] = ts
+
+            if not frame_is_skipped:
+                prev_positions = current_positions
 
         for tid, player in players.items():
             if track_data.duration_seconds > 0:
