@@ -294,6 +294,12 @@ class AnalysisService:
                 and closest_player.track_id != prev_possession
                 and closest_dist < player_proximity_threshold
             ):
+                if track_data.player_teams:
+                    team = track_data.player_teams.get(
+                        closest_player.track_id, "unknown"
+                    )
+                else:
+                    team = "home" if prev_possession % 2 == 0 else "away"
                 events.append(
                     {
                         "type": "pass",
@@ -301,7 +307,7 @@ class AnalysisService:
                         "from_track_id": prev_possession,
                         "to_track_id": closest_player.track_id,
                         "completed": True,
-                        "team": "home" if prev_possession % 2 == 0 else "away",
+                        "team": team,
                         "confidence": min(1.0, 1.0 - closest_dist / 200),
                     }
                 )
@@ -337,9 +343,14 @@ class AnalysisService:
         """Compute possession percentage per team.
 
         Uses player ball proximity as proxy for possession.
+        Team assignment comes from CVService team color detection
+        (track_data.player_teams). Falls back to track_id % 2 only
+        if team detection was disabled or failed.
         """
         home_frames = 0
         away_frames = 0
+        unknown_frames = 0
+        use_player_teams = bool(track_data.player_teams)
 
         for frame in track_data.frames:
             ball_det = None
@@ -368,10 +379,19 @@ class AnalysisService:
                     closest = p
 
             if closest and closest.track_id is not None:
-                if closest.track_id % 2 == 0:
-                    home_frames += 1
+                if use_player_teams:
+                    team = track_data.player_teams.get(closest.track_id)
+                    if team == "home":
+                        home_frames += 1
+                    elif team == "away":
+                        away_frames += 1
+                    else:
+                        unknown_frames += 1
                 else:
-                    away_frames += 1
+                    if closest.track_id % 2 == 0:
+                        home_frames += 1
+                    else:
+                        away_frames += 1
 
         total = home_frames + away_frames
         if total == 0:
@@ -448,18 +468,30 @@ class AnalysisService:
         from collections import defaultdict
 
         team_player_positions: dict[int, list[tuple[float, float]]] = defaultdict(list)
-        track_lifetimes: dict[int, int] = defaultdict(int)
+        track_first_seen: dict[int, float] = {}
+        track_last_seen: dict[int, float] = {}
+        use_player_teams = bool(track_data.player_teams)
 
         for frame in track_data.frames:
+            ts = frame.timestamp
             for det in frame.detections:
                 if det.class_name != "person" or det.track_id is None:
                     continue
-                if team == "home":
-                    if det.track_id % 2 != 0:
+                if use_player_teams:
+                    assigned = track_data.player_teams.get(det.track_id)
+                    if assigned is None:
+                        continue
+                    if team == "home" and assigned != "home":
+                        continue
+                    if team == "away" and assigned != "away":
                         continue
                 else:
-                    if det.track_id % 2 == 0:
-                        continue
+                    if team == "home":
+                        if det.track_id % 2 != 0:
+                            continue
+                    else:
+                        if det.track_id % 2 == 0:
+                            continue
                 x1, y1, x2, y2 = det.bbox
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
@@ -467,15 +499,26 @@ class AnalysisService:
                 if homography_matrix is not None:
                     cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
 
-                team_player_positions[det.track_id].append((cx, cy))
-                track_lifetimes[det.track_id] += 1
+                tid = det.track_id
+                team_player_positions[tid].append((cx, cy))
+                if tid not in track_first_seen:
+                    track_first_seen[tid] = ts
+                track_last_seen[tid] = ts
 
-        min_lifetime = track_data.total_frames * 0.15
+        min_span_seconds = max(3.0, track_data.duration_seconds * 0.05)
         team_player_positions = {
             tid: positions
             for tid, positions in team_player_positions.items()
-            if track_lifetimes[tid] >= min_lifetime
+            if (track_last_seen.get(tid, 0) - track_first_seen.get(tid, 0)) >= min_span_seconds
         }
+        track_lifetimes = {
+            tid: track_last_seen[tid] - track_first_seen[tid]
+            for tid in team_player_positions
+        }
+        logger.debug(
+            f"Formation team={team}: {len(team_player_positions)} tracks pass "
+            f"span>={min_span_seconds:.1f}s filter"
+        )
 
         if len(team_player_positions) < 5:
             return {
@@ -608,16 +651,23 @@ class AnalysisService:
                 if det.class_name == "sports ball" and ball_det is None:
                     ball_det = det
                 elif det.class_name == "person" and det.track_id is not None:
-                    if team == "home":
-                        if det.track_id % 2 == 0:
-                            team_players.append(det)
-                        else:
-                            opp_players.append(det)
+                    if track_data.player_teams:
+                        assigned = track_data.player_teams.get(det.track_id)
+                        if assigned == "home":
+                            (team_players if team == "home" else opp_players).append(det)
+                        elif assigned == "away":
+                            (team_players if team == "away" else opp_players).append(det)
                     else:
-                        if det.track_id % 2 != 0:
-                            team_players.append(det)
+                        if team == "home":
+                            if det.track_id % 2 == 0:
+                                team_players.append(det)
+                            else:
+                                opp_players.append(det)
                         else:
-                            opp_players.append(det)
+                            if det.track_id % 2 != 0:
+                                team_players.append(det)
+                            else:
+                                opp_players.append(det)
 
             if ball_det is None or not team_players or not opp_players:
                 continue
@@ -644,7 +694,12 @@ class AnalysisService:
             current_possessor_track_id = closest_team_player.track_id
 
             if team == "home":
-                if current_possessor_track_id % 2 == 0:
+                if track_data.player_teams:
+                    if track_data.player_teams.get(current_possessor_track_id) == "home":
+                        team_possession_frames += 1
+                    else:
+                        opp_possession_frames += 1
+                elif current_possessor_track_id % 2 == 0:
                     team_possession_frames += 1
                 else:
                     opp_possession_frames += 1

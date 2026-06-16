@@ -209,6 +209,8 @@ class CVService:
         self,
         video_path: Path,
         progress_callback=None,
+        frame_skip: int = 1,
+        enable_team_detection: bool = True,
     ) -> MatchTrackData:
         """Process a full video with smart track filtering (v2).
 
@@ -217,6 +219,8 @@ class CVService:
         2. Track lifetime filter (drop noise)
         3. Tracking quality metrics
         4. Confidence tracking per track
+        5. Frame skipping (v3): process every Nth frame for 2-4x speedup
+        6. Team color detection (v3): k-means on jersey colors
         """
         if not self._initialized:
             await self.initialize()
@@ -231,9 +235,12 @@ class CVService:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration = total_frames / fps if fps > 0 else 0
 
+        frame_skip = max(1, int(frame_skip))
+        effective_fps = fps / frame_skip
         logger.info(
             f"Processing video: {video_path.name} "
-            f"({total_frames} frames, {fps:.1f} FPS, {duration:.1f}s)"
+            f"({total_frames} frames, {fps:.1f} FPS, {duration:.1f}s, "
+            f"frame_skip={frame_skip}, effective={effective_fps:.1f} FPS)"
         )
 
         frames: list[FrameDetections] = []
@@ -242,7 +249,10 @@ class CVService:
         track_last_frame: dict[int, int] = {}
         track_confidence_sum: dict[int, float] = defaultdict(float)
         track_is_person: dict[int, bool] = defaultdict(lambda: True)
+        track_color_samples: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
         frame_number = 0
+        h, w = 0, 0
+        last_detections: list[Detection] = []
 
         try:
             while True:
@@ -250,14 +260,43 @@ class CVService:
                 if not ret:
                     break
 
+                h, w = frame.shape[:2]
                 timestamp = frame_number / fps
-                frame_det = await self.detect_frame(frame, frame_number, timestamp)
-                frames.append(frame_det)
+
+                if frame_number % frame_skip == 0:
+                    frame_det = await self.detect_frame(frame, frame_number, timestamp)
+                    frames.append(frame_det)
+                    last_detections = frame_det.detections
+                    if enable_team_detection:
+                        sample_interval = max(
+                            1, int(fps / 2)
+                        )
+                        if frame_number % sample_interval == 0:
+                            for det in frame_det.detections:
+                                if det.class_name != "person" or det.track_id is None:
+                                    continue
+                                torso = self._extract_torso(frame, det.bbox)
+                                if torso is None:
+                                    continue
+                                color = self._get_dominant_color(torso)
+                                if color is not None:
+                                    track_color_samples[det.track_id].append(color)
+                else:
+                    frame_det = FrameDetections(
+                        frame_number=frame_number,
+                        timestamp=timestamp,
+                        detections=last_detections,
+                        image_width=w,
+                        image_height=h,
+                    )
+                    frames.append(frame_det)
 
                 for det in frame_det.detections:
                     if det.track_id is None:
                         continue
                     tid = det.track_id
+                    if frame_number % frame_skip != 0:
+                        continue
                     track_appearances[tid] += 1
                     if tid not in track_first_frame:
                         track_first_frame[tid] = frame_number
@@ -268,11 +307,12 @@ class CVService:
 
                 frame_number += 1
 
-                if progress_callback and frame_number % 30 == 0:
+                if progress_callback and frame_number % (30 * frame_skip) == 0:
                     progress = frame_number / total_frames
                     await progress_callback(
                         progress,
-                        f"Processed {frame_number}/{total_frames} frames",
+                        f"Processed {frame_number}/{total_frames} frames "
+                        f"(skip={frame_skip})",
                     )
         finally:
             cap.release()
@@ -325,6 +365,90 @@ class CVService:
             f"count ratio: {count_ratio:.2f}x, quality: {quality})"
         )
 
+        player_teams: dict[int, str] = {}
+        team_detection_info: dict[str, Any] = {
+            "enabled": enable_team_detection,
+            "assigned": 0,
+            "n_clusters": 0,
+            "color_samples": 0,
+        }
+        if enable_team_detection and track_color_samples:
+            try:
+                track_color_samples = {
+                    tid: samples
+                    for tid, samples in track_color_samples.items()
+                    if tid in valid_player_tracks
+                }
+                if not track_color_samples:
+                    logger.warning(
+                        "No color samples for valid tracks (all samples were from "
+                        "invalid/low-lifetime tracks)"
+                    )
+                else:
+                    logger.info(
+                        f"Team color clustering on {len(track_color_samples)} valid tracks "
+                        f"with {sum(len(s) for s in track_color_samples.values())} samples"
+                    )
+                    color_data: dict[int, dict] = {}
+                    for tid, samples in track_color_samples.items():
+                        if len(samples) < 3:
+                            continue
+                        avg = (
+                            int(np.mean([c[0] for c in samples])),
+                            int(np.mean([c[1] for c in samples])),
+                            int(np.mean([c[2] for c in samples])),
+                        )
+                        color_data[tid] = {
+                            "primary_color": avg,
+                            "color_hex": f"#{avg[2]:02x}{avg[1]:02x}{avg[0]:02x}",
+                            "samples": len(samples),
+                        }
+                    team_detection_info["color_samples"] = sum(
+                        r["samples"] for r in color_data.values()
+                    )
+                    clusters = self._cluster_team_colors(color_data)
+                    for tid, cluster_id in clusters.items():
+                        if tid in color_data:
+                            color_data[tid]["cluster_id"] = cluster_id
+                    cluster_counts: dict[int, int] = defaultdict(int)
+                    for r in color_data.values():
+                        if "cluster_id" in r:
+                            cluster_counts[r["cluster_id"]] += 1
+                    team_detection_info["n_clusters"] = len(cluster_counts)
+                    if len(cluster_counts) >= 2:
+                        sorted_clusters = sorted(
+                            cluster_counts.items(), key=lambda x: -x[1]
+                        )
+                        home_cluster = sorted_clusters[0][0]
+                        away_cluster = sorted_clusters[1][0]
+                        for tid, r in color_data.items():
+                            if r.get("cluster_id") == home_cluster:
+                                player_teams[tid] = "home"
+                            elif r.get("cluster_id") == away_cluster:
+                                player_teams[tid] = "away"
+                        team_detection_info["assigned"] = len(player_teams)
+                        team_detection_info["home_cluster_id"] = home_cluster
+                        team_detection_info["away_cluster_id"] = away_cluster
+                        team_detection_info["home_size"] = cluster_counts[home_cluster]
+                        team_detection_info["away_size"] = cluster_counts[away_cluster]
+                        team_detection_info["ref_size"] = sum(
+                            v for k, v in cluster_counts.items()
+                            if k not in (home_cluster, away_cluster)
+                        )
+                        logger.info(
+                            f"Team detection: home={cluster_counts[home_cluster]} "
+                            f"away={cluster_counts[away_cluster]} "
+                            f"ref={team_detection_info['ref_size']} "
+                            f"(from {len(player_teams)}/{len(valid_player_tracks)} valid tracks)"
+                        )
+                    else:
+                        logger.warning(
+                            f"Team clustering found only {len(cluster_counts)} cluster(s) "
+                            f"from {len(color_data)} players — jerseys may be similar"
+                        )
+            except Exception as e:
+                logger.warning(f"Team detection failed: {e}", exc_info=True)
+
         return MatchTrackData(
             match_id=0,
             fps=fps,
@@ -332,13 +456,16 @@ class CVService:
             duration_seconds=duration,
             frames=frames,
             track_registry=track_registry,
-            player_teams={},
+            player_teams=player_teams,
             tracking_metrics={
                 "raw_tracks_detected": raw_tracks,
                 "validated_player_tracks": len(valid_player_tracks),
                 "fragmentation_rate": round(fragmentation_rate, 2),
                 "expected_player_count": self.expected_player_count,
                 "tracking_quality": quality,
+                "frame_skip": frame_skip,
+                "effective_fps": round(effective_fps, 1),
+                "team_detection": team_detection_info,
             },
         )
 
@@ -559,6 +686,7 @@ class CVService:
         self,
         video_path: Path,
         sample_frames: int = 20,
+        known_track_ids: set[int] | None = None,
     ) -> dict[int, dict]:
         """Detect dominant jersey color for each tracked player."""
         import cv2
@@ -598,6 +726,8 @@ class CVService:
                 if boxes.id is None:
                     continue
                 track_id = int(boxes.id[i].cpu().numpy())
+                if known_track_ids is not None and track_id not in known_track_ids:
+                    continue
                 bbox = boxes.xyxy[i].cpu().numpy()
                 x1, y1, x2, y2 = map(int, bbox)
                 torso_y1 = max(0, y1 + int((y2 - y1) * 0.25))
@@ -638,6 +768,26 @@ class CVService:
         n_teams = len(set(clusters.values()))
         logger.info(f"Team color detection: {len(result)} players, {n_teams} clusters")
         return result
+
+    def _extract_torso(self, frame: np.ndarray, bbox: tuple) -> np.ndarray | None:
+        """Extract torso region from frame using bbox (x1,y1,x2,y2).
+
+        Returns the upper-middle portion of the bbox (jersey area).
+        """
+        if frame is None or frame.size == 0:
+            return None
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        h, w = frame.shape[:2]
+        torso_y1 = max(0, y1 + int((y2 - y1) * 0.25))
+        torso_y2 = min(h, y1 + int((y2 - y1) * 0.55))
+        torso_x1 = max(0, x1 + int((x2 - x1) * 0.2))
+        torso_x2 = min(w, x2 - int((x2 - x1) * 0.2))
+        if torso_x2 <= torso_x1 or torso_y2 <= torso_y1:
+            return None
+        torso = frame[torso_y1:torso_y2, torso_x1:torso_x2]
+        if torso.size == 0:
+            return None
+        return torso
 
     def _get_dominant_color(self, img_region):
         """Get dominant non-white, non-black color from a region (BGR)."""

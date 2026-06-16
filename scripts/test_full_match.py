@@ -53,8 +53,9 @@ async def main() -> int:
     print("  [OK]")
 
     print("\n[2/5] CV pipeline on full video (this takes time)...")
+    print("  Using frame_skip=2 (process every 2nd frame) + team detection")
     t0 = time.time()
-    track_data = await cv.process_video(video_path)
+    track_data = await cv.process_video(video_path, frame_skip=2)
     cv_time = time.time() - t0
     metrics = track_data.tracking_metrics
     print(f"  [OK] {cv_time:.1f}s ({duration/cv_time:.1f}x realtime)")
@@ -62,6 +63,15 @@ async def main() -> int:
     print(f"  Validated:  {metrics['validated_player_tracks']}")
     print(f"  Count ratio: {metrics.get('count_ratio_vs_expected', 'N/A')}x of expected 22")
     print(f"  Quality:     {metrics['tracking_quality']}")
+    print(f"  Frame skip: {metrics.get('frame_skip', 1)} (effective FPS: {metrics.get('effective_fps', '?')})")
+    td = metrics.get("team_detection", {})
+    print(f"  Team detection: {td.get('n_clusters', 0)} clusters, "
+          f"home={td.get('home_size', 0)} away={td.get('away_size', 0)} "
+          f"of {td.get('assigned', 0)} assigned")
+    if track_data.player_teams:
+        home = sum(1 for v in track_data.player_teams.values() if v == "home")
+        away = sum(1 for v in track_data.player_teams.values() if v == "away")
+        print(f"  Player teams: {home} home / {away} away")
 
     print("\n[3/5] Analysis with homography (meters)...")
     matrix = homography.compute_homography_from_corners(
