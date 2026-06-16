@@ -406,46 +406,69 @@ class CVService:
                     team_detection_info["color_samples"] = sum(
                         r["samples"] for r in color_data.values()
                     )
-                    clusters = self._cluster_team_colors(color_data)
-                    for tid, cluster_id in clusters.items():
-                        if tid in color_data:
-                            color_data[tid]["cluster_id"] = cluster_id
-                    cluster_counts: dict[int, int] = defaultdict(int)
-                    for r in color_data.values():
-                        if "cluster_id" in r:
-                            cluster_counts[r["cluster_id"]] += 1
-                    team_detection_info["n_clusters"] = len(cluster_counts)
-                    if len(cluster_counts) >= 2:
-                        sorted_clusters = sorted(
-                            cluster_counts.items(), key=lambda x: -x[1]
+                clusters = self._cluster_team_colors(color_data)
+                for tid, cluster_id in clusters.items():
+                    if tid in color_data:
+                        color_data[tid]["cluster_id"] = cluster_id
+                cluster_avg_bgr: dict[int, tuple[int, int, int]] = {}
+                for cid in set(clusters.values()):
+                    members = [
+                        color_data[tid]["primary_color"]
+                        for tid, c in clusters.items()
+                        if c == cid and tid in color_data
+                    ]
+                    if members:
+                        cluster_avg_bgr[cid] = (
+                            int(np.mean([m[0] for m in members])),
+                            int(np.mean([m[1] for m in members])),
+                            int(np.mean([m[2] for m in members])),
                         )
-                        home_cluster = sorted_clusters[0][0]
-                        away_cluster = sorted_clusters[1][0]
-                        for tid, r in color_data.items():
-                            if r.get("cluster_id") == home_cluster:
-                                player_teams[tid] = "home"
-                            elif r.get("cluster_id") == away_cluster:
-                                player_teams[tid] = "away"
-                        team_detection_info["assigned"] = len(player_teams)
-                        team_detection_info["home_cluster_id"] = home_cluster
-                        team_detection_info["away_cluster_id"] = away_cluster
-                        team_detection_info["home_size"] = cluster_counts[home_cluster]
-                        team_detection_info["away_size"] = cluster_counts[away_cluster]
-                        team_detection_info["ref_size"] = sum(
-                            v for k, v in cluster_counts.items()
-                            if k not in (home_cluster, away_cluster)
+                if cluster_avg_bgr:
+                    logger.info(
+                        f"Cluster BGR colors: "
+                        + ", ".join(
+                            f"cluster_{cid}={color}"
+                            for cid, color in cluster_avg_bgr.items()
                         )
-                        logger.info(
-                            f"Team detection: home={cluster_counts[home_cluster]} "
-                            f"away={cluster_counts[away_cluster]} "
-                            f"ref={team_detection_info['ref_size']} "
-                            f"(from {len(player_teams)}/{len(valid_player_tracks)} valid tracks)"
-                        )
-                    else:
-                        logger.warning(
-                            f"Team clustering found only {len(cluster_counts)} cluster(s) "
-                            f"from {len(color_data)} players — jerseys may be similar"
-                        )
+                    )
+                cluster_counts: dict[int, int] = defaultdict(int)
+                for r in color_data.values():
+                    if "cluster_id" in r:
+                        cluster_counts[r["cluster_id"]] += 1
+                team_detection_info["n_clusters"] = len(cluster_counts)
+                if len(cluster_counts) >= 2:
+                    sorted_clusters = sorted(
+                        cluster_counts.items(), key=lambda x: -x[1]
+                    )
+                    home_cluster = sorted_clusters[0][0]
+                    away_cluster = sorted_clusters[1][0]
+                    for tid, r in color_data.items():
+                        if r.get("cluster_id") == home_cluster:
+                            player_teams[tid] = "home"
+                        elif r.get("cluster_id") == away_cluster:
+                            player_teams[tid] = "away"
+                    team_detection_info["assigned"] = len(player_teams)
+                    team_detection_info["home_cluster_id"] = home_cluster
+                    team_detection_info["away_cluster_id"] = away_cluster
+                    team_detection_info["home_size"] = cluster_counts[home_cluster]
+                    team_detection_info["away_size"] = cluster_counts[away_cluster]
+                    team_detection_info["ref_size"] = sum(
+                        v for k, v in cluster_counts.items()
+                        if k not in (home_cluster, away_cluster)
+                    )
+                    team_detection_info["home_avg_bgr"] = cluster_avg_bgr.get(home_cluster)
+                    team_detection_info["away_avg_bgr"] = cluster_avg_bgr.get(away_cluster)
+                    logger.info(
+                        f"Team detection: home={cluster_counts[home_cluster]} "
+                        f"away={cluster_counts[away_cluster]} "
+                        f"ref={team_detection_info['ref_size']} "
+                        f"(from {len(player_teams)}/{len(valid_player_tracks)} valid tracks)"
+                    )
+                else:
+                    logger.warning(
+                        f"Team clustering found only {len(cluster_counts)} cluster(s) "
+                        f"from {len(color_data)} players — jerseys may be similar"
+                    )
             except Exception as e:
                 logger.warning(f"Team detection failed: {e}", exc_info=True)
 
