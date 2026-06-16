@@ -6,6 +6,7 @@ Computes per-match and season-level insights from tracking data.
 from __future__ import annotations
 
 import math
+import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -120,6 +121,9 @@ class AnalysisService:
         """
         logger.info(f"Analyzing match: {track_data.total_frames} frames")
 
+        if homography_matrix is not None and track_data.player_teams:
+            self._assign_teams_by_pitch_side(track_data, homography_matrix)
+
         players = self._compute_player_stats(track_data, homography_matrix)
         events = self._detect_events(track_data, homography_matrix)
         team_stats = self._compute_team_stats(players, events, track_data, homography_matrix)
@@ -173,6 +177,39 @@ class AnalysisService:
             },
             pressing_intensity=home_ppda.get("ppda") or 0.0,
         )
+
+    def _assign_teams_by_pitch_side(
+        self, track_data: MatchTrackData, homography_matrix
+    ) -> None:
+        x_per_team: dict[str, list[float]] = {"home": [], "away": []}
+        for tid, entry in track_data.track_registry.items():
+            team = track_data.player_teams.get(tid)
+            px = entry.get("first_pixel_x")
+            if team not in ("home", "away") or px is None:
+                continue
+            try:
+                pitch_x, _ = homography_matrix.pixel_to_pitch(px, 0)
+                x_per_team[team].append(pitch_x)
+            except Exception:
+                continue
+
+        if len(x_per_team["home"]) < 3 or len(x_per_team["away"]) < 3:
+            return
+
+        home_med = statistics.median(x_per_team["home"])
+        away_med = statistics.median(x_per_team["away"])
+
+        if home_med > away_med:
+            track_data.swap_teams()
+            logger.info(
+                f"Pitch-side heuristic: home players at x={home_med:.0f}m (right), "
+                f"away at x={away_med:.0f}m (left) → swapped teams"
+            )
+        else:
+            logger.info(
+                f"Pitch-side heuristic: home at x={home_med:.0f}m (left), "
+                f"away at x={away_med:.0f}m (right) → already correct"
+            )
 
     def _compute_player_stats(
         self, track_data: MatchTrackData, homography_matrix=None

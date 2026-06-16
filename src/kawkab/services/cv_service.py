@@ -52,6 +52,26 @@ class MatchTrackData:
     player_teams: dict[int, str] = field(default_factory=dict)
     tracking_metrics: dict[str, Any] = field(default_factory=dict)
 
+    def swap_teams(self) -> None:
+        """Swap home/away assignments for all players.
+
+        Useful when the team color clustering heuristic got the labels wrong.
+        After calling this, possession/formation stats will be flipped.
+        """
+        self.player_teams = {
+            tid: ("away" if team == "home" else "home" if team == "away" else team)
+            for tid, team in self.player_teams.items()
+        }
+        if "team_detection" in self.tracking_metrics:
+            td = self.tracking_metrics["team_detection"]
+            if "home_avg_bgr" in td and "away_avg_bgr" in td:
+                td["home_avg_bgr"], td["away_avg_bgr"] = (
+                    td["away_avg_bgr"],
+                    td["home_avg_bgr"],
+                )
+            if "home_size" in td and "away_size" in td:
+                td["home_size"], td["away_size"] = td["away_size"], td["home_size"]
+
 
 class CVService:
     """Computer vision pipeline for player/ball detection and tracking.
@@ -250,6 +270,7 @@ class CVService:
         track_confidence_sum: dict[int, float] = defaultdict(float)
         track_is_person: dict[int, bool] = defaultdict(lambda: True)
         track_color_samples: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
+        track_first_px: dict[int, float] = {}
         frame_number = 0
         h, w = 0, 0
         last_detections: list[Detection] = []
@@ -300,6 +321,8 @@ class CVService:
                     track_appearances[tid] += 1
                     if tid not in track_first_frame:
                         track_first_frame[tid] = frame_number
+                        x1, _, x2, _ = det.bbox
+                        track_first_px[tid] = (x1 + x2) / 2
                     track_last_frame[tid] = frame_number
                     track_confidence_sum[tid] += det.confidence
                     if det.class_name != "person":
@@ -352,6 +375,7 @@ class CVService:
                 "frames_tracked": track_appearances[tid],
                 "lifetime_pct": (track_appearances[tid] / total_frames) * 100,
                 "confidence_avg": track_confidence_sum[tid] / max(1, track_appearances[tid]),
+                "first_pixel_x": track_first_px.get(tid),
             }
 
         fragmentation_rate = raw_tracks / max(1, len(valid_player_tracks))
