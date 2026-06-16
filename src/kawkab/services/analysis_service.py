@@ -195,11 +195,15 @@ class AnalysisService:
 
         frame_skip = max(1, track_data.tracking_metrics.get("frame_skip", 1))
 
+        fps = track_data.fps
+        pixels_per_meter = 720.0 / self.pitch_width
+
         if homography_matrix is not None:
-            max_frame_delta_m = 0.4
+            max_frame_delta_m = 0.5
         else:
             max_frame_delta_m = 25.0
 
+        prev_positions: dict[int, tuple[float, float]] = {}
         prev_timestamps: dict[int, float] = {}
         is_skip_frame = lambda fno: fno % frame_skip != 0
 
@@ -224,12 +228,10 @@ class AnalysisService:
                     cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
 
                 current_positions[tid] = (cx, cy)
+                players[tid].positions.append((ts, cx, cy))
 
                 if frame_is_skipped:
-                    players[tid].positions.append((ts, cx, cy))
                     continue
-
-                players[tid].positions.append((ts, cx, cy))
 
                 if tid in prev_positions:
                     px, py = prev_positions[tid]
@@ -252,9 +254,10 @@ class AnalysisService:
                         if dt > 0:
                             speed_mps = meters / dt
                             speed_kmh = speed_mps * 3.6
-                            max_speed_per_player[tid] = max(
-                                max_speed_per_player.get(tid, 0), speed_kmh
-                            )
+                            if speed_kmh <= 36.0:
+                                max_speed_per_player[tid] = max(
+                                    max_speed_per_player.get(tid, 0), speed_kmh
+                                )
 
                 prev_timestamps[tid] = ts
 
