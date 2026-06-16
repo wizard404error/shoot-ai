@@ -1,26 +1,27 @@
-# Kawkab AI — Honest Status Report (v0.5.1)
+# Kawkab AI — Honest Status Report (v0.5.3)
 
-> **Last updated:** v0.5.1 (frame skipping + real team colors + speed cap)
+> **Last updated:** v0.5.3 (hard 36 km/h speed cap + Kalman smoother infrastructure)
 > **TL;DR:** Production-ready spatial stats. Trustable speed numbers. Real team assignment.
 
 This document is brutally honest about what works and what doesn't.
 
 ---
 
-## Test Results (v0.5.1) — Real Numbers on 5-min Sweden-Tunisia highlight
+## Test Results (v0.5.3) — Real Numbers on 5-min Sweden-Tunisia highlight
 
-| Metric | v0.4.1 | v0.5.0 | v0.5.1 | Status |
-|---|---|---|---|---|
-| Validated player tracks | 28 | 28 | 28 | ✅ |
-| Tracking quality | excellent | excellent | excellent | ✅ |
-| **CV speed** | 0.3x realtime | **0.5x realtime** | 0.5x realtime | ✅ 1.7x faster |
-| **Team assignment** | random (track_id%2) | **k-means on jerseys** | k-means on jerseys | ✅ Real |
-| Possession accuracy | coin flip | **60% / 40%** | 60% / 40% | ✅ Real |
-| Formations | 4-4-3 / 3-3-2 | **3-3-2 / 3-2-2** | 3-3-2 / 3-2-2 | ✅ With team split |
-| Defensive line height | 5.42m / 19.91m | **27.25m / 46.33m** | same | ✅ |
-| **Max player speed** | unbounded (400+ km/h) | 180 km/h | **36 km/h** | ✅ Realistic |
-| LLM guardrails | none | match_context | match_context | ✅ No hallucination |
-| LLM report | 3500 chars | 3300-5500 chars | 3500 chars | ✅ |
+| Metric | v0.4.1 | v0.5.0 | v0.5.1 | v0.5.3 | Status |
+|---|---|---|---|---|---|
+| Validated player tracks | 28 | 28 | 28 | 28 | ✅ |
+| Tracking quality | excellent | excellent | excellent | excellent | ✅ |
+| **CV speed** | 0.3x realtime | **0.5x realtime** | 0.5x realtime | 0.5x realtime | ✅ 1.7x faster |
+| **Team assignment** | random (track_id%2) | **k-means on jerseys** | k-means on jerseys | k-means on jerseys | ✅ Real |
+| Possession accuracy | coin flip | **60% / 40%** | 60% / 40% | 60% / 40% | ✅ Real |
+| Formations | 4-4-3 / 3-3-2 | **3-3-2 / 3-2-2** | 3-3-2 / 3-2-2 | 3-3-2 / 3-2-2 | ✅ With team split |
+| Defensive line height | 5.42m / 19.91m | **27.25m / 46.33m** | same | same | ✅ |
+| **Max player speed** | unbounded (400+ km/h) | 180 km/h | **36 km/h** | **35.2-36.0 km/h** | ✅ Realistic cap |
+| Distance per track (5m) | — | 306m (artifact) | ~80m | **100-119m** | ⚠️ Improved, still low |
+| LLM guardrails | none | match_context | match_context | match_context | ✅ No hallucination |
+| LLM report | 3500 chars | 3300-5500 chars | 3500 chars | ~4000 chars | ✅ |
 
 ---
 
@@ -58,6 +59,37 @@ This document is brutally honest about what works and what doesn't.
   2. Per-frame delta was uncapped (broadcast cuts caused 4m teleports)
 - Fix: 0.4m cap, correct dt from real frame timestamps
 - **Test result**: max=36 km/h (matches elite human sprint)
+
+### ✅ **Hard 36 km/h Speed Cap (v0.5.3)**
+
+- v0.5.1 had 0.4m per-frame delta cap (prevented broadcast-cut teleports)
+- v0.5.3 adds explicit `if speed_kmh <= 36.0` hard cap (belt-and-suspenders)
+- Result: max across all 28 tracks in 5-min test = 35.2-36.0 km/h
+- No track exceeds elite human sprint limit
+- Distance slightly improved: 100-119m vs ~80m (v0.5.1) per 5-min highlight
+
+### ✅ **Kalman Smoother Infrastructure (v0.5.3)**
+
+- New `kalman_smoother.py` with `PlayerPositionSmoother` class
+- Constant-velocity Kalman + 3-frame median pre-filter
+- Conservative defaults (process_noise=0.3, measurement_noise=0.8)
+- **Not wired into main pipeline**: Kalman needs continuous tracking (full 90-min match), it degrades on fragmented highlight reels (~10s per track)
+- Kept as infrastructure for future full-match analysis
+
+### ✅ **Cluster Color Logging (v0.5.2)**
+
+- `tracking_metrics` now logs `home_avg_bgr` and `away_avg_bgr`
+- Helps verify team assignment accuracy manually
+- Example: Home=RGB(144,85,62) red-orange, Away=RGB(154,160,67) yellow-green
+- User can sanity-check whether cluster_0 actually matches the expected home team
+
+### ⚠️ **Distance Still Underestimates on Highlight Reels**
+
+- v0.5.3 cap filters broadcast-cut teleports correctly
+- 100-119m per player in 5-min highlight (vs 306m with artifact speeds, vs ~80m in v0.5.1)
+- Kalman smoother added but NOT wired — highlight fragmentation makes it counterproductive
+- Real fix requires continuous 90-min tracking or team-level ReID across cuts
+- For highlight reels, distance is directionally correct but incomplete
 
 ### ✅ **LLM Hallucination Guardrails (v0.5.0)**
 
@@ -117,10 +149,10 @@ This document is brutally honest about what works and what doesn't.
 
 ### ⚠️ **Distance Still Underestimates on Highlight Reels**
 
-- v0.5.1 cap filters broadcast-cut teleports correctly
-- But also filters some real movement
-- Result: 1-2 km/game equivalent (real is 9-11 km)
-- Need: Kalman smoothing or sub-frame interpolation
+- v0.5.3 cap filters broadcast-cut teleports correctly
+- 100-119m per 5-min highlight = 1.2-1.4 km/game equivalent (real is 9-11 km)
+- Kalman smoother added but NOT wired — highlight fragmentation makes it counterproductive
+- Real fix: continuous 90-min tracking or team-level ReID
 
 ### ⚠️ **Jersey OCR Unreliable**
 
@@ -142,22 +174,26 @@ This document is brutally honest about what works and what doesn't.
 
 ---
 
-## Bottom Line (v0.5.1)
+## Bottom Line (v0.5.3)
 
 **The system now produces trustable spatial stats when calibrated:**
 - Real meters (homography)
 - Real team assignment (color clustering)
-- Realistic max speeds (cap removes teleports)
+- Realistic max speeds (hard 36 km/h cap on all tracks)
 - 1.7x faster (frame skipping)
+- Kalman smoother infrastructure ready for full 90-min matches
+- Cluster colors logged for manual verification of team assignment
 
 **Critical missing validation**: 0 amateur coaches have used this. All "good numbers" are theoretical.
+
+**Kalman note**: The Kalman smoother module exists and is tested. It was NOT wired into the main pipeline because highlight reel fragmentation (686 raw tracks → 28 validated, each lasting ~10s) made it degrade tracking. It is kept for future 90-min continuous match analysis.
 
 **Estimated time to real v1.0**: 2-3 months of focused work, with priority on:
 1. Real coach validation (THE critical missing piece)
 2. Bundle size optimization (lazy loading)
 3. Lemon Squeezy research
-4. CV speed improvements (GPU tiered, re-encoding)
+4. Full 90-min match analysis (so Kalman can actually help)
 
 ---
 
-*Updated v0.5.1 (speed cap, honest test results on 5-min Sweden-Tunisia clip)*
+*Updated v0.5.3 (hard 36 km/h speed cap, Kalman smoother infrastructure, cluster color logging)*
