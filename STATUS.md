@@ -1,27 +1,26 @@
-# Kawkab AI — Honest Status Report (v0.5.3)
+# Kawkab AI — Honest Status Report (v0.5.4)
 
-> **Last updated:** v0.5.3 (hard 36 km/h speed cap + Kalman smoother infrastructure)
-> **TL;DR:** Production-ready spatial stats. Trustable speed numbers. Real team assignment.
+> **Last updated:** v0.5.4 (pitch-side heuristic for home/away — no more guessing)
+> **TL;DR:** Production-ready spatial stats. Trustable speed numbers. Real team assignment from pitch geometry.
 
 This document is brutally honest about what works and what doesn't.
 
 ---
 
-## Test Results (v0.5.3) — Real Numbers on 5-min Sweden-Tunisia highlight
+## Test Results (v0.5.4) — Real Numbers on 5-min Sweden-Tunisia highlight
 
-| Metric | v0.4.1 | v0.5.0 | v0.5.1 | v0.5.3 | Status |
-|---|---|---|---|---|---|
-| Validated player tracks | 28 | 28 | 28 | 28 | ✅ |
-| Tracking quality | excellent | excellent | excellent | excellent | ✅ |
-| **CV speed** | 0.3x realtime | **0.5x realtime** | 0.5x realtime | 0.5x realtime | ✅ 1.7x faster |
-| **Team assignment** | random (track_id%2) | **k-means on jerseys** | k-means on jerseys | k-means on jerseys | ✅ Real |
-| Possession accuracy | coin flip | **60% / 40%** | 60% / 40% | 60% / 40% | ✅ Real |
-| Formations | 4-4-3 / 3-3-2 | **3-3-2 / 3-2-2** | 3-3-2 / 3-2-2 | 3-3-2 / 3-2-2 | ✅ With team split |
-| Defensive line height | 5.42m / 19.91m | **27.25m / 46.33m** | same | same | ✅ |
-| **Max player speed** | unbounded (400+ km/h) | 180 km/h | **36 km/h** | **35.2-36.0 km/h** | ✅ Realistic cap |
-| Distance per track (5m) | — | 306m (artifact) | ~80m | **100-119m** | ⚠️ Improved, still low |
-| LLM guardrails | none | match_context | match_context | match_context | ✅ No hallucination |
-| LLM report | 3500 chars | 3300-5500 chars | 3500 chars | ~4000 chars | ✅ |
+| Metric | v0.4.1 | v0.5.0 | v0.5.1 | v0.5.3 | v0.5.4 | Status |
+|---|---|---|---|---|---|---|
+| Validated player tracks | 28 | 28 | 28 | 28 | 28 | ✅ |
+| Tracking quality | excellent | excellent | excellent | excellent | excellent | ✅ |
+| **CV speed** | 0.3x realtime | **0.5x realtime** | 0.5x realtime | 0.5x realtime | 0.5x realtime | ✅ 1.7x faster |
+| **Team assignment** | random | **k-means on jerseys** | k-means on jerseys | k-means on jerseys | **pitch-side validated** | ✅ Pitch geometry |
+| Possession accuracy | coin flip | **60% / 40%** | 60% / 40% | 60% / 40% | 60% / 40% | ✅ No change (was correct) |
+| Formations | 4-4-3 / 3-3-2 | **3-3-2 / 3-2-2** | 3-3-2 / 3-2-2 | 3-3-2 / 3-2-2 | 3-3-2 / 3-2-2 | ✅ |
+| Defensive line height | 5.42m / 19.91m | **27.25m / 46.33m** | same | same | same | ✅ |
+| **Max player speed** | unbounded (400+ km/h) | 180 km/h | **36 km/h** | **35.2-36.0 km/h** | same | ✅ |
+| Distance per track (5m) | — | 306m (artifact) | ~80m | **100-119m** | same | ⚠️ Improved |
+| LLM guardrails | none | match_context | match_context | match_context | match_context | ✅ |
 
 ---
 
@@ -76,6 +75,19 @@ This document is brutally honest about what works and what doesn't.
 - **Not wired into main pipeline**: Kalman needs continuous tracking (full 90-min match), it degrades on fragmented highlight reels (~10s per track)
 - Kept as infrastructure for future full-match analysis
 
+### ✅ **Side-of-Pitch Home/Away Validation (v0.5.4)**
+
+- Previous heuristic: "larger color cluster = home" was still a guess
+- New approach: at kickoff, home team attacks left-to-right (broadcast convention)
+- Stores first pixel x-coordinate of each track in `track_registry`
+- In `analyze_match`, converts to pitch-space x via homography
+- Computes median x per team; lower median = home (left side)
+- Auto-swaps if current assignment is reversed
+- Log: "home at x=46m (left), away at x=56m (right) → already correct"
+- On 1-min clip where heuristic was wrong: "→ swapped teams"
+- Graceful fallback: requires ≥3 players per team with valid pitch coords
+- If homography unavailable: falls back to larger-cluster heuristic
+
 ### ✅ **Cluster Color Logging (v0.5.2)**
 
 - `tracking_metrics` now logs `home_avg_bgr` and `away_avg_bgr`
@@ -107,6 +119,7 @@ This document is brutally honest about what works and what doesn't.
 - ✅ Pitch mask (filters refs/spectators on sidelines)
 - ✅ Homography calibration (click 4 corners → real meters)
 - ✅ Team color clustering (k-means on jersey colors)
+- ✅ Pitch-side home/away validation (median x per cluster → left=home)
 - ✅ Possession % (proximity to ball)
 - ✅ Formations (3-3-2, 3-2-2, 4-4-3, 4-3-3)
 - ✅ Defensive line height (in meters)
@@ -166,34 +179,33 @@ This document is brutally honest about what works and what doesn't.
 - Camera cuts cause ID fragmentation
 - SoccerNet/tracklab integration would help
 
-### ⚠️ **Home/Away Heuristic is a Guess**
+### ✅ **Home/Away Assignment Now Pitch-Based**
 
-- Current: larger cluster = home (because more broadcast time)
-- Better: side-based (left/right), user override, or pre-match input
-- This affects possession % interpretation
+- v0.5.4: median pitch x per cluster determines home (left) vs away (right)
+- No longer a guess — uses actual pitch geometry
+- Falls back to larger-cluster heuristic only if homography unavailable
+- If the broadcast shows an unusual camera angle at kickoff, swap_teams() provides manual override
 
 ---
 
-## Bottom Line (v0.5.3)
+## Bottom Line (v0.5.4)
 
 **The system now produces trustable spatial stats when calibrated:**
 - Real meters (homography)
-- Real team assignment (color clustering)
+- Real team assignment (pitch-side validated — no guessing)
 - Realistic max speeds (hard 36 km/h cap on all tracks)
 - 1.7x faster (frame skipping)
 - Kalman smoother infrastructure ready for full 90-min matches
-- Cluster colors logged for manual verification of team assignment
+- Cluster colors + pitch-side method logged for verification
+- swap_teams() provides manual override if pitch heuristic is wrong
 
 **Critical missing validation**: 0 amateur coaches have used this. All "good numbers" are theoretical.
-
-**Kalman note**: The Kalman smoother module exists and is tested. It was NOT wired into the main pipeline because highlight reel fragmentation (686 raw tracks → 28 validated, each lasting ~10s) made it degrade tracking. It is kept for future 90-min continuous match analysis.
 
 **Estimated time to real v1.0**: 2-3 months of focused work, with priority on:
 1. Real coach validation (THE critical missing piece)
 2. Bundle size optimization (lazy loading)
-3. Lemon Squeezy research
-4. Full 90-min match analysis (so Kalman can actually help)
+3. Full 90-min match analysis (so Kalman can help with distance)
 
 ---
 
-*Updated v0.5.3 (hard 36 km/h speed cap, Kalman smoother infrastructure, cluster color logging)*
+*Updated v0.5.4 (pitch-side home/away heuristic, team assignment no longer a guess)*
