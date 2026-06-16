@@ -11,6 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot
 
 from kawkab.core.logging import get_logger
+from kawkab.core.paths import get_paths
 
 logger = get_logger(__name__)
 
@@ -199,7 +200,7 @@ class Bridge(QObject):
 
             self.analysisProgress.emit(0.05, "Enhancing video...")
             preprocessed_path = (
-                self.enhancement_service._cache_dir
+                get_paths().cache
                 / f"{video_path_obj.stem}_preprocessed.mp4"
             )
             await self.enhancement_service.preprocess_video(
@@ -213,7 +214,10 @@ class Bridge(QObject):
                 self.analysisProgress.emit(total, msg)
 
             track_data = await self.cv_service.process_video(
-                preprocessed_path, progress_callback=progress_cb
+                preprocessed_path,
+                progress_callback=progress_cb,
+                frame_skip=3,
+                enable_team_detection=True,
             )
 
             await self.storage_service.update_match_analysis(

@@ -313,16 +313,16 @@ class AnalysisService:
     def _detect_events(
         self, track_data: MatchTrackData, homography_matrix=None
     ) -> list[dict]:
-        """Detect basic events (passes, shots, tackles) from tracking.
-
-        Heuristic-based: detects possession changes (passes), fast ball
-        movement toward goal (shots), and proximity changes (tackles).
-        """
         events: list[dict] = []
         prev_possession: int | None = None
         ball_track_id: int | None = None
 
         player_proximity_threshold = 60  # pixels
+        shot_speed_threshold_pps = 600  # pixels/s fallback
+        shot_speed_threshold_mps = 8.0  # m/s with homography
+        goal_proximity_m = 20.0
+
+        ball_history: list[tuple[float, float, float, float | None, float | None]] = []
 
         for frame in track_data.frames:
             ball_det = None
@@ -341,6 +341,65 @@ class AnalysisService:
 
             bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2
             by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2
+
+            pitch_x: float | None = None
+            pitch_y: float | None = None
+            if homography_matrix is not None:
+                try:
+                    pitch_x, pitch_y = homography_matrix.pixel_to_pitch(bx, by)
+                except Exception:
+                    pass
+
+            ball_history.append((frame.timestamp, bx, by, pitch_x, pitch_y))
+            if len(ball_history) > 5:
+                ball_history.pop(0)
+
+            if ball_track_id is not None and len(ball_history) >= 3:
+                p0 = ball_history[-3]
+                p1 = ball_history[-1]
+                dt = p1[0] - p0[0]
+
+                if dt > 0.01:
+                    dx = p1[1] - p0[1]
+                    dy = p1[2] - p0[2]
+                    speed_px = math.sqrt(dx * dx + dy * dy) / dt
+
+                    is_shot = False
+                    shot_conf = 0.0
+
+                    if homography_matrix is not None and p0[3] is not None and p1[3] is not None:
+                        dx_p = p1[3] - p0[3]
+                        speed_pitch = math.sqrt(dx_p * dx_p + (p1[4] - p0[4]) ** 2) / dt
+                        if speed_pitch >= shot_speed_threshold_mps:
+                            cx = p1[3]
+                            near_left = cx <= goal_proximity_m
+                            near_right = cx >= (self.pitch_length - goal_proximity_m)
+                            moving_left = dx_p < 0
+                            moving_right = dx_p > 0
+                            if (near_left and moving_left) or (near_right and moving_right):
+                                is_shot = True
+                                shot_conf = min(1.0, speed_pitch / 25.0)
+                    elif speed_px >= shot_speed_threshold_pps:
+                        img_h = frame.image_height
+                        near_bottom = by > img_h * 0.7
+                        near_top = by < img_h * 0.3
+                        moving_down = dy > 0
+                        moving_up = dy < 0
+                        if (near_bottom and moving_down) or (near_top and moving_up):
+                            is_shot = True
+                            shot_conf = min(1.0, speed_px / 1200.0)
+
+                    if is_shot:
+                        shot_team = "unknown"
+                        if track_data.player_teams and prev_possession is not None:
+                            shot_team = track_data.player_teams.get(prev_possession, "unknown")
+                        events.append({
+                            "type": "shot",
+                            "timestamp": frame.timestamp,
+                            "team": shot_team,
+                            "on_target": False,
+                            "confidence": shot_conf,
+                        })
 
             closest_player = None
             closest_dist = float("inf")
