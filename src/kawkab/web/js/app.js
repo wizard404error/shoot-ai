@@ -2371,6 +2371,9 @@
 
         languageSelector.addEventListener('change', (e) => {
             setLanguage(e.target.value);
+            if (window.KawkabPolish && typeof window.KawkabPolish.setLang === 'function') {
+                window.KawkabPolish.setLang(e.target.value);
+            }
         });
 
         analyzeBtn.addEventListener('click', startAnalysis);

@@ -68,9 +68,48 @@
                 "tab_export": "تصدير",
                 "btn_analyze": "تحليل الفيديو",
                 "btn_calibrate": "معايرة الملعب",
+                "btn_settings": "الإعدادات",
+                "btn_help": "المساعدة",
+                "btn_cancel": "إلغاء",
+                "btn_confirm": "تأكيد",
+                "btn_save": "حفظ",
+                "btn_load": "تحميل",
                 "status_ready": "جاهز",
                 "status_processing": "جارٍ المعالجة",
                 "status_complete": "اكتمل التحليل",
+                "status_error": "حدث خطأ",
+                "status_idle": "خامل",
+                "metric_distance": "المسافة",
+                "metric_sprints": "الركضات السريعة",
+                "metric_passes": "التمريرات",
+                "metric_shots": "التسديدات",
+                "metric_possession": "الاستحواذ",
+                "metric_xg": "الأهداف المتوقعة",
+                "metric_goals": "الأهداف",
+                "metric_hir": "الجري عالي الشدة",
+                "section_pro": "التحليل الاحترافي",
+                "section_realtime": "الوضع المباشر",
+                "section_psychology": "علم النفس الرياضي",
+                "section_weather": "الطقس",
+                "section_rules": "قوانين اللعبة",
+                "section_cards": "الكروت",
+                "section_pose": "تحليل الوضعية",
+                "section_mujoco": "محاكاة الكرة",
+                "section_fluidx3d": "محاكاة الموائع",
+                "section_setpiece": "الكرات الثابتة",
+                "section_goalkeeper": "حارس المرمى",
+                "section_substitution": "التبديلات",
+                "section_possession": "الاستحواذ",
+                "alert_shot": "تسديدة",
+                "alert_goal": "هدف",
+                "alert_offside": "تسلل",
+                "alert_card": "كرت",
+                "alert_tackle": "تدخل",
+                "msg_processing_video": "جارٍ معالجة الفيديو",
+                "msg_no_video": "الرجاء اختيار ملف فيديو",
+                "msg_calibration_required": "يجب إجراء المعايرة أولاً",
+                "msg_saved": "تم الحفظ",
+                "msg_loaded": "تم التحميل",
             };
         }
         return {
@@ -81,9 +120,48 @@
             "tab_export": "Export",
             "btn_analyze": "Analyze Video",
             "btn_calibrate": "Calibrate Pitch",
+            "btn_settings": "Settings",
+            "btn_help": "Help",
+            "btn_cancel": "Cancel",
+            "btn_confirm": "Confirm",
+            "btn_save": "Save",
+            "btn_load": "Load",
             "status_ready": "Ready",
             "status_processing": "Processing",
             "status_complete": "Analysis complete",
+            "status_error": "An error occurred",
+            "status_idle": "Idle",
+            "metric_distance": "Distance",
+            "metric_sprints": "Sprints",
+            "metric_passes": "Passes",
+            "metric_shots": "Shots",
+            "metric_possession": "Possession",
+            "metric_xg": "xG",
+            "metric_goals": "Goals",
+            "metric_hir": "HIR",
+            "section_pro": "Pro Analytics",
+            "section_realtime": "Real-Time Mode",
+            "section_psychology": "Sports Psychology",
+            "section_weather": "Weather",
+            "section_rules": "Game Rules",
+            "section_cards": "Cards",
+            "section_pose": "Pose Analysis",
+            "section_mujoco": "Ball Simulation",
+            "section_fluidx3d": "Fluid Simulation",
+            "section_setpiece": "Set Pieces",
+            "section_goalkeeper": "Goalkeeper",
+            "section_substitution": "Substitutions",
+            "section_possession": "Possession",
+            "alert_shot": "Shot",
+            "alert_goal": "Goal",
+            "alert_offside": "Offside",
+            "alert_card": "Card",
+            "alert_tackle": "Tackle",
+            "msg_processing_video": "Processing video",
+            "msg_no_video": "Please select a video file",
+            "msg_calibration_required": "Calibration required first",
+            "msg_saved": "Saved",
+            "msg_loaded": "Loaded",
         };
     }
 
@@ -147,7 +225,12 @@
 
     function init() {
         createLiveRegion();
-        setLang(detectInitialLang());
+        const lang = detectInitialLang();
+        setLang(lang);
+        const selector = document.getElementById("language-selector");
+        if (selector && selector.value !== lang) {
+            selector.value = lang;
+        }
         document.addEventListener("keydown", onKeydown);
         window.__kawkabPrefersReducedMotion = prefersReducedMotion();
         if (window.matchMedia) {

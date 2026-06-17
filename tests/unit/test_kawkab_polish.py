@@ -88,6 +88,75 @@ def test_polish_arabic_dict_has_subtitle() -> None:
     assert ar_idx > 0, "Missing Arabic subtitle translation"
 
 
+def test_polish_dicts_have_same_keys() -> None:
+    """EN and AR dictionaries must have identical key sets for parity."""
+    content = JS_PATH.read_text(encoding="utf-8")
+    en_block = content.split('"tab_analyze": "Analyze"')[0]
+    if en_block.rfind("return {") > en_block.rfind("};"):
+        en_block = en_block[en_block.rfind("return {"):]
+    ar_block = content.split('"tab_analyze": "تحليل"')[0]
+    if ar_block.rfind("return {") > ar_block.rfind("};"):
+        ar_block = ar_block[ar_block.rfind("return {"):]
+    en_keys = set(re.findall(r'"([a-z_]+)":', en_block))
+    ar_keys = set(re.findall(r'"([a-z_]+)":', ar_block))
+    assert en_keys, "No English keys found"
+    assert ar_keys, "No Arabic keys found"
+    missing_in_ar = en_keys - ar_keys
+    missing_in_en = ar_keys - en_keys
+    assert not missing_in_ar, f"Missing AR keys: {missing_in_ar}"
+    assert not missing_in_en, f"Missing EN keys: {missing_in_en}"
+
+
+def test_polish_has_at_least_30_keys() -> None:
+    """Dictionaries should have at least 30 keys for meaningful coverage."""
+    content = JS_PATH.read_text(encoding="utf-8")
+    en_count = len(re.findall(r'"[a-z_]+":\s*"[^"]+"', content))
+    assert en_count >= 60, f"Expected >=60 i18n entries (en+ar), got {en_count}"
+
+
+def test_polish_has_alert_translations() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    for key in ["alert_shot", "alert_goal", "alert_offside", "alert_card", "alert_tackle"]:
+        assert key in content, f"Missing alert translation: {key}"
+
+
+def test_polish_has_metric_translations() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    for key in ["metric_distance", "metric_sprints", "metric_passes", "metric_shots", "metric_xg", "metric_goals"]:
+        assert key in content, f"Missing metric translation: {key}"
+
+
+def test_polish_has_section_translations() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    for key in ["section_pro", "section_realtime", "section_psychology", "section_weather", "section_rules"]:
+        assert key in content, f"Missing section translation: {key}"
+
+
+def test_polish_init_syncs_selector() -> None:
+    """The init function should sync the language-selector element."""
+    content = JS_PATH.read_text(encoding="utf-8")
+    assert "language-selector" in content, "Init must reference #language-selector"
+    assert "selector.value" in content, "Init must update selector value"
+
+
+def test_polish_uses_aria_live_region() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    assert 'aria-live' in content
+    assert 'aria-atomic' in content
+
+
+def test_polish_falls_back_to_english() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    assert "startsWith(\"ar\")" in content
+    assert "return \"en\"" in content or "?: \"en\"" in content or 'return "ar" : "en"' in content or '"ar" : "en"' in content
+
+
+def test_polish_persists_lang() -> None:
+    content = JS_PATH.read_text(encoding="utf-8")
+    assert "localStorage" in content
+    assert "STORAGE_KEY" in content
+
+
 def test_accessibility_css_exists() -> None:
     css = JS_PATH.parent.parent / "css" / "accessibility.css"
     assert css.exists()
