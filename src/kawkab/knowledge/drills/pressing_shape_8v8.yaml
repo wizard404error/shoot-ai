@@ -1,0 +1,45 @@
+- drill_id: pressing_shape_8v8
+  name: 8v8 Pressing Shape and Discipline
+  name_ar: تمرين 8 ضد 8 - شكل الضغط والانضباط
+  category: pressing
+  targets:
+    - pressing_shape
+    - pressing_discipline
+    - cover_shadows
+    - unit_movement
+  duration_min: 25
+  players_required: 16
+  intensity: high
+  equipment: [balls, cones, bibs, 2 full goals]
+  space: 60x50m
+  setup: |
+    Two teams of 8+GK. One team practices organized pressing while the
+    other tries to play out. Focus on maintaining shape and not chasing
+    the ball individually.
+  rules:
+    - "Pressing team must stay connected - no more than 10m between lines"
+    - "When ball goes to FB, winger presses, midfielder covers shadow"
+    - "When ball goes to CB, striker curves run to block pass to other CB"
+    - "If pressing team doesn't win ball in 8 seconds, they drop to mid-block"
+    - "Rotate pressing teams every 5 minutes"
+  progressions:
+    - "Add counter-press rule: lose ball = press for 5 seconds"
+    - "Reduce pressing time to 6 seconds"
+    - "Add offside trap coordination after pressing"
+  regressions:
+    - "Allow 12 seconds to press"
+    - "Only one pressing trigger at a time"
+    - "No counter-press requirement"
+  coaching_points:
+    - "Press as a unit, not as individuals"
+    - "Cover shadows: nearest presses, next covers the lane"
+    - "Don't dive in - force the play to the weak side"
+    - "If beaten, recover immediately - don't give up"
+  addresses_problems:
+    - poor_pressing_shape
+    - high_line_exposure
+    - no_collective_press
+    - fullback_isolated
+  source: "Coaches' Voice: Pressing Shape and Discipline"
+  age_groups: [u15, u17, senior]
+  skill_level: advanced

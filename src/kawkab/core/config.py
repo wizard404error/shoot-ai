@@ -21,7 +21,7 @@ class AppSettings(BaseSettings):
     )
 
     app_name: str = "Kawkab AI"
-    app_version: str = "0.1.0"
+    app_version: str = "0.8.0"
     debug: bool = Field(default=False, description="Enable debug mode")
 
     language: Literal["en", "ar"] = Field(
@@ -30,7 +30,13 @@ class AppSettings(BaseSettings):
 
     gpu_enabled: bool = Field(default=True, description="Use GPU for inference")
     model_size: Literal["n", "s", "m", "l", "x"] = Field(
-        default="l", description="YOLOv11 model size (n=nano, l=large)"
+        default="l", description="YOLO model size (n=nano, l=large)"
+    )
+    pose_model_size: Literal["n", "s", "m", "l", "x"] = Field(
+        default="n", description="YOLO-pose model size for activity/fall analysis"
+    )
+    pose_enabled: bool = Field(
+        default=False, description="Run pose estimation in addition to detection"
     )
     confidence_threshold: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Detection confidence threshold"
@@ -71,6 +77,25 @@ class AppSettings(BaseSettings):
     )
     analysis_timeout_min: int = Field(
         default=60, gt=0, description="Analysis timeout in minutes"
+    )
+    frame_skip: int = Field(
+        default=3, ge=1, le=10, description="Process every Nth frame (1=full, 3=fast)"
+    )
+    auto_detect_gpu_tier: bool = Field(
+        default=True, description="Auto-detect GPU and recommend settings on startup"
+    )
+
+    football_data_api_key: str | None = Field(
+        default=None, description="API key for football-data.org"
+    )
+    bzzoiro_api_key: str | None = Field(
+        default=None, description="API key for sports.bzzoiro.com"
+    )
+    apifootball_api_key: str | None = Field(
+        default=None, description="API key for api-sports.io (API-Football)"
+    )
+    thesportsdb_api_key: str | None = Field(
+        default="123", description="API key for TheSportsDB (public key '123')"
     )
 
 

@@ -1,0 +1,45 @@
+- drill_id: zonal_marking_game
+  name: Zonal Marking Rotation Game
+  name_ar: لعبة التغطية الزونية والتناوب
+  category: defensive
+  targets:
+    - zonal_marking
+    - defensive_rotation
+    - cover_shadows
+    - compactness
+  duration_min: 20
+  players_required: 10
+  intensity: high
+  equipment: [balls, cones, bibs, 2 mini-goals]
+  space: 30x25m
+  setup: |
+    Defending team (5 players) zones the pitch into 5 areas. Attacking
+    team (5 players) tries to score by playing through the zones. When
+    a defender presses, another must rotate to cover his zone.
+  rules:
+    - "Defenders assigned to zones, not players"
+    - "When defender presses, nearest defender covers his zone"
+    - "Attackers must complete 3 passes before shooting"
+    - "If defenders win ball, they score by dribbling past end line"
+    - "Rotate zone assignments every 3 minutes"
+  progressions:
+    - "Add more attackers (5v6)"
+    - "Reduce zone size to increase pressure"
+    - "Add offside rule to teach line coordination"
+  regressions:
+    - "Fewer attackers (5v3)"
+    - "Larger zones for more time"
+    - "No rotation requirement (static zones)"
+  coaching_points:
+    - "Defend the space first, then the player"
+    - "If you press, someone must cover your zone"
+    - "Stay compact - no more than 8m between defenders"
+    - "Communication: 'I go!', 'You cover!', 'Hold!'"
+  addresses_problems:
+    - zonal_marking_gaps
+    - poor_defensive_coordination
+    - high_line_exposure
+    - compactness
+  source: "Coaches' Voice: Zonal Marking Drills"
+  age_groups: [u15, u17, senior]
+  skill_level: advanced

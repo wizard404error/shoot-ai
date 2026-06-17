@@ -1,9 +1,275 @@
-# Kawkab AI — Honest Status Report (v0.5.5)
+# Kawkab AI — Honest Status Report (v0.8.3)
 
-> **Last updated:** v0.5.5 (frame_skip=3, shot detection, enhancement bugfix)
-> **TL;DR:** Production-ready spatial stats. Trustable speed numbers. Real team assignment. Shot events now detected.
+> **Last updated:** v0.8.3 (PDF export, clip extraction, team swap, visualizations, data quality fixes)
+> **TL;DR:** PDF report export, video clip extraction for shots, team assignment swap, pass network + heatmap visualizations, "Shot by unknown" fixed, xT now working.
 
 This document is brutally honest about what works and what doesn't.
+
+---
+
+## What's New in v0.8.3
+
+### ✅ **Data Quality Fixes**
+
+- **"Shot by unknown" team attribution fixed**: Shot events now fall back to `track_id % 2` parity-based assignment when `player_teams` is empty or returns "unknown" (same fallback that passes/possession/formations already use). Previously shots had no parity fallback.
+- **xT (expected threat) now working**: Pass events now include `start_x_pct`, `start_y_pct`, `end_x_pct`, `end_y_pct` metadata, so `compute_xt_simple()` computes non-zero threat values. Before: metadata was empty → xT always 0.
+
+### ✅ **PDF Report Export**
+
+- New `export_report_pdf(match_id, language)` bridge Slot
+- Generates a self-contained bilingual (EN/AR) HTML report with team stats, shot/pass counts, and LLM coach report
+- Saved to `Documents/KawkabAI/exports/report_{match_id}_{lang}.html`
+- Open in browser → Ctrl+P to save as PDF (no PDF library dependency)
+- Includes RTL support for Arabic reports
+
+### ✅ **Video Clip Extraction**
+
+- `ClipExtractionService` wired into app.py and bridge
+- New `extract_event_clips(match_id)` bridge Slot extracts 3-second FFmpeg clips for each shot event
+- "🎬 Extract Clips" button in results actions
+- Shows success/error feedback inline below buttons
+
+### ✅ **Team Assignment Correction UI**
+
+- New `swap_teams(match_id)` bridge Slot toggles home/away team names
+- "🔄 Swap Teams" button in results actions with confirmation dialog
+- Useful when pitch-side heuristic assigns wrong direction
+
+### ✅ **Pass Network + Heatmap Visualizations**
+
+- New `generate_visualizations(match_id)` bridge Slot calls `VisualizationService` to produce PNG images
+- Auto-generated after each analysis completes (500ms delay for data propagation)
+- Pass network graph + position heatmap shown in collapsible section below results
+- Images loaded via `file:///` protocol in Qt WebEngine
+
+### ✅ **Bug Fixes**
+
+- Fixed `LLMConfig(())` syntax error in app.py (double parens)
+- StorageService: added `get_reports()` and `update_match_teams()` methods
+- Advanced event count now displayed in match summary
+
+## What's New in v0.7.2
+
+### ✅ **Batch Processing for Multi-Match Analysis**
+
+- **New `BatchService`** in `kawkab.services`:
+  - `create_job(name, match_ids, options)` — creates a batch job in the database
+  - `run_job(storage, bridge, job_id)` — sequentially analyzes all matches in the batch
+  - `cancel()` — cancels the currently running batch job
+  - `list_jobs()` — shows recent batch jobs with status
+- **Batch job states**: pending → running → completed/failed/cancelled
+- **Progress tracking**: `completed_matches`, `failed_matches`, `total_matches`
+- **Database table**: `batch_jobs` with migration 005
+- **5 unit tests** for batch creation, execution, failure handling, cancellation, and listing
+- **Use case**: Queue all weekend matches on Friday evening, let them process overnight
+
+---
+
+## What's New in v0.7.1
+
+### ✅ **Data Accuracy Validation Framework**
+
+- **New `ValidationService`** in `kawkab.services`:
+  - `load_ground_truth_events(path)` — loads JSON/CSV ground truth event files
+  - `validate_events(computed, ground_truth, tolerance)` — computes precision, recall, F1 per event type
+  - `validate_possession(computed_pct, ground_truth_pct)` — possession accuracy
+  - `validate_team_assignment(computed, ground_truth)` — team assignment accuracy
+  - `validate_speeds(computed, ground_truth, max_error)` — max speed MAE and threshold accuracy
+  - `build_report()` — generates complete validation report with overall accuracy and category summaries
+- **Ground truth format**: JSON array of `{event_type, timestamp, team, player_id, x, y}` or CSV
+- **Event matching**: Within ±2 seconds tolerance for same event type
+- **Database table**: `validation_results` with migration 004
+- **Storage methods**: `save_validation_result()`, `get_validation_results()`
+- **9 unit tests** for ground truth loading, event validation, possession, team assignment, speed validation, and database storage
+- **Use case**: Compare computed metrics against StatsBomb/SoccerNet ground truth or manual annotations to measure accuracy
+
+---
+
+## What's New in v0.7.0
+
+### ✅ **Performance Benchmarking Framework**
+
+- **New `BenchmarkService`** in `kawkab.services`:
+  - `start_stage(name)` / `end_stage(name)` — per-stage timing (enhancement, detection, tracking, analysis, advanced metrics, save)
+  - `build_result()` — computes total time, realtime ratio, effective FPS, peak memory, peak GPU memory
+  - `reset()` — clears timers for new benchmark run
+  - `classify_gpu_tier()` — classifies GPU into high/mid/low/unknown tiers based on model name
+  - `recommend_settings()` — recommends model_size, frame_skip, GPU settings based on GPU tier
+- **System detection**: Auto-detects CPU name, GPU name, RAM, CUDA availability
+- **Memory tracking**: Tracks peak RAM and peak GPU memory during analysis via psutil
+- **Database integration**: `benchmark_results` table with migration 003, `StorageService.save_benchmark()` and `get_recent_benchmarks()`
+- **Analysis pipeline wired**: Benchmark stages wrapped around all analysis steps in `Bridge.analyze_match()`
+- **Result JSON**: Benchmark data included in `analyze_match` response under `benchmark` key
+- **Frontend display**: Performance section in results with total time, ratio, FPS, memory + stage breakdown bar chart
+- **7 unit tests** for BenchmarkService (timing, GPU tier classification, settings recommendations, database storage)
+- **New database table**: `benchmark_results` with per-stage timing, resource metrics, and system info
+- **Migration 003**: `003_add_benchmark_table.sql`
+
+---
+
+## What's New in v0.6.4
+
+### ✅ **ModelManager - Lazy Loading Foundation**
+
+- **New `model_manager.py`** in `kawkab.core`:
+  - `ensure_model(model_name)` — checks cache, downloads if missing, returns local path
+  - `download_model()` — downloads from GitHub/Ultralytics releases with progress callbacks
+  - `get_model_path()` — returns cached model path or None
+  - `list_cached_models()` — shows all available local models
+  - `cleanup_cache()` — removes unused models to free disk space
+  - `get_cache_size_mb()` — reports total cache usage
+- **SHA-256 validation** — verifies downloaded models against checksums (when available)
+- **Manifest tracking** — `models.json` tracks downloaded models with paths, sizes, and hashes
+- **Progress callbacks** — reports download progress (MB downloaded / total) for UI integration
+- **10 unit tests** for ModelManager (cache, download, validation, cleanup)
+- **Foundation for future lazy loading**: The installer can be a small launcher that downloads models on first run instead of bundling 1.75GB
+
+---
+
+## What's New in v0.6.3
+
+### ✅ **Professional Analytics UI**
+
+- **New "Professional Analytics" section** in the frontend with three tabs:
+  1. **Player Profiles** — Create player profiles (name, jersey, position) and view roster
+  2. **Match Comparison** — Select two matches, compare possession, shots, formations, key differences
+  3. **Export Data** — Export match data as CSV/JSON, view quality reports with visual score bars
+- **Tab-based navigation** with clean styling matching the existing dark theme
+- **Match dropdowns** auto-populated from match history
+- **Quality report visualization** — Overall score card + per-metric bars (tracking, events, homography, team assignment)
+- **Frontend version** updated to v0.6.3 in footer
+
+### ✅ **Application Wiring**
+
+- `app.py` now instantiates and passes `AdvancedEventDetectionService`, `PhysicalLoadService`, and `PressureMetricsService` to the Bridge
+- All 19 services are now live in the application
+
+---
+
+## What's New in v0.6.2
+
+### ✅ **Advanced Metrics Wired into Analysis Pipeline**
+
+- **Three new services now integrated into `Bridge.analyze_match()`**:
+  1. `AdvancedEventDetectionService` — detects dribbles, tackles, interceptions, clearances, crosses, ball recoveries, blocks, duels, carries, progressive actions, final third entries, high turnovers
+  2. `PhysicalLoadService` — computes sprint counts, sprint distances, high-intensity distances, acceleration/deceleration counts per player
+  3. `PressureMetricsService` — computes PPDA, passes under pressure %, pressure events, counter-press success rate, defensive line height per team
+- **Progress reporting**: Analysis pipeline now reports at 0.88 (advanced metrics computation)
+- **Database storage**: All advanced metrics stored in `advanced_metrics` table with proper categories (`physical`, `pressure`, `event`)
+- **JSON response**: Results included in `analyze_match` response under `advanced_metrics.physical_load` and `advanced_metrics.pressure`
+- **Graceful degradation**: If services are unavailable, analysis continues with empty advanced metrics (no crash)
+- **StorageService**: New `save_advanced_metrics()` method for structured metric persistence
+
+### ✅ **Tests**
+
+- **2 new integration tests** for Bridge advanced metrics wiring:
+  - `test_bridge_advanced_metrics_wiring`: Verifies services are called, results stored, and returned in JSON
+  - `test_bridge_graceful_without_advanced_services`: Verifies pipeline works when services are None
+- **52 total tests** (was 50)
+- All tests pass
+
+---
+
+## What's New in v0.6.1
+
+### ✅ **Security Hardening (Production-Grade)**
+
+- **New `security.py` module** with `SecurityValidator`, `ErrorSanitizer`, and `RateLimiter`:
+  - `validate_match_id()`: Rejects negative, non-integer, and oversized IDs (>999M)
+  - `validate_video_path()`: Checks file extension, prevents path traversal, validates existence
+  - `validate_jersey_number()`: Ensures 0-99 range
+  - `sanitize_string()`: Removes control chars, null bytes, XSS vectors (`<`, `>`), truncates to max length
+  - `validate_team_name()` / `validate_season_name()`: Non-empty, sanitized strings
+- **All Bridge methods now validate inputs** before processing:
+  - `save_match`, `analyze_match`, `export_match_csv`, `export_match_json`
+  - `create_player_profile`, `compare_matches`, `get_match_quality_report`
+  - `get_match_events`, `get_video_path`, `generate_report`, `save_homography`, `get_homography`, `get_first_frame`
+- **Error sanitization**: All user-facing errors strip file paths, IP addresses, emails, and long hex tokens
+- **Rate limiter**: Simple per-window request limiting for expensive operations
+- **14 new tests** for security validation (all pass)
+- **Total tests: 50** (was 36)
+
+### ✅ **SQL Injection Prevention**
+
+- All database queries already use parameterized queries (StorageService)
+- `MigrationManager` uses `executescript()` only for trusted, version-controlled `.sql` files
+- No user input ever concatenated into SQL strings
+
+### ✅ **Error Recovery**
+
+- Bridge methods catch all exceptions and return sanitized JSON errors to frontend
+- No unhandled exceptions leak internal paths or stack traces to users
+- Graceful degradation when services are unavailable (e.g., `QualityScoringService not available`)
+
+---
+
+## What's New in v0.6.0
+
+### ✅ **Match Type Detection**
+
+- CVService now infers `match_type` from video characteristics:
+  - `full_match`: duration ≥ 80 min OR (duration ≥ 60 min + fragmentation < 2.0 + avg track span ≥ 60s)
+  - `highlight`: duration < 20 min OR fragmentation ≥ 3.0 OR avg track span < 15s
+  - `unknown`: everything in between
+- `match_type` is stored in `MatchTrackData` and passed through the pipeline
+- Enables context-aware analysis decisions (e.g., Kalman for full matches only)
+
+### ✅ **Kalman Smoother Wired into Pipeline**
+
+- v0.5.3 Kalman smoother was NOT connected — now it is
+- Activated automatically when `match_type == "full_match"` AND `homography_matrix` is available
+- Produces smoother trajectories for distance/speed computation on continuous 90-min footage
+- Falls back to raw delta-cap approach for highlights (where Kalman degrades due to fragmentation)
+- New `_compute_player_stats_kalman()` method in AnalysisService
+- `use_kalman` toggle on `AnalysisService` (default: True)
+
+### ✅ **Homography Bridge Fix**
+
+- Bridge now loads and passes `homography_matrix` to `AnalysisService.analyze_match()`
+- Before: analysis was always in pixel space, even after calibration
+- After: meter-based stats are computed when calibration exists
+- Enables: real meters for distance, formations, line height, xG, xT, and Kalman smoothing
+
+### ✅ **Knowledge Base Expansion**
+
+- **10 new tactical rules:**
+  - Defensive: poor_pressing_shape, weak_aerial_defense, zonal_marking_gaps, defensive_third_errors
+  - Transitions: slow_defensive_transition, poor_counter_pressing
+  - Individual: midfielder_positioning, striker_pressing, winger_defensive_work_rate
+  - Meta: goalkeeper_communication
+- **5 new drills:**
+  - pressing_shape_8v8, defensive_transition_6v6, aerial_defense_circles, zonal_marking_game, counter_pressing_4v4
+- Total: **40 rules** (was 30), **24 drills** (was 19)
+- All validated: load without errors, have EN+AR text, reference valid drills
+
+### ✅ **Tests & Bug Fixes**
+
+- 6 new tests for match_type detection and Kalman integration
+- Fixed duplicate `get_drill()` method in KnowledgeService
+- Fixed duplicate variable declarations in `AnalysisService._compute_player_stats()`
+- All 32 unit tests pass
+
+### ✅ **Professional Services Suite (NEW)**
+
+- **6 new services** for professional-grade analytics:
+  1. `PlayerProfileService` — Persistent player identity across matches (jersey, photo, position, physical attributes, career stats)
+  2. `MultiMatchAnalysisService` — Season aggregation, player trends, match comparison, team evolution, leaderboards
+  3. `DataExportService` — CSV, JSON, and StatsBomb-compatible event data export
+  4. `VisualizationService` — Heatmaps, pass networks, pass sonars, formation diagrams (PNG output)
+  5. `AnomalyDetectionService` — Detects impossible stats, tracking issues, missing data, statistical outliers
+  6. `QualityScoringService` — Per-match quality scores (tracking, events, homography, team assignment) with weighted composite
+- **Database migration system** — Versioned schema upgrades via `MigrationManager`
+- **New tables**: seasons, player_profiles, player_match_links, advanced_metrics, match_comparisons, analysis_quality, exports
+- **Bridge methods** — `export_match_csv`, `export_match_json`, `create_player_profile`, `get_all_player_profiles`, `compare_matches`, `get_match_quality_report`
+- **13 new tests** for professional services (all pass)
+- **Total tests: 32** (was 19)
+
+### ✅ **Professional Audit Completed**
+
+- Comprehensive gap analysis vs. StatsBomb, Second Spectrum, Hudl, Wyscout
+- Identified 20+ missing features across data, analytics, workflow, and quality layers
+- See `PROFESSIONAL_AUDIT.md` for full audit report and implementation roadmap
+- Architecture recommendations for database, services, and UI
 
 ---
 
@@ -191,8 +457,9 @@ This document is brutally honest about what works and what doesn't.
 
 - v0.5.3 cap filters broadcast-cut teleports correctly
 - 100-119m per 5-min highlight = 1.2-1.4 km/game equivalent (real is 9-11 km)
-- Kalman smoother added but NOT wired — highlight fragmentation makes it counterproductive
-- Real fix: continuous 90-min tracking or team-level ReID
+- **v0.6.0: Kalman smoother now wired for full matches** — should improve distance accuracy on continuous 90-min footage
+- Highlight reels still use raw delta-cap approach (Kalman degrades on fragmented tracks)
+- Real fix: continuous 90-min tracking or team-level ReID across cuts
 
 ### ⚠️ **Jersey OCR Unreliable**
 
@@ -215,24 +482,44 @@ This document is brutally honest about what works and what doesn't.
 
 ---
 
-## Bottom Line (v0.5.5)
+## Bottom Line (v0.7.2)
 
-**The system now produces trustable spatial stats when calibrated:**
-- Real meters (homography)
+**The system is now production-ready for security, advanced analytics, UI, model management, performance benchmarking, validation, and batch processing:**
+- Input validation on all user-facing endpoints
+- Path traversal prevention
+- XSS vector removal from string inputs
+- Error message sanitization (no internal paths leaked)
+- **83 tests** covering security, analysis, professional services, integration, advanced metrics, model management, benchmarking, validation, and batch processing
+- SQL injection resistant (parameterized queries throughout)
+- **Advanced metrics auto-computed during analysis**: physical load (sprints, accelerations), pressure metrics (PPDA, counter-press), advanced events (tackles, interceptions, clearances)
+- All metrics stored in database and returned to frontend
+- **Professional Analytics UI**: Player Profiles, Match Comparison, Export Wizard, Quality Reports, Performance Benchmarks
+- **21 services** all wired and live in the application
+- **ModelManager** — lazy loading foundation for on-demand model downloads
+- **Performance Benchmarking**: Per-stage timing, memory/GPU tracking, GPU tier classification, automatic settings recommendations
+- **Data Accuracy Validation**: Ground truth comparison for events, possession, team assignment, speeds with precision/recall/F1 metrics
+- **Batch Processing**: Overnight multi-match analysis queue with status tracking and cancellation
+- **Foundation for reduced bundle size** — installer can be ~50MB launcher instead of 1.75GB monolith
+
+**The system produces trustable spatial stats when calibrated:**
+- Real meters (homography now passed to analysis pipeline)
 - Real team assignment (pitch-side validated)
 - Realistic max speeds (hard 36 km/h cap)
 - ~3x faster than v0.4 (frame skip 1→3, better defaults)
 - Shot events detected (8→22 per 5-min highlight)
-- Kalman smoother infrastructure ready for full 90-min matches
+- **Kalman smoother wired for full matches** — smoother trajectories, better distance accuracy
+- **Match type auto-detection** — full_match vs highlight vs unknown
+- **Knowledge base at 40 rules + 24 drills** — 10 new rules, 5 new drills
 - EnhancementService cache crash fixed
 
-**Critical missing validation**: 0 amateur coaches have used this.
+**Critical missing validation**: 0 amateur coaches have used this in production.
 
 **Estimated time to real v1.0**: 2-3 months focused work, with priority on:
 1. Real coach validation
-2. Bundle size optimization (lazy loading)
-3. Full 90-min match analysis
+2. Full 90-min match analysis (Kalman ready, needs testing)
+3. Bundle size optimization (PyInstaller spec + on-demand model loading)
+4. Performance benchmarking and GPU tier optimization
 
 ---
 
-*Updated v0.5.5 (frame_skip=3, shot detection, enhancement bugfix)*
+*Updated v0.8.3 (PDF export, clip extraction, team swap, visualizations, data quality fixes)*

@@ -168,10 +168,6 @@ class KnowledgeService:
 
     def get_drill(self, drill_id: str) -> Drill | None:
         """Get a drill by ID."""
-        self._drills.get(drill_id)
-
-    def get_drill(self, drill_id: str) -> Drill | None:
-        """Get a drill by ID."""
         return self._drills.get(drill_id)
 
     def find_rules_for_pattern(

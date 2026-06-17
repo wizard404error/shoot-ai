@@ -14,6 +14,13 @@ import numpy as np
 
 from kawkab.core.logging import get_logger
 
+try:
+    from kawkab.services.norfair_tracker import NorfairTracker
+    _NORFAIR_AVAILABLE = True
+except ImportError:
+    _NORFAIR_AVAILABLE = False
+    NorfairTracker = None  # type: ignore
+
 logger = get_logger(__name__)
 
 
@@ -51,6 +58,7 @@ class MatchTrackData:
     track_registry: dict[int, dict[str, Any]]
     player_teams: dict[int, str] = field(default_factory=dict)
     tracking_metrics: dict[str, Any] = field(default_factory=dict)
+    match_type: str = "unknown"
 
     def swap_teams(self) -> None:
         """Swap home/away assignments for all players.
@@ -87,6 +95,7 @@ class CVService:
         self,
         model_size: str = "l",
         confidence_threshold: float = 0.4,
+        ball_confidence_threshold: float = 0.15,
         iou_threshold: float = 0.5,
         gpu_enabled: bool = True,
         min_track_lifetime_frames: int = 30,
@@ -94,9 +103,11 @@ class CVService:
         max_bbox_area_ratio: float = 0.15,
         expected_player_count: int = 22,
         max_keep_top_n: int = 28,
+        model_manager=None,
     ) -> None:
         self.model_size = model_size
         self.confidence_threshold = confidence_threshold
+        self.ball_confidence_threshold = ball_confidence_threshold
         self.iou_threshold = iou_threshold
         self.gpu_enabled = gpu_enabled
         self.min_track_lifetime = min_track_lifetime_frames
@@ -106,16 +117,23 @@ class CVService:
         self.max_keep_top_n = max_keep_top_n
         self._model: Any = None
         self._initialized = False
+        self._model_manager = model_manager
 
         logger.info(
             f"CVService v2: model=yolo11{model_size}, "
-            f"conf={confidence_threshold}, iou={iou_threshold}, gpu={gpu_enabled}, "
+            f"conf={confidence_threshold} ball_conf={ball_confidence_threshold}, "
+            f"iou={iou_threshold}, gpu={gpu_enabled}, "
             f"min_track_life={min_track_lifetime_frames}, "
-            f"max_keep={max_keep_top_n or 'unlimited'}"
+            f"max_keep={max_keep_top_n or 'unlimited'}, "
+            f"lazy_model={model_manager is not None}"
         )
 
-    async def initialize(self) -> None:
-        """Lazy-load YOLOv11 model and BoT-SORT tracker."""
+    async def initialize(self, progress_callback=None) -> None:
+        """Lazy-load YOLOv11 model and BoT-SORT tracker.
+
+        Args:
+            progress_callback: Called with (progress, message) during model download
+        """
         if self._initialized:
             return
 
@@ -128,7 +146,20 @@ class CVService:
         model_name = f"yolo11{self.model_size}.pt"
         logger.info(f"Loading {model_name}...")
 
-        self._model = YOLO(model_name)
+        # Use ModelManager for lazy loading if available
+        if self._model_manager is not None:
+            try:
+                model_path = self._model_manager.ensure_model(
+                    f"yolo11{self.model_size}",
+                    progress_callback=progress_callback,
+                )
+                logger.info(f"Loading model from {model_path}")
+                self._model = YOLO(str(model_path))
+            except Exception as e:
+                logger.warning(f"ModelManager failed ({e}), falling back to direct YOLO load")
+                self._model = YOLO(model_name)
+        else:
+            self._model = YOLO(model_name)
 
         if self.gpu_enabled:
             try:
@@ -146,14 +177,19 @@ class CVService:
         logger.info("CVService initialized")
 
     async def detect_frame(
-        self, frame: np.ndarray, frame_number: int, timestamp: float
+        self, frame: np.ndarray, frame_number: int, timestamp: float,
+        norfair_tracker: Any | None = None,
     ) -> FrameDetections:
-        """Run detection + tracking on a single frame.
+        """Run detection (+ optional Norfair tracking) on a single frame.
+
+        When norfair_tracker is provided, uses YOLO detection + Norfair tracking.
+        Otherwise falls back to Ultralytics' built-in BoT-SORT tracker.
 
         Args:
             frame: Image as numpy array (BGR)
             frame_number: Sequential frame index
             timestamp: Time in seconds from video start
+            norfair_tracker: Optional NorfairTracker instance for enhanced tracking
 
         Returns:
             FrameDetections with all detected objects
@@ -161,68 +197,111 @@ class CVService:
         if not self._initialized:
             await self.initialize()
 
-        results = self._model.track(
-            frame,
-            persist=True,
-            conf=self.confidence_threshold,
-            iou=self.iou_threshold,
-            classes=[0, 32],  # person, sports ball (COCO)
-            tracker="botsort.yaml",
-            verbose=False,
-        )
+        use_norfair = norfair_tracker is not None and _NORFAIR_AVAILABLE
 
-        detections: list[Detection] = []
+        if use_norfair:
+            results = self._model(
+                frame, conf=self.ball_confidence_threshold,
+                iou=self.iou_threshold, classes=[0, 32], verbose=False,
+            )
+        else:
+            results = self._model.track(
+                frame, persist=True, conf=self.ball_confidence_threshold,
+                iou=self.iou_threshold, classes=[0, 32],
+                tracker="botsort.yaml", verbose=False,
+            )
+
         h, w = frame.shape[:2]
         frame_area = w * h
-
         pitch_mask = self._compute_pitch_mask(frame)
 
+        # Collect raw detections
+        raw: list[dict[str, Any]] = []
         if results and len(results) > 0:
-            result = results[0]
-            boxes = result.boxes
-
+            boxes = results[0].boxes
             if boxes is not None and len(boxes) > 0:
                 for i in range(len(boxes)):
-                    bbox = boxes.xyxy[i].cpu().numpy()
+                    bbox = tuple(boxes.xyxy[i].cpu().numpy())
                     conf = float(boxes.conf[i].cpu().numpy())
                     cls_id = int(boxes.cls[i].cpu().numpy())
-                    track_id = (
+                    cls_name = self._model.names.get(cls_id, f"class_{cls_id}")
+                    tid = (
                         int(boxes.id[i].cpu().numpy())
-                        if boxes.id is not None
+                        if not use_norfair and boxes.id is not None
                         else None
                     )
+                    raw.append({
+                        "bbox": bbox, "confidence": conf,
+                        "class_id": cls_id, "class_name": cls_name,
+                        "track_id": tid,
+                    })
 
-                    cls_name = self._model.names.get(cls_id, f"class_{cls_id}")
-                    area_ratio = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / frame_area
-
-                    if cls_name == "person" and (
-                        area_ratio < self.min_bbox_area or area_ratio > self.max_bbox_area
-                    ):
+        # Filter raw detections
+        filtered: list[dict[str, Any]] = []
+        for d in raw:
+            bbox = d["bbox"]
+            conf = d["confidence"]
+            cls_name = d["class_name"]
+            if cls_name == "person":
+                if conf < self.confidence_threshold:
+                    continue
+                area_ratio = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / frame_area
+                if area_ratio < self.min_bbox_area or area_ratio > self.max_bbox_area:
+                    continue
+                if pitch_mask is not None:
+                    foot_x = int((bbox[0] + bbox[2]) / 2)
+                    foot_y = int(min(bbox[3] + 5, h - 1))
+                    if 0 <= foot_y < h and 0 <= foot_x < w and not pitch_mask[foot_y, foot_x]:
                         continue
+            elif cls_name == "sports ball":
+                if conf < self.ball_confidence_threshold:
+                    continue
+                if pitch_mask is not None:
+                    bx = int((bbox[0] + bbox[2]) / 2)
+                    by = int((bbox[1] + bbox[3]) / 2)
+                    if 0 <= by < h and 0 <= bx < w and not pitch_mask[by, bx]:
+                        continue
+            filtered.append(d)
 
-                    if cls_name == "person" and pitch_mask is not None:
-                        foot_x = int((bbox[0] + bbox[2]) / 2)
-                        foot_y = int(min(bbox[3] + 5, h - 1))
-                        if 0 <= foot_y < h and 0 <= foot_x < w:
-                            if not pitch_mask[foot_y, foot_x]:
-                                continue
+        # Apply Norfair tracking if available
+        if use_norfair and filtered:
+            norfair_input = [
+                {"bbox": d["bbox"], "confidence": d["confidence"],
+                 "label": d["class_name"]}
+                for d in filtered
+            ]
+            tracked = norfair_tracker.update(frame, norfair_input, period=1)
+            # Build track_id lookup by label + best IoU match
+            from collections import defaultdict
+            track_lookup: dict[str, list[tuple[float, int]]] = defaultdict(list)
+            for t in tracked:
+                iou = self._bbox_iou(t["bbox"], t["bbox"])  # identity
+                track_lookup[t["label"]].append((t["track_id"], t["bbox"]))
 
-                    detections.append(
-                        Detection(
-                            bbox=tuple(bbox),
-                            confidence=conf,
-                            class_id=cls_id,
-                            class_name=cls_name,
-                            track_id=track_id,
-                        )
-                    )
+            for d in filtered:
+                label = d["class_name"]
+                best_tid = None
+                best_iou = 0.0
+                for tid, tbbox in track_lookup.get(label, []):
+                    iou = self._bbox_iou(d["bbox"], tbbox)
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_tid = tid
+                d["track_id"] = best_tid
+
+        # Build Detection objects
+        detections = [
+            Detection(
+                bbox=d["bbox"], confidence=d["confidence"],
+                class_id=d["class_id"], class_name=d["class_name"],
+                track_id=d.get("track_id"),
+            )
+            for d in filtered
+        ]
 
         return FrameDetections(
-            frame_number=frame_number,
-            timestamp=timestamp,
-            detections=detections,
-            image_width=w,
-            image_height=h,
+            frame_number=frame_number, timestamp=timestamp,
+            detections=detections, image_width=w, image_height=h,
         )
 
     async def process_video(
@@ -263,6 +342,11 @@ class CVService:
             f"frame_skip={frame_skip}, effective={effective_fps:.1f} FPS)"
         )
 
+        norfair_tracker: Any | None = None
+        if _NORFAIR_AVAILABLE and frame_skip <= 3:
+            norfair_tracker = NorfairTracker()
+            logger.info("Using Norfair tracker (enhanced ReID + camera motion compensation)")
+
         frames: list[FrameDetections] = []
         track_appearances: dict[int, int] = defaultdict(int)
         track_first_frame: dict[int, int] = {}
@@ -285,7 +369,10 @@ class CVService:
                 timestamp = frame_number / fps
 
                 if frame_number % frame_skip == 0:
-                    frame_det = await self.detect_frame(frame, frame_number, timestamp)
+                    frame_det = await self.detect_frame(
+                        frame, frame_number, timestamp,
+                        norfair_tracker=norfair_tracker,
+                    )
                     frames.append(frame_det)
                     last_detections = frame_det.detections
                     if enable_team_detection:
@@ -430,19 +517,19 @@ class CVService:
                     team_detection_info["color_samples"] = sum(
                         r["samples"] for r in color_data.values()
                     )
-                clusters = self._cluster_team_colors(color_data)
-                for tid, cluster_id in clusters.items():
+                clusters = self._cluster_team_colors(color_data, n_clusters=3)
+                for tid, label in clusters.items():
                     if tid in color_data:
-                        color_data[tid]["cluster_id"] = cluster_id
-                cluster_avg_bgr: dict[int, tuple[int, int, int]] = {}
-                for cid in set(clusters.values()):
+                        color_data[tid]["team_label"] = label
+                cluster_avg_bgr: dict[str, tuple[int, int, int]] = {}
+                for label in set(clusters.values()):
                     members = [
                         color_data[tid]["primary_color"]
-                        for tid, c in clusters.items()
-                        if c == cid and tid in color_data
+                        for tid, l in clusters.items()
+                        if l == label and tid in color_data
                     ]
                     if members:
-                        cluster_avg_bgr[cid] = (
+                        cluster_avg_bgr[label] = (
                             int(np.mean([m[0] for m in members])),
                             int(np.mean([m[1] for m in members])),
                             int(np.mean([m[2] for m in members])),
@@ -451,50 +538,69 @@ class CVService:
                     logger.info(
                         f"Cluster BGR colors: "
                         + ", ".join(
-                            f"cluster_{cid}={color}"
-                            for cid, color in cluster_avg_bgr.items()
+                            f"{label}={color}"
+                            for label, color in cluster_avg_bgr.items()
                         )
                     )
-                cluster_counts: dict[int, int] = defaultdict(int)
-                for r in color_data.values():
-                    if "cluster_id" in r:
-                        cluster_counts[r["cluster_id"]] += 1
-                team_detection_info["n_clusters"] = len(cluster_counts)
-                if len(cluster_counts) >= 2:
-                    sorted_clusters = sorted(
-                        cluster_counts.items(), key=lambda x: -x[1]
-                    )
-                    home_cluster = sorted_clusters[0][0]
-                    away_cluster = sorted_clusters[1][0]
-                    for tid, r in color_data.items():
-                        if r.get("cluster_id") == home_cluster:
-                            player_teams[tid] = "home"
-                        elif r.get("cluster_id") == away_cluster:
-                            player_teams[tid] = "away"
-                    team_detection_info["assigned"] = len(player_teams)
-                    team_detection_info["home_cluster_id"] = home_cluster
-                    team_detection_info["away_cluster_id"] = away_cluster
-                    team_detection_info["home_size"] = cluster_counts[home_cluster]
-                    team_detection_info["away_size"] = cluster_counts[away_cluster]
-                    team_detection_info["ref_size"] = sum(
-                        v for k, v in cluster_counts.items()
-                        if k not in (home_cluster, away_cluster)
-                    )
-                    team_detection_info["home_avg_bgr"] = cluster_avg_bgr.get(home_cluster)
-                    team_detection_info["away_avg_bgr"] = cluster_avg_bgr.get(away_cluster)
-                    logger.info(
-                        f"Team detection: home={cluster_counts[home_cluster]} "
-                        f"away={cluster_counts[away_cluster]} "
-                        f"ref={team_detection_info['ref_size']} "
-                        f"(from {len(player_teams)}/{len(valid_player_tracks)} valid tracks)"
-                    )
-                else:
-                    logger.warning(
-                        f"Team clustering found only {len(cluster_counts)} cluster(s) "
-                        f"from {len(color_data)} players — jerseys may be similar"
-                    )
+                for tid, label in clusters.items():
+                    if label in ("home", "away") and tid in color_data:
+                        player_teams[tid] = label
+                    elif label == "referee":
+                        logger.debug(f"Track {tid} classified as referee")
+                team_detection_info["assigned"] = len(player_teams)
+                team_detection_info["n_clusters"] = len(set(clusters.values()))
+                home_members = [tid for tid, l in clusters.items() if l == "home"]
+                away_members = [tid for tid, l in clusters.items() if l == "away"]
+                ref_members = [tid for tid, l in clusters.items() if l == "referee"]
+                team_detection_info["home_size"] = len(home_members)
+                team_detection_info["away_size"] = len(away_members)
+                team_detection_info["ref_size"] = len(ref_members)
+                team_detection_info["home_avg_bgr"] = cluster_avg_bgr.get("home")
+                team_detection_info["away_avg_bgr"] = cluster_avg_bgr.get("away")
+                logger.info(
+                    f"Team detection: home={len(home_members)} away={len(away_members)}"
+                    + (f" ref={len(ref_members)}" if ref_members else "")
+                    + f" (from {len(player_teams)}/{len(valid_player_tracks)} valid tracks)"
+                )
             except Exception as e:
                 logger.warning(f"Team detection failed: {e}", exc_info=True)
+
+        # Match type inference
+        match_type = "unknown"
+        if duration >= 4800:  # 80+ minutes = full match
+            match_type = "full_match"
+        elif duration < 1200:  # under 20 minutes = highlight
+            match_type = "highlight"
+        else:
+            # Ambiguous: use heuristics
+            avg_track_span = 0.0
+            if valid_player_tracks:
+                spans = [
+                    (track_last_frame.get(tid, 0) - track_first_frame.get(tid, 0)) / fps
+                    for tid in valid_player_tracks
+                ]
+                avg_track_span = sum(spans) / len(spans)
+            if fragmentation_rate < 2.0 and avg_track_span >= 60:
+                match_type = "full_match"
+            elif fragmentation_rate >= 3.0 or avg_track_span < 15:
+                match_type = "highlight"
+        logger.info(
+            f"Match type inference: {match_type} "
+            f"(duration={duration:.0f}s, fragmentation={fragmentation_rate:.2f}, "
+            f"avg_span={avg_track_span:.1f}s)"
+        )
+
+        # MOT self-consistency metrics (py-motmetrics intrinsic)
+        mot_metrics: dict[str, Any] = {}
+        if _NORFAIR_AVAILABLE:
+            try:
+                from kawkab.services.tracking_metrics import compute_tracking_self_metrics
+
+                mot_metrics = compute_tracking_self_metrics(
+                    frames, track_registry, fps
+                )
+            except Exception as e:
+                logger.warning(f"MOT self-metrics failed: {e}")
 
         return MatchTrackData(
             match_id=0,
@@ -513,8 +619,25 @@ class CVService:
                 "frame_skip": frame_skip,
                 "effective_fps": round(effective_fps, 1),
                 "team_detection": team_detection_info,
+                "mot_self_consistency": mot_metrics.get("mot_self_consistency"),
+                "mot_details": mot_metrics,
             },
+            match_type=match_type,
         )
+
+    @staticmethod
+    def _bbox_iou(bbox_a: tuple[float, float, float, float],
+                  bbox_b: tuple[float, float, float, float]) -> float:
+        """Compute IoU between two bounding boxes (x1, y1, x2, y2)."""
+        x1 = max(bbox_a[0], bbox_b[0])
+        y1 = max(bbox_a[1], bbox_b[1])
+        x2 = min(bbox_a[2], bbox_b[2])
+        y2 = min(bbox_a[3], bbox_b[3])
+        inter = max(0, x2 - x1) * max(0, y2 - y1)
+        area_a = (bbox_a[2] - bbox_a[0]) * (bbox_a[3] - bbox_a[1])
+        area_b = (bbox_b[2] - bbox_b[0]) * (bbox_b[3] - bbox_b[1])
+        union = area_a + area_b - inter
+        return inter / union if union > 0 else 0.0
 
     def _compute_pitch_mask(self, frame):
         """Compute binary mask of pitch (green) area using HSV color.
@@ -604,14 +727,9 @@ class CVService:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_count = 0
 
-        ocr = None
-        try:
-            import easyocr
-            ocr = easyocr.Reader(["en"], gpu=self.gpu_enabled, verbose=False)
-        except ImportError:
-            logger.warning("easyocr not installed, using fallback number detection")
-        except Exception as e:
-            logger.warning(f"Could not initialize EasyOCR: {e}")
+        from kawkab.services.jersey_service import JerseyNumberService
+
+        jersey_svc = JerseyNumberService(gpu_enabled=self.gpu_enabled)
 
         try:
             while True:
@@ -651,36 +769,14 @@ class CVService:
                                     continue
 
                                 torso = frame[torso_y1:torso_y2, torso_x1:torso_x2]
-
-                                if ocr is not None:
-                                    try:
-                                        ocr_results = ocr.readtext(torso, allowlist="0123456789")
-                                        for (bbox, text, conf) in ocr_results:
-                                            digits = "".join(c for c in text if c.isdigit())
-                                            if digits:
-                                                number = int(digits)
-                                                if 0 < number < 100:
-                                                    if track_id not in track_jersey_votes:
-                                                        track_jersey_votes[track_id] = {}
-                                                    track_jersey_votes[track_id][number] = (
-                                                        track_jersey_votes[track_id].get(number, 0) + 1
-                                                    )
-                                    except Exception:
-                                        pass
-                                else:
-                                    h, w = torso.shape[:2]
-                                    if h > 20 and w > 10:
-                                        gray = cv2.cvtColor(torso, cv2.COLOR_BGR2GRAY)
-                                        _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
-                                        white_pixels = cv2.countNonZero(thresh)
-                                        if white_pixels > 50:
-                                            estimated_number = self._estimate_jersey_from_pixels(white_pixels, w, h)
-                                            if estimated_number:
-                                                if track_id not in track_jersey_votes:
-                                                    track_jersey_votes[track_id] = {}
-                                                track_jersey_votes[track_id][estimated_number] = (
-                                                    track_jersey_votes[track_id].get(estimated_number, 0) + 1
-                                                )
+                                result = jersey_svc.detect(torso)
+                                if result["jersey_number"] is not None:
+                                    num = result["jersey_number"]
+                                    if track_id not in track_jersey_votes:
+                                        track_jersey_votes[track_id] = {}
+                                    track_jersey_votes[track_id][num] = (
+                                        track_jersey_votes[track_id].get(num, 0) + 1
+                                    )
 
                 frame_count += 1
                 if frame_count % (sample_every_n_frames * 30) == 0:
@@ -807,10 +903,10 @@ class CVService:
                 "samples": len(colors),
             }
 
-        clusters = self._cluster_team_colors(result)
-        for tid, cluster_id in clusters.items():
+        clusters = self._cluster_team_colors(result, n_clusters=3)
+        for tid, label in clusters.items():
             if tid in result:
-                result[tid]["cluster_id"] = cluster_id
+                result[tid]["team_label"] = label
 
         n_teams = len(set(clusters.values()))
         logger.info(f"Team color detection: {len(result)} players, {n_teams} clusters")
@@ -857,23 +953,66 @@ class CVService:
         )
 
     def _cluster_team_colors(self, color_data, n_clusters=2):
-        """Cluster players into teams based on jersey color."""
+        """Cluster players into teams based on jersey color.
+
+        Supports auto-detection of referee (n_clusters=3):
+        cluster with darkest/saturation-lowest hue → referee.
+        """
         if len(color_data) < 2:
             return {tid: 0 for tid in color_data}
+
+        tids = list(color_data.keys())
+        colors_bgr = np.array([color_data[tid]["primary_color"] for tid in tids])
+
+        auto_detect_ref = n_clusters >= 3
+        actual_n = min(n_clusters if not auto_detect_ref else 3, len(tids))
+
         try:
             from sklearn.cluster import KMeans
-            tids = list(color_data.keys())
-            colors = np.array([color_data[tid]["primary_color"] for tid in tids])
-            actual_clusters = min(n_clusters, len(tids))
-            kmeans = KMeans(n_clusters=actual_clusters, random_state=42, n_init=10)
-            labels = kmeans.fit_predict(colors)
-            return {tids[i]: int(labels[i]) for i in range(len(tids))}
+            kmeans = KMeans(n_clusters=actual_n, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(colors_bgr)
+            label_map: dict[int, str] = {}
+
+            if actual_n >= 3:
+                centroids_bgr = kmeans.cluster_centers_.astype(int)
+                import cv2
+                centroids_hsv = [
+                    cv2.cvtColor(
+                        np.uint8([[c]]), cv2.COLOR_BGR2HSV
+                    )[0, 0]
+                    for c in centroids_bgr
+                ]
+                ref_idx = min(
+                    range(len(centroids_hsv)),
+                    key=lambda i: (
+                        centroids_hsv[i][1],
+                        -abs(centroids_hsv[i][0] - 0),
+                    ),
+                )
+                team_indices = [i for i in range(actual_n) if i != ref_idx]
+                sorted_teams = sorted(
+                    team_indices,
+                    key=lambda i: sum(centroids_bgr[i]),
+                    reverse=True,
+                )
+                label_map[ref_idx] = "referee"
+                label_map[sorted_teams[0]] = "home"
+                label_map[sorted_teams[1]] = "away"
+            else:
+                sorted_idx = sorted(
+                    range(actual_n),
+                    key=lambda i: sum(kmeans.cluster_centers_[i].astype(int)),
+                    reverse=True,
+                )
+                label_map[sorted_idx[0]] = "home"
+                label_map[sorted_idx[1]] = "away"
+
+            return {tids[i]: label_map.get(int(labels[i]), str(int(labels[i]))) for i in range(len(tids))}
         except ImportError:
-            tids = list(color_data.keys())
             sorted_by_color = sorted(
                 tids, key=lambda t: sum(color_data[t]["primary_color"])
             )
             result = {}
             for i, tid in enumerate(sorted_by_color):
-                result[tid] = 0 if i < len(sorted_by_color) / 2 else 1
+                result[tid] = "home" if i < len(sorted_by_color) / 2 else "away"
             return result

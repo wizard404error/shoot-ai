@@ -19,8 +19,29 @@
                     <option value="ar">العربية</option>
                 </select>
                 <span id="llm-status" class="llm-status">🔴 LLM: Checking...</span>
+                <span id="gpu-status" class="gpu-status hidden">🎮 GPU: ...</span>
             </div>
         </header>
+
+        <div id="gpu-info-panel" class="gpu-info-panel hidden">
+            <div class="gpu-info-card">
+                <h3>🎮 GPU Information</h3>
+                <p><strong>GPU:</strong> <span id="gpu-name">Unknown</span></p>
+                <p><strong>Tier:</strong> <span id="gpu-tier">Unknown</span></p>
+                <p><strong>Recommended Settings:</strong></p>
+                <ul id="gpu-recommendations">
+                    <li>Model: <span id="rec-model">-</span></li>
+                    <li>Frame Skip: <span id="rec-frame-skip">-</span></li>
+                    <li>GPU Enabled: <span id="rec-gpu">-</span></li>
+                </ul>
+                <p><strong>Current Settings:</strong></p>
+                <ul>
+                    <li>Model: <span id="curr-model">-</span></li>
+                    <li>Frame Skip: <span id="curr-frame-skip">-</span></li>
+                </ul>
+                <button id="close-gpu-info" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
 
         <main class="app-main">
             <section id="upload-section" class="section">
@@ -54,40 +75,594 @@
             </section>
 
             <section id="results-section" class="section hidden">
-                <h2>📊 Analysis Results</h2>
-                <div class="results-grid">
-                    <div class="result-card">
-                        <h3>Match Summary</h3>
-                        <div id="match-summary" class="match-summary"></div>
+                <h2>Analysis Results</h2>
+                <div class="results-layout">
+                    <div class="results-main">
+                        <div class="video-player-container">
+                            <div class="video-wrapper">
+                                <video id="match-video" controls></video>
+                                <canvas id="overlay-canvas"></canvas>
+                            </div>
+                            <div class="overlay-controls">
+                                <label><input type="checkbox" id="toggle-overlay" checked> Overlay</label>
+                                <label><input type="checkbox" id="show-labels" checked> Labels</label>
+                                <label><input type="checkbox" id="show-ball-trail" checked> Ball trail</label>
+                            </div>
+                        </div>
+                        <div class="results-grid">
+                            <div class="result-card">
+                                <h3>Match Summary</h3>
+                                <div id="match-summary" class="match-summary"></div>
+                            </div>
+                            <div class="result-card">
+                                <h3>Possession</h3>
+                                <div id="possession-chart" class="chart"></div>
+                            </div>
+                            <div class="result-card">
+                                <h3>Home Team Stats</h3>
+                                <div id="home-stats" class="stats-list"></div>
+                            </div>
+                            <div class="result-card">
+                                <h3>Away Team Stats</h3>
+                                <div id="away-stats" class="stats-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="confidence-indicator">
+                            <span>Overall Confidence: </span>
+                            <span id="confidence-value" class="confidence-value"></span>
+                            <div id="confidence-bar" class="confidence-bar"></div>
+                        </div>
+
+                        <div id="football-data-section" class="benchmark-section">
+                            <h3>🔌 External Data (football-data.org)</h3>
+                            <div id="football-data-status" class="feedback-result">Checking...</div>
+                            <div id="football-data-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="text" id="fd-home-search" placeholder="Search home team..." class="input">
+                                    <div id="fd-home-results" class="fd-search-results hidden"></div>
+                                    <input type="text" id="fd-away-search" placeholder="Search away team..." class="input">
+                                    <div id="fd-away-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <button id="fd-import-home-btn" class="btn btn-secondary" disabled>Import Home Squad</button>
+                                    <button id="fd-import-away-btn" class="btn btn-secondary" disabled>Import Away Squad</button>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="number" id="fd-api-match-id" placeholder="API Match ID" class="input" style="flex: 0.4;">
+                                    <button id="fd-verify-btn" class="btn btn-secondary">Verify Score vs API</button>
+                                </div>
+                                <div id="fd-verify-result" class="feedback-result"></div>
+                                <div id="fd-fixtures-section" class="hidden" style="margin-top: 12px;">
+                                    <h4 id="fd-fixtures-title">Upcoming / Recent Matches</h4>
+                                    <div id="fd-fixtures-list" class="roster-list"></div>
+                                </div>
+                                <div id="fd-standings-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>League Standings</h4>
+                                    <div id="fd-standings-list" class="roster-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="bzzoiro-section" class="benchmark-section">
+                            <h3>⚡ Bzzoiro Sports Data</h3>
+                            <div id="bzzoiro-status" class="feedback-result">Checking...</div>
+                            <div id="bzzoiro-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="text" id="bz-home-search" placeholder="Search home team..." class="input">
+                                    <div id="bz-home-results" class="fd-search-results hidden"></div>
+                                    <input type="text" id="bz-away-search" placeholder="Search away team..." class="input">
+                                    <div id="bz-away-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <button id="bz-import-home-btn" class="btn btn-secondary" disabled>Import Home Squad</button>
+                                    <button id="bz-import-away-btn" class="btn btn-secondary" disabled>Import Away Squad</button>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="number" id="bz-event-id" placeholder="Bzzoiro Event ID" class="input" style="flex: 0.4;">
+                                    <button id="bz-verify-btn" class="btn btn-secondary">Verify Score</button>
+                                    <button id="bz-predict-btn" class="btn btn-secondary">Predictions</button>
+                                </div>
+                                <div id="bz-verify-result" class="feedback-result"></div>
+                                <div id="bz-leagues-section" style="margin-top: 8px;">
+                                    <select id="bz-league-select" class="input" style="flex:1">
+                                        <option value="">-- Select League for Standings --</option>
+                                    </select>
+                                    <button id="bz-standings-btn" class="btn btn-secondary">Standings</button>
+                                </div>
+                                <div id="bz-predictions-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>AI Predictions</h4>
+                                    <div id="bz-predictions-content" class="feedback-result"></div>
+                                </div>
+                                <div id="bz-standings-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>Bzzoiro Standings</h4>
+                                    <div id="bz-standings-list" class="roster-list"></div>
+                                </div>
+                                <div id="bz-live-section" style="margin-top: 12px;">
+                                    <h4>Live Matches <span id="bz-live-count" class="live-count"></span></h4>
+                                    <div id="bz-live-list" class="roster-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="easysoccer-section" class="benchmark-section">
+                            <h3>📡 EasySoccerData (Sofascore)</h3>
+                            <div id="easysoccer-status" class="feedback-result">Checking...</div>
+                            <div id="easysoccer-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="es-event-id" placeholder="Sofascore Event ID" class="input" style="flex: 0.4;">
+                                    <button id="es-get-event-btn" class="btn btn-secondary">Get Event</button>
+                                    <button id="es-get-incidents-btn" class="btn btn-secondary">Incidents</button>
+                                </div>
+                                <div id="es-event-result" class="feedback-result"></div>
+                                <div id="es-live-section" style="margin-top: 12px;">
+                                    <h4>Live Matches (Sofascore)</h4>
+                                    <div id="es-live-list" class="roster-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="apifootball-section" class="benchmark-section">
+                            <h3>⚽ API-Football (api-sports.io)</h3>
+                            <div id="apifootball-status" class="feedback-result">Checking...</div>
+                            <div id="apifootball-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="text" id="af-home-search" placeholder="Search home team..." class="input">
+                                    <div id="af-home-results" class="fd-search-results hidden"></div>
+                                    <input type="text" id="af-away-search" placeholder="Search away team..." class="input">
+                                    <div id="af-away-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <button id="af-import-home-btn" class="btn btn-secondary" disabled>Import Home Squad</button>
+                                    <button id="af-import-away-btn" class="btn btn-secondary" disabled>Import Away Squad</button>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="number" id="af-fixture-id" placeholder="Fixture ID" class="input" style="flex: 0.3;">
+                                    <button id="af-verify-btn" class="btn btn-secondary">Verify Score</button>
+                                    <button id="af-predict-btn" class="btn btn-secondary">Predictions</button>
+                                </div>
+                                <div id="af-verify-result" class="feedback-result"></div>
+                                <div id="af-predictions-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>AI Predictions</h4>
+                                    <div id="af-predictions-content" class="feedback-result"></div>
+                                </div>
+                                <div id="af-standings-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>Botola Pro Standings (2024)</h4>
+                                    <div id="af-standings-list" class="roster-list"></div>
+                                </div>
+                                <div id="af-live-section" style="margin-top: 12px;">
+                                    <h4>Live Matches</h4>
+                                    <div id="af-live-list" class="roster-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="thesportsdb-section" class="benchmark-section">
+                            <h3>🏆 TheSportsDB</h3>
+                            <div id="thesportsdb-status" class="feedback-result">Checking...</div>
+                            <div id="thesportsdb-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="text" id="tsdb-team-search" placeholder="Search team..." class="input">
+                                    <div id="tsdb-team-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <button id="tsdb-get-info-btn" class="btn btn-secondary" disabled>Get Team Info</button>
+                                </div>
+                                <div id="tsdb-team-info" class="feedback-result" style="margin-top:8px"></div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="text" id="tsdb-league-id" placeholder="League ID (4520 = Botola)" class="input" style="flex: 0.4;" value="4520">
+                                    <button id="tsdb-standings-btn" class="btn btn-secondary">Standings</button>
+                                </div>
+                                <div id="tsdb-standings-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>TheSportsDB Standings</h4>
+                                    <div id="tsdb-standings-list" class="roster-list"></div>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="text" id="tsdb-team-id-events" placeholder="Team ID for events" class="input" style="flex: 0.3;">
+                                    <button id="tsdb-last-events-btn" class="btn btn-secondary">Last Events</button>
+                                    <button id="tsdb-next-events-btn" class="btn btn-secondary">Next Events</button>
+                                </div>
+                                <div id="tsdb-events-section" class="hidden" style="margin-top: 12px;">
+                                    <h4>Match Events</h4>
+                                    <div id="tsdb-events-list" class="roster-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="statsbomb-section" class="benchmark-section">
+                            <h3>📊 StatsBomb Open Data</h3>
+                            <div id="statsbomb-status" class="feedback-result">Checking...</div>
+                            <div id="statsbomb-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="text" id="sb-team-search" placeholder="Search team (e.g., 'Barcelona')..." class="input">
+                                    <div id="sb-team-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="number" id="sb-match-id" placeholder="Match ID (e.g., 3869151)" class="input" style="flex: 0.4;">
+                                    <button id="sb-events-btn" class="btn btn-secondary">Events + xG</button>
+                                    <button id="sb-lineups-btn" class="btn btn-secondary">Lineups</button>
+                                </div>
+                                <div id="sb-events-result" class="feedback-result" style="margin-top:8px"></div>
+                                <div id="sb-lineups-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="openfootball-section" class="benchmark-section">
+                            <h3>📚 OpenFootball (CC0 Data)</h3>
+                            <div id="openfootball-status" class="feedback-result">Checking...</div>
+                            <div id="openfootball-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <select id="ofb-competition" class="input" style="flex:1">
+                                        <option value="">-- Competition --</option>
+                                    </select>
+                                    <select id="ofb-season" class="input" style="flex:1">
+                                        <option value="">-- Season --</option>
+                                    </select>
+                                    <button id="ofb-load-btn" class="btn btn-secondary">Load</button>
+                                </div>
+                                <div id="ofb-matches-list" class="roster-list" style="margin-top:8px;max-height:240px;overflow-y:auto"></div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="text" id="ofb-team-search" placeholder="Search team across all leagues..." class="input">
+                                    <div id="ofb-team-results" class="fd-search-results hidden"></div>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <select id="ofb-wc-year" class="input" style="flex:1">
+                                        <option value="">-- World Cup Year --</option>
+                                    </select>
+                                    <button id="ofb-wc-btn" class="btn btn-secondary">Load WC</button>
+                                </div>
+                                <div id="ofb-wc-list" class="roster-list" style="margin-top:8px;max-height:240px;overflow-y:auto"></div>
+                            </div>
+                        </div>
+
+                        <div id="roboflow-sports-section" class="benchmark-section">
+                            <h3>⚽ Roboflow Sports (CV Utilities)</h3>
+                            <div id="roboflow-sports-status" class="feedback-result">Checking...</div>
+                            <div id="roboflow-sports-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="rf-pitch-scale" class="input" placeholder="Scale" value="0.5" min="0.1" max="2.0" step="0.1" style="flex:0.3">
+                                    <button id="rf-draw-pitch-btn" class="btn btn-secondary">Draw Pitch</button>
+                                </div>
+                                <div id="rf-pitch-result" class="feedback-result" style="margin-top:8px"></div>
+                                <div id="rf-pitch-image" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="pose-section" class="benchmark-section">
+                            <h3>🧍 Pose Analysis (YOLO26-pose)</h3>
+                            <div id="pose-status" class="feedback-result">Checking...</div>
+                            <div id="pose-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="pose-track-id" placeholder="Player track ID" class="input" style="flex:0.3">
+                                    <button id="pose-summary-btn" class="btn btn-secondary">Get Activity Summary</button>
+                                    <button id="pose-segments-btn" class="btn btn-secondary">Get Time Segments</button>
+                                </div>
+                                <div id="pose-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="mujoco-section" class="benchmark-section">
+                            <h3>🎯 Set-Piece Simulator (MuJoCo)</h3>
+                            <div id="mujoco-status" class="feedback-result">Checking...</div>
+                            <div id="mujoco-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <select id="mujoco-preset" class="input" style="flex:1">
+                                        <option value="">-- Select Preset --</option>
+                                    </select>
+                                    <button id="mujoco-load-preset-btn" class="btn btn-secondary">Load</button>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <div class="form-row">
+                                    <input type="number" id="mujoco-speed" placeholder="Speed (m/s)" class="input" style="flex:0.4" value="25" step="0.5">
+                                    <input type="number" id="mujoco-angle" placeholder="Angle (°)" class="input" style="flex:0.4" value="18" step="1">
+                                    <input type="number" id="mujoco-spin" placeholder="Spin (rps)" class="input" style="flex:0.4" value="3" step="0.5">
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <input type="number" id="mujoco-direction" placeholder="Direction (°)" class="input" style="flex:0.4" value="0" step="5">
+                                    <button id="mujoco-simulate-btn" class="btn btn-primary" style="flex:1">Simulate Trajectory</button>
+                                </div>
+                                <div id="mujoco-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="fluidx3d-section" class="benchmark-section">
+                            <h3>💨 Ball Aerodynamics (FluidX3D)</h3>
+                            <div id="fluidx3d-status" class="feedback-result">Checking...</div>
+                            <div id="fluidx3d-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="cfd-wind" placeholder="Wind speed (m/s)" class="input" style="flex:0.4" value="20" step="1">
+                                    <input type="number" id="cfd-spin" placeholder="Spin (rps)" class="input" style="flex:0.4" value="5" step="0.5">
+                                    <input type="number" id="cfd-radius" placeholder="Radius (m)" class="input" style="flex:0.4" value="0.11" step="0.01">
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <button id="cfd-run-btn" class="btn btn-primary" style="flex:1">Run CFD Simulation</button>
+                                </div>
+                                <div id="cfd-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="weather-section" class="benchmark-section">
+                            <h3>🌤️ Match Weather</h3>
+                            <div id="weather-status" class="feedback-result">Checking...</div>
+                            <div id="weather-controls" class="football-data-controls hidden">
+                                <h4>Manual Entry</h4>
+                                <div class="form-row">
+                                    <input type="number" id="wx-temp" placeholder="Temperature (°C)" class="input" style="flex:0.3" value="20">
+                                    <input type="number" id="wx-precip" placeholder="Precip (mm)" class="input" style="flex:0.3" value="0" step="0.1">
+                                    <input type="number" id="wx-wind" placeholder="Wind (km/h)" class="input" style="flex:0.3" value="10" step="1">
+                                </div>
+                                <div class="form-row" style="margin-top:8px">
+                                    <input type="number" id="wx-humidity" placeholder="Humidity %" class="input" style="flex:0.3" value="60">
+                                    <select id="wx-conditions" class="input" style="flex:0.5">
+                                        <option value="clear">Clear</option>
+                                        <option value="cloudy">Cloudy</option>
+                                        <option value="rain">Rain</option>
+                                        <option value="snow">Snow</option>
+                                        <option value="fog">Fog</option>
+                                    </select>
+                                    <button id="wx-analyze-btn" class="btn btn-primary">Analyze</button>
+                                </div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <h4>Open-Meteo (auto-fetch)</h4>
+                                <div class="form-row">
+                                    <input type="number" id="wx-lat" placeholder="Latitude" class="input" style="flex:0.3" value="31.63" step="0.01">
+                                    <input type="number" id="wx-lon" placeholder="Longitude" class="input" style="flex:0.3" value="-7.99" step="0.01">
+                                    <input type="date" id="wx-date" class="input" style="flex:0.3">
+                                    <button id="wx-fetch-btn" class="btn btn-secondary">Fetch</button>
+                                </div>
+                                <div id="wx-result" class="feedback-result" style="margin-top:8px"></div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <h4>Video Weather Detection (TobyBreckon-style)</h4>
+                                <p style="font-size:0.78rem;color:var(--text-muted);margin:4px 0">
+                                    Sliding-window raindrop detection (AlexNet-30², 0.95 acc) + 5-class weather CNN
+                                </p>
+                                <div class="form-row">
+                                    <input type="text" id="wx-video-path" placeholder="Path to video file (.mp4)" class="input" style="flex:1">
+                                    <button id="wx-analyze-video-btn" class="btn btn-primary">Analyze Video</button>
+                                </div>
+                                <div id="wx-video-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="psychology-section" class="benchmark-section">
+                            <h3>🧠 Match Psychology</h3>
+                            <div id="psy-status" class="feedback-result">Checking...</div>
+                            <div id="psy-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="psy-match-id" placeholder="Match ID" class="input" style="flex:0.3">
+                                    <input type="text" id="psy-home" placeholder="Home team" class="input" style="flex:0.4" value="Home">
+                                    <input type="text" id="psy-away" placeholder="Away team" class="input" style="flex:0.4" value="Away">
+                                </div>
+                                <div class="form-row" style="margin-top:8px">
+                                    <button id="psy-analyze-btn" class="btn btn-primary">Analyze Psychology</button>
+                                </div>
+                                <div id="psy-summary" class="feedback-result" style="margin-top:8px"></div>
+                                <div id="psy-momentum" class="feedback-result" style="margin-top:8px"></div>
+                                <div id="psy-events" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="rules-section" class="benchmark-section">
+                            <h3>⚖️ Football Rules Reference (IFAB)</h3>
+                            <div id="rules-status" class="feedback-result">Checking...</div>
+                            <div id="rules-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <select id="rules-law-select" class="input" style="flex:1">
+                                        <option value="">-- Select Law --</option>
+                                    </select>
+                                    <button id="rules-show-btn" class="btn btn-secondary">Show Law</button>
+                                </div>
+                                <div id="rules-law-content" class="feedback-result" style="margin-top:8px"></div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <h4>Event Classifier</h4>
+                                <div class="form-row">
+                                    <input type="text" id="cls-event" placeholder="Event type (foul, handball, ball_out)" class="input" style="flex:0.4" value="foul">
+                                    <input type="number" id="cls-x" placeholder="X (0-105)" class="input" style="flex:0.3" value="90">
+                                    <input type="number" id="cls-y" placeholder="Y (0-68)" class="input" style="flex:0.3" value="34">
+                                </div>
+                                <div class="form-row" style="margin-top:8px">
+                                    <select id="cls-side" class="input" style="flex:0.5">
+                                        <option value="home">Home (attacking right)</option>
+                                        <option value="away">Away (attacking left)</option>
+                                    </select>
+                                    <button id="cls-classify-btn" class="btn btn-primary">Classify</button>
+                                </div>
+                                <div id="cls-result" class="feedback-result" style="margin-top:8px"></div>
+                                <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                                <h4>Offside Checker (Law 11)</h4>
+                                <div class="form-row">
+                                    <input type="number" id="off-attacker" placeholder="Attacker X" class="input" style="flex:0.3" value="80">
+                                    <input type="number" id="off-defender" placeholder="2nd-last defender X" class="input" style="flex:0.3" value="75">
+                                    <input type="number" id="off-ball" placeholder="Ball X" class="input" style="flex:0.3" value="78">
+                                    <button id="off-check-btn" class="btn btn-secondary">Check</button>
+                                </div>
+                                <div id="off-result" class="feedback-result" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <div id="cards-section" class="benchmark-section">
+                            <h3>🟨 Card Detection</h3>
+                            <div id="cards-status" class="feedback-result">Checking...</div>
+                            <div id="cards-controls" class="football-data-controls hidden">
+                                <div class="form-row">
+                                    <input type="number" id="cards-match-id" placeholder="Match ID (for external)" class="input" style="flex:0.4">
+                                    <button id="cards-infer-btn" class="btn btn-secondary">Infer from Events</button>
+                                    <button id="cards-external-btn" class="btn btn-secondary">Fetch External</button>
+                                </div>
+                                <div id="cards-list" class="roster-list" style="margin-top:8px;max-height:240px;overflow-y:auto"></div>
+                            </div>
+                        </div>
+
+                        <div id="pro-analytics-section" class="benchmark-section">
+                            <h3>🏆 Pro Analytics</h3>
+                            <div class="form-row" style="margin-bottom:8px">
+                                <button id="pro-setpiece-btn" class="btn btn-secondary">Set-Piece Analysis</button>
+                                <button id="pro-goalkeeper-btn" class="btn btn-secondary">Goalkeeper Report</button>
+                                <button id="pro-substitution-btn" class="btn btn-secondary">Substitution Impact</button>
+                                <button id="pro-possession-btn" class="btn btn-secondary">Detailed Possession</button>
+                                <button id="pro-xgot-btn" class="btn btn-secondary">Compute xGOT</button>
+                            </div>
+                            <div id="pro-result" class="feedback-result" style="margin-top:8px"></div>
+                        </div>
+
+                        <div id="benchmark-section" class="benchmark-section hidden">
+                            <h3>Performance</h3>
+                            <div class="benchmark-grid">
+                                <div class="benchmark-card">
+                                    <div class="benchmark-label">Total Time</div>
+                                    <div id="bench-total-time" class="benchmark-value">-</div>
+                                </div>
+                                <div class="benchmark-card">
+                                    <div class="benchmark-label">Realtime Ratio</div>
+                                    <div id="bench-ratio" class="benchmark-value">-</div>
+                                </div>
+                                <div class="benchmark-card">
+                                    <div class="benchmark-label">Effective FPS</div>
+                                    <div id="bench-fps" class="benchmark-value">-</div>
+                                </div>
+                                <div class="benchmark-card">
+                                    <div class="benchmark-label">Peak Memory</div>
+                                    <div id="bench-mem" class="benchmark-value">-</div>
+                                </div>
+                            </div>
+                            <div class="benchmark-stages" id="benchmark-stages"></div>
+                        </div>
+
+                        <div class="actions">
+                            <button id="generate-report-btn" class="btn btn-primary">Generate Coach Report</button>
+                            <button id="export-pdf-btn" class="btn btn-secondary">Export PDF</button>
+                            <button id="extract-clips-btn" class="btn btn-secondary">Extract Clips</button>
+                            <button id="swap-teams-btn" class="btn btn-secondary">Swap Teams</button>
+                            <button id="generate-viz-btn" class="btn btn-secondary">Visualizations</button>
+                        </div>
+
+                        <div id="visualization-section" class="benchmark-section hidden">
+                            <h3>Visualizations</h3>
+                            <div class="viz-grid">
+                                <div class="viz-card">
+                                    <h4>Pass Network</h4>
+                                    <img id="pass-network-img" class="viz-img" alt="Pass network">
+                                </div>
+                                <div class="viz-card">
+                                    <h4>Position Heatmap</h4>
+                                    <img id="heatmap-img" class="viz-img" alt="Heatmap">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="tactical-sandbox-section" class="benchmark-section">
+                            <h3>⚽ Tactical Sandbox (matter.js)</h3>
+                            <div class="form-row">
+                                <select id="sandbox-formation" class="input" style="flex:1">
+                                    <option value="4-4-2">4-4-2</option>
+                                    <option value="4-3-3">4-3-3</option>
+                                    <option value="3-5-2">3-5-2</option>
+                                    <option value="4-2-3-1">4-2-3-1</option>
+                                </select>
+                                <button id="sandbox-load-btn" class="btn btn-secondary">Load Formation</button>
+                                <button id="sandbox-press-btn" class="btn btn-primary">Press Ball</button>
+                            </div>
+                            <div class="form-row" style="margin-top:8px">
+                                <span style="font-size:0.8rem;color:var(--text-muted)">
+                                    Drag player tokens to reposition. Click "Press Ball" to simulate pressing motion.
+                                </span>
+                            </div>
+                            <canvas id="sandbox-canvas" width="600" height="400"
+                                style="display:block;margin-top:12px;border:1px solid #e2e8f0;border-radius:6px;background:#16a34a22"></canvas>
+                        </div>
+
+                        <div id="clip-result" class="feedback-result"></div>
                     </div>
-                    <div class="result-card">
-                        <h3>Possession</h3>
-                        <div id="possession-chart" class="chart"></div>
-                    </div>
-                    <div class="result-card">
-                        <h3>Home Team Stats</h3>
-                        <div id="home-stats" class="stats-list"></div>
-                    </div>
-                    <div class="result-card">
-                        <h3>Away Team Stats</h3>
-                        <div id="away-stats" class="stats-list"></div>
+                    <aside id="timeline-sidebar" class="timeline-sidebar">
+                        <div class="timeline-header">
+                            <h3>Event Timeline</h3>
+                            <div class="timeline-filter">
+                                <select id="timeline-filter-type">
+                                    <option value="all">All Events</option>
+                                    <option value="shot">Shots</option>
+                                    <option value="goal">Goals</option>
+                                    <option value="pass">Passes</option>
+                                    <option value="tackle">Tackles</option>
+                                    <option value="corner">Corners</option>
+                                    <option value="free_kick">Free Kicks</option>
+                                    <option value="throw_in">Throw Ins</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="timeline-list" class="timeline-list">
+                            <div class="timeline-empty">No events loaded</div>
+                        </div>
+                    </aside>
+                </div>
+                <div id="edit-event-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <h3>Edit Event</h3>
+                        <div class="modal-body">
+                            <label>Event Type:
+                                <select id="edit-event-type">
+                                    <option value="pass">Pass</option>
+                                    <option value="shot">Shot</option>
+                                    <option value="goal">Goal</option>
+                                    <option value="tackle">Tackle</option>
+                                    <option value="interception">Interception</option>
+                                    <option value="dribble">Dribble</option>
+                                    <option value="corner">Corner</option>
+                                    <option value="free_kick">Free Kick</option>
+                                    <option value="throw_in">Throw In</option>
+                                    <option value="clearance">Clearance</option>
+                                    <option value="cross">Cross</option>
+                                    <option value="carry">Carry</option>
+                                    <option value="duel">Duel</option>
+                                </select>
+                            </label>
+                            <label>Team:
+                                <select id="edit-event-team">
+                                    <option value="home">Home</option>
+                                    <option value="away">Away</option>
+                                    <option value="unknown">Unknown</option>
+                                </select>
+                            </label>
+                            <label>Note (optional):
+                                <input type="text" id="edit-event-note" placeholder="Coach note...">
+                            </label>
+                            <input type="hidden" id="edit-event-id" value="">
+                        </div>
+                        <div class="modal-actions">
+                            <button id="edit-event-save" class="btn btn-primary">Save</button>
+                            <button id="edit-event-cancel" class="btn btn-secondary">Cancel</button>
+                        </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="confidence-indicator">
-                    <span>Overall Confidence: </span>
-                    <span id="confidence-value" class="confidence-value"></span>
-                    <div id="confidence-bar" class="confidence-bar"></div>
-                </div>
-
-                <div class="actions">
-                    <button id="generate-report-btn" class="btn btn-primary">🤖 Generate Coach Report</button>
-                    <button id="export-pdf-btn" class="btn btn-secondary">📄 Export PDF</button>
+            <section id="calibration-section" class="section hidden">
+                <h2>Camera Calibration</h2>
+                <p>Set up the camera-to-pitch transformation for accurate spatial stats.</p>
+                <div class="calibration-area">
+                    <canvas id="calibration-canvas"></canvas>
+                    <div class="calibration-info">
+                        <p>Clicks: <span id="clicks-count">0</span>/4</p>
+                        <p id="calibration-status">Click corner 1: Top-Left of Pitch</p>
+                        <div class="calibration-buttons">
+                            <button id="calibration-save" class="btn btn-primary" disabled>Save Calibration</button>
+                            <button id="calibration-skip" class="btn btn-secondary">Auto Estimate</button>
+                            <button id="calibration-lightglue" class="btn btn-secondary">Auto via AI Matching</button>
+                            <button id="calibration-reset" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <section id="report-section" class="section hidden">
-                <h2>🤖 Coach Report</h2>
+                <h2>Coach Report</h2>
                 <div id="report-content" class="report-content"></div>
             </section>
 
@@ -95,16 +670,197 @@
                 <h2>📚 Match History</h2>
                 <div id="match-list" class="match-list"></div>
             </section>
+
+            <section id="professional-section" class="section">
+                <h2>🏆 Professional Analytics</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="players-tab">Player Profiles</button>
+                    <button class="tab-btn" data-tab="compare-tab">Match Comparison</button>
+                    <button class="tab-btn" data-tab="export-tab">Export Data</button>
+                </div>
+
+                <div id="players-tab" class="tab-content active">
+                    <div class="pro-card">
+                        <h3>Create Player Profile</h3>
+                        <div class="form-row">
+                            <input type="text" id="player-name" placeholder="Player name" class="input">
+                            <input type="number" id="player-jersey" placeholder="Jersey #" class="input" min="0" max="99">
+                            <input type="text" id="player-position" placeholder="Position (e.g., FW, MF, DF)" class="input">
+                            <button id="create-player-btn" class="btn btn-primary">Create Profile</button>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3>Player Roster</h3>
+                        <div id="player-roster" class="roster-list">
+                            <p class="hint">No players yet. Create your first profile above.</p>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3>Face Gallery</h3>
+                        <p class="hint">Upload team photos to identify players by face in match footage.</p>
+                        <div class="form-row">
+                            <input type="file" id="face-photo-input" accept="image/*" class="input">
+                            <input type="number" id="face-jersey-input" placeholder="Jersey #" class="input" min="0" max="99">
+                            <input type="text" id="face-name-input" placeholder="Player name" class="input">
+                            <button id="upload-face-btn" class="btn btn-primary">Upload & Detect Face</button>
+                        </div>
+                        <div id="face-gallery" class="roster-list"></div>
+                        <div class="form-row" style="margin-top: 8px;">
+                            <button id="match-faces-btn" class="btn btn-secondary">Run Face Recognition on Current Match</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="compare-tab" class="tab-content">
+                    <div class="pro-card">
+                        <h3>Compare Two Matches</h3>
+                        <div class="form-row">
+                            <select id="compare-match-1" class="input">
+                                <option value="">Select Match 1</option>
+                            </select>
+                            <select id="compare-match-2" class="input">
+                                <option value="">Select Match 2</option>
+                            </select>
+                            <input type="text" id="compare-focus" placeholder="Focus area (e.g., possession, shots)" class="input">
+                            <button id="compare-btn" class="btn btn-primary">Compare</button>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3>Comparison Results</h3>
+                        <div id="comparison-results" class="comparison-results">
+                            <p class="hint">Select two matches and click Compare to see tactical differences.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="export-tab" class="tab-content">
+                    <div class="pro-card">
+                        <h3>Export Match Data</h3>
+                        <div class="form-row">
+                            <select id="export-match-select" class="input">
+                                <option value="">Select Match</option>
+                            </select>
+                            <button id="export-csv-btn" class="btn btn-primary">Export CSV</button>
+                            <button id="export-json-btn" class="btn btn-secondary">Export JSON</button>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3>Quality Report</h3>
+                        <div class="form-row">
+                            <select id="quality-match-select" class="input">
+                                <option value="">Select Match</option>
+                            </select>
+                            <button id="quality-report-btn" class="btn btn-primary">Get Quality Report</button>
+                        </div>
+                        <div id="quality-results" class="quality-results"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="feedback-section" class="section">
+                <h2>💬 Coach Feedback</h2>
+                <div class="feedback-card">
+                    <h3>Rate Your Experience</h3>
+                    <div class="star-rating" id="overall-stars">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <p class="rating-label">Overall Rating</p>
+
+                    <div class="rating-grid">
+                        <div class="rating-item">
+                            <label>Tracking</label>
+                            <div class="star-rating small" id="tracking-stars">
+                                <span class="star" data-value="1">★</span>
+                                <span class="star" data-value="2">★</span>
+                                <span class="star" data-value="3">★</span>
+                                <span class="star" data-value="4">★</span>
+                                <span class="star" data-value="5">★</span>
+                            </div>
+                        </div>
+                        <div class="rating-item">
+                            <label>Events</label>
+                            <div class="star-rating small" id="events-stars">
+                                <span class="star" data-value="1">★</span>
+                                <span class="star" data-value="2">★</span>
+                                <span class="star" data-value="3">★</span>
+                                <span class="star" data-value="4">★</span>
+                                <span class="star" data-value="5">★</span>
+                            </div>
+                        </div>
+                        <div class="rating-item">
+                            <label>Reports</label>
+                            <div class="star-rating small" id="report-stars">
+                                <span class="star" data-value="1">★</span>
+                                <span class="star" data-value="2">★</span>
+                                <span class="star" data-value="3">★</span>
+                                <span class="star" data-value="4">★</span>
+                                <span class="star" data-value="5">★</span>
+                            </div>
+                        </div>
+                        <div class="rating-item">
+                            <label>UI</label>
+                            <div class="star-rating small" id="ui-stars">
+                                <span class="star" data-value="1">★</span>
+                                <span class="star" data-value="2">★</span>
+                                <span class="star" data-value="3">★</span>
+                                <span class="star" data-value="4">★</span>
+                                <span class="star" data-value="5">★</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <textarea id="feedback-comments" class="input" rows="3" placeholder="Tell us what you think..."></textarea>
+                    <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
+                    <div id="feedback-result" class="feedback-result"></div>
+                </div>
+
+                <div class="feedback-card">
+                    <h3>Report an Issue</h3>
+                    <select id="issue-category" class="input">
+                        <option value="tracking">Tracking</option>
+                        <option value="events">Events</option>
+                        <option value="performance">Performance</option>
+                        <option value="ui">User Interface</option>
+                        <option value="crash">Crash</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <select id="issue-severity" class="input">
+                        <option value="low">Low - Minor inconvenience</option>
+                        <option value="medium" selected>Medium - Affects workflow</option>
+                        <option value="high">High - Major problem</option>
+                        <option value="critical">Critical - App unusable</option>
+                    </select>
+                    <textarea id="issue-description" class="input" rows="3" placeholder="Describe the issue..."></textarea>
+                    <button id="submit-issue-btn" class="btn btn-primary">Report Issue</button>
+                    <div id="issue-result" class="feedback-result"></div>
+                </div>
+
+                <div class="feedback-card">
+                    <h3>Feedback Statistics</h3>
+                    <div id="feedback-stats" class="feedback-stats">
+                        <p class="hint">No feedback yet. Be the first to share your thoughts!</p>
+                    </div>
+                    <button id="refresh-stats-btn" class="btn btn-secondary">Refresh Stats</button>
+                </div>
+            </section>
         </main>
 
         <footer class="app-footer">
-            <p>Kawkab AI v0.1.0 - 100% Private & Offline</p>
+            <p>Kawkab AI v0.8.0 - 100% Private & Offline</p>
             <p id="kb-stats">Knowledge Base: Loading...</p>
         </footer>
     </div>
 
     <script src="js/qwebchannel.js"></script>
+    <script src="vendor/popmotion.min.js"></script>
+    <script src="js/kawkab_animations.js"></script>
     <script src="js/calibration.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/tactical_sandbox.js"></script>
 </body>
 </html>

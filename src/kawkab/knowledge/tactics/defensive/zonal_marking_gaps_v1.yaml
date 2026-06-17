@@ -1,0 +1,81 @@
+rule:
+  id: zonal_marking_gaps_v1
+  category: defensive
+  subcategory: zonal_marking
+  severity: high
+  names:
+    en: Zonal Marking Gaps
+    ar: فجوات في التغطية الزونية
+  description:
+    en: |
+      Team defends zonally but leaves dangerous gaps between players,
+      allowing opponents to receive and turn in high-value zones.
+    ar: |
+      الفريق يدافع بشكل زوني لكنه يترك فجوات خطيرة بين اللاعبين،
+      مما يسمح للخصم بالاستلام والالتفات في مناطق ذات قيمة عالية.
+  pattern_signature:
+    type: reception_in_zone_gap
+    zone: middle_third
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      min_percentage: 0.35
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: poor_zone_coverage
+      weight: 0.5
+      names:
+        en: Players Not Covering Their Zones
+        ar: اللاعبون لا يغطون مناطقهم
+      evidence_required:
+        - metric: receptions_between_lines
+          threshold: ">4"
+        - metric: avg_gap_between_defensive_lines
+          threshold: ">15m"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Players are ball-watching and leaving their zones to chase the ball.
+          In zonal defense, you defend the space first, then the opponent.
+          Need zonal marking drills with clear zone assignments.
+        ar: |
+          اللاعبون يراقبون الكرة ويتركون مناطقهم لمطاردتها. في الدفاع
+          الزوني، تدافع عن المساحة أولاً ثم الخصم. تحتاج تدريبات زونية
+          مع مهام واضحة لكل منطقة.
+      recommended_drills:
+        - zonal_marking_game
+        - compactness_5v5
+    - hypothesis_id: no_defensive_rotation
+      weight: 0.3
+      names:
+        en: No Defensive Rotation
+        ar: عدم التناوب الدفاعي
+      evidence_required:
+        - metric: times_defensive_shape_broken
+          threshold: ">3"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          When one player presses, another must drop to cover his zone.
+          Teach rotational defending: if I go, you cover; if you go, I cover.
+        ar: |
+          عندما يضغط لاعب، يجب أن ينزل آخر لتغطية منطقته. علمهم الدفاع
+          التناوبي: إذا ذهبت أنت، أغطي أنا؛ وإذا ذهبت أنا، تغطي أنت.
+      recommended_drills:
+        - zonal_marking_game
+        - defensive_line_drills
+  recommended_drills:
+    primary:
+      - drill_id: zonal_marking_game
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: compactness_5v5
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Zonal Marking Principles"
+    - "Coaches' Voice: Defensive Shape and Compactness"
+    - "Tifo Football: How to Defend Zonally"

@@ -1,0 +1,45 @@
+- drill_id: defensive_transition_6v6
+  name: 6v6 Defensive Transition and Recovery
+  name_ar: تمرين 6 ضد 6 - الانتقال الدفاعي والاستعادة
+  category: transitions
+  targets:
+    - defensive_transition
+    - recovery_runs
+    - reaction_speed
+    - transition_shape
+  duration_min: 20
+  players_required: 12
+  intensity: very_high
+  equipment: [balls, cones, bibs, 2 goals]
+  space: Half pitch
+  setup: |
+    Two teams of 6. Attacking team starts with ball and tries to score.
+    On turnover, the team that lost the ball must transition back to
+    defense within 5 seconds while the other team counter-attacks.
+  rules:
+    - "Attacking team must complete 3 passes before shooting"
+    - "On turnover, nearest player presses, others sprint back"
+    - "Defensive team must have 3 players behind ball within 5 seconds"
+    - "If defensive team recovers ball, they counter-attack immediately"
+    - "First team to score 3 goals wins the round"
+  progressions:
+    - "Reduce recovery time to 4 seconds"
+    - "Add counter-press requirement: press for 5 seconds after loss"
+    - "Make field larger to increase recovery distance"
+  regressions:
+    - "Allow 7 seconds to recover"
+    - "No minimum passes before shooting"
+    - "Smaller field to reduce recovery distance"
+  coaching_points:
+    - "First reaction is everything: sprint back immediately"
+    - "Recover your position first, then press if you can"
+    - "Don't chase the ball - recover the shape"
+    - "Communication: 'Back!', 'Press!', 'Hold!'"
+  addresses_problems:
+    - slow_defensive_transition
+    - counter_attack_vulnerability
+    - no_collective_press
+    - poor_defensive_coordination
+  source: "Coaches' Voice: Defensive Transition Drills"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

@@ -1,0 +1,84 @@
+rule:
+  id: striker_pressing_v1
+  category: individual
+  subcategory: striker_play
+  severity: medium
+  names:
+    en: Striker Not Leading the Press
+    ar: المهاجم لا يقود الضغط
+  description:
+    en: |
+      Striker is not pressing from the front, allowing opponents to build
+      from the back easily. The first line of defense is passive, making
+      the entire defensive structure ineffective.
+    ar: |
+      المهاجم لا يضغط من الأمام، مما يسمح للخصم بالبناء من الخلف بسهولة.
+      الخط الأول للدفاع سلبي، مما يجعل الهيكل الدفاعي كله غير فعال.
+  pattern_signature:
+    type: striker_passive_press
+    zone: attacking_third
+    thresholds:
+      min_matches: 3
+      min_events: 4
+      min_percentage: 0.3
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: no_curved_pressing_run
+      weight: 0.45
+      names:
+        en: No Curved Pressing Run
+        ar: عدم الجري المنحني للضغط
+      evidence_required:
+        - metric: striker_pressure_attempts
+          threshold: "<5"
+        - metric: opponent_buildup_completed_from_back
+          threshold: ">0.60"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Striker is pressing straight at the ball, which is easy to play
+          around. Teach curved runs: cut off the pass to the other center
+          back while closing the goalkeeper.
+        ar: |
+          المهاجم يضغط بشكل مباشر نحو الكرة، وهذا سهل التفادي. علمه
+          الجري المنحني: اقطع التمريرة لقلب الدفاع الآخر مع إغلاق
+          الحارس.
+      recommended_drills:
+        - pressing_shape_8v8
+        - counter_pressing_4v4
+    - hypothesis_id: pressing_without_support
+      weight: 0.35
+      names:
+        en: Striker Pressing Without Support
+        ar: المهاجم يضغط بدون دعم
+      evidence_required:
+        - metric: striker_isolated_press_attempts
+          threshold: ">3"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Striker is pressing alone while the wingers and attacking
+          midfielders are too far to support. Teach the first line to
+          press together: striker, wingers, and attacking midfielders.
+        ar: |
+          المهاجم يضغط وحيداً بينما الأجنحة ولاعبو الوسط الهجوميون بعيدون
+          جداً للدعم. علمهم أن الخط الأول يضغط معاً: المهاجم، الأجنحة،
+          ولاعبو الوسط الهجوميون.
+      recommended_drills:
+        - coordinated_pressing_8v8
+        - counter_pressing_4v4
+  recommended_drills:
+    primary:
+      - drill_id: pressing_shape_8v8
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: counter_pressing_4v4
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Striker Pressing"
+    - "Spielverlagerung: First Line Pressing"
+    - "Tifo Football: How to Press as a Striker"

@@ -1,0 +1,84 @@
+rule:
+  id: defensive_third_errors_v1
+  category: defensive
+  subcategory: ball_security
+  severity: high
+  names:
+    en: Unforced Errors in Defensive Third
+    ar: أخطاء غير مكررة في الثلث الدفاعي
+  description:
+    en: |
+      Team makes frequent unforced errors (poor passes, bad touches, dribbling
+      in dangerous areas) in their own defensive third, leading to immediate
+      goal-scoring opportunities for opponents.
+    ar: |
+      الفريق يرتكب أخطاء غير مكررة (تمريرات سيئة، لمسات خاطئة، مراوغة
+      في مناطق خطيرة) في الثلث الدفاعي الخاص به، مما يؤدي إلى فرص تسجيل
+      فورية للخصم.
+  pattern_signature:
+    type: turnover_in_defensive_third
+    zone: defensive_third
+    thresholds:
+      min_matches: 3
+      min_events: 4
+      min_percentage: 0.3
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: poor_buildup_play
+      weight: 0.5
+      names:
+        en: Poor Build-Up Play from the Back
+        ar: ضعف اللعب البناء من الخلف
+      evidence_required:
+        - metric: turnovers_in_defensive_third
+          threshold: ">3"
+        - metric: pass_completion_defensive_third
+          threshold: "<0.65"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Players are trying to play out but lack the technique and
+          decision-making. Simplify: clear when under pressure, play short
+          only when safe. Need build-out drills under pressure.
+        ar: |
+          اللاعبون يحاولون اللعب من الخلف لكنهم يفتقرون للتقنية واتخاذ
+          القرار. بسطوا: أرسلوا الكرة بعيداً تحت الضغط، لعبوا قصيرة
+          فقط عندما يكون الأمن. تحتاج تدريبات بناء تحت الضغط.
+      recommended_drills:
+        - build_out_under_pressure
+        - rondo_3v1
+    - hypothesis_id: goalkeeper_distribution_poor
+      weight: 0.3
+      names:
+        en: Goalkeeper Distribution Errors
+        ar: أخطاء توزيع حارس المرمى
+      evidence_required:
+        - metric: gk_distribution_errors
+          threshold: ">2"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          GK is giving the ball away with poor throws or kicks. Teach
+          simple distribution: find the free player, play to the sides
+          under pressure.
+        ar: |
+          حارس المرمى يفقد الكرة برميات أو ركلات سيئة. علمه التوزيع
+          البسيط: أوجد اللاعب الحر، العب إلى الأطراف تحت الضغط.
+      recommended_drills:
+        - gk_distribution_drills
+        - build_out_under_pressure
+  recommended_drills:
+    primary:
+      - drill_id: build_out_under_pressure
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: rondo_3v1
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3]
+  sources:
+    - "Coaches' Voice: Playing Out from the Back"
+    - "Spielverlagerung: Build-Up Play Under Pressure"
+    - "Tifo Football: Goalkeeper Distribution"

@@ -1,0 +1,81 @@
+rule:
+  id: poor_pressing_shape_v1
+  category: defensive
+  subcategory: pressing_shape
+  severity: high
+  names:
+    en: Poor Pressing Shape
+    ar: ضعف شكل الضغط
+  description:
+    en: |
+      Team attempts to press but leaves large gaps between the pressing line
+      and the covering midfield. Opponents easily play through the press with
+      simple passes into the vacated space.
+    ar: |
+      الفريق يحاول الضغط لكنه يترك فجوات كبيرة بين خط الضغط وخط الوسط.
+      الخصم يمرر بسهولة عبر الضغط بتمريرات بسيطة إلى الفراغات.
+  pattern_signature:
+    type: press_broken_by_simple_pass
+    zone: middle_third
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      min_percentage: 0.4
+    required_confidence: 0.65
+  hypotheses:
+    - hypothesis_id: pressing_unit_not_coordinated
+      weight: 0.45
+      names:
+        en: Pressing Unit Not Coordinated
+        ar: وحدة الضغط غير منسقة
+      evidence_required:
+        - metric: avg_distance_between_pressing_lines
+          threshold: ">20m"
+        - metric: passes_broken_press_pct
+          threshold: ">0.35"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Your pressing players are going individually instead of as a unit.
+          The gap between the first presser and the covering players is too large.
+          Need pressing shape drills that teach unit movement and cover shadows.
+        ar: |
+          لاعبو الضغط يتقدمون بشكل فردي بدلاً من الوحدة. الفجوة بين أول ضاغط
+          واللاعبين الداعمين كبيرة جداً. تحتاج تدريبات على شكل الضغط وظلال التغطية.
+      recommended_drills:
+        - pressing_shape_8v8
+        - coordinated_pressing_8v8
+    - hypothesis_id: wrong_moment_to_press
+      weight: 0.35
+      names:
+        en: Pressing at Wrong Moments
+        ar: الضغط في لحظات خاطئة
+      evidence_required:
+        - metric: pressing_attempts_without_cover
+          threshold: ">4"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players are pressing when they have no cover behind them. Teach
+          pressing triggers: when to press, when to hold shape, and when to drop.
+        ar: |
+          اللاعبون يضغطون بدون غطاء خلفهم. علمهم محفزات الضغط: متى نضغط،
+          متى نحافظ على الشكل، ومتى نتراجع.
+      recommended_drills:
+        - counter_pressing_4v4
+        - pressing_shape_8v8
+  recommended_drills:
+    primary:
+      - drill_id: pressing_shape_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: counter_pressing_4v4
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Pressing and Cover Shadows"
+    - "Coaches' Voice: Building a Pressing System"
+    - "Tifo Football: How to Press in Football"

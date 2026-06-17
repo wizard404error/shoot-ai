@@ -1,0 +1,45 @@
+- drill_id: counter_pressing_4v4
+  name: 4v4 Counter-Pressing Game
+  name_ar: لعبة 4 ضد 4 - الضغط المضاد
+  category: pressing
+  targets:
+    - counter_press
+    - immediate_reaction
+    - pressing_triggers
+    - first_5_seconds
+  duration_min: 15
+  players_required: 8
+  intensity: very_high
+  equipment: [balls, cones, bibs, 2 mini-goals]
+  space: 25x20m
+  setup: |
+    Two teams of 4 in a small grid. When a team loses possession, they
+    must immediately counter-press for 5 seconds. If they win the ball
+    back within 5 seconds, they get a point.
+  rules:
+    - "Normal play: score in opponent's goal"
+    - "On turnover, losing team must press immediately for 5 seconds"
+    - "If ball won back within 5 seconds = 1 point"
+    - "If opponent plays 3 passes after turnover = 1 point for them"
+    - "First to 5 points wins the round"
+  progressions:
+    - "Reduce counter-press time to 4 seconds"
+    - "Add rule: must win ball in 3 seconds for point"
+    - "Make grid smaller for more pressure"
+  regressions:
+    - "Allow 7 seconds for counter-press"
+    - "No pass requirement for opponent (just survival)"
+    - "Larger grid for more space"
+  coaching_points:
+    - "Trigger = ball lost. React immediately!"
+    - "Nearest player presses, others cover"
+    - "Don't dive in - force a mistake"
+    - "If not won in 5 seconds, drop and recover shape"
+  addresses_problems:
+    - poor_counter_pressing
+    - counter_attack_vulnerability
+    - no_collective_press
+    - slow_defensive_transition
+  source: "Coaches' Voice: Counter-Pressing Drills"
+  age_groups: [u13, u15, u17, senior]
+  skill_level: intermediate

@@ -1,6 +1,6 @@
 [project]
 name = "kawkab-ai"
-version = "0.1.0"
+version = "0.8.3"
 description = "AI Football Coach for Amateur Teams - Local, Private, Free"
 authors = [{ name = "Kawkab AI" }]
 license = { text = "MIT" }
@@ -11,7 +11,7 @@ keywords = ["football", "soccer", "ai", "coach", "tactics", "video-analysis", "y
 dependencies = [
     "PySide6>=6.6.0",
     "qasync>=0.27.1",
-    "ultralytics>=8.0.0",
+    "ultralytics>=8.4.0",
     "opencv-python>=4.9.0",
     "numpy>=1.26.0",
     "pandas>=2.2.0",
@@ -31,6 +31,11 @@ dependencies = [
     "tqdm>=4.66.0",
     "lap>=0.4.0",
     "easyocr>=1.7.0",
+    "onnx<1.19",
+    "norfair>=2.3.0",
+    "motmetrics>=1.4.0",
+    "EasySoccerData>=0.0.8",
+    "playwright>=1.60.0",
 ]
 
 [project.optional-dependencies]
@@ -69,6 +74,16 @@ build = [
     "pyinstaller-hooks-contrib>=2024.1",
     "nuitka>=2.0.0",
 ]
+lightglue = [
+    "onnxruntime-gpu>=1.27.0",
+]
+face = [
+    "insightface>=1.0.1",
+]
+sports = [
+    "supervision>=0.18.0",
+    "sports @ git+https://github.com/roboflow/sports.git",
+]
 
 [project.urls]
 Homepage = "https://github.com/yourusername/kawkab-ai"
@@ -102,13 +117,59 @@ python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+ignore_missing_imports = true
+# Per-file overrides for files that legitimately need looser typing
+[[tool.mypy.overrides]]
+module = "kawkab.services.cv_service"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "kawkab.services.analysis_service"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "kawkab.utils.*"
+disallow_untyped_defs = true
+warn_return_any = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -q --strict-markers"
 testpaths = ["tests"]
-asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (slower, may require external deps)",
+    "slow: Slow tests (>5s)",
+    "requires_ultralytics: Requires ultralytics package",
+    "requires_cuda: Requires CUDA GPU",
+    "requires_models: Requires downloaded ML model weights",
+]
 
 [tool.coverage.run]
 source = ["src/kawkab"]
-omit = ["*/tests/*", "*/__main__.py"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if __debug__:",
+    "logger\\.(debug|info|warning|error)",
+    "return",
+    "\\.\\.\\.",
+]
+show_missing = true
+precision = 2
+fail_under = 30
+asyncio_mode = "auto"

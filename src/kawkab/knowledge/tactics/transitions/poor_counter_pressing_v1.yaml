@@ -1,0 +1,82 @@
+rule:
+  id: poor_counter_pressing_v1
+  category: transitions
+  subcategory: counter_press
+  severity: high
+  names:
+    en: Poor Counter-Pressing
+    ar: ضعف الضغط المضاد
+  description:
+    en: |
+      Team fails to press the ball immediately after losing possession,
+      allowing opponents to play out easily and launch controlled attacks.
+    ar: |
+      الفريق يفشل في الضغط على الكرة فوراً بعد فقدان الاستحواذ، مما يسمح
+      للخصم باللعب بسهولة وشن هجمات منظمة.
+  pattern_signature:
+    type: no_pressure_after_loss
+    zone: attacking_third
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      opponent_passes_after_loss: ">3"
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: no_trigger_recognition
+      weight: 0.45
+      names:
+        en: No Trigger Recognition After Loss
+        ar: عدم التعرف على المحفز بعد الفقدان
+      evidence_required:
+        - metric: time_to_first_press_after_loss
+          threshold: ">3s"
+        - metric: opponent_passes_before_press
+          threshold: ">2"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Players don't recognize the moment of loss as a trigger to press.
+          Teach the "5-second rule": press immediately for 5 seconds after
+          losing the ball, then drop if not won.
+        ar: |
+          اللاعبون لا يتعرفون على لحظة الفقدان كمحفز للضغط. علمهم
+          "قاعدة 5 ثوانٍ": اضغطوا فوراً لمدة 5 ثوانٍ بعد فقدان الكرة،
+          ثم تراجعوا إذا لم تُستعد.
+      recommended_drills:
+        - counter_pressing_4v4
+        - gegenpressing_8v8
+    - hypothesis_id: poor_nearest_player_reaction
+      weight: 0.35
+      names:
+        en: Nearest Player Doesn't React
+        ar: أقرب لاعب لا يتفاعل
+      evidence_required:
+        - metric: nearest_player_to_ball_distance_after_loss
+          threshold: ">8m"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          The nearest player to the ball is not the one pressing. Teach
+          responsibility: whoever is closest, presses. Everyone else
+          covers the space behind.
+        ar: |
+          أقرب لاعب للكرة ليس من يضغط. علمهم المسؤولية: من كان الأقرب،
+          يضغط. الجميع يغطون المساحة خلفه.
+      recommended_drills:
+        - counter_pressing_4v4
+        - counter_press_5v5
+  recommended_drills:
+    primary:
+      - drill_id: counter_pressing_4v4
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: gegenpressing_8v8
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Gegenpressing Principles"
+    - "Coaches' Voice: Counter-Pressing Drills"
+    - "Tifo Football: The Gegenpress Explained"

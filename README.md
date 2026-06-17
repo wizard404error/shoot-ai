@@ -2,45 +2,62 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> ✅ **v0.4.1 status:** Tracking "excellent" (28 tracks, 1.27x of expected), homography in real meters.
-> ⚠️ **Not yet validated with real coaches.** See [STATUS.md](STATUS.md).
+> 📊 **Current state:** 50+ services, 8 external data sources, 200+ unit tests, full Arabic+English support.
+> 🚧 **Status:** Production-aiming. See [STATUS.md](STATUS.md) for the full report.
 
 ---
 
-## What It Does (v0.4.1)
+## What It Does
 
-- **Detects & tracks players + ball** using YOLOv11 + BoT-SORT with smart filters + top-N filter
-- **Tracking quality: "excellent"** (28 tracks for 22-player match, 1.27x of expected)
+- **Detects & tracks players + ball** using YOLOv11/YOLO26 + BoT-SORT/Norfair with smart filters
+- **YOLO-pose** for activity classification, fall detection, and player orientation
 - **Team color clustering** auto-assigns home/away (no manual labels)
-- **Camera calibration (homography)** — coach clicks 4 pitch corners, stats become real meters
-- **Computes statistics in meters**: possession %, passes, distance, player speeds, xG, xT
-- **Detects formations**: 4-3-3, 4-4-2, 4-2-3-1, 3-5-2, etc.
-- **Generates coach-friendly reports** in English or Arabic using a local LLM
-- **Identifies tactical patterns** via a knowledge base of 22 rules + 19 drills
+- **Jersey number recognition** via OCR for player identification
+- **Face recognition** with InsightFace for re-identification
+- **Camera calibration (homography)** — 4 pitch corners → real meters
+- **Computes statistics in meters**: possession %, passes, distance, sprints, xG, xT, PPDA
+- **Advanced metrics**: pressure, physical load, set-piece detection, progressive actions
+- **Detects formations**: 4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1, etc.
+- **Native services**: PsychologyService, FootballRulesService, CardDetectionService, WeatherService
+- **External data**: football-data.org, Bzzoiro, TheSportsDB, API-Football, EasySoccerData, StatsBomb, OpenFootball, RoboFlow Sports
+- **Algorithm ports**: Kabsch (rigid alignment), Hungarian (optimal assignment), SpatialHash (O(1) neighbor lookup)
+- **Bilingual reports** in English or Arabic via local LLM (Ollama)
+- **Tactical pattern knowledge base** of 22+ rules and 19+ drills
+- **Tactical sandbox** with matter.js for interactive formation play
+- **Set-piece simulator** with MuJoCo-style physics for free-kick analysis
+- **Video weather detection** with TobyBreckon-style raindrop sliding window
 - **Generates 4-week training plans** with progressive overload
 
 ---
 
-## ⚠️ Read This First
+## ⚠️ Status
 
-This project was built in 3 intensive sessions using AI-assisted development.
-**It is not production-ready.** Critical foundation work is still needed.
+This project is under active development toward production quality.
+- 50+ backend services, 200+ unit tests, full Arabic+English UI
+- Multi-phase roadmap: ✅ Phase 1 (test coverage), 🚧 Phase 2 (real-time), Phase 3 (pro analytics), Phase 4 (UX polish)
 
 **What works:**
 - ✅ Desktop app launches and shows the UI
-- ✅ All 12 services import and initialize
-- ✅ YOLO detects players/ball on broadcast-quality footage
+- ✅ 50+ services initialize and operate
+- ✅ YOLO + Norfair tracking on broadcast-quality footage
+- ✅ YOLO26-pose for activity/fall/orientation
+- ✅ Face recognition + jersey OCR
+- ✅ 8 external data sources (free tiers)
 - ✅ LLM generates coach reports in EN/AR
-- ✅ 22 rules + 19 drills in knowledge base
+- ✅ 22+ rules + 19+ drills knowledge base
+- ✅ Weather video detection (TobyBreckon-style)
+- ✅ Football rules classifier (17 IFAB Laws)
+- ✅ Set-piece simulator (MuJoCo + analytical fallback)
+- ✅ Matter.js tactical sandbox
 - ✅ 4-week training plan generator
-- ✅ PyInstaller .exe builds (1.75 GB bundle)
+- ✅ PyInstaller .exe builds (~1.75 GB bundle)
 
-**What doesn't work (honestly):**
-- ❌ **Tracking fragmentation**: 91 tracks for 22 players (target: <30). Real amateur footage will be worse.
-- ❌ **No homography by default**: All spatial stats are in pixel space, not meters. Coach must calibrate first.
-- ❌ **Jersey OCR is unreliable**: 8-20px numbers on amateur footage are very hard to read.
-- ❌ **No validation with real coaches**: Everything is theoretical until tested in the wild.
-- ❌ **Bundle is 1.75 GB**: Way too big for amateur adoption.
+**Known limitations (honest):**
+- ⚠️ **Tracking fragmentation**: 91 tracks for 22 players (target: <30). Real amateur footage will be worse.
+- ⚠️ **No homography by default**: All spatial stats are in pixel space, not meters. Coach must calibrate first.
+- ⚠️ **Jersey OCR is unreliable**: 8-20px numbers on amateur footage are very hard to read.
+- ⚠️ **No validation with real coaches**: Everything is theoretical until tested in the wild.
+- ⚠️ **Bundle is 1.75 GB**: Way too big for amateur adoption.
 
 **Read [STATUS.md](STATUS.md) for the full honest assessment.**
 
@@ -100,7 +117,7 @@ uv run python scripts/test_homography.py
 uv run python -m kawkab
 ```
 
-### v0.4.1 Workflow
+### v0.8.3 Workflow
 
 1. Drop a match video in the app
 2. Click "Analyze" — YOLO tracks 28 players (close to actual 22), K-means assigns teams by color
@@ -110,7 +127,7 @@ uv run python -m kawkab
 
 ---
 
-## Honest Status (v0.4.1)
+## Honest Status (v0.8.3)
 
 ### What's Actually Working ✅
 
@@ -256,17 +273,19 @@ MIT License — see [LICENSE](LICENSE)
 
 ## Bottom Line
 
-This is a **viable technical architecture** with **real domain knowledge** in the knowledge base, but it is **not yet a finished product**. The next 3-6 months need to focus on:
+This is a **viable technical architecture** with **real domain knowledge** in the knowledge base, and at v0.8.3 is on the path toward a real product. The next phases need to focus on:
 
-1. **Validating tracking accuracy** on real amateur footage (currently "fair")
+1. **Validating tracking accuracy** on real amateur footage (currently tuned for broadcast)
 2. **Integrating SoccerNet/tracklab** for football-tuned ReID
 3. **Testing with 5+ amateur coaches** to see if reports are actually useful
 4. **Reducing bundle size** via lazy model loading
+5. **Building the trust layer** (model card, data card, ground truth eval, LLM groundedness)
 
-Until those happen, this is a research project, not a product.
+See **[`docs/INDEX.md`](docs/INDEX.md)** for the full documentation map.
+See **[`ITERATION_LOG.md`](ITERATION_LOG.md)** for the current cycle log and the 63-target backlog.
 
-**The vision is sound. The execution needs validation.**
+**The vision is sound. The execution is iterating.**
 
 ---
 
-*Reviewed by Claude (kawkab-ai-review.md). Many critical issues identified and being addressed.*
+*Initial review by Claude (kawkab-ai-review.md). Subsequent cycles tracked in ITERATION_LOG.md.*

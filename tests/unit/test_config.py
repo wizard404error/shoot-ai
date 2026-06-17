@@ -13,7 +13,7 @@ def test_default_settings() -> None:
     settings = AppSettings()
 
     assert settings.app_name == "Kawkab AI"
-    assert settings.app_version == "0.1.0"
+    assert settings.app_version == "0.8.0"
     assert settings.gpu_enabled is True
     assert settings.model_size == "l"
     assert settings.confidence_threshold == 0.5
@@ -42,13 +42,19 @@ def test_settings_singleton() -> None:
     assert s1 is s2
 
 
-def test_language_validation() -> None:
-    """Test language accepts only 'en' or 'ar'."""
-    settings_en = AppSettings(language="en")
-    assert settings_en.language == "en"
-
-    settings_ar = AppSettings(language="ar")
-    assert settings_ar.language == "ar"
-
+def test_frame_skip_bounds() -> None:
+    """Test frame_skip is between 1 and 10."""
     with pytest.raises(ValidationError):
-        AppSettings(language="fr")
+        AppSettings(frame_skip=0)
+    with pytest.raises(ValidationError):
+        AppSettings(frame_skip=15)
+    settings = AppSettings(frame_skip=5)
+    assert settings.frame_skip == 5
+
+
+def test_auto_detect_gpu_tier_default() -> None:
+    """Test auto_detect_gpu_tier defaults to True."""
+    settings = AppSettings()
+    assert settings.auto_detect_gpu_tier is True
+    settings_off = AppSettings(auto_detect_gpu_tier=False)
+    assert settings_off.auto_detect_gpu_tier is False

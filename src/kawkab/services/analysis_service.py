@@ -99,11 +99,13 @@ class AnalysisService:
         self,
         pitch_length_m: float = 105.0,
         pitch_width_m: float = 68.0,
+        use_kalman: bool = True,
     ) -> None:
         self.pitch_length = pitch_length_m
         self.pitch_width = pitch_width_m
+        self.use_kalman = use_kalman
         logger.info(
-            f"AnalysisService: pitch={pitch_length_m}x{pitch_width_m}m"
+            f"AnalysisService: pitch={pitch_length_m}x{pitch_width_m}m, kalman={use_kalman}"
         )
 
     async def analyze_match(
@@ -154,6 +156,16 @@ class AnalysisService:
 
         confidence = self._compute_confidence(track_data, events)
 
+        xg_data = self.compute_xg_simple(events)
+        xt_data = self.compute_xt_simple(events)
+        logger.info(
+            f"xG: home={xg_data['home']} away={xg_data['away']} "
+            f"({len(xg_data.get('shot_details', []))} shots)"
+        )
+        logger.info(
+            f"xT: home={xt_data['home']} away={xt_data['away']}"
+        )
+
         coords = "meters" if homography_matrix else "pixels"
         logger.info(
             f"Analysis complete: {len(players)} players, "
@@ -176,6 +188,8 @@ class AnalysisService:
                 "away": away_formation,
             },
             pressing_intensity=home_ppda.get("ppda") or 0.0,
+            xg_total=xg_data,
+            xt_total=xt_data,
         )
 
     def _assign_teams_by_pitch_side(
@@ -232,15 +246,22 @@ class AnalysisService:
 
         frame_skip = max(1, track_data.tracking_metrics.get("frame_skip", 1))
 
-        fps = track_data.fps
-        pixels_per_meter = 720.0 / self.pitch_width
-
         if homography_matrix is not None:
             max_frame_delta_m = 0.5
         else:
             max_frame_delta_m = 25.0
 
-        prev_positions: dict[int, tuple[float, float]] = {}
+        use_kalman = (
+            self.use_kalman
+            and getattr(track_data, "match_type", None) == "full_match"
+            and homography_matrix is not None
+        )
+        if use_kalman:
+            logger.info("Using Kalman smoother for full-match distance/speed")
+            return self._compute_player_stats_kalman(
+                track_data, homography_matrix, max_frame_delta_m
+            )
+
         prev_timestamps: dict[int, float] = {}
         is_skip_frame = lambda fno: fno % frame_skip != 0
 
@@ -256,6 +277,8 @@ class AnalysisService:
                 tid = det.track_id
                 if tid not in players:
                     players[tid] = PlayerStats(track_id=tid)
+                    if track_data.player_teams:
+                        players[tid].team = track_data.player_teams.get(tid, "unknown")
 
                 x1, y1, x2, y2 = det.bbox
                 cx = (x1 + x2) / 2
@@ -310,19 +333,101 @@ class AnalysisService:
 
         return players
 
+    def _compute_player_stats_kalman(
+        self, track_data: MatchTrackData, homography_matrix, max_frame_delta_m: float
+    ) -> dict[int, PlayerStats]:
+        """Compute player stats using Kalman smoothing for full-match videos."""
+        from kawkab.services.kalman_smoother import PlayerPositionSmoother
+
+        players: dict[int, PlayerStats] = {}
+        track_positions: dict[int, list[tuple[float, float, float]]] = defaultdict(list)
+
+        for frame in track_data.frames:
+            ts = frame.timestamp
+            for det in frame.detections:
+                if det.class_name != "person" or det.track_id is None:
+                    continue
+                tid = det.track_id
+                if tid not in players:
+                    players[tid] = PlayerStats(track_id=tid)
+                    if track_data.player_teams:
+                        players[tid].team = track_data.player_teams.get(tid, "unknown")
+
+                x1, y1, x2, y2 = det.bbox
+                cx = (x1 + x2) / 2
+                cy = (y1 + y2) / 2
+
+                if homography_matrix is not None:
+                    cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
+
+                track_positions[tid].append((ts, cx, cy))
+
+        for tid, positions in track_positions.items():
+            if len(positions) < 2:
+                continue
+
+            smoother = PlayerPositionSmoother(
+                process_noise_std=0.3,
+                measurement_noise_std=0.8,
+            )
+
+            smoothed: list[tuple[float, float, float]] = []
+            for i, (ts, x, y) in enumerate(positions):
+                if i == 0:
+                    smoother.update(x, y, 0.0)
+                else:
+                    dt = positions[i][0] - positions[i - 1][0]
+                    smoother.update(x, y, dt)
+                sx, sy = smoother.get_position()
+                smoothed.append((ts, sx, sy))
+
+            total_distance = 0.0
+            max_speed = 0.0
+            for i in range(1, len(smoothed)):
+                dt = smoothed[i][0] - smoothed[i - 1][0]
+                if dt <= 0:
+                    continue
+                dx = smoothed[i][1] - smoothed[i - 1][1]
+                dy = smoothed[i][2] - smoothed[i - 1][2]
+                meters = math.sqrt(dx * dx + dy * dy)
+                if meters > max_frame_delta_m:
+                    meters = 0.0
+                total_distance += meters
+                speed_mps = meters / dt
+                speed_kmh = speed_mps * 3.6
+                if speed_kmh <= 36.0:
+                    max_speed = max(max_speed, speed_kmh)
+
+            players[tid].distance_covered_m = total_distance
+            players[tid].max_speed_kmh = max_speed
+            players[tid].positions = [
+                (ts, x, y) for ts, x, y in smoothed
+            ]
+
+        for tid, player in players.items():
+            if track_data.duration_seconds > 0:
+                player.avg_speed_kmh = (
+                    player.distance_covered_m / track_data.duration_seconds * 3.6
+                )
+
+        return players
+
     def _detect_events(
         self, track_data: MatchTrackData, homography_matrix=None
     ) -> list[dict]:
         events: list[dict] = []
         prev_possession: int | None = None
         ball_track_id: int | None = None
+        frames_since_shot: int = 999
 
         player_proximity_threshold = 60  # pixels
         shot_speed_threshold_pps = 600  # pixels/s fallback
         shot_speed_threshold_mps = 8.0  # m/s with homography
         goal_proximity_m = 20.0
+        shot_cooldown_frames = 15
 
         ball_history: list[tuple[float, float, float, float | None, float | None]] = []
+        possession_ball_positions: dict[int, tuple[float, float]] = {}
 
         for frame in track_data.frames:
             ball_det = None
@@ -337,6 +442,7 @@ class AnalysisService:
                     player_dets.append(det)
 
             if ball_det is None or not player_dets:
+                frames_since_shot += 1
                 continue
 
             bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2
@@ -350,16 +456,35 @@ class AnalysisService:
                 except Exception:
                     pass
 
+            closest_player = None
+            closest_dist = float("inf")
+            for p in player_dets:
+                px = (p.bbox[0] + p.bbox[2]) / 2
+                py = (p.bbox[1] + p.bbox[3]) / 2
+                d = math.sqrt((bx - px) ** 2 + (by - py) ** 2)
+                if d < closest_dist:
+                    closest_dist = d
+                    closest_player = p
+
+            if closest_player is None or closest_player.track_id is None:
+                frames_since_shot += 1
+                continue
+
+            possession_ball_positions[closest_player.track_id] = (bx, by)
+
             ball_history.append((frame.timestamp, bx, by, pitch_x, pitch_y))
             if len(ball_history) > 5:
                 ball_history.pop(0)
+
+            tid = closest_player.track_id
+            frames_since_shot += 1
 
             if ball_track_id is not None and len(ball_history) >= 3:
                 p0 = ball_history[-3]
                 p1 = ball_history[-1]
                 dt = p1[0] - p0[0]
 
-                if dt > 0.01:
+                if dt > 0.01 and frames_since_shot >= shot_cooldown_frames:
                     dx = p1[1] - p0[1]
                     dy = p1[2] - p0[2]
                     speed_px = math.sqrt(dx * dx + dy * dy) / dt
@@ -369,7 +494,8 @@ class AnalysisService:
 
                     if homography_matrix is not None and p0[3] is not None and p1[3] is not None:
                         dx_p = p1[3] - p0[3]
-                        speed_pitch = math.sqrt(dx_p * dx_p + (p1[4] - p0[4]) ** 2) / dt
+                        dy_p = p1[4] - p0[4]
+                        speed_pitch = math.sqrt(dx_p * dx_p + dy_p * dy_p) / dt
                         if speed_pitch >= shot_speed_threshold_mps:
                             cx = p1[3]
                             near_left = cx <= goal_proximity_m
@@ -390,15 +516,54 @@ class AnalysisService:
                             shot_conf = min(1.0, speed_px / 1200.0)
 
                     if is_shot:
+                        frames_since_shot = 0
                         shot_team = "unknown"
-                        if track_data.player_teams and prev_possession is not None:
-                            shot_team = track_data.player_teams.get(prev_possession, "unknown")
+                        if track_data.player_teams:
+                            shot_team = track_data.player_teams.get(tid, "unknown")
+                            if shot_team == "unknown" and prev_possession is not None:
+                                shot_team = track_data.player_teams.get(prev_possession, "unknown")
+                            if shot_team == "unknown":
+                                shot_team = "home" if tid % 2 == 0 else "away"
+                        else:
+                            shot_team = "home" if tid % 2 == 0 else "away"
+
+                        shot_metadata = {}
+                        on_target = False
+                        goal_width_m = 7.32
+                        if homography_matrix is not None and p1[3] is not None:
+                            bx_pitch = p1[3]
+                            by_pitch = p1[4]
+                            pitch_len = self.pitch_length
+                            pitch_wid = self.pitch_width
+                            near_goal_x = 0 if bx_pitch <= pitch_len / 2 else pitch_len
+                            goal_cx = near_goal_x
+                            goal_cy = pitch_wid / 2
+                            d_to_goal = math.sqrt((bx_pitch - goal_cx) ** 2 + (by_pitch - goal_cy) ** 2)
+                            angle_to_goal = math.degrees(
+                                math.atan2(abs(by_pitch - goal_cy), abs(bx_pitch - goal_cx))
+                            )
+                            shot_metadata["distance_to_goal_m"] = round(d_to_goal, 1)
+                            shot_metadata["angle_to_goal_deg"] = round(angle_to_goal, 1)
+                            shot_metadata["pitch_x"] = round(bx_pitch, 1)
+                            shot_metadata["pitch_y"] = round(by_pitch, 1)
+                            cross_line = abs(bx_pitch - near_goal_x) < 1.0
+                            in_frame = abs(by_pitch - goal_cy) < goal_width_m / 2 + 1.0
+                            on_target = cross_line and in_frame
+                        else:
+                            d_pix = math.sqrt(dx * dx + dy * dy)
+                            shot_metadata["pixel_speed"] = round(d_pix / max(dt, 0.01), 1)
+
+                        logger.debug(
+                            f"Shot by {shot_team}: d={shot_metadata.get('distance_to_goal_m', '?')}m, "
+                            f"on_target={on_target}, conf={shot_conf:.2f}"
+                        )
                         events.append({
                             "type": "shot",
                             "timestamp": frame.timestamp,
                             "team": shot_team,
-                            "on_target": False,
+                            "on_target": on_target,
                             "confidence": shot_conf,
+                            "metadata": shot_metadata,
                         })
 
             closest_player = None
@@ -425,6 +590,17 @@ class AnalysisService:
                     )
                 else:
                     team = "home" if prev_possession % 2 == 0 else "away"
+
+                start_ball = possession_ball_positions.get(prev_possession, (bx, by))
+                fw = frame.image_width or 1
+                fh = frame.image_height or 1
+                pass_metadata = {
+                    "start_x_pct": round(start_ball[0] / fw, 4),
+                    "start_y_pct": round(start_ball[1] / fh, 4),
+                    "end_x_pct": round(bx / fw, 4),
+                    "end_y_pct": round(by / fh, 4),
+                }
+
                 events.append(
                     {
                         "type": "pass",
@@ -434,6 +610,7 @@ class AnalysisService:
                         "completed": True,
                         "team": team,
                         "confidence": min(1.0, 1.0 - closest_dist / 200),
+                        "metadata": pass_metadata,
                     }
                 )
 
@@ -709,7 +886,8 @@ class AnalysisService:
         valid_formations = {
             "4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2",
             "5-4-1", "4-1-4-1", "4-5-1", "3-4-1-2", "3-6-1",
-            "2-4-4", "4-3-1-2",
+            "2-4-4", "4-3-1-2", "4-1-3-2", "4-4-1-1", "5-2-3",
+            "3-5-1-1", "4-2-2-2", "4-3-2-1", "4-1-2-3",
         }
         if formation_str in valid_formations:
             confidence = 0.7 if n >= 8 else 0.4

@@ -1,0 +1,80 @@
+rule:
+  id: weak_aerial_defense_v1
+  category: defensive
+  subcategory: aerial_duels
+  severity: medium
+  names:
+    en: Weak Aerial Defense
+    ar: ضعف الدفاع الجوي
+  description:
+    en: |
+      Team consistently loses aerial duels in defensive areas, leading to
+      second balls falling to opponents and dangerous set-piece situations.
+    ar: |
+      الفريق يخسر باستمرار الكرات الجوية في المناطق الدفاعية، مما يؤدي
+      إلى سقوط الكرات الثانية للخصم ومواقف خطيرة من الكرات الثابتة.
+  pattern_signature:
+    type: aerial_duel_loss_defensive
+    zone: defensive_third
+    thresholds:
+      min_matches: 3
+      min_events: 6
+      min_percentage: 0.5
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: poor_body_positioning
+      weight: 0.4
+      names:
+        en: Poor Body Positioning in Aerial Duels
+        ar: ضعف تموضع الجسم في الكرات الجوية
+      evidence_required:
+        - metric: aerial_duel_success_rate_defensive
+          threshold: "<0.40"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Players are jumping flat-footed or facing the wrong direction.
+          Teach them to get side-on, use their arms for leverage, and
+          time their jump to meet the ball at the highest point.
+        ar: |
+          اللاعبون يقفزون بشكل خاطئ أو باتجاه خاطئ. علمهم الوقوف بشكل
+          جانبي، استخدام الذراعين للاستفادة، وتحديد توقيت القفزة للقاء
+          الكرة في أعلى نقطة.
+      recommended_drills:
+        - aerial_defense_circles
+        - defensive_line_drills
+    - hypothesis_id: no_second_ball_organisation
+      weight: 0.35
+      names:
+        en: No Second Ball Organisation
+        ar: عدم تنظيم الكرات الثانية
+      evidence_required:
+        - metric: second_ball_recovery_rate
+          threshold: "<0.30"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Even if you lose the first header, someone must be assigned to
+          the second ball. Designate a "sweeper" who cleans up behind the
+          aerial duel.
+        ar: |
+          حتى لو خسرتم الكرة الأولى، يجب أن يكون هناك مسؤول عن الكرة
+          الثانية. عينوا "كناساً" يتولى تنظيف ما خلف الكرة الجوية.
+      recommended_drills:
+        - aerial_defense_circles
+        - compactness_5v5
+  recommended_drills:
+    primary:
+      - drill_id: aerial_defense_circles
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3]
+    secondary:
+      - drill_id: defensive_line_drills
+        duration_min: 15
+        sessions_per_week: 1
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Winning Aerial Duels"
+    - "UEFA B License: Defending Set Pieces"
+    - "Tifo Football: How to Defend Corners"

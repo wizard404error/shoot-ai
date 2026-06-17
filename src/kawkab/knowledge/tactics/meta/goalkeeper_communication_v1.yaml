@@ -1,0 +1,84 @@
+rule:
+  id: goalkeeper_communication_v1
+  category: meta
+  subcategory: organization
+  severity: medium
+  names:
+    en: Goalkeeper Not Organizing Defense
+    ar: حارس المرمى لا ينظم الدفاع
+  description:
+    en: |
+      Goalkeeper is silent and does not organize the defensive line,
+      leading to poor coordination, gaps between defenders, and confusion
+      during set pieces and open play.
+    ar: |
+      حارس المرمى صامت ولا ينظم خط الدفاع، مما يؤدي إلى ضعف التنسيق،
+      وفجوات بين المدافعين، وارتباك خلال الكرات الثابتة واللعب المفتوح.
+  pattern_signature:
+    type: defensive_disorganization
+    zone: defensive_third
+    thresholds:
+      min_matches: 3
+      min_events: 4
+      min_percentage: 0.3
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: gk_silent
+      weight: 0.5
+      names:
+        en: Goalkeeper is Silent
+        ar: حارس المرمى صامت
+      evidence_required:
+        - metric: defensive_line_inconsistency
+          threshold: ">5m variance"
+        - metric: set_piece_confusion
+          threshold: ">2"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          The goalkeeper is the only player who sees the whole field.
+          They must communicate constantly: "Step up!", "Hold!", "Left!",
+          "Right!", "Away!" Teach them to be the defensive commander.
+        ar: |
+          حارس المرمى هو اللاعب الوحيد الذي يرى الملعب كله. يجب أن
+          يتواصل باستمرار: "تقدموا!"، "ثبتوا!"، "يسار!"، "يمين!"،
+          "ابعدوا!" علمه أن يكون قائد الدفاع.
+      recommended_drills:
+        - gk_distribution_drills
+        - defensive_line_drills
+    - hypothesis_id: no_defensive_leadership
+      weight: 0.3
+      names:
+        en: No Defensive Leadership on the Pitch
+        ar: عدم وجود قيادة دفاعية في الملعب
+      evidence_required:
+        - metric: defensive_miscommunication_events
+          threshold: ">3"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          If the goalkeeper is not vocal, assign a center back or a
+          defensive midfielder to organize the defense. Someone must
+          take command and be the voice of the back line.
+        ar: |
+          إذا كان الحارس غير منطوق، عين قلب دفاع أو لاعب وسط دفاعي
+          لتنظيم الدفاع. يجب أن يتولى أحدهم القيادة ويكون صوت
+          الخط الخلفي.
+      recommended_drills:
+        - defensive_line_drills
+        - set_piece_defense_8v8
+  recommended_drills:
+    primary:
+      - drill_id: gk_distribution_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: defensive_line_drills
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+  sources:
+    - "Coaches' Voice: Goalkeeper Communication"
+    - "UEFA Goalkeeping Course: Organizing the Defense"
+    - "Tifo Football: The Sweeper Keeper and Modern Goalkeeping"

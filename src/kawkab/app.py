@@ -16,16 +16,50 @@ from kawkab.core.config import get_settings
 from kawkab.core.logging import get_logger, setup_logging
 from kawkab.core.paths import get_paths
 from kawkab.services import (
+    AdvancedEventDetectionService,
+    AnomalyDetectionService,
+    ApiFootballService,
     AudioService,
     AnalysisService,
+    BenchmarkService,
+    BzzoiroService,
+    ClipExtractionService,
     CVService,
+    DataExportService,
+    EasySoccerService,
     EnhancementService,
+    FaceRecognitionService,
+    FeedbackService,
+    FluidX3DService,
+    FootballDataService,
+    FootballRulesService,
     HomographyService,
     KnowledgeService,
+    LightGlueHomographyService,
     LLMConfig,
     LLMService,
+    MultiMatchAnalysisService,
+    MuJoCoBallService,
+    OpenFootballDataService,
+    PhysicalLoadService,
+    PlayerProfileService,
+    PoseAnalysisService,
+    PossessionService,
+    PressureMetricsService,
+    PsychologyService,
+    QualityScoringService,
+    RoboflowSportsService,
+    SetPieceService,
+    GoalkeeperService,
+    StatsBombService,
     StorageService,
+    SubstitutionService,
+    TheSportsDBService,
+    VisualizationService,
+    WeatherService,
+    CardDetectionService,
 )
+from kawkab.core.model_manager import ModelManager
 from kawkab.ui.bridge import Bridge
 
 logger = get_logger(__name__)
@@ -55,11 +89,14 @@ class MainWindow(QMainWindow):
 
         self.storage = StorageService()
 
+        self.model_manager = ModelManager()
+
         self.cv = CVService(
             model_size=self.settings.model_size,
             confidence_threshold=self.settings.confidence_threshold,
             iou_threshold=self.settings.iou_threshold,
             gpu_enabled=self.settings.gpu_enabled,
+            model_manager=self.model_manager,
         )
 
         self.enhancement = EnhancementService(
@@ -72,6 +109,55 @@ class MainWindow(QMainWindow):
         )
 
         self.analysis = AnalysisService()
+
+        self.player_profiles = PlayerProfileService()
+        self.multi_match = MultiMatchAnalysisService()
+        self.data_export = DataExportService()
+        self.visualization = VisualizationService()
+        self.anomaly_detection = AnomalyDetectionService()
+        self.quality_scoring = QualityScoringService()
+
+        self.advanced_events = AdvancedEventDetectionService()
+        self.physical_load = PhysicalLoadService()
+        self.pressure_metrics = PressureMetricsService()
+        self.benchmark = BenchmarkService()
+        self.feedback = FeedbackService(storage_service=self.storage)
+        self.clip_extraction = ClipExtractionService(cache_dir=self.paths.exports)
+        self.face_recognition = FaceRecognitionService()
+
+        self.football_data = FootballDataService(
+            api_key=self.settings.football_data_api_key,
+        )
+        self.bzzoiro = BzzoiroService(
+            api_key=self.settings.bzzoiro_api_key,
+        )
+        self.easy_soccer = EasySoccerService()
+        self.api_football = ApiFootballService(
+            api_key=self.settings.apifootball_api_key,
+        )
+        self.thesportsdb = TheSportsDBService(
+            api_key=self.settings.thesportsdb_api_key,
+        )
+        self.statsbomb = StatsBombService()
+        self.openfootball = OpenFootballDataService()
+        self.roboflow_sports = RoboflowSportsService()
+        self.pose_analysis = PoseAnalysisService(
+            model_size=self.settings.pose_model_size,
+        )
+        self.mujoco_ball = MuJoCoBallService()
+        self.fluidx3d = FluidX3DService()
+        self.weather = WeatherService()
+        self.psychology = PsychologyService()
+        self.football_rules = FootballRulesService()
+        self.card_detection = CardDetectionService()
+        self.setpiece = SetPieceService()
+        self.goalkeeper = GoalkeeperService()
+        self.substitution = SubstitutionService()
+        self.possession = PossessionService()
+
+        # Auto-detect GPU tier and apply recommended settings
+        if self.settings.auto_detect_gpu_tier:
+            self._apply_gpu_tier_settings()
 
         llm_config = LLMConfig(
             provider=self.settings.llm_provider,
@@ -89,6 +175,38 @@ class MainWindow(QMainWindow):
         )
 
         self.homography = HomographyService()
+        self.lightglue_homography = LightGlueHomographyService()
+
+    def _apply_gpu_tier_settings(self) -> None:
+        """Detect GPU and apply recommended settings."""
+        try:
+            from kawkab.services.benchmark_service import BenchmarkService
+            gpu_name = self.benchmark._system_info.get("gpu_name", "unknown")
+            if gpu_name == "unknown":
+                logger.info("GPU detection: no GPU found, using default settings")
+                return
+
+            tier = BenchmarkService.classify_gpu_tier(gpu_name)
+            recommendations = BenchmarkService.recommend_settings(tier)
+
+            logger.info(f"GPU detected: {gpu_name} (tier: {tier})")
+            logger.info(f"Recommended settings: {recommendations}")
+
+            # Apply recommendations if different from current
+            if recommendations["model_size"] != self.settings.model_size:
+                self.settings.model_size = recommendations["model_size"]
+                logger.info(f"Auto-set model_size to {recommendations['model_size']}")
+
+            if recommendations["frame_skip"] != self.settings.frame_skip:
+                self.settings.frame_skip = recommendations["frame_skip"]
+                logger.info(f"Auto-set frame_skip to {recommendations['frame_skip']}")
+
+            if not recommendations["gpu_enabled"] and self.settings.gpu_enabled:
+                self.settings.gpu_enabled = False
+                logger.info("Auto-disabled GPU (no CUDA detected)")
+
+        except Exception as e:
+            logger.warning(f"GPU tier detection failed: {e}")
 
     def _init_ui(self) -> None:
         """Initialize the web view UI."""
@@ -174,6 +292,39 @@ class MainWindow(QMainWindow):
             storage_service=self.storage,
             audio_service=self.audio,
             homography_service=self.homography,
+            lightglue_homography_service=self.lightglue_homography,
+            player_profile_service=self.player_profiles,
+            multi_match_service=self.multi_match,
+            data_export_service=self.data_export,
+            visualization_service=self.visualization,
+            anomaly_detection_service=self.anomaly_detection,
+            quality_scoring_service=self.quality_scoring,
+            advanced_event_detection_service=self.advanced_events,
+            physical_load_service=self.physical_load,
+            pressure_metrics_service=self.pressure_metrics,
+            benchmark_service=self.benchmark,
+            feedback_service=self.feedback,
+            clip_service=self.clip_extraction,
+            football_data_service=self.football_data,
+            bzzoiro_service=self.bzzoiro,
+            easy_soccer_service=self.easy_soccer,
+            api_football_service=self.api_football,
+            thesportsdb_service=self.thesportsdb,
+            statsbomb_service=self.statsbomb,
+            openfootball_service=self.openfootball,
+            roboflow_sports_service=self.roboflow_sports,
+            pose_analysis_service=self.pose_analysis,
+            mujoco_ball_service=self.mujoco_ball,
+            fluidx3d_service=self.fluidx3d,
+            weather_service=self.weather,
+            psychology_service=self.psychology,
+            football_rules_service=self.football_rules,
+            card_detection_service=self.card_detection,
+            setpiece_service=self.setpiece,
+            goalkeeper_service=self.goalkeeper,
+            substitution_service=self.substitution,
+            possession_service=self.possession,
+            frame_skip=self.settings.frame_skip,
             parent=self,
         )
 

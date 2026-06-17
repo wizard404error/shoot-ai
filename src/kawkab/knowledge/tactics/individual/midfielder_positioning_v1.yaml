@@ -1,0 +1,83 @@
+rule:
+  id: midfielder_positioning_v1
+  category: individual
+  subcategory: midfield_play
+  severity: medium
+  names:
+    en: Midfielder Poor Positioning
+    ar: ضعف تمركز لاعبي الوسط
+  description:
+    en: |
+      Midfielders are not positioned between the defensive and attacking lines,
+      leaving gaps in the middle of the pitch and making it difficult to
+      connect defense to attack.
+    ar: |
+      لاعبو الوسط لا يتمركزون بين الخطوط الدفاعية والهجومية، تاركين
+      فجوات في وسط الملعب ويجعلون التوصيل بين الدفاع والهجوم صعباً.
+  pattern_signature:
+    type: midfield_disconnected
+    zone: middle_third
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      min_percentage: 0.35
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: too_flat_midfield
+      weight: 0.4
+      names:
+        en: Midfield Too Flat
+        ar: وسط الملعب مسطح
+      evidence_required:
+        - metric: midfield_vertical_spacing
+          threshold: "<8m"
+        - metric: passes_between_lines
+          threshold: "<5"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Your midfielders are all on the same horizontal line. One needs
+          to drop deeper to receive from defense, another needs to push
+          higher to connect with attack. Create a triangle, not a line.
+        ar: |
+          لاعبو وسطك كلهم على نفس الخط الأفقي. يحتاج أحدهم للنزول أعمق
+          لاستلام الكرة من الدفاع، وآخر للتقدم للتوصيل مع الهجوم.
+          اصنعوا مثلثاً، لا خطاً.
+      recommended_drills:
+        - rondo_4v2
+        - vertical_passing_patterns
+    - hypothesis_id: no_pivot_player
+      weight: 0.35
+      names:
+        en: No Pivot Player in Midfield
+        ar: غياب لاعب محور في الوسط
+      evidence_required:
+        - metric: passes_received_by_midfield_pivot
+          threshold: "<8"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          There's no designated player to receive the ball from defense
+          and distribute forward. Assign a pivot (No. 6) whose job is
+          to be the link between defense and attack.
+        ar: |
+          لا يوجد لاعب مخصص لاستلام الكرة من الدفاع وتوزيعها للأمام.
+          عينوا محوراً (رقم 6) مهمته الوصلة بين الدفاع والهجوم.
+      recommended_drills:
+        - rondo_4v2
+        - build_out_under_pressure
+  recommended_drills:
+    primary:
+      - drill_id: vertical_passing_patterns
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: rondo_4v2
+        duration_min: 15
+        sessions_per_week: 3
+        weeks: [1, 2, 3]
+  sources:
+    - "Spielverlagerung: Midfield Structure in Modern Football"
+    - "Coaches' Voice: Midfield Positioning"
+    - "Tifo Football: The Role of the Pivot"

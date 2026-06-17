@@ -1,0 +1,44 @@
+- drill_id: aerial_defense_circles
+  name: Aerial Defense Circles
+  name_ar: دوائر الدفاع الجوي
+  category: defensive
+  targets:
+    - aerial_duels
+    - body_positioning
+    - second_ball_organisation
+    - heading_technique
+  duration_min: 15
+  players_required: 8
+  intensity: high
+  equipment: [balls, cones, bibs]
+  space: 20x20m
+  setup: |
+    Players form a circle (4 attackers vs 4 defenders). Coach serves
+    balls into the circle. Defenders must win the aerial duel and
+    clear the second ball to a target outside the circle.
+  rules:
+    - "Coach serves ball from edge - defenders must win the header"
+    - "Defenders must clear to target player (cone) outside circle"
+    - "Attackers try to win the second ball and score in mini-goals"
+    - "Defenders rotate positions after 5 reps"
+    - "First defender to clear 5 second balls wins"
+  progressions:
+    - "Add physical contact (shielding)"
+    - "Reduce circle size to increase pressure"
+    - "Add attacker who runs onto second ball"
+  regressions:
+    - "Larger circle for more space"
+    - "No attackers on second ball (defenders practice only)"
+    - "Coach tosses ball instead of throwing"
+  coaching_points:
+    - "Get side-on to the ball, use your body"
+    - "Jump off the back foot, meet the ball at highest point"
+    - "Head to a target, not just anywhere"
+    - "Second ball is as important as the first header"
+  addresses_problems:
+    - weak_aerial_defense
+    - set_piece_weakness
+    - poor_defensive_coordination
+  source: "Coaches' Voice: Aerial Duel Training"
+  age_groups: [u15, u17, senior]
+  skill_level: intermediate

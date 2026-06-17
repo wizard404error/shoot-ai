@@ -1,0 +1,190 @@
+# IFAB Laws of the Game 2024/25
+# Source: IFAB (International Football Association Board)
+# These are the official Laws used in professional football worldwide.
+
+version: "2024-2025"
+source: "IFAB"
+
+laws:
+  - number: 1
+    name: "The Field of Play"
+    summary: "Matches are played on a rectangular field with two goals at opposite ends. The pitch must be between 100-110m long and 64-75m wide for international matches. Goal area is 5.5m deep x 18.32m wide; penalty area is 16.5m deep x 40.32m wide; corner arc radius 1m; flag posts at least 1.5m high at each corner."
+    key_constraints:
+      - "Pitch length: 100-110m (90-120m permitted in non-international)"
+      - "Pitch width: 64-75m (45-90m permitted in non-international)"
+      - "Goals: 7.32m wide, 2.44m high"
+      - "Goal line: same width as goal posts"
+      - "Penalty mark: 11m from goal line (12yds)"
+
+  - number: 2
+    name: "The Ball"
+    summary: "Spherical, made of leather or suitable material. Circumference 68-70cm, weight 410-450g, pressure 0.6-1.1 atm at sea level. Ball may be changed only with referee's permission."
+    key_constraints:
+      - "Circumference: 68-70cm"
+      - "Weight: 410-450g"
+      - "Pressure: 0.6-1.1 atm"
+
+  - number: 3
+    name: "The Players"
+    summary: "Maximum 11 players per team, minimum 7 to start or continue a match. Substitutions: up to 5 in standard matches, with one additional in extra time. Goalkeeper must wear different colors from teammates and opponents."
+    key_constraints:
+      - "Max 11 per team on field"
+      - "Match may not start or continue with fewer than 7"
+      - "Up to 5 substitutions in standard play (one additional in extra time)"
+      - "Substituted player may not re-enter (except in some youth/grassroots formats)"
+
+  - number: 4
+    name: "The Players' Equipment"
+    summary: "Compulsory: jersey with sleeves, shorts, socks, shin guards, boots. Shin guards must be covered by socks. No jewelry. Goalkeeper wears distinguishing colors. Captain wears armband."
+    key_constraints:
+      - "Jersey, shorts, socks, shin guards, boots required"
+      - "Shin guards: must be covered entirely by socks"
+      - "No jewelry (rings, earrings, necklaces) — referee may require removal"
+      - "Goalkeeper colors distinct from both teams and referee"
+
+  - number: 5
+    name: "The Referee"
+    summary: "Each match is controlled by a referee who has full authority to enforce the Laws. Decisions are final. Referee can caution or send off players, allow play to continue for advantage, and stop/start play."
+    key_constraints:
+      - "Referee has final decision on facts"
+      - "Referee cannot change a decision once play has restarted"
+      - "May use VAR (Video Assistant Referee) for goal/no-goal, penalty/no-penalty, direct red card, mistaken identity"
+      - "Cards: yellow = caution; red = sending-off"
+
+  - number: 6
+    name: "The Other Match Officials"
+    summary: "Two assistant referees (linesmen) help with offside, throw-ins, and goal kicks. Fourth official manages substitutions and may assist referee. VAR for top competitions."
+    key_constraints:
+      - "Two assistant referees on touchlines"
+      - "Fourth official at technical area"
+      - "VAR (Video Assistant Referee) for: goals, penalties, direct red cards, mistaken identity"
+
+  - number: 7
+    name: "The Duration of the Match"
+    summary: "Two equal halves of 45 minutes each, with a half-time interval not exceeding 15 minutes. Added time for time-wasting, injuries, substitutions, etc. Penalty shootout determines winner if tied in knockout matches."
+    key_constraints:
+      - "Two 45-minute halves"
+      - "Half-time: max 15 minutes"
+      - "Added time (injury time) at end of each half"
+      - "Extra time: 2x 15 min in knockout matches if tied"
+      - "Penalty shootout if still tied"
+
+  - number: 8
+    name: "The Start and Restart of Play"
+    summary: "Kick-off starts each half and restarts after a goal. Ball must be stationary on center mark, kicked in any direction, and must travel forward. Until kick-off, all players in their own half; opponents at least 9.15m from ball."
+    key_constraints:
+      - "Ball stationary on center mark at kick-off"
+      - "Must move forward (any distance)"
+      - "Kicker cannot touch ball again until another player touches it"
+      - "Opponents at least 9.15m (10yds) from ball until kick-off"
+
+  - number: 9
+    name: "The Ball In and Out of Play"
+    summary: "Ball is in play from kick-off until it fully passes over goal line or touchline, either on ground or in air. It is out of play when it has fully crossed a line, or when play is stopped by the referee."
+    key_constraints:
+      - "In play: from kick-off to going over a line"
+      - "Out: when ball fully crosses goal line or touchline"
+      - "Includes whole ball, not just part"
+
+  - number: 10
+    name: "Determining the Outcome"
+    summary: "A goal is scored when the whole ball passes over the goal line, between the goalposts and under the crossbar, provided no offense occurred before. The team scoring more goals wins. Match can be won, drawn, or abandoned."
+    key_constraints:
+      - "Goal: whole ball over goal line, between posts, under crossbar"
+      - "No offside, foul, or other offense before goal"
+      - "Winning team scores more goals; if equal, match is drawn"
+      - "Referee can abandon match (e.g., weather, safety)"
+
+  - number: 11
+    name: "Offside"
+    summary: "A player is in offside position if nearer to the opponents' goal line than both the ball and the second-last opponent. Penalized only if, at the moment the ball is touched or played by a teammate, they are involved in active play (interfering with play, opponent, or gaining advantage). Not offside in own half."
+    key_constraints:
+      - "Offside position: nearer to opponents' goal line than ball AND second-last opponent"
+      - "Not offside: in own half, level with ball, level with second-last opponent"
+      - "Penalized only if: interferes with play, interferes with opponent, gains advantage from position"
+      - "Restart: indirect free kick for opposing team from where offside occurred"
+      - "Goalkeeper is usually the 'last' opponent; second-last defender is the one before"
+
+  - number: 12
+    name: "Fouls and Misconduct"
+    summary: "Direct free kick (and penalty if in own box) for: kicking, tripping, charging, jumping at, striking, pushing, tackling (from behind or reckless), holding, spitting, deliberate handball. Indirect free kick for: dangerous play, obstruction, goalkeeper violations. Cautions (yellow) for: dissent, persistent fouling, delaying restart, entering/leaving field without permission, unsporting behavior. Sending-offs (red) for: serious foul play, violent conduct, biting, second yellow, offensive language, denying obvious goal."
+    key_constraints:
+      - "Direct free kick fouls: kick, trip, charge, jump at, strike, push, reckless tackle, hold, spit, deliberate handball"
+      - "Indirect free kick: dangerous play, obstruction, goalkeeper handling from teammate"
+      - "Yellow card: caution for unsporting behavior, dissent, delaying restart"
+      - "Red card: violent conduct, serious foul play, denying obvious goal, second yellow"
+      - "DOGSO: Denying an Obvious Goal-Scoring Opportunity → red card"
+
+  - number: 13
+    name: "Free Kicks"
+    summary: "Direct free kick: can score directly. Indirect free kick: must touch another player before scoring (signaled by referee raising arm until ball touches another player or goes out of play). Opponents must be 9.15m from ball until it's in play."
+    key_constraints:
+      - "Direct: ball can go straight into goal"
+      - "Indirect: needs second player to touch before goal (referee raises arm)"
+      - "Opponents at least 9.15m from ball"
+      - "Ball is in play once it moves forward"
+
+  - number: 14
+    name: "The Penalty Kick"
+    summary: "Awarded for any direct free kick offense committed by a player in their own penalty area. Taken from the penalty mark (11m). All players except kicker and goalkeeper must be outside penalty area, at least 9.15m from ball, and behind the ball."
+    key_constraints:
+      - "Penalty spot: 11m from goal line"
+      - "Kicker: identified, ball stationary, must move forward"
+      - "Goalkeeper: must be on goal line, facing kicker, between posts"
+      - "Other players: outside penalty area, behind ball, 9.15m away"
+      - "Encroachment by attacker: retake if scored, indirect free kick if missed"
+      - "Encroachment by goalkeeper: retake (no card)"
+
+  - number: 15
+    name: "The Throw-In"
+    summary: "Restart when ball crosses touchline (sideline) entirely. Taken by opponents of the team that last touched the ball. Thrower must face the field, deliver ball with both hands from behind and over the head, with both feet on the ground at the point of delivery."
+    key_constraints:
+      - "Both hands on ball at point of release"
+      - "Ball delivered from behind and over the head"
+      - "Both feet on the ground (touching the line permitted)"
+      - "Thrower cannot touch ball again until another player does"
+      - "Incorrect throw: turnover to opposing team at same spot"
+
+  - number: 16
+    name: "The Goal Kick"
+    summary: "Restart when ball crosses goal line (last touched by attacking team). Taken from anywhere inside the goal area. Ball is in play when it leaves the penalty area. Opponents must be outside the penalty area until ball is in play."
+    key_constraints:
+      - "Taken from anywhere inside goal area (5.5m box)"
+      - "Ball in play once it leaves penalty area"
+      - "Opponents outside penalty area until ball in play"
+      - "Can score directly from goal kick (since 2019 IFAB change)"
+
+  - number: 17
+    name: "The Corner Kick"
+    summary: "Restart when ball crosses goal line (last touched by defending team). Taken from the corner arc (1m radius) on the side where ball went out. Ball is in play when kicked and clearly moves. Opponents must be 9.15m from corner arc until ball is in play."
+    key_constraints:
+      - "Ball placed within corner arc (1m radius)"
+      - "Cannot be moved to another corner"
+      - "Opponents at least 9.15m away"
+      - "Can score directly from corner (own goal on attacker is now a corner, not a goal)"
+
+restart_types:
+  - name: "goal_kick"
+    law: 16
+    description: "Defending team restarts from goal area"
+  - name: "corner_kick"
+    law: 17
+    description: "Attacking team restarts from corner arc"
+  - name: "throw_in"
+    law: 15
+    description: "Both hands from behind head, both feet on ground"
+  - name: "direct_free_kick"
+    law: 13
+    description: "Can score directly"
+  - name: "indirect_free_kick"
+    law: 13
+    description: "Needs second touch to score"
+  - name: "penalty_kick"
+    law: 14
+    description: "11m shot, only kicker vs goalkeeper"
+  - name: "drop_ball"
+    law: 8
+    description: "Referee drops ball for temporary stoppage"
+  - name: "kick_off"
+    law: 8
+    description: "From center mark, must move forward"

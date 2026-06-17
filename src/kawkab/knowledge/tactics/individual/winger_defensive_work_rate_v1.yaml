@@ -1,0 +1,83 @@
+rule:
+  id: winger_defensive_work_rate_v1
+  category: individual
+  subcategory: winger_play
+  severity: medium
+  names:
+    en: Winger Defensive Work Rate Too Low
+    ar: معدل عمل الجناح الدفاعي منخفض
+  description:
+    en: |
+      Wingers are not tracking back to defend their channel, leaving the
+      fullback exposed to 2v1 situations and creating overloads on the
+      defensive flanks.
+    ar: |
+      الأجنحة لا يعودون للدفاع عن قناتهم، تاركين الظهير معرضاً لمواقف
+      2 ضد 1 ومخلقين أحمالاً على الأطراف الدفاعية.
+  pattern_signature:
+    type: winger_not_tracking_back
+    zone: defensive_flanks
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      min_percentage: 0.35
+    required_confidence: 0.6
+  hypotheses:
+    - hypothesis_id: no_defensive_responsibility
+      weight: 0.45
+      names:
+        en: No Defensive Responsibility Assigned
+        ar: عدم تكليف مسؤولية دفاعية
+      evidence_required:
+        - metric: winger_distance_from_defensive_position
+          threshold: ">20m"
+        - metric: opposition_successful_crosses_from_winger_side
+          threshold: ">3"
+      confidence_boost: 0.3
+      coaching_notes:
+        en: |
+          Wingers think their job is only to attack. Teach them that the
+          winger's first job is to defend their channel. When the ball is
+          on their side, they must track back to help the fullback.
+        ar: |
+          الأجنحة يعتقدون أن عملهم هو الهجوم فقط. علمهم أن عمل الجناح
+          الأول هو الدفاع عن قناته. عندما تكون الكرة في جانبهم، يجب
+          أن يعودوا للخلف لمساعدة الظهير.
+      recommended_drills:
+        - fullback_defending_1v1
+        - wing_play_8v8
+    - hypothesis_id: poor_transition_awareness
+      weight: 0.35
+      names:
+        en: Poor Transition Awareness
+        ar: ضعف الوعي بالانتقال
+      evidence_required:
+        - metric: winger_reaction_time_to_loss
+          threshold: ">3s"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Wingers are slow to recognize when the team has lost possession.
+          Teach them to scan for the ball and immediately start recovery
+          runs when possession is lost.
+        ar: |
+          الأجنحة بطيئون في إدراك فقدان الفريق للكرة. علمهم مسح الكرة
+          والبدء فوراً بالجري العائد عند فقدان الاستحواذ.
+      recommended_drills:
+        - defensive_transition_6v6
+        - recovery_run_drills
+  recommended_drills:
+    primary:
+      - drill_id: fullback_defending_1v1
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: defensive_transition_6v6
+        duration_min: 20
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Coaches' Voice: Winger Defensive Responsibilities"
+    - "Spielverlagerung: Wide Player Defensive Duties"
+    - "Tifo Football: The Modern Winger"

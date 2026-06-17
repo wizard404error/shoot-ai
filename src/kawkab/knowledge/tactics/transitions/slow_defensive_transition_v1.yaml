@@ -1,0 +1,82 @@
+rule:
+  id: slow_defensive_transition_v1
+  category: transitions
+  subcategory: defensive_transition
+  severity: high
+  names:
+    en: Slow Defensive Transition
+    ar: انتقال دفاعي بطيء
+  description:
+    en: |
+      Team takes too long to transition from attack to defense after losing
+      possession, allowing opponents to counter-attack with numerical advantage.
+    ar: |
+      الفريق يأخذ وقتاً طويلاً للانتقال من الهجوم إلى الدفاع بعد فقدان
+      الاستحواذ، مما يسمح للخصم بالهجوم المرتد بأفضلية عددية.
+  pattern_signature:
+    type: slow_recovery_after_loss
+    zone: full_pitch
+    thresholds:
+      min_matches: 3
+      min_events: 5
+      avg_recovery_time: ">6s"
+    required_confidence: 0.7
+  hypotheses:
+    - hypothesis_id: no_immediate_reaction
+      weight: 0.45
+      names:
+        en: No Immediate Reaction to Loss
+        ar: عدم التفاعل الفوري مع فقدان الكرة
+      evidence_required:
+        - metric: players_behind_ball_after_loss
+          threshold: "<3"
+        - metric: avg_time_to_recover_shape
+          threshold: ">6s"
+      confidence_boost: 0.35
+      coaching_notes:
+        en: |
+          Players are standing still or walking after losing the ball. The
+          first 3 seconds after loss are critical. Need transition drills
+          with clear triggers: "Ball lost = sprint back!"
+        ar: |
+          اللاعبون يقفون أو يمشون بعد فقدان الكرة. أول 3 ثوانٍ بعد
+          الفقدان حاسمة. تحتاج تدريبات انتقال مع محفزات واضحة:
+          "الكرة فُقدت = اركض للخلف!"
+      recommended_drills:
+        - defensive_transition_6v6
+        - recovery_run_drills
+    - hypothesis_id: wrong_recovery_shape
+      weight: 0.35
+      names:
+        en: Wrong Recovery Shape
+        ar: شكل الاستعادة الخاطئ
+      evidence_required:
+        - metric: recovery_runs_not_direct
+          threshold: ">4"
+      confidence_boost: 0.25
+      coaching_notes:
+        en: |
+          Players are recovering by running toward the ball instead of
+          recovering their defensive position first. Teach: recover your
+          position, then press if you can.
+        ar: |
+          اللاعبون يستعيدون الكرة بالركض نحوها بدلاً من استعادة مركزهم
+          الدفاعي أولاً. علمهم: استعد مركزك، ثم اضغط إذا استطعت.
+      recommended_drills:
+        - defensive_transition_6v6
+        - counter_pressing_4v4
+  recommended_drills:
+    primary:
+      - drill_id: defensive_transition_6v6
+        duration_min: 20
+        sessions_per_week: 3
+        weeks: [1, 2, 3, 4]
+    secondary:
+      - drill_id: recovery_run_drills
+        duration_min: 15
+        sessions_per_week: 2
+        weeks: [2, 3, 4]
+  sources:
+    - "Spielverlagerung: Defensive Transition Principles"
+    - "Coaches' Voice: Transition Play in Modern Football"
+    - "Inverting the Pyramid, Ch. 14"

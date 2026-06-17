@@ -84,6 +84,7 @@ class Paths:
             self.cache,
             self.logs,
             self.models,
+            self.migrations,
         ]:
             path.mkdir(parents=True, exist_ok=True)
 
@@ -149,6 +150,19 @@ class Paths:
             if p.exists():
                 return p
         return Path(__file__).parent / "knowledge"
+
+    @property
+    def migrations(self) -> Path:
+        """Database migrations directory."""
+        possible = [
+            Path(__file__).parent / "migrations",
+            Path(__file__).parent.parent / "migrations",
+            Path(__file__).parent.parent.parent / "src" / "kawkab" / "migrations",
+        ]
+        for p in possible:
+            if p.exists():
+                return p
+        return Path(__file__).parent / "migrations"
 
 
 _paths: Paths | None = None

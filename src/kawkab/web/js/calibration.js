@@ -11,6 +11,7 @@
     const resetBtn = document.getElementById('calibration-reset');
     const saveBtn = document.getElementById('calibration-save');
     const skipBtn = document.getElementById('calibration-skip');
+    const lightglueBtn = document.getElementById('calibration-lightglue');
 
     const cornerLabels = [
         'Top-Left of Pitch',
@@ -33,6 +34,7 @@
         if (resetBtn) resetBtn.addEventListener('click', resetCalibration);
         if (saveBtn) saveBtn.addEventListener('click', saveCalibration);
         if (skipBtn) skipBtn.addEventListener('click', skipCalibration);
+        if (lightglueBtn) lightglueBtn.addEventListener('click', lightglueCalibration);
 
         if (typeof bridge !== 'undefined' && bridge) {
             loadFirstFrame();
@@ -199,6 +201,43 @@
             }
         } catch (e) {
             console.error('Failed to save estimated calibration:', e);
+        }
+    }
+
+    async function lightglueCalibration() {
+        if (lightglueBtn) {
+            lightglueBtn.disabled = true;
+            lightglueBtn.textContent = 'Running AI matching...';
+        }
+        try {
+            const result = await bridge.save_homography(
+                currentMatchId,
+                'lightglue',
+                105.0,
+                68.0
+            );
+            if (result && result.success) {
+                if (statusEl) {
+                    statusEl.textContent = 'LightGlue calibration saved! Confidence: ' +
+                        (result.confidence * 100).toFixed(0) + '%';
+                }
+                if (window.showNotification) {
+                    window.showNotification('AI camera calibration saved', 'success');
+                }
+            } else if (result && result.error) {
+                if (statusEl) statusEl.textContent = 'LightGlue failed: ' + result.error;
+                if (window.showNotification) {
+                    window.showNotification('AI calibration failed: ' + result.error, 'error');
+                }
+            }
+        } catch (e) {
+            console.error('LightGlue calibration failed:', e);
+            if (statusEl) statusEl.textContent = 'Error running AI calibration';
+        } finally {
+            if (lightglueBtn) {
+                lightglueBtn.disabled = false;
+                lightglueBtn.textContent = 'Auto via AI Matching';
+            }
         }
     }
 
