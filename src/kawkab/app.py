@@ -48,6 +48,7 @@ from kawkab.services import (
     PressureMetricsService,
     PsychologyService,
     QualityScoringService,
+    RealtimeService,
     RoboflowSportsService,
     SetPieceService,
     GoalkeeperService,
@@ -154,6 +155,7 @@ class MainWindow(QMainWindow):
         self.goalkeeper = GoalkeeperService()
         self.substitution = SubstitutionService()
         self.possession = PossessionService()
+        self.realtime = RealtimeService(cv_service=self.cv)
 
         # Auto-detect GPU tier and apply recommended settings
         if self.settings.auto_detect_gpu_tier:
@@ -324,6 +326,7 @@ class MainWindow(QMainWindow):
             goalkeeper_service=self.goalkeeper,
             substitution_service=self.substitution,
             possession_service=self.possession,
+            realtime_service=self.realtime,
             frame_skip=self.settings.frame_skip,
             parent=self,
         )

@@ -84,6 +84,20 @@ from kawkab.services.thesportsdb_service import TheSportsDBService
 from kawkab.services.statsbomb_service import StatsBombService
 from kawkab.services.openfootball_service import OpenFootballDataService
 from kawkab.services.roboflow_sports_service import RoboflowSportsService
+from kawkab.services.realtime_service import (
+    RealtimeService,
+    RealtimeEvent,
+    RealtimeSubscriber,
+    StreamStats,
+    AlertKind,
+    AlertSeverity,
+    AlertRule,
+    ShotAlertRule,
+    LowFpsAlertRule,
+    LowConfidenceAlertRule,
+    CallbackSubscriber,
+    ConsoleSubscriber,
+)
 
 __all__ = [
     "CVService",
@@ -118,6 +132,18 @@ __all__ = [
     "LightGlueHomographyService",
     "BenchmarkService",
     "BenchmarkResult",
+    "RealtimeService",
+    "RealtimeEvent",
+    "RealtimeSubscriber",
+    "StreamStats",
+    "AlertKind",
+    "AlertSeverity",
+    "AlertRule",
+    "ShotAlertRule",
+    "LowFpsAlertRule",
+    "LowConfidenceAlertRule",
+    "CallbackSubscriber",
+    "ConsoleSubscriber",
     "ValidationService",
     "ValidationReport",
     "ValidationResult",
@@ -188,4 +214,16 @@ __all__ = [
     "StatsBombService",
     "OpenFootballDataService",
     "RoboflowSportsService",
+    "RealtimeService",
+    "RealtimeEvent",
+    "RealtimeSubscriber",
+    "StreamStats",
+    "AlertKind",
+    "AlertSeverity",
+    "AlertRule",
+    "ShotAlertRule",
+    "LowFpsAlertRule",
+    "LowConfidenceAlertRule",
+    "CallbackSubscriber",
+    "ConsoleSubscriber",
 ]

@@ -2004,6 +2004,64 @@
         }
     }
 
+    // --- Real-Time Mode ---
+
+    async function realtimeStatus() {
+        if (!bridge) return;
+        const resultEl = document.getElementById('realtime-result');
+        resultEl.textContent = 'Checking real-time service...';
+        try {
+            const data = JSON.parse(await bridge.realtime_status());
+            if (data.error) {
+                resultEl.textContent = '❌ ' + data.error;
+                return;
+            }
+            const html = '<div style="font-size:0.85rem"><strong>Real-Time Service</strong><br>' +
+                'Target FPS: ' + data.target_fps + '<br>' +
+                'Buffer Size: ' + data.buffer_size + ' frames<br>' +
+                'Alert Rules: ' + data.alert_rule_count + '<br>' +
+                'Subscribers: ' + data.subscriber_count + '<br>' +
+                '<em>Use realtimeService.run_file(video_path) or run_webcam() from Python API for full streaming.</em>' +
+                '</div>';
+            resultEl.innerHTML = html;
+            resultEl.className = 'feedback-result success';
+        } catch (e) {
+            resultEl.textContent = '❌ Status check failed';
+        }
+    }
+
+    async function realtimeConsole() {
+        if (!bridge) return;
+        const resultEl = document.getElementById('realtime-result');
+        try {
+            const data = JSON.parse(await bridge.realtime_subscribe_console());
+            if (data.error) {
+                resultEl.textContent = '❌ ' + data.error;
+                return;
+            }
+            resultEl.textContent = '✅ Console subscriber added (events will print to log)';
+            resultEl.className = 'feedback-result success';
+        } catch (e) {
+            resultEl.textContent = '❌ Subscribe failed';
+        }
+    }
+
+    async function realtimeCancel() {
+        if (!bridge) return;
+        const resultEl = document.getElementById('realtime-result');
+        try {
+            const data = JSON.parse(await bridge.realtime_cancel());
+            if (data.error) {
+                resultEl.textContent = '❌ ' + data.error;
+                return;
+            }
+            resultEl.textContent = '✅ Stream cancelled';
+            resultEl.className = 'feedback-result success';
+        } catch (e) {
+            resultEl.textContent = '❌ Cancel failed';
+        }
+    }
+
     // --- Card Detection ---
 
     async function checkCardsStatus() {
@@ -2510,6 +2568,11 @@
         document.getElementById('pro-substitution-btn')?.addEventListener('click', proSubstitutionAnalyze);
         document.getElementById('pro-possession-btn')?.addEventListener('click', proPossessionAnalyze);
         document.getElementById('pro-xgot-btn')?.addEventListener('click', proXGOT);
+
+        // Real-Time Mode
+        document.getElementById('realtime-status-btn')?.addEventListener('click', realtimeStatus);
+        document.getElementById('realtime-console-btn')?.addEventListener('click', realtimeConsole);
+        document.getElementById('realtime-cancel-btn')?.addEventListener('click', realtimeCancel);
     }
 
     function handleFileSelect(file) {

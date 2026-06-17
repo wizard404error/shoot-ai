@@ -1,0 +1,178 @@
+/* Accessibility styles for Kawkab AI
+ *
+ * Focus: WCAG 2.1 AA compliance — keyboard navigation, screen-reader
+ * support, sufficient contrast, motion preferences.
+ */
+
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #1e7e34;
+    color: #fff;
+    padding: 8px 12px;
+    text-decoration: none;
+    z-index: 10000;
+    border-radius: 4px;
+    transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+    top: 6px;
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+}
+
+/* Visible focus ring for keyboard users */
+*:focus-visible {
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+    body {
+        background: #000;
+        color: #fff;
+    }
+    .btn,
+    button,
+    input,
+    select {
+        border: 2px solid currentColor !important;
+    }
+    .benchmark-section,
+    .form-card,
+    .player-card {
+        border: 1px solid #fff;
+    }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Screen reader only utility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Larger click targets on touch devices */
+@media (hover: none) and (pointer: coarse) {
+    .btn,
+    button,
+    .tab-button,
+    .nav-item {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Arabic / RTL support */
+[dir="rtl"] {
+    text-align: right;
+}
+
+[dir="rtl"] .app-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .header-left,
+[dir="rtl"] .header-right {
+    direction: rtl;
+}
+
+[lang="ar"] {
+    font-family: "Cairo", "Tahoma", "Segoe UI", system-ui, sans-serif;
+    font-size: 1.05em;
+    line-height: 1.7;
+}
+
+/* Live region for status updates */
+[aria-live="polite"],
+[aria-live="assertive"] {
+    position: relative;
+}
+
+/* Disabled state accessibility */
+[disabled],
+.btn:disabled,
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Required field indicator */
+[required] + label::after,
+label.required::after {
+    content: " *";
+    color: #d00;
+}
+
+/* Form validation visual cue */
+input:invalid,
+select:invalid,
+textarea:invalid {
+    border-color: #d33;
+    box-shadow: 0 0 0 2px rgba(221, 51, 51, 0.2);
+}
+
+input:valid,
+select:valid,
+textarea:valid {
+    border-color: #2a8a2a;
+}
+
+/* Better selection visibility */
+::selection {
+    background: #1e7e34;
+    color: #fff;
+}
+
+::-moz-selection {
+    background: #1e7e34;
+    color: #fff;
+}
+
+/* High-contrast for benchmark values */
+.benchmark-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+/* Focus trap marker for modal dialogs */
+[data-focus-trap] {
+    outline: 2px dashed #ffd700;
+    outline-offset: 4px;
+}

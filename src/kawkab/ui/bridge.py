@@ -73,6 +73,7 @@ class Bridge(QObject):
         goalkeeper_service=None,
         substitution_service=None,
         possession_service=None,
+        realtime_service=None,
         frame_skip=3,
         parent=None,
     ) -> None:
@@ -118,6 +119,7 @@ class Bridge(QObject):
         self.goalkeeper_service = goalkeeper_service
         self.substitution_service = substitution_service
         self.possession_service = possession_service
+        self.realtime_service = realtime_service
         self.frame_skip = frame_skip
         self._overlay_cache: dict[int, list[dict]] = {}
         self._tracking_cache: dict[int, Any] = {}
@@ -3254,5 +3256,48 @@ h3 {{ font-size: 1rem; color: #475569; margin: 1rem 0 0.5rem; }}
             })
         except Exception as e:
             logger.error(f"analyze_possession failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def realtime_status(self) -> str:
+        """Get real-time service status."""
+        if self.realtime_service is None:
+            return json.dumps({"available": False, "error": "RealtimeService not initialized"})
+        try:
+            return json.dumps({
+                "available": True,
+                "target_fps": self.realtime_service.target_fps,
+                "buffer_size": self.realtime_service.buffer_size,
+                "alert_rule_count": len(self.realtime_service._alert_rules),
+                "subscriber_count": len(self.realtime_service._subscribers),
+            })
+        except Exception as e:
+            logger.error(f"realtime_status failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def realtime_cancel(self) -> str:
+        """Cancel a running real-time stream."""
+        if self.realtime_service is None:
+            return json.dumps({"error": "RealtimeService not initialized"})
+        try:
+            self.realtime_service.cancel()
+            return json.dumps({"ok": True, "message": "Realtime stream cancelled"})
+        except Exception as e:
+            logger.error(f"realtime_cancel failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def realtime_subscribe_console(self) -> str:
+        """Add a console subscriber for debugging real-time events."""
+        if self.realtime_service is None:
+            return json.dumps({"error": "RealtimeService not initialized"})
+        try:
+            from kawkab.services.realtime_service import ConsoleSubscriber
+            sub = ConsoleSubscriber()
+            self.realtime_service.subscribe(sub)
+            return json.dumps({"ok": True, "message": "Console subscriber added"})
+        except Exception as e:
+            logger.error(f"realtime_subscribe_console failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
