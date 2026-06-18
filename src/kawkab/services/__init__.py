@@ -98,6 +98,42 @@ from kawkab.services.realtime_service import (
     CallbackSubscriber,
     ConsoleSubscriber,
 )
+from kawkab.services.positioning_service import (
+    PositioningService,
+    PositioningReport,
+    Run,
+    RunType,
+)
+from kawkab.services.player_development_service import (
+    PlayerDevelopmentService,
+    PlayerDevelopmentReport,
+    PlayerMatchStat,
+    PlayerTrend,
+    TrendDirection,
+)
+from kawkab.services.workload_service import (
+    WorkloadService,
+    WorkloadReport,
+    WorkloadRecord,
+    WorkloadSource,
+    RiskLevel,
+)
+from kawkab.services.scouting_service import (
+    ScoutingService,
+    OpponentProfile,
+)
+from kawkab.services.video_review_service import (
+    VideoReviewService,
+    ReviewSession,
+    Clip,
+    Annotation,
+    AnnotationKind,
+    ClipTag,
+)
+from kawkab.services.pitch_detector import (
+    PitchDetector,
+    CalibrationGuess,
+)
 
 __all__ = [
     "CVService",
@@ -226,4 +262,28 @@ __all__ = [
     "LowConfidenceAlertRule",
     "CallbackSubscriber",
     "ConsoleSubscriber",
+    "PositioningService",
+    "PositioningReport",
+    "Run",
+    "RunType",
+    "PlayerDevelopmentService",
+    "PlayerDevelopmentReport",
+    "PlayerMatchStat",
+    "PlayerTrend",
+    "TrendDirection",
+    "WorkloadService",
+    "WorkloadReport",
+    "WorkloadRecord",
+    "WorkloadSource",
+    "RiskLevel",
+    "ScoutingService",
+    "OpponentProfile",
+    "VideoReviewService",
+    "ReviewSession",
+    "Clip",
+    "Annotation",
+    "AnnotationKind",
+    "ClipTag",
+    "PitchDetector",
+    "CalibrationGuess",
 ]

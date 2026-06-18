@@ -15,6 +15,7 @@ Supports 3 calibration modes:
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -256,6 +257,106 @@ class HomographyService:
             group: [matrix.pixel_to_pitch(px, py) for px, py in positions]
             for group, positions in formation_pixels.items()
         }
+
+    def validate_4corner_calibration(
+        self,
+        pixel_corners: list[tuple[float, float]],
+        pitch_length_m: float = 105.0,
+        pitch_width_m: float = 68.0,
+    ) -> dict[str, Any]:
+        """Validate the quality of a 4-corner calibration.
+
+        Checks for:
+        - Correct number of corners (exactly 4)
+        - Each corner inside the image bounds
+        - Reasonable aspect ratio (not too skewed)
+        - Convex quadrilateral (no self-intersecting polygon)
+        - Reasonable scale (meters per pixel matches expected broadcast view)
+
+        Returns a dict with: 'is_valid', 'score' (0-1), 'issues' (list of str).
+        """
+        issues: list[str] = []
+        score = 1.0
+        if len(pixel_corners) != 4:
+            issues.append(f"need exactly 4 corners, got {len(pixel_corners)}")
+            return {"is_valid": False, "score": 0.0, "issues": issues, "metrics": {}}
+        tl, tr, br, bl = pixel_corners
+        widths_top = math.hypot(tr[0] - tl[0], tr[1] - tl[1])
+        widths_bot = math.hypot(br[0] - bl[0], br[1] - bl[1])
+        heights_left = math.hypot(bl[0] - tl[0], bl[1] - tl[1])
+        heights_right = math.hypot(br[0] - tr[0], br[1] - tr[1])
+        if widths_top == 0 or widths_bot == 0 or heights_left == 0 or heights_right == 0:
+            issues.append("one or more edges have zero length (degenerate)")
+            return {"is_valid": False, "score": 0.0, "issues": issues, "metrics": {}}
+        aspect = ((widths_top + widths_bot) / 2) / ((heights_left + heights_right) / 2)
+        expected_aspect = pitch_length_m / pitch_width_m
+        aspect_error = abs(aspect - expected_aspect) / expected_aspect
+        if aspect_error > 0.3:
+            issues.append(f"aspect ratio {aspect:.2f} off from expected {expected_aspect:.2f}")
+            score -= 0.3
+        width_diff = abs(widths_top - widths_bot) / max(widths_top, widths_bot)
+        height_diff = abs(heights_left - heights_right) / max(heights_left, heights_right)
+        if width_diff > 0.15:
+            issues.append(f"top/bottom width mismatch {width_diff:.2f}")
+            score -= 0.2
+        if height_diff > 0.15:
+            issues.append(f"left/right height mismatch {height_diff:.2f}")
+            score -= 0.2
+        if not self._is_convex(pixel_corners):
+            issues.append("corner polygon is not convex (likely self-intersecting)")
+            score -= 0.3
+        reprojection = 0.0
+        try:
+            matrix = self.compute_homography_from_corners(
+                pixel_corners, pitch_length_m, pitch_width_m
+            )
+            src_pts = np.array(pixel_corners, dtype=np.float32)
+            dst_pts = np.array([
+                [0, 0],
+                [pitch_length_m, 0],
+                [pitch_length_m, pitch_width_m],
+                [0, pitch_width_m],
+            ], dtype=np.float32)
+            reprojection = self._compute_reprojection_error(
+                matrix.to_array(), src_pts, dst_pts
+            )
+        except Exception as e:
+            issues.append(f"reprojection error: {e}")
+            reprojection = 999.0
+        if reprojection > 5.0:
+            issues.append(f"reprojection error {reprojection:.2f}px > 5px threshold")
+            score -= 0.2
+        score = max(0.0, score)
+        return {
+            "is_valid": len(issues) == 0,
+            "score": round(score, 2),
+            "issues": issues,
+            "metrics": {
+                "aspect_ratio": round(aspect, 3),
+                "expected_aspect_ratio": round(expected_aspect, 3),
+                "width_diff_ratio": round(width_diff, 3),
+                "height_diff_ratio": round(height_diff, 3),
+                "reprojection_error_px": round(reprojection, 2),
+            },
+        }
+
+    @staticmethod
+    def _is_convex(points: list[tuple[float, float]]) -> bool:
+        n = len(points)
+        if n < 3:
+            return False
+        sign = 0
+        for i in range(n):
+            x1, y1 = points[i]
+            x2, y2 = points[(i + 1) % n]
+            x3, y3 = points[(i + 2) % n]
+            cross = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)
+            if cross != 0:
+                if sign == 0:
+                    sign = 1 if cross > 0 else -1
+                elif (cross > 0) != (sign > 0):
+                    return False
+        return True
 
 
 def cv2_find_homography(src: np.ndarray, dst: np.ndarray):

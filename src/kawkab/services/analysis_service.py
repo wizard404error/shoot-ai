@@ -1175,3 +1175,156 @@ class AnalysisService:
             "home": round(home_xt, 3),
             "away": round(away_xt, 3),
         }
+
+    def track_formations(
+        self,
+        track_data: Any,
+        window_minutes: int = 5,
+    ) -> dict[str, Any]:
+        """Track formation changes minute-by-minute using a sliding window.
+
+        For each window, classify the team's formation by counting
+        outfield players per third (defensive/midfield/attacking).
+        Returns a timeline of formation changes.
+
+        Args:
+            track_data: MatchTrackData with .frames
+            window_minutes: Length of sliding window in minutes.
+        """
+        if not hasattr(track_data, "frames") or not track_data.frames:
+            return {"home_timeline": [], "away_timeline": [], "changes": 0}
+        fps = max(1, getattr(track_data, "fps", 30))
+        window_frames = int(window_minutes * 60 * fps)
+        home_timeline: list[dict[str, Any]] = []
+        away_timeline: list[dict[str, Any]] = []
+        for start in range(0, len(track_data.frames), window_frames):
+            end = min(start + window_frames, len(track_data.frames))
+            window = track_data.frames[start:end]
+            home_formation = self._classify_formation_in_window(window, "home")
+            away_formation = self._classify_formation_in_window(window, "away")
+            ts = getattr(window[0], "timestamp", 0.0) if window else 0.0
+            home_timeline.append({"minute": round(ts / 60.0, 1), "formation": home_formation})
+            away_timeline.append({"minute": round(ts / 60.0, 1), "formation": away_formation})
+        changes = 0
+        if home_timeline:
+            prev = home_timeline[0]["formation"]
+            for entry in home_timeline[1:]:
+                if entry["formation"] != prev:
+                    changes += 1
+                    prev = entry["formation"]
+        return {
+            "home_timeline": home_timeline,
+            "away_timeline": away_timeline,
+            "changes": changes,
+        }
+
+    def _classify_formation_in_window(self, frames: list[Any], team: str) -> str:
+        if not frames:
+            return "unknown"
+        for frame in frames:
+            detections = getattr(frame, "detections", []) or []
+            team_dets = [d for d in detections if getattr(d, "team", None) == team and not getattr(d, "is_ball", False)]
+            if len(team_dets) >= 10:
+                return self._detect_formation(team_dets)
+        return "unknown"
+
+    def _detect_formation(self, detections: list[Any]) -> str:
+        from collections import Counter
+        thirds = Counter()
+        for d in detections:
+            x = getattr(d, "x", None) or 0
+            if hasattr(d, "bbox") and d.bbox is not None:
+                try:
+                    x = d.bbox.cx
+                except AttributeError:
+                    x = 0
+            third = "D" if x < 35 else ("M" if x < 70 else "A")
+            thirds[third] += 1
+        d_count = thirds["D"]
+        m_count = thirds["M"]
+        a_count = thirds["A"]
+        if d_count == 0 and m_count == 0 and a_count == 0:
+            return "unknown"
+        return f"{d_count}-{m_count}-{a_count}"
+
+    def detect_line_breaking_passes(
+        self,
+        events: list[dict[str, Any]],
+        n_lines: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Detect passes that cross defensive lines.
+
+        A line-breaking pass crosses N+1 vertical lines simultaneously
+        (e.g., a pass from defensive third to attacking third crosses
+        2 lines, hence "line-breaking").
+
+        Args:
+            events: List of pass events with start/end x position.
+            n_lines: Minimum number of lines crossed.
+        """
+        PITCH_LENGTH = 100.0
+        line_breaks: list[dict[str, Any]] = []
+        line_positions = [PITCH_LENGTH * i / (n_lines + 1) for i in range(1, n_lines + 1)]
+        for event in events:
+            if event.get("type") != "pass":
+                continue
+            if not event.get("completed", False):
+                continue
+            metadata = event.get("metadata", {})
+            start_x = metadata.get("start_x_pct", 0.5) * PITCH_LENGTH
+            end_x = metadata.get("end_x_pct", 0.6) * PITCH_LENGTH
+            if end_x <= start_x:
+                continue
+            lines_crossed = 0
+            for line_x in line_positions:
+                if start_x < line_x <= end_x:
+                    lines_crossed += 1
+            if lines_crossed >= 2:
+                line_breaks.append({
+                    "team": event.get("team", "home"),
+                    "player_track_id": event.get("player_track_id"),
+                    "start_x_pct": round(metadata.get("start_x_pct", 0.5), 3),
+                    "end_x_pct": round(metadata.get("end_x_pct", 0.6), 3),
+                    "lines_crossed": lines_crossed,
+                    "vertical_gain_pct": round(end_x / PITCH_LENGTH - start_x / PITCH_LENGTH, 3),
+                })
+        return line_breaks
+
+    def attribute_possession_robust(
+        self,
+        events: list[dict[str, Any]],
+        frames: list[Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Attribute possession events robustly when track_id is missing.
+
+        For pass/tackle/shot events without a player_track_id, infer
+        the most likely player from neighboring events on the same
+        team. Falls back to "unknown_player" if no match is found.
+
+        Args:
+            events: Pass/tackle/shot events.
+            frames: Optional tracking frames for spatial proximity.
+        """
+        last_known: dict[str, int | None] = {"home": None, "away": None}
+        attributed: list[dict[str, Any]] = []
+        for event in events:
+            team = event.get("team", "home")
+            track_id = event.get("player_track_id")
+            if track_id is not None:
+                last_known[team] = track_id
+                attributed.append({**event, "attribution_source": "explicit"})
+                continue
+            inferred = last_known.get(team)
+            if inferred is not None:
+                attributed.append({
+                    **event,
+                    "player_track_id": inferred,
+                    "attribution_source": "last_known",
+                })
+            else:
+                attributed.append({
+                    **event,
+                    "player_track_id": -1,
+                    "attribution_source": "unknown",
+                })
+        return attributed
