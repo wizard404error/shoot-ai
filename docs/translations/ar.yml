@@ -1,0 +1,530 @@
+# Kawkab AI - Arabic Football Terminology Glossary
+# Domain-specific terms used in UI translations, analysis reports, and coaching drills.
+# Each entry has: en (English), ar (Arabic), transliteration (Latin spelling), definition.
+#
+# This glossary supplements the in-app UI translations in kawkab_polish.js
+# with native-Arabic football terminology reviewed for accuracy and consistency.
+
+terms:
+  # Match terms
+  match:
+    en: "Match"
+    ar: "مباراة"
+    transliteration: "mubārāh"
+    definition: "A single football game between two teams."
+
+  half:
+    en: "Half"
+    ar: "شوط"
+    transliteration: "shawṭ"
+    definition: "One of two 45-minute periods in a football match."
+
+  first_half:
+    en: "First half"
+    ar: "الشوط الأول"
+    transliteration: "al-shawṭ al-awwal"
+    definition: "Opening 45 minutes."
+
+  second_half:
+    en: "Second half"
+    ar: "الشوط الثاني"
+    transliteration: "al-shawṭ al-thānī"
+    definition: "Closing 45 minutes."
+
+  extra_time:
+    en: "Extra time"
+    ar: "الوقت الإضافي"
+    transliteration: "al-waqt al-idāfī"
+    definition: "Two 15-minute periods played when a knockout match is tied."
+
+  halftime:
+    en: "Halftime"
+    ar: "استراحة"
+    transliteration: "istirāḥa"
+    definition: "The 15-minute break between halves."
+
+  injury_time:
+    en: "Injury time"
+    ar: "الوقت بدل الضائع"
+    transliteration: "al-waqt badal al-ḍāyiʿ"
+    definition: "Time added at the end of each half to compensate for stoppages."
+
+  # Positions
+  goalkeeper:
+    en: "Goalkeeper"
+    ar: "حارس المرمى"
+    transliteration: "ḥāris al-marmā"
+    definition: "Player positioned to stop the ball from entering the goal."
+
+  defender:
+    en: "Defender"
+    ar: "مدافع"
+    transliteration: "mudāfiʿ"
+    definition: "Player whose primary role is to stop the opposition from scoring."
+
+  center_back:
+    en: "Center-back"
+    ar: "قلب دفاع"
+    transliteration: "qalb difāʿ"
+    definition: "Central defender, typically plays in the middle of the back line."
+
+  fullback:
+    en: "Fullback"
+    ar: "ظهير"
+    transliteration: "ẓahīr"
+    definition: "Defender who plays on the left or right side of the back line."
+
+  wingback:
+    en: "Wing-back"
+    ar: "ظهير أيمن / أيسر"
+    transliteration: "ẓahīr ayman / aysar"
+    definition: "Defender who also attacks down the flanks."
+
+  midfielder:
+    en: "Midfielder"
+    ar: "لاعب وسط"
+    transliteration: "lāʿib wasaṭ"
+    definition: "Player who links defense and attack."
+
+  defensive_midfielder:
+    en: "Defensive midfielder"
+    ar: "لاعب وسط دفاعي"
+    transliteration: "lāʿib wasaṭ difāʿī"
+    definition: "Midfielder whose primary role is defensive screen."
+
+  attacking_midfielder:
+    en: "Attacking midfielder"
+    ar: "لاعب وسط هجومي"
+    transliteration: "lāʿib wasaṭ hujūmī"
+    definition: "Midfielder who plays closer to the forwards."
+
+  winger:
+    en: "Winger"
+    ar: "جناح"
+    transliteration: "jināḥ"
+    definition: "Wide attacker who plays on the flanks."
+
+  forward:
+    en: "Forward"
+    ar: "مهاجم"
+    transliteration: "muhājim"
+    definition: "Player whose primary role is to score goals."
+
+  striker:
+    en: "Striker"
+    ar: "رأس حربة"
+    transliteration: "ra's ḥarba"
+    definition: "Center-forward who leads the attack line."
+
+  # Events
+  goal:
+    en: "Goal"
+    ar: "هدف"
+    transliteration: "hadaf"
+    definition: "The ball crossing the goal line into the net."
+
+  assist:
+    en: "Assist"
+    ar: "تمريرة حاسمة"
+    transliteration: "tamrīra ḥāsima"
+    definition: "The pass leading directly to a goal."
+
+  shot:
+    en: "Shot"
+    ar: "تسديدة"
+    transliteration: "tasdīda"
+    definition: "An attempt to score by kicking the ball toward the goal."
+
+  shot_on_target:
+    en: "Shot on target"
+    ar: "تسديدة على المرمى"
+    transliteration: "tasdīda ʿalā al-marmā"
+    definition: "A shot that would enter the goal if not saved."
+
+  save:
+    en: "Save"
+    ar: "تصدي"
+    transliteration: "taṣaddī"
+    definition: "Goalkeeper preventing the ball from entering the goal."
+
+  goalkeeper_save:
+    en: "Goalkeeper save"
+    ar: "تصدي حارس المرمى"
+    transliteration: "taṣaddī ḥāris al-marmā"
+    definition: "A save made by the goalkeeper."
+
+  pass:
+    en: "Pass"
+    ar: "تمريرة"
+    transliteration: "tamrīra"
+    definition: "Kicking the ball to a teammate."
+
+  through_ball:
+    en: "Through ball"
+    ar: "كرة بينية"
+    transliteration: "kura bīniyya"
+    definition: "A pass played into space behind the defense."
+
+  cross:
+    en: "Cross"
+    ar: "عرضية"
+    transliteration: "ʿarḍiyya"
+    definition: "A pass from the flanks into the penalty area."
+
+  dribble:
+    en: "Dribble"
+    ar: "مراوغة"
+    transliteration: "murāwaqa"
+    definition: "Running with the ball past opposing players."
+
+  tackle:
+    en: "Tackle"
+    ar: "تدخل"
+    transliteration: "tadakhkhul"
+    definition: "An attempt to take the ball from an opponent."
+
+  interception:
+    en: "Interception"
+    ar: "اعتراض"
+    transliteration: "iʿtirāḍ"
+    definition: "Receiving the ball after an opponent's pass."
+
+  clearance:
+    en: "Clearance"
+    ar: "تشتيت"
+    transliteration: "tashtīt"
+    definition: "Kicking the ball away from the defensive area."
+
+  offside:
+    en: "Offside"
+    ar: "تسلل"
+    transliteration: "tasallul"
+    definition: "A player closer to the goal than both the ball and the second-last defender when receiving the ball."
+
+  foul:
+    en: "Foul"
+    ar: "مخالفة"
+    transliteration: "mukhālafa"
+    definition: "An infringement of the rules."
+
+  yellow_card:
+    en: "Yellow card"
+    ar: "بطاقة صفراء"
+    transliteration: "biṭāqa ṣafrāʾ"
+    definition: "A formal caution given by the referee."
+
+  red_card:
+    en: "Red card"
+    ar: "بطاقة حمراء"
+    transliteration: "biṭāqa ḥamrāʾ"
+    definition: "An expulsion from the match for a serious foul."
+
+  # Set pieces
+  corner_kick:
+    en: "Corner kick"
+    ar: "ركلة ركنية"
+    transliteration: "rakla rkiniyya"
+    definition: "A free kick from the corner after the ball went out behind the goal line."
+
+  free_kick:
+    en: "Free kick"
+    ar: "ركلة حرة"
+    transliteration: "rakla ḥurra"
+    definition: "A free kick awarded after a foul."
+
+  penalty:
+    en: "Penalty"
+    ar: "ضربة جزاء"
+    transliteration: "ḍarba jazāʾ"
+    definition: "A free kick from 11 meters, awarded for a foul in the box."
+
+  throw_in:
+    en: "Throw-in"
+    ar: "رمية تماس"
+    transliteration: "ramya timās"
+    definition: "Restart after the ball goes out over the touchline."
+
+  # Stats
+  possession:
+    en: "Possession"
+    ar: "استحواذ"
+    transliteration: "istiḥwāḍ"
+    definition: "Time a team controls the ball."
+
+  pass_completion:
+    en: "Pass completion"
+    ar: "نسبة التمريرات الناجحة"
+    transliteration: "nisba al-tamrīrāt al-nājiḥa"
+    definition: "Percentage of passes that reach a teammate."
+
+  shots:
+    en: "Shots"
+    ar: "التسديدات"
+    transliteration: "al-tasdīdāt"
+    definition: "Total shot attempts."
+
+  expected_goals:
+    en: "Expected goals (xG)"
+    ar: "الأهداف المتوقعة"
+    transliteration: "al-aḥdāf al-mutawaqqaʿa"
+    definition: "Statistical measure of shot quality."
+
+  expected_threat:
+    en: "Expected threat (xT)"
+    ar: "التهديد المتوقع"
+    transliteration: "al-tahdīd al-mutawaqqaʿ"
+    definition: "Statistical measure of how much an action increases goal threat."
+
+  pressing_intensity:
+    en: "Pressing intensity"
+    ar: "كثافة الضغط"
+    transliteration: "kathāfat al-ḍagḥṭ"
+    definition: "How aggressively a team presses the opponent with the ball."
+
+  distance_covered:
+    en: "Distance covered"
+    ar: "المسافة المقطوعة"
+    transliteration: "al-masāfa al-maqṭūʿa"
+    definition: "Total running distance by a player during a match."
+
+  sprints:
+    en: "Sprints"
+    ar: "الركضات السريعة"
+    transliteration: "al-rukḍāt al-sarīʿa"
+    definition: "Number of high-intensity sprint efforts."
+
+  high_intensity_running:
+    en: "High-intensity running"
+    ar: "الجري عالي الكثافة"
+    transliteration: "al-jary ʿālī al-kathāfa"
+    definition: "Distance covered at speeds above 5.5 m/s."
+
+  # Formations
+  formation_4_3_3:
+    en: "4-3-3"
+    ar: "4-3-3"
+    transliteration: "arbaʿa-thalātha-thalātha"
+    definition: "Four defenders, three midfielders, three forwards."
+
+  formation_4_4_2:
+    en: "4-4-2"
+    ar: "4-4-2"
+    transliteration: "arbaʿa-arbaʿa-ithnān"
+    definition: "Four defenders, four midfielders, two forwards."
+
+  formation_3_5_2:
+    en: "3-5-2"
+    ar: "3-5-2"
+    transliteration: "thalātha-khamsa-ithnān"
+    definition: "Three defenders, five midfielders, two forwards."
+
+  # Tactical concepts
+  possession_play:
+    en: "Possession play"
+    ar: "لعبة الاستحواذ"
+    transliteration: "luʿbat al-istiḥwāḍ"
+    definition: "Style of play focused on keeping the ball."
+
+  counter_attack:
+    en: "Counter-attack"
+    ar: "هجمة مرتدة"
+    transliteration: "hujma murtadda"
+    definition: "Quick attack after winning possession from the opponent."
+
+  high_press:
+    en: "High press"
+    ar: "ضغط عالٍ"
+    transliteration: "ḍagḥṭ ʿālin"
+    definition: "Pressing the opponent in their own half."
+
+  low_block:
+    en: "Low block"
+    ar: "دفاع متأخر"
+    transliteration: "difāʿ mutaʾakhkhir"
+    definition: "Defending deep in your own half."
+
+  offside_trap:
+    en: "Offside trap"
+    ar: "فخ التسلل"
+    transliteration: "fakh al-tasallul"
+    definition: "Defensive line stepping up to catch attackers offside."
+
+  tiki_taka:
+    en: "Tiki-taka"
+    ar: "تيكي تاكا"
+    transliteration: "tīkī tākā"
+    definition: "Style of play based on short passing and movement."
+
+  # Roles
+  captain:
+    en: "Captain"
+    ar: "قائد الفريق"
+    transliteration: "qāʾid al-farīq"
+    definition: "The team leader, wears the armband."
+
+  substitute:
+    en: "Substitute"
+    ar: "بديل"
+    transliteration: "badīl"
+    definition: "A player who enters the match as a replacement."
+
+  manager:
+    en: "Manager"
+    ar: "مدرب"
+    transliteration: "mudarrab"
+    definition: "Head coach / team manager."
+
+  referee:
+    en: "Referee"
+    ar: "حكم"
+    transliteration: "ḥakam"
+    definition: "Match official who enforces the laws of the game."
+
+  assistant_referee:
+    en: "Assistant referee"
+    ar: "حكم مساعد"
+    transliteration: "ḥakam musāʿid"
+    definition: "Linesman/offside official on the touchline."
+
+  # Training terms
+  training_session:
+    en: "Training session"
+    ar: "حصة تدريبية"
+    transliteration: "ḥiṣa tadribiyya"
+    definition: "A scheduled practice session."
+
+  warmup:
+    en: "Warm-up"
+    ar: "إحماء"
+    transliteration: "iḥmāʾ"
+    definition: "Light activity before training or a match."
+
+  cooldown:
+    en: "Cool-down"
+    ar: "تهدئة"
+    transliteration: "tahdīʾa"
+    definition: "Light activity after training to reduce injury risk."
+
+  drill:
+    en: "Drill"
+    ar: "تمرين"
+    transliteration: "tamrīn"
+    definition: "A structured practice exercise."
+
+  # Other
+  injury:
+    en: "Injury"
+    ar: "إصابة"
+    transliteration: "iṣāba"
+    definition: "Physical harm to a player."
+
+  recovery:
+    en: "Recovery"
+    ar: "تعافي"
+    transliteration: "taʿāfī"
+    definition: "Process of healing from injury or training load."
+
+  fixture_congestion:
+    en: "Fixture congestion"
+    ar: "ازدحام المباريات"
+    transliteration: "izdiḥām al-mubārayāt"
+    definition: "Period with many matches close together."
+
+  workload:
+    en: "Workload"
+    ar: "حجم العمل"
+    transliteration: "ḥajm al-ʿamal"
+    definition: "Total training and match load on a player."
+
+  acute_load:
+    en: "Acute load"
+    ar: "الحمل الحاد"
+    transliteration: "al-ḥiml al-ḥādd"
+    definition: "Recent (last 7 days) training load."
+
+  chronic_load:
+    en: "Chronic load"
+    ar: "الحمل المزمن"
+    transliteration: "al-ḥiml al-muzmin"
+    definition: "Baseline (last 28 days) training load."
+
+  acwr:
+    en: "Acute:Chronic Workload Ratio"
+    ar: "نسبة الحمل الحاد إلى المزمن"
+    transliteration: "nisbat al-ḥiml al-ḥādd ilā al-muzmin"
+    definition: "ACWR - ratio of recent to baseline load, used for injury risk."
+
+  scouting:
+    en: "Scouting"
+    ar: "استكشاف"
+    transliteration: "istikshaāf"
+    definition: "Analyzing upcoming opponents."
+
+  formation_change:
+    en: "Formation change"
+    ar: "تغيير الخطة"
+    transliteration: "taghyīr al-khaṭṭa"
+    definition: "Switching the team's tactical shape during a match."
+
+  # App-specific terms
+  app_subtitle:
+    en: "Football Coach"
+    ar: "المدرب الذكي"
+    transliteration: "al-mudarrab al-dhakī"
+    definition: "The Kawkab AI product subtitle (more natural than literal 'مدرب كرة القدم')."
+
+  # Common UI actions
+  analyze:
+    en: "Analyze"
+    ar: "تحليل"
+    transliteration: "taḥlīl"
+
+  save_action:
+    en: "Save"
+    ar: "حفظ"
+    transliteration: "ḥifẓ"
+
+  cancel:
+    en: "Cancel"
+    ar: "إلغاء"
+    transliteration: "ilghāʾ"
+
+  delete:
+    en: "Delete"
+    ar: "حذف"
+    transliteration: "ḥadhf"
+
+  edit:
+    en: "Edit"
+    ar: "تعديل"
+    transliteration: "taʿdīl"
+
+  settings:
+    en: "Settings"
+    ar: "إعدادات"
+    transliteration: "iʿdādāt"
+
+  help:
+    en: "Help"
+    ar: "مساعدة"
+    transliteration: "musāʿada"
+
+  loading:
+    en: "Loading"
+    ar: "جارٍ التحميل"
+    transliteration: "jārīn al-taḥmīl"
+
+  error:
+    en: "Error"
+    ar: "خطأ"
+    transliteration: "khaṭaʾ"
+
+  success:
+    en: "Success"
+    ar: "نجاح"
+    transliteration: "najāḥ"
+
+  ready:
+    en: "Ready"
+    ar: "جاهز"
+    transliteration: "jāhir"

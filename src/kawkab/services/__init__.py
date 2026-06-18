@@ -23,6 +23,11 @@ from kawkab.services.validation_service import (
     ValidationReport,
     EventGroundTruth,
 )
+from kawkab.services.clip_extraction_service import (
+    ClipLibraryService,
+    VideoClip,
+    ClipPlaylist,
+)
 from kawkab.services.advanced_event_detection_service import AdvancedEventDetectionService
 from kawkab.services.physical_load_service import PhysicalLoadService
 from kawkab.services.pressure_metrics_service import PressureMetricsService
@@ -134,6 +139,13 @@ from kawkab.services.pitch_detector import (
     PitchDetector,
     CalibrationGuess,
 )
+from kawkab.services.periodization_service import (
+    PeriodizationService,
+    PeriodizationReport,
+    WeekSummary,
+    CyclePhase,
+    CongestionLevel,
+)
 
 __all__ = [
     "CVService",
@@ -149,6 +161,9 @@ __all__ = [
     "ReasoningService",
     "DiagnosisReport",
     "ClipExtractionService",
+    "ClipLibraryService",
+    "VideoClip",
+    "ClipPlaylist",
     "TrainingPlanGenerator",
     "TrainingPlan",
     "HomographyService",
@@ -286,4 +301,9 @@ __all__ = [
     "ClipTag",
     "PitchDetector",
     "CalibrationGuess",
+    "PeriodizationService",
+    "PeriodizationReport",
+    "WeekSummary",
+    "CyclePhase",
+    "CongestionLevel",
 ]

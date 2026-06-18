@@ -114,6 +114,10 @@ def load_service_module(module_name: str, file_basename: str, subdir: str = "ser
         file_path = SRC_DIR / "kawkab" / "services" / file_basename
     elif subdir == "utils":
         file_path = SRC_DIR / "kawkab" / "utils" / file_basename
+    elif subdir == "i18n":
+        file_path = SRC_DIR / "kawkab" / "i18n" / file_basename
+    elif subdir == "core":
+        file_path = SRC_DIR / "kawkab" / "core" / file_basename
     else:
         raise ValueError(f"Unknown subdir: {subdir}")
     if not file_path.exists():

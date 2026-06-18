@@ -136,6 +136,24 @@ module = "kawkab.utils.*"
 disallow_untyped_defs = true
 warn_return_any = true
 
+[[tool.mypy.overrides]]
+module = "kawkab.i18n.*"
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = [
+  "kawkab.services.positioning_service",
+  "kawkab.services.player_development_service",
+  "kawkab.services.workload_service",
+  "kawkab.services.scouting_service",
+  "kawkab.services.video_review_service",
+  "kawkab.services.pitch_detector",
+  "kawkab.services.periodization_service",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -q --strict-markers"

@@ -1,6 +1,12 @@
-"""Tests for ClipExtractionService (v0.8.2).
+"""Tests for ClipLibraryService (v0.8.2+).
 
 Tests clip extraction, playlist creation, and storage integration.
+
+.. note::
+    Renamed from ``test_clip_extraction_service`` import: the class
+    ``ClipExtractionService`` in ``kawkab.services.clip_extraction_service``
+    was renamed to ``ClipLibraryService`` in cycle F of ITERATION_LOG.md to
+    disambiguate from the production ``clip_service.ClipExtractionService``.
 """
 
 from __future__ import annotations
@@ -10,43 +16,43 @@ import tempfile
 from pathlib import Path
 
 from kawkab.services.clip_extraction_service import (
-    ClipExtractionService,
+    ClipLibraryService,
     VideoClip,
     ClipPlaylist,
 )
 from kawkab.services.storage_service import StorageService
 
 
-class TestClipExtractionService:
-    """Test video clip extraction functionality."""
+class TestClipLibraryService:
+    """Test video clip extraction and library management functionality."""
 
     def test_init_creates_output_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir) / "clips"
-            svc = ClipExtractionService(output_dir=output_dir)
+            svc = ClipLibraryService(output_dir=output_dir)
             assert output_dir.exists()
 
     def test_get_clip_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            svc = ClipExtractionService(output_dir=Path(tmpdir))
+            svc = ClipLibraryService(output_dir=Path(tmpdir))
             path = svc._get_clip_path(1, 5, "goal")
             assert path.name == "goal_5.mp4"
             assert path.parent.name == "match_1"
 
     def test_get_thumbnail_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            svc = ClipExtractionService(output_dir=Path(tmpdir))
+            svc = ClipLibraryService(output_dir=Path(tmpdir))
             path = svc._get_thumbnail_path(1, 5)
             assert path.name == "thumb_5.jpg"
 
     def test_extract_clip_with_invalid_duration(self):
-        svc = ClipExtractionService()
+        svc = ClipLibraryService()
         result = svc.extract_clip("/fake.mp4", 10.0, 5.0, "/out.mp4")
         assert result is False
 
     @pytest.mark.asyncio
     async def test_create_clip_from_event_missing_video(self):
-        svc = ClipExtractionService()
+        svc = ClipLibraryService()
         event = {"type": "goal", "timestamp": 60.0, "video_path": "/nonexistent.mp4"}
         result = await svc.create_clip_from_event(1, event)
         assert result is None
@@ -54,7 +60,7 @@ class TestClipExtractionService:
     @pytest.mark.asyncio
     async def test_create_clips_from_events(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            svc = ClipExtractionService(output_dir=Path(tmpdir))
+            svc = ClipLibraryService(output_dir=Path(tmpdir))
             events = [
                 {"type": "goal", "timestamp": 60.0, "video_path": "/nonexistent1.mp4"},
                 {"type": "shot", "timestamp": 120.0, "video_path": "/nonexistent2.mp4"},
@@ -71,7 +77,7 @@ class TestClipExtractionService:
             storage._db_path = db_path
             await storage.initialize()
 
-            svc = ClipExtractionService(storage_service=storage)
+            svc = ClipLibraryService(storage_service=storage)
             playlist = await svc.create_playlist("Best Goals", [1, 2, 3], "Top goals from the match")
             assert playlist is not None
             assert playlist.name == "Best Goals"

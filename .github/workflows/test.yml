@@ -59,3 +59,33 @@ jobs:
       - run: uv run ruff check src/ tests/
       - run: uv run black --check src/ tests/
       - run: uv run mypy src/
+
+  mypy-strict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        run: pip install uv
+      - name: Install dependencies
+        run: uv sync
+      - name: Run mypy --strict on new code
+        run: |
+          uv run mypy --strict \
+            src/kawkab/utils/kabsch.py \
+            src/kawkab/utils/hungarian.py \
+            src/kawkab/utils/spatial_hash.py \
+            src/kawkab/utils/profiler.py \
+            src/kawkab/i18n/arabic_glossary.py
+      - name: Run mypy on services
+        run: |
+          uv run mypy \
+            src/kawkab/services/positioning_service.py \
+            src/kawkab/services/player_development_service.py \
+            src/kawkab/services/workload_service.py \
+            src/kawkab/services/scouting_service.py \
+            src/kawkab/services/video_review_service.py \
+            src/kawkab/services/pitch_detector.py \
+            src/kawkab/services/periodization_service.py

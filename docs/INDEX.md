@@ -22,6 +22,10 @@ The next-version build plan. Targets v0.9.0. Updated when a new arc opens.
 → **[BUILD.md](../BUILD.md)**
 PyInstaller + Inno Setup workflow. Windows installer build steps.
 
+### "What will likely fail on my amateur video, and how do I debug it?"
+→ **[CYCLE_1_VIDEO_PIPELINE.md](CYCLE_1_VIDEO_PIPELINE.md)**
+Ranked failure points for the video pipeline + a 10-question debugging checklist. Use this when the pipeline misbehaves on real footage.
+
 ### "I'm an AI assistant working on this project — what are the rules?"
 → **[AGENTS.md](../AGENTS.md)**
 Graphify integration, mandatory rules, and how to use the knowledge graph.

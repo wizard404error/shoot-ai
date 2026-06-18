@@ -1,11 +1,26 @@
-"""Enhanced Computer Vision service - YOLOv11 + BoT-SORT + Smart Filtering.
+"""Enhanced Computer Vision service — YOLOv11 + BoT-SORT + Smart Filtering.
 
-Key improvements over v1:
-1. Smart track filtering (min lifetime, bbox area, position)
-2. Better BoT-SORT configuration for amateur footage
-3. Per-team color clustering (when colors are distinct)
-4. Goal/ref/spectator filtering
-5. Detailed tracking quality metrics
+.. warning::
+    **OUTDATED FORK — DO NOT IMPORT.** After investigation in cycle G of
+    ITERATION_LOG.md (2026-06-17), the canonical ``cv_service.py`` already
+    implements the smart filters this fork was meant to introduce:
+
+    - ``min_track_lifetime`` filter (cv_service.py line 437)
+    - ``lifetime_pct`` filter (line 440)
+    - ``max_keep_top_n`` filter (line 444)
+    - Team color clustering via k-means (line 486)
+    - ``_assess_tracking_quality`` (line 471)
+    - Norfair tracker with enhanced ReID (line 347)
+
+    The only things this v2 has that v1 doesn't are the ``Detection.team``
+    and ``Detection.area`` dataclass fields. The v1 ``CVService`` is used
+    in production by ``app.py`` and ``ui/bridge.py``.
+
+    **Action taken (cycle G):** added this header. **Next decision (your call):**
+    delete this file, or keep it as a frozen historical reference.
+
+If you need the v2-specific dataclass fields, copy them into a feature branch
+of ``cv_service.py`` and propose a PR rather than importing this module.
 """
 
 from __future__ import annotations
@@ -21,6 +36,11 @@ import numpy as np
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+logger.warning(
+    "cv_service_v2 is experimental and not wired into production. "
+    "See the module docstring and ITERATION_LOG.md cycle G for context."
+)
 
 
 @dataclass

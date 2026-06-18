@@ -1,10 +1,20 @@
-"""Video clip extraction service for coaching presentations (v0.8.2).
+"""Video clip library service for coaching presentations (v0.8.2+).
 
-Extracts short video clips around detected events for:
+Manages a library of extracted video clips with thumbnails, playlists, and
+DB-backed storage integration. Used for:
 - Coaching presentations
 - Player review sessions
 - Scout reports
 - Social media sharing
+
+.. note::
+    This service is the **library** layer. The lower-level fire-and-forget
+    clip extraction lives in ``kawkab.services.clip_service.ClipExtractionService``
+    and is wired into the production pipeline via ``app.py`` and ``ui/bridge.py``.
+
+    This module was renamed in cycle F of ITERATION_LOG.md to avoid a class
+    name collision with ``clip_service.py``. The old class name
+    ``ClipExtractionService`` is now ``ClipLibraryService``.
 
 Features:
 - Extract clips by event type (goals, shots, tackles, etc.)
@@ -12,6 +22,7 @@ Features:
 - Export to MP4 with overlays
 - Organize clips into playlists
 - Thumbnail generation
+- DB-backed storage integration (via StorageService)
 """
 
 from __future__ import annotations
@@ -63,8 +74,15 @@ class ClipPlaylist:
         return asdict(self)
 
 
-class ClipExtractionService:
-    """Extract and manage video clips for coaching presentations."""
+class ClipLibraryService:
+    """Extract and manage video clips for coaching presentations.
+
+    .. deprecated-rename::
+        Previously named ``ClipExtractionService``. Renamed in cycle F of
+        ITERATION_LOG.md to disambiguate from the lower-level
+        ``clip_service.ClipExtractionService`` that is wired into the
+        production pipeline.
+    """
 
     # Default padding around events (seconds)
     DEFAULT_PADDING = 5.0

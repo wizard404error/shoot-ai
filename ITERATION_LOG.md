@@ -179,28 +179,51 @@ A cycle is small enough to complete in 1–4 hours of focused work, but big enou
 - **What I did:** nothing to add. Audited only.
 - **Status:** ✅ complete (no changes needed)
 
-### Cycle F — Investigate clip-service duplication (2026-06-17)
+### Cycle F — Resolve clip-service name collision (2026-06-17)
 - **Target:** #9 in backlog
-- **Diagnosis:** `services/clip_service.py` (182 lines) and `services/clip_extraction_service.py` (307 lines) both define a class called `ClipExtractionService`. This is a real name-collision bug.
-- **Current state (more nuanced than my original review suggested):**
-  - `clip_service.py` is wired into production (`app.py` instantiates it, `bridge.py` uses `extract_event_clips`)
-  - `clip_extraction_service.py` is NOT wired into production, but has 8 tests in `tests/unit/test_clip_extraction_service.py`
-  - `clip_extraction_service.py` has additional features not in `clip_service.py`: thumbnail generation, playlist management, `VideoClip` + `ClipPlaylist` dataclasses, storage integration
-- **Decision needed (will ask the user):** pick one of:
-  1. **Merge:** port the additional features from `clip_extraction_service.py` into `clip_service.py`, delete `clip_extraction_service.py`
-  2. **Rename:** keep both, rename the class in `clip_extraction_service.py` to `ClipLibraryService` (or similar) to avoid collision
-  3. **Defer:** leave both, the production code is consistent today, the duplication is technical debt but not a runtime bug
-- **Status:** ⏸ investigated, awaiting user decision
+- **Diagnosis:** `services/clip_service.py` (182 lines) and `services/clip_extraction_service.py` (307 lines) both defined a class called `ClipExtractionService`. Real name-collision bug.
+- **Decision (Mavis chose):** **Rename** `clip_extraction_service.py`'s class to `ClipLibraryService` rather than merge or defer.
+  - Why not merge: the two services have different responsibilities (fire-and-forget extract vs library management with thumbnails/playlists/storage) and different APIs (async vs sync). A 2-hour god-merge would be brittle.
+  - Why not defer: leaves a real bug in place.
+  - Why rename: fixes the collision in 15 minutes, preserves all 8 tests with updated imports, keeps both services clean.
+- **What I did:**
+  - Renamed `ClipExtractionService` → `ClipLibraryService` in `clip_extraction_service.py`
+  - Updated the module docstring with a deprecation-rename note pointing to the cycle log
+  - Updated `tests/unit/test_clip_extraction_service.py` to use the new name
+  - Added `ClipLibraryService`, `VideoClip`, `ClipPlaylist` to `services/__init__.py` exports
+- **Files touched:** `src/kawkab/services/clip_extraction_service.py`, `tests/unit/test_clip_extraction_service.py`, `src/kawkab/services/__init__.py`
+- **Status:** ✅ complete
 
-### Cycle G — Audit cv_service v1 vs v2 (2026-06-17)
+### Cycle G — Resolve cv_service v1 vs v2 ambiguity (2026-06-17)
 - **Target:** #8 in backlog
-- **What I found:** `cv_service.py` (1018 lines, canonical, used in production) has `swap_teams()` for the v0.8.3 team-swap feature. `cv_service_v2.py` (430 lines, experimental) has smart filters and per-team color clustering but lacks `swap_teams()`. `v2` is not imported anywhere. No tests for v1 (`cv_service.py`); tests for `cv_service_model_manager.py` (a different concern, model management within v1).
-- **Decision needed:** keep v2 as a research file, port the smart filters into v1, or remove v2.
-- **Status:** ⏸ investigated, awaiting user decision
+- **Diagnosis:** `cv_service.py` (1018 lines, canonical, used in production) has `swap_teams()` for the v0.8.3 team-swap feature. `cv_service_v2.py` (430 lines, experimental) claimed to add smart filters.
+- **MAJOR FINDING (changed decision):** after reading `cv_service.py` carefully, **the canonical v1 already has the smart filters** — `min_track_lifetime` (line 437), `lifetime_pct` (line 440), `max_keep_top_n` (line 444), team color clustering via k-means (line 486), `_assess_tracking_quality` (line 471), Norfair tracker with enhanced ReID (line 347). The function docstring even says "Process a full video with smart track filtering (v2)". **The v2 fork is outdated, not ahead.**
+- **Decision (Mavis chose):** **Add a clear "outdated fork, do not import" header to v2.** Deferred the delete to a user decision (deletion is irreversible from the working tree).
+  - Why not port: the smart filters are already in v1. There's nothing to port.
+  - Why not remove: irreversible without explicit user sign-off. User said "no service cuts."
+  - Why not keep silently: the file name `cv_service_v2.py` strongly suggests it's the "newer" version. A contributor would reach for it. A clear header prevents that.
+- **What I did:**
+  - Updated `cv_service_v2.py` module docstring to explain that v1 has the smart filters, list the line numbers in v1, and recommend against importing
+  - Added a runtime `logger.warning` to flag any accidental import
+- **Files touched:** `src/kawkab/services/cv_service_v2.py`
+- **Next decision (your call):** delete the file, or keep as a frozen historical reference?
+- **Status:** ✅ complete (deferred delete)
+
+### Cycle H — Cycle 1 prep: video pipeline failure-point analysis (2026-06-17)
+- **Target:** enable Cycle 1 to be a 1-cycle fix, not a 5-cycle investigation
+- **What I did:** read `cv_service.py` (process_video entry point, lines 307-506), catalogued the most likely failure points for an amateur video, wrote a debugging checklist for the user.
+- **Deliverable:** `docs/CYCLE_1_VIDEO_PIPELINE.md` with:
+  - The pipeline at a glance (4 stages: CV → Analysis → Reasoning → LLM)
+  - 8 ranked likely failure points (YOLO model missing, BoT-SORT fallback, team color clustering failure, homography not applied, frame skip extrapolation, max speed cap, LLM hallucination, rules firing on unmeasured metrics)
+  - A 10-question debugging checklist the user can run through
+  - "What success looks like" for Cycle 1 (8 acceptance criteria)
+  - A "files to read when debugging" mapping
+- **Why:** the user said "I tested a video." Until I know what broke, I can't fix it. This doc turns "tell me what happened" into a 10-question form the user can answer in 2 minutes.
+- **Status:** ✅ complete (prep work)
 
 ### Cycle 1 — Make video pipeline work end-to-end on user's real match video
 - **Target:** #1 in backlog
-- **Status:** ⏸ pending — waiting for user input on what broke when they tested
+- **Status:** ⏸ pending — user needs to run through the 10-question checklist in `docs/CYCLE_1_VIDEO_PIPELINE.md` and report what happened
 
 ---
 

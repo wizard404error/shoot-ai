@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -302,3 +303,114 @@ class PossessionService:
         if not notes:
             notes.append("Balanced possession patterns")
         return notes
+
+    def attribute_tackle(
+        self,
+        events: list[dict],
+        tackler_pos: tuple[float, float] | None = None,
+        ball_pos: tuple[float, float] | None = None,
+        max_distance_m: float = 3.0,
+    ) -> dict[str, Any]:
+        """Attribute a tackle to a player using proximity to the ball.
+
+        Tackle events often lack an explicit tackler. This method
+        infers the tackler as the nearest player (in the same team as
+        the tackler-side hint if provided) within ``max_distance_m``.
+
+        Args:
+            events: Player tracking events with position data.
+            tackler_pos: Hint position of the tackler (or ball if known).
+            ball_pos: Position of the ball at the time of the tackle.
+            max_distance_m: Maximum distance to consider a player.
+        """
+        candidates: list[tuple[float, int | None, str | None]] = []
+        for ev in events:
+            x = ev.get("x")
+            y = ev.get("y")
+            if x is None or y is None:
+                continue
+            dists: list[float] = []
+            if ball_pos is not None:
+                dists.append(math.hypot(x - ball_pos[0], y - ball_pos[1]))
+            if tackler_pos is not None:
+                dists.append(math.hypot(x - tackler_pos[0], y - tackler_pos[1]))
+            if not dists:
+                continue
+            min_dist = min(dists)
+            if min_dist <= max_distance_m:
+                candidates.append((min_dist, ev.get("player_track_id"), ev.get("team")))
+        if not candidates:
+            return {
+                "tackler_track_id": None,
+                "tackler_team": None,
+                "confidence": 0.0,
+                "candidates": 0,
+            }
+        candidates.sort(key=lambda c: c[0])
+        best = candidates[0]
+        confidence = 1.0 - (best[0] / max_distance_m) if max_distance_m > 0 else 0.0
+        return {
+            "tackler_track_id": best[1],
+            "tackler_team": best[2],
+            "confidence": round(max(0.0, confidence), 3),
+            "candidates": len(candidates),
+            "distance_m": round(best[0], 2),
+        }
+
+    def attribute_possession_loss(
+        self,
+        events: list[dict],
+        loss_event: dict,
+        proximity_m: float = 5.0,
+    ) -> dict[str, Any]:
+        """Attribute a possession loss to the most likely cause.
+
+        Looks at the events around ``loss_event`` and identifies whether
+        the loss was due to:
+        - a tackle (interception/tackle by the other team)
+        - a misplaced pass
+        - an out-of-bounds touch
+        - an offside call
+        - a foul
+
+        Args:
+            events: All events in chronological order.
+            loss_event: The loss event with timestamp_s and team.
+            proximity_m: Spatial radius (meters) for proximity-based attribution.
+        """
+        loss_time = float(loss_event.get("timestamp_s", loss_event.get("minute", 0) * 60))
+        loss_team = loss_event.get("team", "home")
+        loss_x = loss_event.get("x", 50.0)
+        loss_y = loss_event.get("y", 34.0)
+        context: list[dict] = []
+        for ev in events:
+            ev_time = float(ev.get("timestamp_s", ev.get("minute", 0) * 60))
+            if abs(ev_time - loss_time) > 5.0:
+                continue
+            context.append({**ev, "_dt": ev_time - loss_time})
+        tackle_events = [e for e in context if e.get("type") in ("tackle", "interception") and e.get("team") != loss_team]
+        pass_events = [e for e in context if e.get("type") == "pass" and e.get("team") == loss_team and e.get("completed") is False]
+        oob_events = [e for e in context if e.get("type") in ("out_of_play", "ball_out")]
+        foul_events = [e for e in context if e.get("type") == "foul" and e.get("team") != loss_team]
+        cause = "unknown"
+        cause_event: dict | None = None
+        if tackle_events:
+            cause = "tackle"
+            cause_event = min(tackle_events, key=lambda e: abs(e.get("_dt", 0)))
+        elif pass_events:
+            cause = "misplaced_pass"
+            cause_event = min(pass_events, key=lambda e: abs(e.get("_dt", 0)))
+        elif oob_events:
+            cause = "out_of_bounds"
+            cause_event = oob_events[0]
+        elif foul_events:
+            cause = "foul"
+            cause_event = foul_events[0]
+        return {
+            "loss_team": loss_team,
+            "cause": cause,
+            "cause_event": cause_event,
+            "context_count": len(context),
+            "tackle_count": len(tackle_events),
+            "failed_pass_count": len(pass_events),
+        }

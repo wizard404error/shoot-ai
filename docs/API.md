@@ -38,7 +38,10 @@ kawkab
 ├── utils/                          Pure-function algorithm ports
 │   ├── kabsch                     Rigid alignment
 │   ├── hungarian                  O(n³) assignment
-│   └── spatial_hash               2D/3D spatial bucketing
+│   ├── spatial_hash               2D/3D spatial bucketing
+│   └── profiler                   Per-stage performance timing
+├── i18n/                           Translation support
+│   └── arabic_glossary            Football terms (EN↔AR)
 ├── web/                            Browser-side assets
 │   ├── js/kawkab_animations.js    Popmotion wrapper
 │   ├── js/kawkab_polish.js         ARIA, i18n, keyboard shortcuts
@@ -96,5 +99,6 @@ asyncio.run(analyze_video("match.mp4"))
 | PhysicalLoadService | HIR, sprints | yes |
 | PressureMetricsService | PPDA, compactness | yes |
 | MuJoCoBallService | Ball physics | yes |
+| PeriodizationService | Multi-week load + macrocycle | no |
 
 See `services/` for full per-service API.
