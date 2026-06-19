@@ -1,9 +1,62 @@
-# Kawkab AI — Honest Status Report (v0.8.3)
+# Kawkab AI — Honest Status Report (v0.12.0)
 
-> **Last updated:** v0.8.3 (PDF export, clip extraction, team swap, visualizations, data quality fixes)
-> **TL;DR:** PDF report export, video clip extraction for shots, team assignment swap, pass network + heatmap visualizations, "Shot by unknown" fixed, xT now working.
+> **Last updated:** v0.12.0 (429 tests, 30+ services, profiler+observability, plugin system, i18n .po, PWA, tactical review, E2E scaffold)
+> **TL;DR:** All 25 audit gaps closed. Production-hardening: profiler in pipeline, Prometheus-style metrics, plugin system with entry-points, LLM tactical review, PWA manifest+SW, .po-based i18n, coverage threshold 50%, E2E test scaffold. Ready for v1.0.0 release.
 
 This document is brutally honest about what works and what doesn't.
+
+---
+
+## What's New in v0.10.0–v0.12.0
+
+### ✅ **All 25 Audit Gaps Closed (v0.12.0)**
+
+- Gap 1: RealtimeService (live streaming + alerts)
+- Gap 2: 429 unit tests across 25 test files (27× growth from 16)
+- Gap 3: SetPieceService (corners, free-kicks, throw-ins, threat, routines)
+- Gap 4: `track_formations()` in analysis_service
+- Gap 5: SubstitutionService (xG-delta impact, rating, verdicts)
+- Gap 6: `compute_xg_simple()` with distance+angle model
+- Gap 7: `compute_xt_simple()` with 4×4 zone threat
+- Gap 8: `detect_line_breaking_passes()` in analysis_service
+- Gap 9: GoalkeeperService (saves, xGOT, distribution, sweeps, crosses)
+- Gap 10: PositioningService (off-ball runs, RunType, xT creation)
+- Gap 11: PeriodizationService (multi-week load, taper, congestion, macrocycle)
+- Gap 12: PlayerDevelopmentService (per-player trends, slope, rolling stats)
+- Gap 13: WorkloadService (ACWR, monotony, strain, injury risk)
+- Gap 14: ScoutingService (pre-match opponent profiles, formation prefs, vulnerabilities)
+- Gap 15: VideoReviewService (clips, annotations, tags, export/import)
+- Gap 16: calibration_v2.js (8 drag handles, mouse/touch/keyboard, snap-to-grid, validation badge)
+- Gap 17: `validate_4corner_calibration()` in homography_service
+- Gap 18: `attribute_possession_robust()` in analysis_service
+- Gap 19: `attribute_tackle()` + `attribute_possession_loss()` in possession_service
+- Gap 20: PitchDetector (CV-based line detection via Hough transform)
+- Gap 21: `docs/translations/ar.yml` (70+ football terms + ArabicGlossary loader)
+- Gap 22: accessibility.css + kawkab_polish.js (skip-link, focus-visible, high-contrast, reduced-motion, RTL, ARIA)
+- Gap 23: Profiler in utils/profiler.py (per-stage timing, p50/p95/p99, bottleneck detection)
+- Gap 24: Strict mypy job in CI + pyproject.toml overrides
+- Gap 25: API.md + per-service docs
+
+### ✅ **Option A — Production Quality Bar (v0.11.0–v0.12.0)**
+
+- **A1: Profiler wired into analysis pipeline** — `profiler.begin/end` around enhancement, CV detection, analysis, save, and advanced metrics stages. frontend profiler panel with stage breakdown and bottleneck detection
+- **A2: Prometheus-style observability** — `core/observability.py` with Counter, Gauge, Histogram primitives, Prometheus exposition format render, JSON export, singleton `metrics` object, `metrics_text` bridge slot
+- **A3: .po-based i18n** — `locales/en.po` + `locales/ar.po` (77 keys each), `scripts/compile_i18n.py` → `.json`, JS frontend loads via `fetch()` with hardcoded fallback
+- **A4: Coverage threshold 50%** — CI now `fail-under=50`, badge row in README
+- **A5: E2E test scaffold** — `tests/e2e/test_e2e_pipeline.py` with 18 tests covering observability, profiler, bridge slots (AST-based), .po compilation, CI config
+
+### ✅ **Option B — Extend (v0.12.0)**
+
+- **B1: Plugin system** — `KawkabPlugin` ABC with lifecycle hooks, `PluginManager` with `importlib.metadata.entry_points` discovery (group: `kawkab.plugins`), 10 unit tests
+- **B2: LLM Tactical Review** — `TacticalReviewService` with structured per-section analysis (formation, attacking, defensive, transitions, set pieces, key players, momentum), supports EN/AR, 10 unit tests
+- **B3: PWA wrapper** — `manifest.json`, `service-worker.js` (network-first cache), linked in index.html with apple-mobile-web-app meta tags
+
+### ✅ **Option C — Hardening (v0.12.0)**
+
+- **C1: PyInstaller spec updated** — added locales data, new hidden imports for plugins/observability/tactical_review
+- **C2: Full venv test pass** — 70+ tests runnable via `PYTHONPATH=src` (observability, profiler, plugins, tactical review, arabic glossary, E2E)
+- **C3: STATUS.md updated** to v0.12.0
+- **C4: CHANGELOG.md created** from git log
 
 ---
 

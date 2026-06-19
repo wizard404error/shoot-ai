@@ -10,71 +10,25 @@
     let currentVideoPath = null;
     let analysisResult = null;
 
-    const i18n = {
-        en: {
-            uploadTitle: '📹 Upload Match Video',
-            dragDrop: 'Drag & drop your match video here',
-            or: 'or',
-            browse: 'Browse Files',
-            supportsHint: 'Supports MP4, MOV, AVI (up to 4GB)',
-            analysisTitle: '⚙️ Analysis',
-            matchNamePlaceholder: 'Match name (e.g., Team A vs Team B)',
-            analyze: '🚀 Analyze Match',
-            resultsTitle: '📊 Analysis Results',
-            matchSummary: 'Match Summary',
-            possession: 'Possession',
-            homeStats: 'Home Team Stats',
-            awayStats: 'Away Team Stats',
-            overallConfidence: 'Overall Confidence',
-            generateReport: '🤖 Generate Coach Report',
-            exportPdf: '📄 Export PDF',
-            reportTitle: '🤖 Coach Report',
-            historyTitle: '📚 Match History',
-            noMatches: 'No matches yet. Upload your first match above!',
-            llmChecking: '🔴 LLM: Checking...',
-            llmOnline: '🟢 LLM: Online',
-            llmOffline: '🔴 LLM: Offline',
-            gpuInfo: '🎮 GPU Information',
-            gpuName: 'GPU',
-            gpuTier: 'Tier',
-            recSettings: 'Recommended Settings',
-            currSettings: 'Current Settings',
-            close: 'Close',
-        },
-        ar: {
-            uploadTitle: '📹 تحميل فيديو المباراة',
-            dragDrop: 'اسحب وأفلت فيديو المباراة هنا',
-            or: 'أو',
-            browse: 'تصفح الملفات',
-            supportsHint: 'يدعم MP4, MOV, AVI (حتى 4 جيجابايت)',
-            analysisTitle: '⚙️ التحليل',
-            matchNamePlaceholder: 'اسم المباراة (مثال: الفريق أ ضد الفريق ب)',
-            analyze: '🚀 تحليل المباراة',
-            resultsTitle: '📊 نتائج التحليل',
-            matchSummary: 'ملخص المباراة',
-            possession: 'الاستحواذ',
-            homeStats: 'إحصائيات الفريق المضيف',
-            awayStats: 'إحصائيات الفريق الضيف',
-            overallConfidence: 'مستوى الثقة العام',
-            generateReport: '🤖 إنشاء تقرير المدرب',
-            exportPdf: '📄 تصدير PDF',
-            reportTitle: '🤖 تقرير المدرب',
-            historyTitle: '📚 سجل المباريات',
-            noMatches: 'لا توجد مباريات حتى الآن. حمّل أول مباراة أعلاه!',
-            llmChecking: '🔴 LLM: جاري التحقق...',
-            llmOnline: '🟢 LLM: متصل',
-            llmOffline: '🔴 LLM: غير متصل',
-            gpuInfo: '🎮 معلومات GPU',
-            gpuName: 'GPU',
-            gpuTier: 'الفئة',
-            recSettings: 'الإعدادات الموصى بها',
-            currSettings: 'الإعدادات الحالية',
-            close: 'إغلاق',
-        }
-    };
+    var _kawkabAppLocaleCache = {};
+
+    function loadAppLocale(lang) {
+        if (_kawkabAppLocaleCache[lang]) return Promise.resolve(_kawkabAppLocaleCache[lang]);
+        var url = "locales/" + lang + ".json";
+        return fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                _kawkabAppLocaleCache[lang] = data;
+                return data;
+            })
+            .catch(function () {
+                return null;
+            });
+    }
 
     function t(key) {
-        return (i18n[currentLanguage] && i18n[currentLanguage][key]) || i18n.en[key] || key;
+        var dict = _kawkabAppLocaleCache[currentLanguage] || _kawkabAppLocaleCache['en'];
+        return (dict && dict[key]) || key;
     }
 
     function setLanguage(lang) {
@@ -82,22 +36,24 @@
         document.documentElement.lang = lang;
         document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-        document.querySelector('#upload-section h2').textContent = t('uploadTitle');
-        document.querySelector('#drop-zone p:first-child').textContent = t('dragDrop');
-        document.querySelector('#browse-btn').textContent = t('browse');
-        document.querySelector('#drop-zone .hint').textContent = t('supportsHint');
-        document.querySelector('#analysis-section h2').textContent = t('analysisTitle');
-        document.querySelector('#match-name').placeholder = t('matchNamePlaceholder');
-        document.querySelector('#analyze-btn').textContent = t('analyze');
-        document.querySelector('#results-section h2').textContent = t('resultsTitle');
-        document.querySelector('#generate-report-btn').textContent = t('generateReport');
-        document.querySelector('#export-pdf-btn').textContent = t('exportPdf');
-        document.querySelector('#report-section h2').textContent = t('reportTitle');
-        document.querySelector('#history-section h2').textContent = t('historyTitle');
+        loadAppLocale(lang).then(function () {
+            document.querySelector('#upload-section h2').textContent = t('uploadTitle');
+            document.querySelector('#drop-zone p:first-child').textContent = t('dragDrop');
+            document.querySelector('#browse-btn').textContent = t('browse');
+            document.querySelector('#drop-zone .hint').textContent = t('supportsHint');
+            document.querySelector('#analysis-section h2').textContent = t('analysisTitle');
+            document.querySelector('#match-name').placeholder = t('matchNamePlaceholder');
+            document.querySelector('#analyze-btn').textContent = t('analyze');
+            document.querySelector('#results-section h2').textContent = t('resultsTitle');
+            document.querySelector('#generate-report-btn').textContent = t('generateReport');
+            document.querySelector('#export-pdf-btn').textContent = t('exportPdf');
+            document.querySelector('#report-section h2').textContent = t('reportTitle');
+            document.querySelector('#history-section h2').textContent = t('historyTitle');
 
-        if (currentMatchId) {
-            renderHistory();
-        }
+            if (currentMatchId) {
+                renderHistory();
+            }
+        });
     }
 
     function initQWebChannel() {
@@ -2428,6 +2384,9 @@
         const extractClipsBtn = document.getElementById('extract-clips-btn');
         if (extractClipsBtn) extractClipsBtn.addEventListener('click', extractClips);
 
+        const profilerResetBtn = document.getElementById('profiler-reset-btn');
+        if (profilerResetBtn) profilerResetBtn.addEventListener('click', resetProfiler);
+
         const swapTeamsBtn = document.getElementById('swap-teams-btn');
         if (swapTeamsBtn) swapTeamsBtn.addEventListener('click', swapTeams);
 
@@ -2708,6 +2667,9 @@
             }).join('');
         }
 
+        // Load profiler status after analysis
+        setTimeout(loadProfilerStatus, 300);
+
         setupVideoOverlay();
         setTimeout(generateVisualizations, 500);
     }
@@ -2741,6 +2703,51 @@
             <div class="stat-item"><span>Shots:</span><span>${stats.shots}</span></div>
             <div class="stat-item"><span>Possession:</span><span>${stats.possession.toFixed(1)}%</span></div>
         `;
+    }
+
+    async function loadProfilerStatus() {
+        if (!bridge) return;
+        const section = document.getElementById('profiler-section');
+        if (!section) return;
+        try {
+            const data = JSON.parse(await bridge.profiler_status());
+            if (data.error || !data.stages || data.stages.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            const container = document.getElementById('profiler-stages');
+            container.innerHTML = data.stages.map(s => {
+                const pct = data.total_s > 0 ? ((s.total_s / data.total_s) * 100).toFixed(1) : 0;
+                return `
+                    <div class="benchmark-stage">
+                        <span class="benchmark-stage-name">${s.name}</span>
+                        <div class="benchmark-stage-bar">
+                            <div class="benchmark-stage-fill" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="benchmark-stage-time">${s.total_s.toFixed(2)}s (p95: ${s.p95_s.toFixed(3)}s)</span>
+                    </div>
+                `;
+            }).join('');
+            const bnel = document.getElementById('profiler-bottlenecks');
+            bnel.textContent = data.bottlenecks.length ? 'Bottlenecks: ' + data.bottlenecks.join(', ') : '';
+            const nel = document.getElementById('profiler-notes');
+            nel.textContent = data.notes.join('; ');
+        } catch (e) {
+            console.error('loadProfilerStatus failed:', e);
+        }
+    }
+
+    async function resetProfiler() {
+        if (!bridge) return;
+        try {
+            const data = JSON.parse(await bridge.profiler_reset());
+            if (data.ok) {
+                document.getElementById('profiler-section').classList.add('hidden');
+            }
+        } catch (e) {
+            console.error('resetProfiler failed:', e);
+        }
     }
 
     async function generateReport() {

@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 from kawkab.core.security import SecurityValidator, ErrorSanitizer
+from kawkab.core.observability import metrics
 
 logger = get_logger(__name__)
 
@@ -74,6 +75,7 @@ class Bridge(QObject):
         substitution_service=None,
         possession_service=None,
         realtime_service=None,
+        profiler=None,
         frame_skip=3,
         parent=None,
     ) -> None:
@@ -120,6 +122,7 @@ class Bridge(QObject):
         self.substitution_service = substitution_service
         self.possession_service = possession_service
         self.realtime_service = realtime_service
+        self.profiler = profiler
         self.frame_skip = frame_skip
         self._overlay_cache: dict[int, list[dict]] = {}
         self._tracking_cache: dict[int, Any] = {}
@@ -282,6 +285,7 @@ class Bridge(QObject):
             if not video_path_obj.exists():
                 raise FileNotFoundError(f"Video not found: {video_path}")
 
+            metrics.counter("videos_processed_total", "Total videos analyzed").inc()
             self.analysisProgress.emit(0.0, "Starting analysis...")
             if self.benchmark_service is not None:
                 self.benchmark_service.reset()
@@ -289,6 +293,7 @@ class Bridge(QObject):
             self.analysisProgress.emit(0.05, "Enhancing video...")
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("enhancement")
+            self.profiler.begin("enhancement")
             preprocessed_path = (
                 get_paths().cache
                 / f"{video_path_obj.stem}_preprocessed.mp4"
@@ -296,6 +301,7 @@ class Bridge(QObject):
             await self.enhancement_service.preprocess_video(
                 video_path_obj, preprocessed_path
             )
+            self.profiler.end("enhancement")
             if self.benchmark_service is not None:
                 self.benchmark_service.end_stage("enhancement")
 
@@ -303,6 +309,7 @@ class Bridge(QObject):
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("detection")
                 self.benchmark_service.start_stage("tracking")
+            self.profiler.begin("cv_detection")
 
             async def progress_cb(progress: float, msg: str) -> None:
                 total = 0.15 + progress * 0.55
@@ -314,6 +321,7 @@ class Bridge(QObject):
                 frame_skip=self.frame_skip,
                 enable_team_detection=True,
             )
+            self.profiler.end("cv_detection")
             if self.benchmark_service is not None:
                 self.benchmark_service.end_stage("detection")
                 self.benchmark_service.end_stage("tracking")
@@ -336,15 +344,18 @@ class Bridge(QObject):
             self.analysisProgress.emit(0.75, "Computing statistics...")
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("analysis")
+            self.profiler.begin("analysis")
             analysis = await self.analysis_service.analyze_match(
                 track_data, match_id=match_id, homography_matrix=homography_matrix
             )
+            self.profiler.end("analysis")
             if self.benchmark_service is not None:
                 self.benchmark_service.end_stage("analysis")
 
             self.analysisProgress.emit(0.85, "Saving results...")
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("save")
+            self.profiler.begin("save")
             for track_id, player in analysis.players.items():
                 await self.storage_service.save_player(
                     match_id=match_id,
@@ -368,6 +379,7 @@ class Bridge(QObject):
                 await self.storage_service.save_event(
                     match_id=match_id, event=event
                 )
+            self.profiler.end("save")
             if self.benchmark_service is not None:
                 self.benchmark_service.end_stage("save")
 
@@ -375,6 +387,7 @@ class Bridge(QObject):
             self.analysisProgress.emit(0.88, "Computing advanced metrics...")
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("advanced_metrics")
+            self.profiler.begin("advanced_metrics")
 
             advanced_events: list[dict] = []
             physical_loads: dict = {}
@@ -472,9 +485,16 @@ class Bridge(QObject):
             except Exception as e:
                 logger.warning(f"Pressure metrics computation failed: {e}")
 
+            self.profiler.end("advanced_metrics")
             if self.benchmark_service is not None:
                 self.benchmark_service.end_stage("advanced_metrics")
 
+            self.profiler.stop()
+            metrics.counter("events_detected_total", "Total events detected across all analyses").inc(len(analysis.events))
+            metrics.gauge("players_detected", "Players in last analysis").set(len(analysis.players))
+            metrics.histogram("analysis_duration_seconds", "End-to-end analysis time").observe(
+                self.profiler.report().total_s if self.profiler else 0
+            )
             self.analysisProgress.emit(1.0, "Analysis complete!")
 
             result = {
@@ -3300,4 +3320,33 @@ h3 {{ font-size: 1rem; color: #475569; margin: 1rem 0 0.5rem; }}
         except Exception as e:
             logger.error(f"realtime_subscribe_console failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def profiler_status(self) -> str:
+        """Get the current profiler report."""
+        if self.profiler is None:
+            return json.dumps({"error": "Profiler not initialized"})
+        try:
+            return json.dumps(self.profiler.report().to_dict())
+        except Exception as e:
+            logger.error(f"profiler_status failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def profiler_reset(self) -> str:
+        """Reset the profiler."""
+        if self.profiler is None:
+            return json.dumps({"error": "Profiler not initialized"})
+        try:
+            self.profiler.reset()
+            self.profiler.start()
+            return json.dumps({"ok": True, "message": "Profiler reset"})
+        except Exception as e:
+            logger.error(f"profiler_reset failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @asyncSlot
+    async def metrics_text(self) -> str:
+        """Return Prometheus exposition format string."""
+        return metrics.render()
 

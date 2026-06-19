@@ -12,6 +12,14 @@
     <link rel="alternate" hreflang="ar" href="?lang=ar" />
     <meta name="description" content="Kawkab AI - Offline Arabic and English football coach for amateur teams">
     <meta name="theme-color" content="#1e7e34">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js');
+        }
+    </script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -552,6 +560,14 @@
                                 </div>
                             </div>
                             <div class="benchmark-stages" id="benchmark-stages"></div>
+                        </div>
+
+                        <div id="profiler-section" class="benchmark-section hidden">
+                            <h3>⏱ Stage Profiler</h3>
+                            <div id="profiler-stages"></div>
+                            <div id="profiler-bottlenecks" class="feedback-result" style="margin-top:8px"></div>
+                            <div id="profiler-notes" class="feedback-result" style="margin-top:4px;font-size:0.78rem;color:var(--text-muted)"></div>
+                            <button id="profiler-reset-btn" class="btn btn-secondary" style="margin-top:8px">Reset Profiler</button>
                         </div>
 
                         <div class="actions">

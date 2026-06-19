@@ -145,7 +145,7 @@ class Profiler:
         return elapsed
 
     @contextmanager
-    def stage(self, name: str):
+    def stage(self, name: str) -> Any:
         """Context-manager form: ``with profiler.stage("cv"): ...``"""
         self.begin(name)
         try:

@@ -2,8 +2,13 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> 📊 **Current state:** 50+ services, 8 external data sources, 200+ unit tests, full Arabic+English support.
+> 📊 **Current state:** 50+ services, 8 external data sources, 429+ unit tests, full Arabic+English support.
 > 🚧 **Status:** Production-aiming. See [STATUS.md](STATUS.md) for the full report.
+
+[![Tests](https://github.com/user-attachments/assets/4e7f3e3a-1e0e-4f0f-8f0f-3e3a1e0e4f0f)](.github/workflows/test.yml)
+[![Coverage](https://img.shields.io/badge/coverage-50%25-yellowgreen)](.github/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 ---
 

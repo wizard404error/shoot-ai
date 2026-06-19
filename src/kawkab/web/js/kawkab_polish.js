@@ -40,25 +40,45 @@
         setTimeout(function () { region.textContent = message; }, 50);
     }
 
+    var _kawkabLocaleCache = {};
+
+    function loadLocale(lang) {
+        if (_kawkabLocaleCache[lang]) return Promise.resolve(_kawkabLocaleCache[lang]);
+        var url = "locales/" + lang + ".json";
+        return fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                _kawkabLocaleCache[lang] = data;
+                return data;
+            })
+            .catch(function () {
+                return null;
+            });
+    }
+
     function setLang(lang) {
         if (lang !== "en" && lang !== "ar") return;
-        const html = document.documentElement;
+        var html = document.documentElement;
         html.setAttribute("lang", lang);
         html.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
         try {
             localStorage.setItem(STORAGE_KEY, lang);
         } catch (e) {}
-        const dict = getDict(lang);
-        document.querySelectorAll("[data-i18n]").forEach(function (el) {
-            const key = el.getAttribute("data-i18n");
-            if (dict[key] !== undefined) {
-                el.textContent = dict[key];
+        loadLocale(lang).then(function (dict) {
+            if (!dict) {
+                dict = _kawkabFallbackDict(lang);
             }
+            document.querySelectorAll("[data-i18n]").forEach(function (el) {
+                var key = el.getAttribute("data-i18n");
+                if (dict[key] !== undefined) {
+                    el.textContent = dict[key];
+                }
+            });
         });
         announce(lang === "ar" ? "تم التبديل إلى العربية" : "Switched to English");
     }
 
-    function getDict(lang) {
+    function _kawkabFallbackDict(lang) {
         if (lang === "ar") {
             return {
                 "app_subtitle": "مدرب كرة القدم",

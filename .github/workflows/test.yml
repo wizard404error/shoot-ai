@@ -37,7 +37,7 @@ jobs:
 
       - name: Coverage threshold
         run: |
-          coverage report --fail-under=30 || echo "Coverage below 30%, will improve"
+          coverage report --fail-under=50 || echo "Coverage below 50%, will improve"
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'
@@ -78,7 +78,11 @@ jobs:
             src/kawkab/utils/hungarian.py \
             src/kawkab/utils/spatial_hash.py \
             src/kawkab/utils/profiler.py \
-            src/kawkab/i18n/arabic_glossary.py
+            src/kawkab/i18n/arabic_glossary.py \
+            src/kawkab/core/observability.py \
+            src/kawkab/plugins/__init__.py \
+            src/kawkab/plugins/manager.py \
+            src/kawkab/services/tactical_review_service.py
       - name: Run mypy on services
         run: |
           uv run mypy \

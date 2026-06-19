@@ -1,0 +1,243 @@
+# Arabic translations for Kawkab AI.
+# Copyright (C) 2026 Kawkab AI
+# This file is distributed under the same license as the Kawkab AI package.
+#
+msgid ""
+msgstr ""
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# app.js keys
+msgid "uploadTitle"
+msgstr "📹 تحميل فيديو المباراة"
+
+msgid "dragDrop"
+msgstr "اسحب وأفلت فيديو المباراة هنا"
+
+msgid "or"
+msgstr "أو"
+
+msgid "browse"
+msgstr "تصفح الملفات"
+
+msgid "supportsHint"
+msgstr "يدعم MP4, MOV, AVI (حتى 4 جيجابايت)"
+
+msgid "analysisTitle"
+msgstr "⚙️ التحليل"
+
+msgid "matchNamePlaceholder"
+msgstr "اسم المباراة (مثال: الفريق أ ضد الفريق ب)"
+
+msgid "analyze"
+msgstr "🚀 تحليل المباراة"
+
+msgid "resultsTitle"
+msgstr "📊 نتائج التحليل"
+
+msgid "matchSummary"
+msgstr "ملخص المباراة"
+
+msgid "possession"
+msgstr "الاستحواذ"
+
+msgid "homeStats"
+msgstr "إحصائيات الفريق المضيف"
+
+msgid "awayStats"
+msgstr "إحصائيات الفريق الضيف"
+
+msgid "overallConfidence"
+msgstr "مستوى الثقة العام"
+
+msgid "generateReport"
+msgstr "🤖 إنشاء تقرير المدرب"
+
+msgid "exportPdf"
+msgstr "📄 تصدير PDF"
+
+msgid "reportTitle"
+msgstr "🤖 تقرير المدرب"
+
+msgid "historyTitle"
+msgstr "📚 سجل المباريات"
+
+msgid "noMatches"
+msgstr "لا توجد مباريات حتى الآن. حمّل أول مباراة أعلاه!"
+
+msgid "llmChecking"
+msgstr "🔴 LLM: جاري التحقق..."
+
+msgid "llmOnline"
+msgstr "🟢 LLM: متصل"
+
+msgid "llmOffline"
+msgstr "🔴 LLM: غير متصل"
+
+msgid "gpuInfo"
+msgstr "🎮 معلومات GPU"
+
+msgid "gpuName"
+msgstr "GPU"
+
+msgid "gpuTier"
+msgstr "الفئة"
+
+msgid "recSettings"
+msgstr "الإعدادات الموصى بها"
+
+msgid "currSettings"
+msgstr "الإعدادات الحالية"
+
+msgid "close"
+msgstr "إغلاق"
+
+# kawkab_polish.js keys
+msgid "app_subtitle"
+msgstr "مدرب كرة القدم"
+
+msgid "tab_analyze"
+msgstr "تحليل"
+
+msgid "tab_players"
+msgstr "اللاعبون"
+
+msgid "tab_compare"
+msgstr "مقارنة"
+
+msgid "tab_export"
+msgstr "تصدير"
+
+msgid "btn_analyze"
+msgstr "تحليل الفيديو"
+
+msgid "btn_calibrate"
+msgstr "معايرة الملعب"
+
+msgid "btn_settings"
+msgstr "الإعدادات"
+
+msgid "btn_help"
+msgstr "المساعدة"
+
+msgid "btn_cancel"
+msgstr "إلغاء"
+
+msgid "btn_confirm"
+msgstr "تأكيد"
+
+msgid "btn_save"
+msgstr "حفظ"
+
+msgid "btn_load"
+msgstr "تحميل"
+
+msgid "status_ready"
+msgstr "جاهز"
+
+msgid "status_processing"
+msgstr "جارٍ المعالجة"
+
+msgid "status_complete"
+msgstr "اكتمل التحليل"
+
+msgid "status_error"
+msgstr "حدث خطأ"
+
+msgid "status_idle"
+msgstr "خامل"
+
+msgid "metric_distance"
+msgstr "المسافة"
+
+msgid "metric_sprints"
+msgstr "الركضات السريعة"
+
+msgid "metric_passes"
+msgstr "التمريرات"
+
+msgid "metric_shots"
+msgstr "التسديدات"
+
+msgid "metric_possession"
+msgstr "الاستحواذ"
+
+msgid "metric_xg"
+msgstr "الأهداف المتوقعة"
+
+msgid "metric_goals"
+msgstr "الأهداف"
+
+msgid "metric_hir"
+msgstr "الجري عالي الشدة"
+
+msgid "section_pro"
+msgstr "التحليل الاحترافي"
+
+msgid "section_realtime"
+msgstr "الوضع المباشر"
+
+msgid "section_psychology"
+msgstr "علم النفس الرياضي"
+
+msgid "section_weather"
+msgstr "الطقس"
+
+msgid "section_rules"
+msgstr "قوانين اللعبة"
+
+msgid "section_cards"
+msgstr "الكروت"
+
+msgid "section_pose"
+msgstr "تحليل الوضعية"
+
+msgid "section_mujoco"
+msgstr "محاكاة الكرة"
+
+msgid "section_fluidx3d"
+msgstr "محاكاة الموائع"
+
+msgid "section_setpiece"
+msgstr "الكرات الثابتة"
+
+msgid "section_goalkeeper"
+msgstr "حارس المرمى"
+
+msgid "section_substitution"
+msgstr "التبديلات"
+
+msgid "section_possession"
+msgstr "الاستحواذ"
+
+msgid "alert_shot"
+msgstr "تسديدة"
+
+msgid "alert_goal"
+msgstr "هدف"
+
+msgid "alert_offside"
+msgstr "تسلل"
+
+msgid "alert_card"
+msgstr "كرت"
+
+msgid "alert_tackle"
+msgstr "تدخل"
+
+msgid "msg_processing_video"
+msgstr "جارٍ معالجة الفيديو"
+
+msgid "msg_no_video"
+msgstr "الرجاء اختيار ملف فيديو"
+
+msgid "msg_calibration_required"
+msgstr "يجب إجراء المعايرة أولاً"
+
+msgid "msg_saved"
+msgstr "تم الحفظ"
+
+msgid "msg_loaded"
+msgstr "تم التحميل"

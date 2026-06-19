@@ -15,6 +15,7 @@ from PySide6.QtWebChannel import QWebChannel
 from kawkab.core.config import get_settings
 from kawkab.core.logging import get_logger, setup_logging
 from kawkab.core.paths import get_paths
+from kawkab.utils.profiler import Profiler
 from kawkab.services import (
     AdvancedEventDetectionService,
     AnomalyDetectionService,
@@ -81,6 +82,8 @@ class MainWindow(QMainWindow):
         self._init_ui()
         self._init_system_tray()
         self._init_bridge()
+        self.profiler = Profiler()
+        self.profiler.start()
 
         logger.info(f"MainWindow initialized: {self.windowTitle()}")
 
@@ -327,6 +330,7 @@ class MainWindow(QMainWindow):
             substitution_service=self.substitution,
             possession_service=self.possession,
             realtime_service=self.realtime,
+            profiler=self.profiler,
             frame_skip=self.settings.frame_skip,
             parent=self,
         )

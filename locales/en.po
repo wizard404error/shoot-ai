@@ -1,0 +1,243 @@
+# English translations for Kawkab AI.
+# Copyright (C) 2026 Kawkab AI
+# This file is distributed under the same license as the Kawkab AI package.
+#
+msgid ""
+msgstr ""
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# app.js keys
+msgid "uploadTitle"
+msgstr "📹 Upload Match Video"
+
+msgid "dragDrop"
+msgstr "Drag & drop your match video here"
+
+msgid "or"
+msgstr "or"
+
+msgid "browse"
+msgstr "Browse Files"
+
+msgid "supportsHint"
+msgstr "Supports MP4, MOV, AVI (up to 4GB)"
+
+msgid "analysisTitle"
+msgstr "⚙️ Analysis"
+
+msgid "matchNamePlaceholder"
+msgstr "Match name (e.g., Team A vs Team B)"
+
+msgid "analyze"
+msgstr "🚀 Analyze Match"
+
+msgid "resultsTitle"
+msgstr "📊 Analysis Results"
+
+msgid "matchSummary"
+msgstr "Match Summary"
+
+msgid "possession"
+msgstr "Possession"
+
+msgid "homeStats"
+msgstr "Home Team Stats"
+
+msgid "awayStats"
+msgstr "Away Team Stats"
+
+msgid "overallConfidence"
+msgstr "Overall Confidence"
+
+msgid "generateReport"
+msgstr "🤖 Generate Coach Report"
+
+msgid "exportPdf"
+msgstr "📄 Export PDF"
+
+msgid "reportTitle"
+msgstr "🤖 Coach Report"
+
+msgid "historyTitle"
+msgstr "📚 Match History"
+
+msgid "noMatches"
+msgstr "No matches yet. Upload your first match above!"
+
+msgid "llmChecking"
+msgstr "🔴 LLM: Checking..."
+
+msgid "llmOnline"
+msgstr "🟢 LLM: Online"
+
+msgid "llmOffline"
+msgstr "🔴 LLM: Offline"
+
+msgid "gpuInfo"
+msgstr "🎮 GPU Information"
+
+msgid "gpuName"
+msgstr "GPU"
+
+msgid "gpuTier"
+msgstr "Tier"
+
+msgid "recSettings"
+msgstr "Recommended Settings"
+
+msgid "currSettings"
+msgstr "Current Settings"
+
+msgid "close"
+msgstr "Close"
+
+# kawkab_polish.js keys
+msgid "app_subtitle"
+msgstr "Football Coach"
+
+msgid "tab_analyze"
+msgstr "Analyze"
+
+msgid "tab_players"
+msgstr "Players"
+
+msgid "tab_compare"
+msgstr "Compare"
+
+msgid "tab_export"
+msgstr "Export"
+
+msgid "btn_analyze"
+msgstr "Analyze Video"
+
+msgid "btn_calibrate"
+msgstr "Calibrate Pitch"
+
+msgid "btn_settings"
+msgstr "Settings"
+
+msgid "btn_help"
+msgstr "Help"
+
+msgid "btn_cancel"
+msgstr "Cancel"
+
+msgid "btn_confirm"
+msgstr "Confirm"
+
+msgid "btn_save"
+msgstr "Save"
+
+msgid "btn_load"
+msgstr "Load"
+
+msgid "status_ready"
+msgstr "Ready"
+
+msgid "status_processing"
+msgstr "Processing"
+
+msgid "status_complete"
+msgstr "Analysis complete"
+
+msgid "status_error"
+msgstr "An error occurred"
+
+msgid "status_idle"
+msgstr "Idle"
+
+msgid "metric_distance"
+msgstr "Distance"
+
+msgid "metric_sprints"
+msgstr "Sprints"
+
+msgid "metric_passes"
+msgstr "Passes"
+
+msgid "metric_shots"
+msgstr "Shots"
+
+msgid "metric_possession"
+msgstr "Possession"
+
+msgid "metric_xg"
+msgstr "xG"
+
+msgid "metric_goals"
+msgstr "Goals"
+
+msgid "metric_hir"
+msgstr "HIR"
+
+msgid "section_pro"
+msgstr "Pro Analytics"
+
+msgid "section_realtime"
+msgstr "Real-Time Mode"
+
+msgid "section_psychology"
+msgstr "Sports Psychology"
+
+msgid "section_weather"
+msgstr "Weather"
+
+msgid "section_rules"
+msgstr "Game Rules"
+
+msgid "section_cards"
+msgstr "Cards"
+
+msgid "section_pose"
+msgstr "Pose Analysis"
+
+msgid "section_mujoco"
+msgstr "Ball Simulation"
+
+msgid "section_fluidx3d"
+msgstr "Fluid Simulation"
+
+msgid "section_setpiece"
+msgstr "Set Pieces"
+
+msgid "section_goalkeeper"
+msgstr "Goalkeeper"
+
+msgid "section_substitution"
+msgstr "Substitutions"
+
+msgid "section_possession"
+msgstr "Possession"
+
+msgid "alert_shot"
+msgstr "Shot"
+
+msgid "alert_goal"
+msgstr "Goal"
+
+msgid "alert_offside"
+msgstr "Offside"
+
+msgid "alert_card"
+msgstr "Card"
+
+msgid "alert_tackle"
+msgstr "Tackle"
+
+msgid "msg_processing_video"
+msgstr "Processing video"
+
+msgid "msg_no_video"
+msgstr "Please select a video file"
+
+msgid "msg_calibration_required"
+msgstr "Calibration required first"
+
+msgid "msg_saved"
+msgstr "Saved"
+
+msgid "msg_loaded"
+msgstr "Loaded"

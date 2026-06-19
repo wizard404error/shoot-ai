@@ -13,6 +13,7 @@ a = Analysis(
     datas=[
         ('src/kawkab/web', 'kawkab/web'),
         ('src/kawkab/knowledge', 'kawkab/knowledge'),
+        ('locales', 'locales'),
     ],
     hiddenimports=[
         'PySide6.QtWebEngineWidgets',
@@ -36,6 +37,10 @@ a = Analysis(
         'tqdm',
         'lap',
         'sklearn',
+        'kawkab.plugins',
+        'kawkab.plugins.manager',
+        'kawkab.core.observability',
+        'kawkab.services.tactical_review_service',
     ],
     hookspath=[],
     hooksconfig={},
