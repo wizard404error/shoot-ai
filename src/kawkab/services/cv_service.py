@@ -567,13 +567,13 @@ class CVService:
 
         # Match type inference
         match_type = "unknown"
+        avg_track_span = 0.0
         if duration >= 4800:  # 80+ minutes = full match
             match_type = "full_match"
         elif duration < 1200:  # under 20 minutes = highlight
             match_type = "highlight"
         else:
             # Ambiguous: use heuristics
-            avg_track_span = 0.0
             if valid_player_tracks:
                 spans = [
                     (track_last_frame.get(tid, 0) - track_first_frame.get(tid, 0)) / fps
