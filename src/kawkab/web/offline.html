@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kawkab AI - Offline</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .offline-container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 420px;
+    }
+    .offline-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 0.5rem;
+      color: #f8fafc;
+    }
+    p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin: 0 0 0.25rem;
+      color: #94a3b8;
+    }
+    .lang-ar {
+      direction: rtl;
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 1.5rem;
+    }
+    .btn-try {
+      display: inline-block;
+      padding: 0.7rem 2rem;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-try:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">📡</div>
+    <h1>Kawkab AI</h1>
+    <p>You are offline</p>
+    <p class="lang-ar">أنت غير متصل بالإنترنت</p>
+    <button class="btn-try" onclick="window.location.reload()">Try Again</button>
+  </div>
+</body>
+</html>

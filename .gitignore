@@ -28,6 +28,11 @@ Thumbs.db
 
 # Application data (user data, never commit)
 /data/sample_matches/*.mp4
+
+# Node.js
+node_modules/
+test-results/
+*.tsbuildinfo
 /data/sample_matches/*.mov
 /data/sample_matches/*.avi
 /data/models/*.pt

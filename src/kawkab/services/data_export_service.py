@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import sqlite3
 from dataclasses import asdict
 from datetime import datetime
@@ -34,6 +35,25 @@ class DataExportService:
         self._exports_dir = get_paths().exports
         self._conn: sqlite3.Connection | None = None
         logger.info(f"DataExportService: exports_dir={self._exports_dir}")
+
+    def _sanitize_name(self, name: str) -> str:
+        """Sanitize user-derived name strings for safe filesystem use."""
+        sanitized = name.replace(" ", "_")
+        sanitized = sanitized.replace("/", "-")
+        sanitized = sanitized.replace("\\", "-")
+        sanitized = sanitized.replace("..", "")
+        return sanitized.strip("._- ")
+
+    def _resolve_export_path(self, *segments: str) -> Path:
+        """Build and validate a path under exports_dir, preventing traversal."""
+        resolved = self._exports_dir.resolve()
+        for seg in segments:
+            safe = self._sanitize_name(seg)
+            resolved = resolved / safe
+        resolved = resolved.resolve()
+        if not str(resolved).startswith(str(self._exports_dir.resolve())):
+            raise ValueError(f"Path traversal detected: {resolved}")
+        return resolved
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -57,8 +77,8 @@ class DataExportService:
         if not match_row:
             raise ValueError(f"Match {match_id} not found")
 
-        match_name = match_row["name"].replace(" ", "_").replace("/", "-")
-        export_dir = self._exports_dir / f"match_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}"
+        match_name = self._sanitize_name(match_row["name"])
+        export_dir = self._resolve_export_path(f"match_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}")
         export_dir.mkdir(parents=True, exist_ok=True)
 
         # Summary CSV
@@ -127,8 +147,8 @@ class DataExportService:
         if not match_row:
             raise ValueError(f"Match {match_id} not found")
 
-        match_name = match_row["name"].replace(" ", "_").replace("/", "-")
-        export_path = self._exports_dir / f"match_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}.json"
+        match_name = self._sanitize_name(match_row["name"])
+        export_path = self._resolve_export_path(f"match_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}.json")
 
         cursor.execute("SELECT * FROM analysis_results WHERE match_id = ?", (match_id,))
         analysis_row = cursor.fetchone()
@@ -176,8 +196,8 @@ class DataExportService:
         if not match_row:
             raise ValueError(f"Match {match_id} not found")
 
-        match_name = match_row["name"].replace(" ", "_").replace("/", "-")
-        export_path = self._exports_dir / f"statsbomb_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}.json"
+        match_name = self._sanitize_name(match_row["name"])
+        export_path = self._resolve_export_path(f"statsbomb_{match_id}_{match_name}_{datetime.now().strftime('%Y%m%d')}.json")
 
         cursor.execute(
             "SELECT * FROM events WHERE match_id = ? ORDER BY timestamp",
@@ -192,11 +212,28 @@ class DataExportService:
             # Map Kawkab event types to StatsBomb type IDs
             type_id, type_name = self._map_event_type(event_type)
 
+            # Parse metadata JSON once
+            try:
+                meta = json.loads(e["metadata"] or "{}")
+            except Exception:
+                meta = {}
+
+            # Period detection: use explicit field or compute from timestamp
+            period = meta.get("period", None)
+            if period is None:
+                try:
+                    period = e["period"]
+                except (KeyError, IndexError, TypeError):
+                    pass
+            if period is None:
+                ts = float(e["timestamp"])
+                period = 1 if ts < 2700 else 2
+
             sb_event = {
                 "id": e["id"],
                 "match_id": match_id,
                 "index": len(statsbomb_events) + 1,
-                "period": 1,  # TODO: detect half
+                "period": period,
                 "timestamp": e["timestamp"],
                 "minute": int(e["timestamp"] // 60),
                 "second": int(e["timestamp"] % 60),
@@ -210,21 +247,47 @@ class DataExportService:
             }
 
             if event_type == "pass":
+                # Compute pass length and angle from positions
+                start_x = meta.get("start_x", None)
+                start_y = meta.get("start_y", None)
+                end_x = meta.get("end_x", None)
+                end_y = meta.get("end_y", None)
+                if start_x is not None and start_y is not None and end_x is not None and end_y is not None:
+                    dx = float(end_x) - float(start_x)
+                    dy = float(end_y) - float(start_y)
+                    length = math.hypot(dx, dy)
+                    angle = math.degrees(math.atan2(dy, dx))
+                else:
+                    length = 0.0
+                    angle = 0.0
                 sb_event["pass"] = {
                     "recipient": {"id": e["to_track_id"], "name": f"Player {e['to_track_id']}"},
                     "outcome": {"id": 15 if e["completed"] else 9, "name": "Complete" if e["completed"] else "Incomplete"},
-                    "length": 0.0,  # TODO: compute from positions
-                    "angle": 0.0,
+                    "length": round(length, 1),
+                    "angle": round(angle, 1),
                     "height": {"id": 1, "name": "Ground Pass"},
                 }
             elif event_type == "shot":
+                # Shot outcome mapping
+                if meta.get("is_goal"):
+                    outcome_id, outcome_name = 97, "Goal"
+                elif meta.get("saved") or meta.get("is_saved"):
+                    outcome_id, outcome_name = 95, "Saved"
+                elif meta.get("blocked") or meta.get("is_blocked"):
+                    outcome_id, outcome_name = 96, "Blocked"
+                elif meta.get("off_target") or meta.get("missed"):
+                    outcome_id, outcome_name = 94, "Missed"
+                else:
+                    outcome_id, outcome_name = 94, "Missed"
+                # xG from event.xg or event.x_g, not distance
+                xg_val = meta.get("xg") or meta.get("x_g") or 0.0
                 try:
-                    meta = json.loads(e["metadata"] or "{}")
-                except Exception:
-                    meta = {}
+                    xg_val = float(xg_val)
+                except (TypeError, ValueError):
+                    xg_val = 0.0
                 sb_event["shot"] = {
-                    "outcome": {"id": 97, "name": "Goal"},  # placeholder
-                    "xG": meta.get("distance_to_goal_m", 0.0),  # placeholder
+                    "outcome": {"id": outcome_id, "name": outcome_name},
+                    "xG": round(xg_val, 4),
                     "key_pass_id": None,
                 }
 
@@ -292,7 +355,7 @@ class DataExportService:
         season_row = cursor.fetchone()
         season_name = season_row["name"] if season_row else f"Season_{season_id}"
 
-        export_path = self._exports_dir / f"season_{season_id}_{season_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.csv"
+        export_path = self._resolve_export_path(f"season_{season_id}_{self._sanitize_name(season_name)}_{datetime.now().strftime('%Y%m%d')}.csv")
 
         with open(export_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)

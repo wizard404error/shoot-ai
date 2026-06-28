@@ -91,7 +91,7 @@
         setupMouseConstraint();
         setupListeners();
         startRenderLoop();
-        console.log('Tactical sandbox initialized');
+    
     }
 
     function createPitchBoundaries() {
@@ -183,12 +183,25 @@
 
     function startRenderLoop() {
         function loop() {
-            if (!canvas) return;
+            if (!canvas || !document.body.contains(canvas)) {
+                if (runner) {
+                    cancelAnimationFrame(runner);
+                    runner = null;
+                }
+                return;
+            }
             Engine.update(engine, 1000 / 60);
             draw();
             runner = requestAnimationFrame(loop);
         }
         loop();
+    }
+
+    function stopRenderLoop() {
+        if (runner) {
+            cancelAnimationFrame(runner);
+            runner = null;
+        }
     }
 
     function draw() {
@@ -233,6 +246,8 @@
             ctx.fillText(b.plugin.label || '', b.position.x, b.position.y);
         });
     }
+
+    window.stopSandboxRenderLoop = stopRenderLoop;
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {

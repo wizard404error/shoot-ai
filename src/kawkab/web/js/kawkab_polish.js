@@ -19,6 +19,13 @@
         "/": { key: "/", label: "Focus search" },
         "?": { key: "?", label: "Show keyboard shortcuts", shift: true },
         "Escape": { key: "Escape", label: "Close dialog" },
+        "Space": { key: "Space", label: "Video: Play/Pause" },
+        "J": { key: "J", label: "Video: Rewind 10s" },
+        "L": { key: "L", label: "Video: Forward 10s" },
+        "K": { key: "K", label: "Video: Pause" },
+        "ArrowLeft": { key: "←", label: "Video: Rewind 5s" },
+        "ArrowRight": { key: "→", label: "Video: Forward 5s" },
+        "F": { key: "F", label: "Video: Fullscreen" },
     };
 
     function createLiveRegion() {
@@ -74,6 +81,30 @@
                     el.textContent = dict[key];
                 }
             });
+            // Update placeholders
+            document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
+                var key = el.getAttribute("data-i18n-placeholder");
+                if (dict[key] !== undefined) {
+                    el.setAttribute("placeholder", dict[key]);
+                }
+            });
+            // Update option labels
+            document.querySelectorAll("option[data-i18n]").forEach(function (el) {
+                var key = el.getAttribute("data-i18n");
+                if (dict[key] !== undefined) {
+                    el.textContent = dict[key];
+                }
+            });
+            // Update document title
+            if (dict["appTitle"]) {
+                document.title = dict["appTitle"];
+            }
+            // Update theme toggle button tooltip
+            var themeBtn = document.getElementById("theme-toggle");
+            if (themeBtn) {
+                var isLight = html.getAttribute("data-theme") === "light";
+                themeBtn.title = isLight ? "Switch to dark mode" : "Switch to light mode";
+            }
         });
         announce(lang === "ar" ? "تم التبديل إلى العربية" : "Switched to English");
     }
@@ -128,9 +159,13 @@
                 "msg_processing_video": "جارٍ معالجة الفيديو",
                 "msg_no_video": "الرجاء اختيار ملف فيديو",
                 "msg_calibration_required": "يجب إجراء المعايرة أولاً",
-                "msg_saved": "تم الحفظ",
-                "msg_loaded": "تم التحميل",
-            };
+            "msg_saved": "تم الحفظ",
+            "msg_loaded": "تم التحميل",
+            "btn_compare": "مقارنة",
+            "kbLoading": "قاعدة المعرفة: جاري التحميل...",
+            "appTitle": "Kawkab AI - تحليلات مدرب كرة القدم",
+            "dashboardTitle": "📊 لوحة التحكم",
+        };
         }
         return {
             "app_subtitle": "Football Coach",
@@ -182,6 +217,10 @@
             "msg_calibration_required": "Calibration required first",
             "msg_saved": "Saved",
             "msg_loaded": "Loaded",
+            "btn_compare": "Compare",
+            "kbLoading": "Knowledge Base: Loading...",
+            "appTitle": "Kawkab AI - Football Coach Analytics",
+            "dashboardTitle": "📊 Dashboard",
         };
     }
 

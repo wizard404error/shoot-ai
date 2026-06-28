@@ -295,13 +295,34 @@ class LightGlueHomographyService:
         H_frame_to_pitch = H_template_to_pitch @ H_frame_to_template
         inliers = int(mask.sum())
 
+        # Compute reprojection error in pixels
+        if inliers >= 4:
+            try:
+                mask_bool = mask.flatten().astype(bool)
+                pts_frame = kpts_frame[mask_bool][:100]
+                pts_template = kpts_template[mask_bool][:100]
+                projected = cv2.perspectiveTransform(
+                    pts_frame.reshape(-1, 1, 2).astype(np.float32),
+                    H_frame_to_template,
+                )
+                errors = np.linalg.norm(
+                    projected.reshape(-1, 2) - pts_template, axis=1
+                )
+                error = float(np.mean(errors))
+            except Exception:
+                error = 999.0
+        else:
+            error = 999.0
+        if math.isnan(error) or error < 0:
+            error = 999.0
+
         return HomographyMatrix(
             matrix=H_frame_to_pitch.tolist(),
             pitch_length_m=pitch_length,
             pitch_width_m=pitch_width,
             source="lightglue_auto",
             confidence=min(conf, inliers / max(len(kpts_frame), 1)),
-            error_px=0.0,
+            error_px=round(error, 2),
         )
 
     # ------------------------------------------------------------------
@@ -330,11 +351,32 @@ class LightGlueHomographyService:
         H_frame_to_pitch = H_ref @ H_frame_to_ref
         inliers = int(mask.sum())
 
+        # Compute reprojection error in pixels
+        if inliers >= 4:
+            try:
+                mask_bool = mask.flatten().astype(bool)
+                pts_frame = kpts_frame[mask_bool][:100]
+                pts_ref = kpts_ref[mask_bool][:100]
+                projected = cv2.perspectiveTransform(
+                    pts_frame.reshape(-1, 1, 2).astype(np.float32),
+                    H_frame_to_ref,
+                )
+                errors = np.linalg.norm(
+                    projected.reshape(-1, 2) - pts_ref, axis=1
+                )
+                error = float(np.mean(errors))
+            except Exception:
+                error = 999.0
+        else:
+            error = 999.0
+        if math.isnan(error) or error < 0:
+            error = 999.0
+
         return HomographyMatrix(
             matrix=H_frame_to_pitch.tolist(),
             pitch_length_m=ref_homography.pitch_length_m,
             pitch_width_m=ref_homography.pitch_width_m,
             source="lightglue_propagated",
             confidence=min(conf, inliers / max(len(kpts_frame), 1)),
-            error_px=0.0,
+            error_px=round(error, 2),
         )

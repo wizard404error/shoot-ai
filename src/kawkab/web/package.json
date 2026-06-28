@@ -1,0 +1,21 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "service-worker.js",
+  "scripts": {
+    "test": "jest",
+    "test:e2e": "npx playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "happy-dom": "^20.10.6",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "playwright": "^1.49.0"
+  }
+}

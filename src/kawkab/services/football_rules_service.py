@@ -21,6 +21,7 @@ from typing import Any
 
 import yaml
 
+from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -83,8 +84,8 @@ class FootballRulesService:
     helpers for event classification, offside detection, and restart lookup.
     """
 
-    PITCH_LENGTH = 105.0  # meters (IFAB standard)
-    PITCH_WIDTH = 68.0
+    PITCH_LENGTH = GAME.PITCH_LENGTH_M  # meters (IFAB standard)
+    PITCH_WIDTH = GAME.PITCH_WIDTH_M
     PENALTY_AREA_DEPTH = 16.5
     PENALTY_AREA_WIDTH = 40.32
     GOAL_AREA_DEPTH = 5.5

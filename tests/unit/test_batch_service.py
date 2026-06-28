@@ -7,6 +7,10 @@ import pytest
 from pathlib import Path
 import tempfile
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.batch_service import BatchService, BatchJob, BatchStatus
 from kawkab.services.storage_service import StorageService
 

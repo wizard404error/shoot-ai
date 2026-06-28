@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,8 +70,8 @@ class GoalkeeperService:
     faced, and compute comprehensive stats.
     """
 
-    PITCH_LENGTH = 105.0
-    PITCH_WIDTH = 68.0
+    PITCH_LENGTH = GAME.PITCH_LENGTH_M
+    PITCH_WIDTH = GAME.PITCH_WIDTH_M
     GK_AREA_DEPTH = 5.5
     SHORT_DIST_THRESHOLD = 25.0
     LONG_DIST_THRESHOLD = 50.0

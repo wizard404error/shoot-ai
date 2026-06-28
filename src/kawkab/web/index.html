@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
+            navigator.serviceWorker.register('sw.js');
         }
     </script>
 </head>
@@ -30,15 +30,54 @@
                 <span class="app-subtitle" data-i18n="app_subtitle">Football Coach</span>
             </div>
             <div class="header-right">
+                <div class="search-container">
+                    <input type="text" id="global-search" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="Search matches, players, events..." />
+                    <div id="search-results-dropdown" class="search-dropdown hidden"></div>
+                </div>
+                <div class="notif-wrapper">
+                    <button id="notification-bell" class="header-btn" title="Notifications">
+                        <span class="bell-icon">🔔</span>
+                        <span id="notification-count" class="notification-badge hidden">0</span>
+                    </button>
+                    <div id="notification-dropdown" class="notification-dropdown hidden">
+                        <div class="notification-header">
+                            <span>Notifications</span>
+                            <button id="notification-clear-all">Clear all</button>
+                        </div>
+                        <div class="notification-list"></div>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="theme-toggle-btn" title="Switch to light mode">🌙</button>
                 <select id="language-selector" class="lang-select">
-                    <option value="en">English</option>
-                    <option value="ar">العربية</option>
+                    <option value="en" data-i18n="langEn">English</option>
+                    <option value="ar" data-i18n="langAr">العربية</option>
                 </select>
-                <span id="llm-status" class="llm-status">🔴 LLM: Checking...</span>
+                <span id="llm-status" class="llm-status" data-i18n="llmChecking">🔴 LLM: Checking...</span>
                 <span id="gpu-status" class="gpu-status hidden">🎮 GPU: ...</span>
             </div>
         </header>
 
+        <div class="header-right-extras">
+            <div class="density-toggle" data-i18n-title="densityToggle">
+              <button class="density-btn" data-density="compact" title="Compact">⊞</button>
+              <button class="density-btn active" data-density="normal" title="Normal">⊟</button>
+              <button class="density-btn" data-density="spacious" title="Spacious">⊡</button>
+            </div>
+            <div class="color-palette-wrapper">
+              <button id="color-palette-btn" class="header-btn" title="Team Colors">🎨</button>
+              <div id="color-settings" class="color-settings hidden">
+                <div class="color-setting-row">
+                  <label data-i18n="homeTeamColor">Home Team</label>
+                  <input type="color" id="home-color" value="#2563eb" />
+                </div>
+                <div class="color-setting-row">
+                  <label data-i18n="awayTeamColor">Away Team</label>
+                  <input type="color" id="away-color" value="#dc2626" />
+                </div>
+                <button id="reset-colors-btn" class="btn btn-secondary btn-sm" data-i18n="resetColors">Reset</button>
+              </div>
+            </div>
+        </div>
         <div id="gpu-info-panel" class="gpu-info-panel hidden">
             <div class="gpu-info-card">
                 <h3>🎮 GPU Information</h3>
@@ -59,73 +98,221 @@
             </div>
         </div>
 
+        <nav class="nav-tabs" role="navigation" aria-label="Main navigation">
+            <button class="nav-tab active" data-route="dashboard" data-i18n="tab_dashboard">📊 Dashboard</button>
+            <button class="nav-tab" data-route="upload" data-i18n="tab_upload">📤 Upload</button>
+            <button class="nav-tab" data-route="history" data-i18n="tab_history">📚 History</button>
+            <button class="nav-tab" data-route="professional" data-i18n="tab_professional">🏆 Analytics</button>
+            <button class="nav-tab" data-route="coding" data-i18n="tab_coding">🎬 Coding</button>
+            <button class="nav-tab" data-route="review" data-i18n="tab_review">🔍 Review</button>
+            <button class="nav-tab" data-route="tactics" data-i18n="tab_tactics">🧠 Tactics</button>
+            <button class="nav-tab" data-route="ai" data-i18n="tab_ai">🤖 AI</button>
+            <button class="nav-tab" data-route="squad" data-i18n="tab_squad">👥 Squad</button>
+            <button class="nav-tab" data-route="season" data-i18n="tab_season">📅 Season</button>
+            <button class="nav-tab" data-route="training" data-i18n="tab_training">🏋️ Training</button>
+            <button class="nav-tab" data-route="scout" data-i18n="tab_scout">🔎 Scout</button>
+            <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
+        </nav>
+
         <main class="app-main" id="main-content" role="main">
-            <section id="upload-section" class="section">
-                <h2>📹 Upload Match Video</h2>
+            <section id="dashboard-section" class="section">
+                <div class="dashboard-header">
+                    <h2 data-i18n="dashboardTitle">📊 Dashboard</h2>
+                    <select id="dashboard-date-range" class="date-range-select">
+                        <option value="all" data-i18n="dashboardAllTime">All Time</option>
+                        <option value="7" data-i18n="dashboardLast7">Last 7 Days</option>
+                        <option value="30" data-i18n="dashboardLast30">Last 30 Days</option>
+                        <option value="90" data-i18n="dashboardLast90">Last 90 Days</option>
+                    </select>
+                </div>
+                <div class="kpi-grid" id="dashboard-kpis">
+                    <div class="kpi-card" data-tooltip="Total number of matches analyzed in the system">
+                        <div class="kpi-icon">📅</div>
+                        <div class="kpi-value" id="kpi-matches">0</div>
+                        <div class="kpi-label" data-i18n="kpiMatches">Matches</div>
+                        <div class="sparkline-container" id="spark-matches"></div>
+                    </div>
+                    <div class="kpi-card" data-tooltip="Total events detected across all matches (passes, shots, tackles, etc.)">
+                        <div class="kpi-icon">⚡</div>
+                        <div class="kpi-value" id="kpi-events">0</div>
+                        <div class="kpi-label" data-i18n="kpiEvents">Events</div>
+                        <div class="sparkline-container" id="spark-events"></div>
+                    </div>
+                    <div class="kpi-card" data-tooltip="Average expected goals (xG) per shot — measures shot quality">
+                        <div class="kpi-icon">🎯</div>
+                        <div class="kpi-value" id="kpi-avgxg">0.00</div>
+                        <div class="kpi-label" data-i18n="kpiAvgXg">Avg xG</div>
+                        <div class="sparkline-container" id="spark-avgxg"></div>
+                    </div>
+                    <div class="kpi-card" data-tooltip="Percentage of matches won out of total matches played">
+                        <div class="kpi-icon">🏆</div>
+                        <div class="kpi-value" id="kpi-winrate">0%</div>
+                        <div class="kpi-label" data-i18n="kpiWinRate">Win Rate</div>
+                        <div class="sparkline-container" id="spark-winrate"></div>
+                    </div>
+                    <div class="kpi-card" data-tooltip="Passes Per Defensive Action — lower values indicate more aggressive pressing">
+                        <div class="kpi-icon">🛡️</div>
+                        <div class="kpi-value" id="kpi-ppda">0.0</div>
+                        <div class="kpi-label" data-i18n="kpiPpda">PPDA</div>
+                        <div class="sparkline-container" id="spark-ppda"></div>
+                    </div>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="dashboard-card" id="dashboard-recent-matches">
+                        <h3 data-i18n="recentMatches">📋 Recent Matches</h3>
+                        <div id="dashboard-recent-list" class="dashboard-empty" data-i18n="noMatches">No matches yet. Upload your first match above!</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3 data-i18n="quickActions">⚡ Quick Actions</h3>
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" data-action="upload" data-i18n="uploadVideo">
+                                <span class="quick-action-icon">📤</span>
+                                <span data-i18n="uploadVideo">Upload Video</span>
+                            </button>
+                            <button class="quick-action-btn" data-action="analyze" data-i18n="analyzeMatch">
+                                <span class="quick-action-icon">🔍</span>
+                                <span data-i18n="analyzeMatch">Analyze Match</span>
+                            </button>
+                            <button class="quick-action-btn" data-action="compare" data-i18n="btn_compare">
+                                <span class="quick-action-icon">🔄</span>
+                                <span data-i18n="btn_compare">Compare</span>
+                            </button>
+                            <button class="quick-action-btn" data-action="report" data-i18n="generateReport">
+                                <span class="quick-action-icon">📋</span>
+                                <span data-i18n="generateReport">Generate Report</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="dashboard-card dashboard-card-full">
+                        <h3 data-i18n="seasonOverview">📊 Season Overview</h3>
+                        <div class="season-splits">
+                            <div class="season-split-card">
+                                <div class="season-split-label" data-i18n="homeGames">Home</div>
+                                <div class="season-split-value" id="dash-home-count">0</div>
+                                <div class="season-split-sub" id="dash-home-detail" data-i18n="homeDetail">matches</div>
+                            </div>
+                            <div class="season-split-card">
+                                <div class="season-split-label" data-i18n="awayGames">Away</div>
+                                <div class="season-split-value" id="dash-away-count">0</div>
+                                <div class="season-split-sub" id="dash-away-detail" data-i18n="awayDetail">matches</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="upload-section" class="section hidden">
+                <h2 data-i18n="uploadTitle">📹 Upload Match Video</h2>
                 <div id="drop-zone" class="drop-zone">
-                    <p>Drag & drop your match video here</p>
-                    <p>or</p>
-                    <button id="browse-btn" class="btn btn-primary">Browse Files</button>
-                    <p class="hint">Supports MP4, MOV, AVI (up to 4GB)</p>
+                    <p data-i18n="dragDrop">Drag & drop your match video here</p>
+                    <p data-i18n="or">or</p>
+                    <button id="browse-btn" class="btn btn-primary" data-i18n="browse">Browse Files</button>
+                    <p class="hint" data-i18n="supportsHint">Supports MP4, MOV, AVI (up to 4GB)</p>
                 </div>
                 <input type="file" id="file-input" accept="video/*" hidden>
             </section>
 
             <section id="analysis-section" class="section hidden">
-                <h2>⚙️ Analysis</h2>
+                <h2 data-i18n="analysisTitle">⚙️ Analysis</h2>
                 <div class="analysis-controls">
-                    <input type="text" id="match-name" placeholder="Match name (e.g., Team A vs Team B)" class="input">
+                    <input type="text" id="match-name" data-i18n-placeholder="matchNamePlaceholder" placeholder="Match name (e.g., Team A vs Team B)" class="input">
                     <div class="checkbox-group">
-                        <label><input type="checkbox" id="enable-stabilization" checked> Stabilize video</label>
-                        <label><input type="checkbox" id="enable-denoising" checked> Reduce noise</label>
-                        <label><input type="checkbox" id="enable-sharpening" checked> Sharpen</label>
+                        <label data-tooltip="Reduces camera shake for smoother tracking"><input type="checkbox" id="enable-stabilization" checked> <span data-i18n="stabilizeVideo">Stabilize video</span></label>
+                        <label data-tooltip="Applies noise reduction filter to improve detection"><input type="checkbox" id="enable-denoising" checked> <span data-i18n="reduceNoise">Reduce noise</span></label>
+                        <label data-tooltip="Sharpens video frames for clearer player boundaries"><input type="checkbox" id="enable-sharpening" checked> <span data-i18n="sharpen">Sharpen</span></label>
                     </div>
-                    <button id="analyze-btn" class="btn btn-primary btn-large">🚀 Analyze Match</button>
+                    <button id="analyze-btn" class="btn btn-primary btn-large" data-i18n="analyze" data-tooltip="Start processing the uploaded match video with selected options">🚀 Analyze Match</button>
                 </div>
                 <div id="progress-container" class="progress-container hidden">
                     <div id="progress-bar" class="progress-bar">
                         <div id="progress-fill" class="progress-fill"></div>
                     </div>
-                    <p id="progress-message" class="progress-message">Initializing...</p>
+                    <p id="progress-message" class="progress-message" data-i18n="initializing">Initializing...</p>
                 </div>
             </section>
 
-            <section id="results-section" class="section hidden">
-                <h2>Analysis Results</h2>
+            <section id="results-section" class="section hidden" aria-live="polite">
+                <h2 data-i18n="resultsTitle">📊 Analysis Results</h2>
                 <div class="results-layout">
                     <div class="results-main">
                         <div class="video-player-container">
                             <div class="video-wrapper">
                                 <video id="match-video" controls></video>
                                 <canvas id="overlay-canvas"></canvas>
+                                <canvas id="telestrate-canvas" class="telestrate-canvas"></canvas>
                             </div>
                             <div class="overlay-controls">
-                                <label><input type="checkbox" id="toggle-overlay" checked> Overlay</label>
-                                <label><input type="checkbox" id="show-labels" checked> Labels</label>
-                                <label><input type="checkbox" id="show-ball-trail" checked> Ball trail</label>
+                                <label><input type="checkbox" id="toggle-overlay" checked> <span data-i18n="overlayToggle">Overlay</span></label>
+                                <label><input type="checkbox" id="show-labels" checked> <span data-i18n="labelsToggle">Labels</span></label>
+                                <label><input type="checkbox" id="show-ball-trail" checked> <span data-i18n="ballTrailToggle">Ball trail</span></label>
+                                <span class="telestrate-separator">|</span>
+                                <button id="telestrate-toggle-btn" class="btn btn-sm btn-secondary" data-i18n="telestrateToggle">✏️ Draw</button>
+                            </div>
+                            <div id="telestrate-toolbar" class="telestrate-toolbar hidden">
+                                <button class="telestrate-tool active" data-tool="arrow" title="Arrow">➡️</button>
+                                <button class="telestrate-tool" data-tool="circle" title="Circle">⭕</button>
+                                <button class="telestrate-tool" data-tool="rect" title="Rectangle">⬜</button>
+                                <button class="telestrate-tool" data-tool="line" title="Line">📏</button>
+                                <button class="telestrate-tool" data-tool="freehand" title="Freehand">✏️</button>
+                                <button class="telestrate-tool" data-tool="highlight" title="Highlighter">🖍️</button>
+                                <button class="telestrate-tool" data-tool="text" title="Text">🔤</button>
+                                <input type="color" id="telestrate-color" value="#ff0000" class="telestrate-color" title="Color">
+                                <input type="range" id="telestrate-width" min="1" max="12" value="3" class="telestrate-width" title="Stroke width">
+                                <button id="telestrate-undo-btn" class="btn btn-sm btn-secondary" title="Undo">↩️</button>
+                                <button id="telestrate-redo-btn" class="btn btn-sm btn-secondary" title="Redo">↪️</button>
+                                <button id="telestrate-clear-btn" class="btn btn-sm btn-danger" title="Clear All">🗑️</button>
+                                <button id="telestrate-save-btn" class="btn btn-sm btn-primary" title="Save PNG">💾</button>
+                            </div>
+                            <div id="timeline-scrubber" class="timeline-scrubber">
+                              <canvas id="scrubber-canvas" width="800" height="40"></canvas>
+                              <div class="scrubber-range">
+                                <div class="scrubber-handle scrubber-handle-left" id="scrub-handle-left"></div>
+                                <div class="scrubber-handle scrubber-handle-right" id="scrub-handle-right"></div>
+                                <div class="scrubber-range-highlight" id="scrubber-range-highlight"></div>
+                              </div>
+                              <div class="scrubber-labels">
+                                <span>0'</span><span>15'</span><span>30'</span><span>45'</span><span>60'</span><span>75'</span><span>90+'</span>
+                              </div>
                             </div>
                         </div>
                         <div class="results-grid">
                             <div class="result-card">
-                                <h3>Match Summary</h3>
-                                <div id="match-summary" class="match-summary"></div>
+                                <h3 data-i18n="matchSummary" data-tooltip="Duration, player count, and event totals from the match analysis">Match Summary</h3>
+                                <div id="match-summary" class="match-summary" aria-live="polite"></div>
                             </div>
                             <div class="result-card">
-                                <h3>Possession</h3>
+                                <h3 data-i18n="possession" data-tooltip="Percentage of time each team controlled the ball">Possession</h3>
                                 <div id="possession-chart" class="chart"></div>
                             </div>
                             <div class="result-card">
-                                <h3>Home Team Stats</h3>
+                                <h3 data-i18n="homeStats" data-tooltip="Passes, shots, possession, and other metrics for the home team">Home Team Stats</h3>
                                 <div id="home-stats" class="stats-list"></div>
                             </div>
                             <div class="result-card">
-                                <h3>Away Team Stats</h3>
+                                <h3 data-i18n="awayStats" data-tooltip="Passes, shots, possession, and other metrics for the away team">Away Team Stats</h3>
                                 <div id="away-stats" class="stats-list"></div>
+                            </div>
+                            <!-- Chart containers for JS-rendered charts -->
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Momentum index over match time — positive values favor home, negative favor away">Momentum Index</h3>
+                                <div style="height:220px"><canvas id="momentum-canvas"></canvas></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Win probability estimated from historical data and current match state">Win Probability</h3>
+                                <div style="height:220px"><canvas id="winprob-canvas"></canvas></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Expected goals (xG) timeline — vertical lines mark goal events">xG Timeline</h3>
+                                <div style="height:220px"><canvas id="xg-timeline-canvas"></canvas></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Player attribute radar chart — values range 0-1">Player Radar</h3>
+                                <div style="height:220px"><canvas id="radar-canvas"></canvas></div>
                             </div>
                         </div>
 
                         <div class="confidence-indicator">
-                            <span>Overall Confidence: </span>
+                            <span data-i18n="overallConfidence">Overall Confidence: </span>
                             <span id="confidence-value" class="confidence-value"></span>
                             <div id="confidence-bar" class="confidence-bar"></div>
                         </div>
@@ -299,13 +486,15 @@
                                     <div id="sb-team-results" class="fd-search-results hidden"></div>
                                 </div>
                                 <hr style="margin: 12px 0; border-color: #e2e8f0;">
-                                <div class="form-row">
-                                    <input type="number" id="sb-match-id" placeholder="Match ID (e.g., 3869151)" class="input" style="flex: 0.4;">
-                                    <button id="sb-events-btn" class="btn btn-secondary">Events + xG</button>
-                                    <button id="sb-lineups-btn" class="btn btn-secondary">Lineups</button>
-                                </div>
+                                    <div class="form-row">
+                                        <input type="number" id="sb-match-id" placeholder="Match ID (e.g., 3869151)" class="input" style="flex: 0.4;">
+                                        <button id="sb-events-btn" class="btn btn-secondary">Events + xG</button>
+                                        <button id="sb-lineups-btn" class="btn btn-secondary">Lineups</button>
+                                        <button id="sb-import-btn" class="btn btn-primary">Import to DB</button>
+                                    </div>
                                 <div id="sb-events-result" class="feedback-result" style="margin-top:8px"></div>
                                 <div id="sb-lineups-result" class="feedback-result" style="margin-top:8px"></div>
+                                <div id="sb-import-result" class="feedback-result" style="margin-top:8px"></div>
                             </div>
                         </div>
 
@@ -518,13 +707,13 @@
                         </div>
 
                         <div id="pro-analytics-section" class="benchmark-section">
-                            <h3 data-i18n="section_pro">🏆 Pro Analytics</h3>
+                            <h3 data-i18n="section_pro" data-tooltip="Advanced analytical tools: set pieces, goalkeeping, substitutions, possession, and post-shot xG">🏆 Pro Analytics</h3>
                             <div class="form-row" style="margin-bottom:8px">
-                                <button id="pro-setpiece-btn" class="btn btn-secondary">Set-Piece Analysis</button>
-                                <button id="pro-goalkeeper-btn" class="btn btn-secondary">Goalkeeper Report</button>
-                                <button id="pro-substitution-btn" class="btn btn-secondary">Substitution Impact</button>
-                                <button id="pro-possession-btn" class="btn btn-secondary">Detailed Possession</button>
-                                <button id="pro-xgot-btn" class="btn btn-secondary">Compute xGOT</button>
+                                <button id="pro-setpiece-btn" class="btn btn-secondary" data-tooltip="Analyze corner kicks, free kicks, and throw-in patterns">Set-Piece Analysis</button>
+                                <button id="pro-goalkeeper-btn" class="btn btn-secondary" data-tooltip="Shot-stopping performance, positioning, and distribution report">Goalkeeper Report</button>
+                                <button id="pro-substitution-btn" class="btn btn-secondary" data-tooltip="Evaluate impact of substitutions on match momentum and scoreline">Substitution Impact</button>
+                                <button id="pro-possession-btn" class="btn btn-secondary" data-tooltip="Detailed breakdown of possession by zone, phase, and player">Detailed Possession</button>
+                                <button id="pro-xgot-btn" class="btn btn-secondary" data-tooltip="Compute post-shot expected goals (xGOT) from shot locations">Compute xGOT</button>
                             </div>
                             <div id="pro-result" class="feedback-result" style="margin-top:8px"></div>
                         </div>
@@ -571,29 +760,29 @@
                         </div>
 
                         <div class="actions">
-                            <button id="generate-report-btn" class="btn btn-primary">Generate Coach Report</button>
-                            <button id="export-pdf-btn" class="btn btn-secondary">Export PDF</button>
-                            <button id="extract-clips-btn" class="btn btn-secondary">Extract Clips</button>
-                            <button id="swap-teams-btn" class="btn btn-secondary">Swap Teams</button>
-                            <button id="generate-viz-btn" class="btn btn-secondary">Visualizations</button>
+                            <button id="generate-report-btn" class="btn btn-primary" data-i18n="generateReport">Generate Coach Report</button>
+                            <button id="export-pdf-btn" class="btn btn-secondary" data-i18n="exportPdf">Export PDF</button>
+                            <button id="extract-clips-btn" class="btn btn-secondary" data-i18n="extractClipsBtn">Extract Clips</button>
+                            <button id="swap-teams-btn" class="btn btn-secondary" data-i18n="swapTeamsBtn">Swap Teams</button>
+                            <button id="generate-viz-btn" class="btn btn-secondary" data-i18n="generateVizBtn">Visualizations</button>
                         </div>
 
                         <div id="visualization-section" class="benchmark-section hidden">
-                            <h3>Visualizations</h3>
+                            <h3 data-i18n="vizTitle">Visualizations</h3>
                             <div class="viz-grid">
                                 <div class="viz-card">
-                                    <h4>Pass Network</h4>
+                                    <h4 data-i18n="passNetwork">Pass Network</h4>
                                     <img id="pass-network-img" class="viz-img" alt="Pass network">
                                 </div>
                                 <div class="viz-card">
-                                    <h4>Position Heatmap</h4>
+                                    <h4 data-i18n="positionHeatmap">Position Heatmap</h4>
                                     <img id="heatmap-img" class="viz-img" alt="Heatmap">
                                 </div>
                             </div>
                         </div>
 
                         <div id="tactical-sandbox-section" class="benchmark-section">
-                            <h3>⚽ Tactical Sandbox (matter.js)</h3>
+                            <h3 data-i18n="tacticalSandbox">⚽ Tactical Sandbox (matter.js)</h3>
                             <div class="form-row">
                                 <select id="sandbox-formation" class="input" style="flex:1">
                                     <option value="4-4-2">4-4-2</option>
@@ -605,7 +794,7 @@
                                 <button id="sandbox-press-btn" class="btn btn-primary">Press Ball</button>
                             </div>
                             <div class="form-row" style="margin-top:8px">
-                                <span style="font-size:0.8rem;color:var(--text-muted)">
+                                <span style="font-size:0.8rem;color:var(--text-muted)" data-i18n="sandboxHint">
                                     Drag player tokens to reposition. Click "Press Ball" to simulate pressing motion.
                                 </span>
                             </div>
@@ -617,185 +806,428 @@
                     </div>
                     <aside id="timeline-sidebar" class="timeline-sidebar">
                         <div class="timeline-header">
-                            <h3>Event Timeline</h3>
+                            <h3 data-i18n="timelineTitle">Event Timeline</h3>
                             <div class="timeline-filter">
                                 <select id="timeline-filter-type">
-                                    <option value="all">All Events</option>
-                                    <option value="shot">Shots</option>
-                                    <option value="goal">Goals</option>
-                                    <option value="pass">Passes</option>
-                                    <option value="tackle">Tackles</option>
-                                    <option value="corner">Corners</option>
-                                    <option value="free_kick">Free Kicks</option>
-                                    <option value="throw_in">Throw Ins</option>
+                                    <option value="all" data-i18n="timelineFilterAll">All Events</option>
+                                    <option value="shot" data-i18n="timelineFilterShots">Shots</option>
+                                    <option value="goal" data-i18n="timelineFilterGoals">Goals</option>
+                                    <option value="pass" data-i18n="timelineFilterPasses">Passes</option>
+                                    <option value="tackle" data-i18n="timelineFilterTackles">Tackles</option>
+                                    <option value="corner" data-i18n="timelineFilterCorners">Corners</option>
+                                    <option value="free_kick" data-i18n="timelineFilterFreeKicks">Free Kicks</option>
+                                    <option value="throw_in" data-i18n="timelineFilterThrowIns">Throw Ins</option>
                                 </select>
                             </div>
                         </div>
-                        <div id="timeline-list" class="timeline-list">
-                            <div class="timeline-empty">No events loaded</div>
+                        <div class="timeline-controls">
+                            <div class="view-toggle" role="group" aria-label="View mode">
+                                <button class="view-toggle-btn active" data-view="timeline" data-i18n="viewTimeline">Timeline</button>
+                                <button class="view-toggle-btn" data-view="table" data-i18n="viewTable">Table</button>
+                            </div>
+                            <input type="text" id="timeline-search" class="timeline-search-input" data-i18n-placeholder="searchEvents" placeholder="Search events..." />
+                        </div>
+                        <div id="timeline-filter-banner" class="timeline-filter-banner hidden">
+                            <span id="filter-banner-text"></span>
+                            <button id="filter-banner-clear" class="btn btn-sm btn-secondary" data-i18n="clearFilter">Clear</button>
+                        </div>
+                        <div id="timeline-list" class="timeline-list" aria-live="polite">
+                            <div class="timeline-empty" data-i18n="timelineEmpty">No events loaded</div>
+                        </div>
+                        <div id="timeline-table-wrapper" class="table-wrapper hidden"></div>
+                        <div id="batch-action-bar" class="batch-action-bar hidden">
+                            <span id="batch-count" class="batch-count">0 selected</span>
+                            <button id="batch-delete-btn" class="btn btn-danger btn-sm">Delete</button>
+                            <button id="batch-export-csv-btn" class="btn btn-secondary btn-sm">Export CSV</button>
+                            <button id="batch-export-json-btn" class="btn btn-secondary btn-sm">Export JSON</button>
                         </div>
                     </aside>
                 </div>
                 <div id="edit-event-modal" class="modal hidden">
                     <div class="modal-content">
-                        <h3>Edit Event</h3>
+                        <h3 data-i18n="editEventTitle">Edit Event</h3>
                         <div class="modal-body">
-                            <label>Event Type:
+                            <label><span data-i18n="editEventType">Event Type:</span>
                                 <select id="edit-event-type">
-                                    <option value="pass">Pass</option>
-                                    <option value="shot">Shot</option>
-                                    <option value="goal">Goal</option>
-                                    <option value="tackle">Tackle</option>
-                                    <option value="interception">Interception</option>
-                                    <option value="dribble">Dribble</option>
-                                    <option value="corner">Corner</option>
-                                    <option value="free_kick">Free Kick</option>
-                                    <option value="throw_in">Throw In</option>
-                                    <option value="clearance">Clearance</option>
-                                    <option value="cross">Cross</option>
-                                    <option value="carry">Carry</option>
-                                    <option value="duel">Duel</option>
+                                    <option value="pass" data-i18n="eventTypePass">Pass</option>
+                                    <option value="shot" data-i18n="eventTypeShot">Shot</option>
+                                    <option value="goal" data-i18n="eventTypeGoal">Goal</option>
+                                    <option value="tackle" data-i18n="eventTypeTackle">Tackle</option>
+                                    <option value="interception" data-i18n="eventTypeInterception">Interception</option>
+                                    <option value="dribble" data-i18n="eventTypeDribble">Dribble</option>
+                                    <option value="corner" data-i18n="eventTypeCorner">Corner</option>
+                                    <option value="free_kick" data-i18n="eventTypeFreeKick">Free Kick</option>
+                                    <option value="throw_in" data-i18n="eventTypeThrowIn">Throw In</option>
+                                    <option value="clearance" data-i18n="eventTypeClearance">Clearance</option>
+                                    <option value="cross" data-i18n="eventTypeCross">Cross</option>
+                                    <option value="carry" data-i18n="eventTypeCarry">Carry</option>
+                                    <option value="duel" data-i18n="eventTypeDuel">Duel</option>
                                 </select>
                             </label>
-                            <label>Team:
+                            <label><span data-i18n="editEventTeam">Team:</span>
                                 <select id="edit-event-team">
-                                    <option value="home">Home</option>
-                                    <option value="away">Away</option>
-                                    <option value="unknown">Unknown</option>
+                                    <option value="home" data-i18n="teamHome">Home</option>
+                                    <option value="away" data-i18n="teamAway">Away</option>
+                                    <option value="unknown" data-i18n="teamUnknown">Unknown</option>
                                 </select>
                             </label>
-                            <label>Note (optional):
-                                <input type="text" id="edit-event-note" placeholder="Coach note...">
+                            <label><span data-i18n="editEventNote">Note (optional):</span>
+                                <input type="text" id="edit-event-note" data-i18n-placeholder="editEventNotePlaceholder" placeholder="Coach note...">
                             </label>
                             <input type="hidden" id="edit-event-id" value="">
                         </div>
                         <div class="modal-actions">
-                            <button id="edit-event-save" class="btn btn-primary">Save</button>
-                            <button id="edit-event-cancel" class="btn btn-secondary">Cancel</button>
+                            <button id="edit-event-save" class="btn btn-primary" data-i18n="btnSave">Save</button>
+                            <button id="edit-event-cancel" class="btn btn-secondary" data-i18n="btnCancel">Cancel</button>
                         </div>
                     </div>
                 </div>
             </section>
 
             <section id="calibration-section" class="section hidden">
-                <h2>Camera Calibration</h2>
-                <p>Set up the camera-to-pitch transformation for accurate spatial stats.</p>
+                <h2 data-i18n="calibrationTitle">Camera Calibration</h2>
+                <p data-i18n="calibrationDesc">Set up the camera-to-pitch transformation for accurate spatial stats.</p>
                 <div class="calibration-area">
                     <canvas id="calibration-canvas"></canvas>
                     <div class="calibration-info">
-                        <p>Clicks: <span id="clicks-count">0</span>/4</p>
-                        <p id="calibration-status">Click corner 1: Top-Left of Pitch</p>
+                        <p><span data-i18n="calibrationClicksLabel">Clicks: </span><span id="clicks-count">0</span><span data-i18n="calibrationClicksDivider">/4</span></p>
+                        <p id="calibration-status" data-i18n="calibrationStep1">Click corner 1: Top-Left of Pitch</p>
                         <div class="calibration-buttons">
-                            <button id="calibration-save" class="btn btn-primary" disabled>Save Calibration</button>
-                            <button id="calibration-skip" class="btn btn-secondary">Auto Estimate</button>
-                            <button id="calibration-lightglue" class="btn btn-secondary">Auto via AI Matching</button>
-                            <button id="calibration-reset" class="btn btn-secondary">Reset</button>
+                            <button id="calibration-save" class="btn btn-primary" disabled data-i18n="calibrationSaveBtn">Save Calibration</button>
+                            <button id="calibration-skip" class="btn btn-secondary" data-i18n="calibrationEstimateBtn">Auto Estimate</button>
+                            <button id="calibration-lightglue" class="btn btn-secondary" data-i18n="calibrationAiBtn">Auto via AI Matching</button>
+                            <button id="calibration-reset" class="btn btn-secondary" data-i18n="calibrationResetBtn">Reset</button>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section id="report-section" class="section hidden">
-                <h2>Coach Report</h2>
+            <section id="report-section" class="section hidden" aria-live="polite">
+                <h2 data-i18n="reportTitle">Coach Report</h2>
                 <div id="report-content" class="report-content"></div>
             </section>
 
             <section id="history-section" class="section">
-                <h2>📚 Match History</h2>
+                <h2 data-i18n="historyTitle">📚 Match History</h2>
                 <div id="match-list" class="match-list"></div>
             </section>
 
             <section id="professional-section" class="section">
-                <h2>🏆 Professional Analytics</h2>
+                <h2 data-i18n="proAnalyticsTitle">🏆 Professional Analytics</h2>
 
                 <div class="tabs">
-                    <button class="tab-btn active" data-tab="players-tab">Player Profiles</button>
-                    <button class="tab-btn" data-tab="compare-tab">Match Comparison</button>
-                    <button class="tab-btn" data-tab="export-tab">Export Data</button>
+                    <button class="tab-btn active" data-tab="players-tab" data-i18n="tabPlayerProfiles">Player Profiles</button>
+                    <button class="tab-btn" data-tab="compare-tab" data-i18n="tabMatchComparison">Match Comparison</button>
+                    <button class="tab-btn" data-tab="export-tab" data-i18n="tabExportData">Export Data</button>
                 </div>
 
                 <div id="players-tab" class="tab-content active">
                     <div class="pro-card">
-                        <h3>Create Player Profile</h3>
+                        <h3 data-i18n="createProfileBtn">Create Player Profile</h3>
                         <div class="form-row">
-                            <input type="text" id="player-name" placeholder="Player name" class="input">
-                            <input type="number" id="player-jersey" placeholder="Jersey #" class="input" min="0" max="99">
-                            <input type="text" id="player-position" placeholder="Position (e.g., FW, MF, DF)" class="input">
-                            <button id="create-player-btn" class="btn btn-primary">Create Profile</button>
+                            <input type="text" id="player-name" data-i18n-placeholder="displayName" placeholder="Player name" class="input">
+                            <input type="number" id="player-jersey" data-i18n-placeholder="jerseyNumber" placeholder="Jersey #" class="input" min="0" max="99">
+                            <input type="text" id="player-position" data-i18n-placeholder="position" placeholder="Position (e.g., FW, MF, DF)" class="input">
+                            <button id="create-player-btn" class="btn btn-primary" data-i18n="createProfileBtn">Create Profile</button>
                         </div>
                     </div>
                     <div class="pro-card">
-                        <h3>Player Roster</h3>
+                        <h3 data-i18n="playerProfilesTitle">Player Roster</h3>
+                        <div class="timeline-controls">
+                            <div class="view-toggle" role="group" aria-label="Roster view mode">
+                                <button class="view-toggle-btn active" data-view="roster-cards" data-i18n="viewCards">Cards</button>
+                                <button class="view-toggle-btn" data-view="roster-table" data-i18n="viewTable">Table</button>
+                            </div>
+                            <input type="text" id="roster-search" class="timeline-search-input" data-i18n-placeholder="searchRoster" placeholder="Search players..." />
+                        </div>
                         <div id="player-roster" class="roster-list">
-                            <p class="hint">No players yet. Create your first profile above.</p>
+                            <p class="hint" data-i18n="playerSelectHint">No players yet. Create your first profile above.</p>
                         </div>
+                        <div id="player-roster-table-wrapper" class="table-wrapper hidden"></div>
                     </div>
                     <div class="pro-card">
-                        <h3>Face Gallery</h3>
-                        <p class="hint">Upload team photos to identify players by face in match footage.</p>
+                        <h3 data-i18n="faceGalleryTitle">Face Gallery</h3>
+                        <p class="hint" data-i18n="faceGalleryHint">Upload team photos to identify players by face in match footage.</p>
                         <div class="form-row">
                             <input type="file" id="face-photo-input" accept="image/*" class="input">
-                            <input type="number" id="face-jersey-input" placeholder="Jersey #" class="input" min="0" max="99">
-                            <input type="text" id="face-name-input" placeholder="Player name" class="input">
-                            <button id="upload-face-btn" class="btn btn-primary">Upload & Detect Face</button>
+                            <input type="number" id="face-jersey-input" data-i18n-placeholder="jerseyNumber" placeholder="Jersey #" class="input" min="0" max="99">
+                            <input type="text" id="face-name-input" data-i18n-placeholder="displayName" placeholder="Player name" class="input">
+                            <button id="upload-face-btn" class="btn btn-primary" data-i18n="uploadFaceBtn">Upload & Detect Face</button>
                         </div>
                         <div id="face-gallery" class="roster-list"></div>
                         <div class="form-row" style="margin-top: 8px;">
-                            <button id="match-faces-btn" class="btn btn-secondary">Run Face Recognition on Current Match</button>
+                            <button id="match-faces-btn" class="btn btn-secondary" data-i18n="matchFacesBtn">Run Face Recognition on Current Match</button>
                         </div>
                     </div>
                 </div>
 
                 <div id="compare-tab" class="tab-content">
                     <div class="pro-card">
-                        <h3>Compare Two Matches</h3>
+                        <h3 data-i18n="matchComparisonTitle">Compare Two Matches</h3>
                         <div class="form-row">
                             <select id="compare-match-1" class="input">
-                                <option value="">Select Match 1</option>
+                                <option value="" data-i18n="compareSelectMatch1">Select Match 1</option>
                             </select>
                             <select id="compare-match-2" class="input">
-                                <option value="">Select Match 2</option>
+                                <option value="" data-i18n="compareSelectMatch2">Select Match 2</option>
                             </select>
-                            <input type="text" id="compare-focus" placeholder="Focus area (e.g., possession, shots)" class="input">
-                            <button id="compare-btn" class="btn btn-primary">Compare</button>
+                            <input type="text" id="compare-focus" data-i18n-placeholder="compareFocus" placeholder="Focus area (e.g., possession, shots)" class="input">
+                            <button id="compare-btn" class="btn btn-primary" data-i18n="compareBtn">Compare</button>
                         </div>
                     </div>
                     <div class="pro-card">
-                        <h3>Comparison Results</h3>
+                        <h3 data-i18n="comparisonResultsTitle">Comparison Results</h3>
                         <div id="comparison-results" class="comparison-results">
-                            <p class="hint">Select two matches and click Compare to see tactical differences.</p>
+                            <p class="hint" data-i18n="compareHint">Select two matches and click Compare to see tactical differences.</p>
+                        </div>
+                    </div>
+
+                    <div class="pro-card">
+                        <h3 data-i18n="playerComparisonTitle">Player Comparison</h3>
+                        <div class="player-compare-mode">
+                            <button class="tab-btn active" data-pc-mode="match" data-i18n="pcMatchMode">Match Comparison</button>
+                            <button class="tab-btn" data-pc-mode="player" data-i18n="pcPlayerMode">Player Comparison</button>
+                        </div>
+                        <div id="pc-match-mode">
+                            <p class="hint">Use the match comparison panel above.</p>
+                        </div>
+                        <div id="pc-player-mode" class="hidden">
+                            <div class="form-row pc-selectors">
+                                <select id="pc-player-a" class="input">
+                                    <option value="" data-i18n="pcSelectPlayerA">Select Player A</option>
+                                </select>
+                                <span class="pc-vs-badge" data-i18n="pcVs">vs</span>
+                                <select id="pc-player-b" class="input">
+                                    <option value="" data-i18n="pcSelectPlayerB">Select Player B</option>
+                                </select>
+                                <button id="pc-compare-btn" class="btn btn-primary" data-i18n="pcCompareBtn">Compare</button>
+                            </div>
+                            <div id="pc-results" class="hidden">
+                                <div class="pc-radar-grid">
+                                    <div class="pro-card">
+                                        <h4 id="pc-radar-a-title" data-i18n="pcPlayerA">Player A</h4>
+                                        <canvas id="pc-radar-a-canvas" class="pc-radar-canvas"></canvas>
+                                    </div>
+                                    <div class="pro-card">
+                                        <h4 id="pc-radar-b-title" data-i18n="pcPlayerB">Player B</h4>
+                                        <canvas id="pc-radar-b-canvas" class="pc-radar-canvas"></canvas>
+                                    </div>
+                                </div>
+                                <div class="pro-card">
+                                    <h4 data-i18n="pcStatTable">Stat Comparison</h4>
+                                    <div id="pc-stat-table-wrapper" class="pc-table-wrapper"></div>
+                                </div>
+                                <div class="pro-card">
+                                    <h4 data-i18n="pcInsights">Key Insights</h4>
+                                    <div id="pc-insights" class="pc-insights"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div id="export-tab" class="tab-content">
                     <div class="pro-card">
-                        <h3>Export Match Data</h3>
+                        <h3 data-i18n="exportDataTitle">Export Match Data</h3>
                         <div class="form-row">
                             <select id="export-match-select" class="input">
-                                <option value="">Select Match</option>
+                                <option value="" data-i18n="exportSelectMatch">Select Match</option>
                             </select>
-                            <button id="export-csv-btn" class="btn btn-primary">Export CSV</button>
-                            <button id="export-json-btn" class="btn btn-secondary">Export JSON</button>
+                            <button id="export-csv-btn" class="btn btn-primary" data-i18n="exportCsvBtn">Export CSV</button>
+                            <button id="export-json-btn" class="btn btn-secondary" data-i18n="exportJsonBtn">Export JSON</button>
                         </div>
                     </div>
                     <div class="pro-card">
-                        <h3>Quality Report</h3>
+                        <h3 data-i18n="qualityReportTitle">Quality Report</h3>
                         <div class="form-row">
                             <select id="quality-match-select" class="input">
-                                <option value="">Select Match</option>
+                                <option value="" data-i18n="exportSelectMatch">Select Match</option>
                             </select>
-                            <button id="quality-report-btn" class="btn btn-primary">Get Quality Report</button>
+                            <button id="quality-report-btn" class="btn btn-primary" data-i18n="qualityReportBtn">Get Quality Report</button>
                         </div>
                         <div id="quality-results" class="quality-results"></div>
                     </div>
                 </div>
             </section>
 
+            <section id="review-section" class="section hidden">
+                <div class="review-toolbar">
+                    <h2><span data-i18n="reviewTitle">🔍 Event Review</span></h2>
+                    <div class="review-match-select">
+                        <select id="review-match-select" class="input">
+                            <option value="">-- Select Match --</option>
+                        </select>
+                        <span id="review-match-status" class="review-status"></span>
+                    </div>
+                    <div class="review-toolbar-actions">
+                        <button id="review-load-btn" class="btn btn-primary" data-i18n="reviewLoad">📂 Load Events</button>
+                        <button id="review-auto-advance-btn" class="btn btn-secondary" data-i18n="reviewAutoAdvance">⏩ Auto-Advance</button>
+                    </div>
+                </div>
+                <div id="review-empty-state" class="review-empty">
+                    <p data-i18n="reviewEmptyText">Select a match and click "Load Events" to review auto-detected events.</p>
+                </div>
+                <div id="review-workspace" class="review-workspace hidden">
+                    <div class="review-left">
+                        <div class="review-summary-card" id="review-summary-card">
+                            <h3 data-i18n="reviewSummary">📊 Detection Summary</h3>
+                            <div id="review-summary-content">
+                                <div class="review-summary-loading" data-i18n="reviewLoading">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="review-event-queue">
+                            <h3 data-i18n="reviewQueue">📋 Events Needing Review</h3>
+                            <div class="review-queue-filter">
+                                <select id="review-type-filter" class="input review-input-sm">
+                                    <option value="">All Types</option>
+                                </select>
+                                <span class="review-queue-count" id="review-queue-count">0</span>
+                            </div>
+                            <div class="review-queue-list" id="review-queue-list">
+                                <div class="review-queue-empty" data-i18n="reviewNoEvents">All events reviewed! 🎉</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="review-center">
+                        <div class="review-video-container">
+                            <video id="review-video" controls></video>
+                        </div>
+                        <div class="review-event-detail" id="review-event-detail">
+                            <div class="review-detail-empty" data-i18n="reviewSelectEvent">Select an event from the queue to review.</div>
+                        </div>
+                    </div>
+                    <div class="review-right">
+                        <div class="review-event-info" id="review-event-info">
+                            <div class="review-info-header">
+                                <h3 data-i18n="reviewEventInfo">📌 Event Details</h3>
+                                <span class="review-confidence-badge" id="review-confidence-badge">--</span>
+                            </div>
+                            <div id="review-event-details" class="review-event-details">
+                                <p class="review-detail-placeholder" data-i18n="reviewSelectEventDetail">Select an event to view details.</p>
+                            </div>
+                        </div>
+                        <div class="review-actions-card">
+                            <h3 data-i18n="reviewActions">⚡ Actions</h3>
+                            <button id="review-confirm-btn" class="btn btn-success btn-review-action" disabled data-i18n="reviewConfirm">✅ Confirm</button>
+                            <button id="review-edit-btn" class="btn btn-primary btn-review-action" disabled data-i18n="reviewEdit">✏️ Edit</button>
+                            <button id="review-reject-btn" class="btn btn-danger btn-review-action" disabled data-i18n="reviewReject">❌ Reject</button>
+                            <button id="review-seek-btn" class="btn btn-secondary btn-review-action" disabled data-i18n="reviewSeek">⏩ Seek to Event</button>
+                            <div class="review-edit-fields hidden" id="review-edit-fields">
+                                <hr>
+                                <label data-i18n="reviewEditType">Type:</label>
+                                <select id="review-edit-type" class="input review-input-full"></select>
+                                <label data-i18n="reviewEditTeam">Team:</label>
+                                <select id="review-edit-team" class="input review-input-full">
+                                    <option value="home">Home</option>
+                                    <option value="away">Away</option>
+                                </select>
+                                <label><input type="checkbox" id="review-edit-completed"> <span data-i18n="reviewEditCompleted">Completed</span></label>
+                                <button id="review-save-edit-btn" class="btn btn-primary btn-sm" data-i18n="reviewSaveEdit">💾 Save</button>
+                            </div>
+                        </div>
+                        <div class="review-navigation">
+                            <button id="review-prev-btn" class="btn btn-secondary btn-review-nav" disabled data-i18n="reviewPrev">◀ Previous</button>
+                            <span id="review-position" class="review-position">0 / 0</span>
+                            <button id="review-next-btn" class="btn btn-secondary btn-review-nav" disabled data-i18n="reviewNext">Next ▶</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="coding-section" class="section hidden">
+                <div class="coding-toolbar">
+                    <h2><span data-i18n="codingTitle">🎬 Coding Workspace</span></h2>
+                    <div class="coding-match-select">
+                        <select id="coding-match-select" class="input">
+                            <option value="">-- Select Match --</option>
+                        </select>
+                        <span id="coding-match-status" class="coding-status"></span>
+                    </div>
+                    <div class="coding-toolbar-actions">
+                        <button id="coding-load-btn" class="btn btn-primary" data-i18n="codingLoad">📂 Load Match</button>
+                        <button id="coding-export-all-btn" class="btn btn-secondary" data-i18n="codingExportAll">📤 Export All Clips</button>
+                        <button id="coding-clear-btn" class="btn btn-secondary btn-danger" data-i18n="codingClear">🗑️ Clear Tags</button>
+                    </div>
+                </div>
+                <div id="coding-empty-state" class="coding-empty">
+                    <p data-i18n="codingEmptyText">Select a match and click "Load Match" to start tagging events.</p>
+                </div>
+                <div id="coding-workspace" class="coding-workspace hidden">
+                    <div class="coding-left">
+                        <div class="coding-matrix" id="coding-matrix">
+                            <div class="coding-matrix-loading" data-i18n="codingMatrixLoading">Loading templates...</div>
+                        </div>
+                        <div class="coding-controls">
+                            <div class="coding-player-select">
+                                <label data-i18n="codingPlayer">Player:</label>
+                                <select id="coding-player-select" class="input coding-input-sm">
+                                    <option value="0">-- None --</option>
+                                </select>
+                            </div>
+                            <div class="coding-team-toggle">
+                                <label data-i18n="codingTeam">Team:</label>
+                                <select id="coding-team-select" class="input coding-input-sm">
+                                    <option value="" data-i18n="codingTeamNone">-- None --</option>
+                                    <option value="home" data-i18n="codingTeamHome">Home</option>
+                                    <option value="away" data-i18n="codingTeamAway">Away</option>
+                                </select>
+                            </div>
+                            <div class="coding-period-select">
+                                <label data-i18n="codingPeriod">Period:</label>
+                                <select id="coding-period-select" class="input coding-input-sm">
+                                    <option value="1">1st Half</option>
+                                    <option value="2">2nd Half</option>
+                                    <option value="3">Extra Time 1</option>
+                                    <option value="4">Extra Time 2</option>
+                                </select>
+                            </div>
+                            <div class="coding-lead-lag">
+                                <label>Lead: <input type="number" id="coding-lead-ms" class="input coding-input-xs" value="2000" min="0" step="100">ms</label>
+                                <label>Lag: <input type="number" id="coding-lag-ms" class="input coding-input-xs" value="3000" min="0" step="100">ms</label>
+                            </div>
+                            <div class="coding-notes">
+                                <input type="text" id="coding-notes-input" class="input coding-input-full" placeholder="Notes (optional)" data-i18n-placeholder="codingNotesPlaceholder" />
+                            </div>
+                        </div>
+                        <div class="coding-filter-bar">
+                            <input type="text" id="coding-filter-input" class="input coding-input-full" placeholder="Filter tags by type or player..." data-i18n-placeholder="codingFilterPlaceholder" />
+                        </div>
+                    </div>
+                    <div class="coding-center">
+                        <div class="coding-video-container">
+                            <video id="coding-video" controls></video>
+                        </div>
+                        <div class="coding-timeline-container">
+                            <div class="coding-timeline" id="coding-timeline">
+                                <canvas id="coding-timeline-canvas" width="100%" height="40"></canvas>
+                            </div>
+                            <div class="coding-timeline-labels" id="coding-timeline-labels"></div>
+                        </div>
+                        <div class="coding-quick-stats" id="coding-quick-stats">
+                            <span data-i18n="codingTotalTags">Tags: <strong id="coding-tag-count">0</strong></span>
+                            <span id="coding-last-tag" data-i18n="codingLastTag">Last: --</span>
+                        </div>
+                    </div>
+                    <div class="coding-right">
+                        <div class="coding-tag-list-header">
+                            <h3 data-i18n="codingTagList">📋 Tagged Events</h3>
+                            <span class="coding-tag-count-badge" id="coding-tag-count-badge">0</span>
+                        </div>
+                        <div class="coding-tag-list" id="coding-tag-list">
+                            <div class="coding-tag-list-empty" data-i18n="codingNoTags">No tags yet. Click a matrix button to tag the current video time!</div>
+                        </div>
+                        <div class="coding-tag-export">
+                            <button id="coding-export-csv" class="btn btn-secondary btn-sm" data-i18n="codingExportCSV">📥 CSV</button>
+                            <button id="coding-export-json" class="btn btn-secondary btn-sm" data-i18n="codingExportJSON">📥 JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section id="feedback-section" class="section">
-                <h2>💬 Coach Feedback</h2>
+                <h2 data-i18n="feedbackTitle">💬 Coach Feedback</h2>
                 <div class="feedback-card">
-                    <h3>Rate Your Experience</h3>
+                    <h3 data-i18n="feedbackRating">Rate Your Experience</h3>
                     <div class="star-rating" id="overall-stars">
                         <span class="star" data-value="1">★</span>
                         <span class="star" data-value="2">★</span>
@@ -803,11 +1235,11 @@
                         <span class="star" data-value="4">★</span>
                         <span class="star" data-value="5">★</span>
                     </div>
-                    <p class="rating-label">Overall Rating</p>
+                    <p class="rating-label" data-i18n="overallRating">Overall Rating</p>
 
                     <div class="rating-grid">
                         <div class="rating-item">
-                            <label>Tracking</label>
+                            <label data-i18n="ratingTracking">Tracking</label>
                             <div class="star-rating small" id="tracking-stars">
                                 <span class="star" data-value="1">★</span>
                                 <span class="star" data-value="2">★</span>
@@ -817,7 +1249,7 @@
                             </div>
                         </div>
                         <div class="rating-item">
-                            <label>Events</label>
+                            <label data-i18n="ratingEvents">Events</label>
                             <div class="star-rating small" id="events-stars">
                                 <span class="star" data-value="1">★</span>
                                 <span class="star" data-value="2">★</span>
@@ -827,7 +1259,7 @@
                             </div>
                         </div>
                         <div class="rating-item">
-                            <label>Reports</label>
+                            <label data-i18n="ratingReports">Reports</label>
                             <div class="star-rating small" id="report-stars">
                                 <span class="star" data-value="1">★</span>
                                 <span class="star" data-value="2">★</span>
@@ -837,7 +1269,7 @@
                             </div>
                         </div>
                         <div class="rating-item">
-                            <label>UI</label>
+                            <label data-i18n="ratingUI">UI</label>
                             <div class="star-rating small" id="ui-stars">
                                 <span class="star" data-value="1">★</span>
                                 <span class="star" data-value="2">★</span>
@@ -848,45 +1280,255 @@
                         </div>
                     </div>
 
-                    <textarea id="feedback-comments" class="input" rows="3" placeholder="Tell us what you think..."></textarea>
-                    <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
+                    <textarea id="feedback-comments" class="input" rows="3" data-i18n-placeholder="feedbackComments" placeholder="Tell us what you think..."></textarea>
+                    <button id="submit-feedback-btn" class="btn btn-primary" data-i18n="feedbackSubmit">Submit Feedback</button>
                     <div id="feedback-result" class="feedback-result"></div>
                 </div>
 
                 <div class="feedback-card">
-                    <h3>Report an Issue</h3>
+                    <h3 data-i18n="issueTitle">Report an Issue</h3>
                     <select id="issue-category" class="input">
-                        <option value="tracking">Tracking</option>
-                        <option value="events">Events</option>
-                        <option value="performance">Performance</option>
-                        <option value="ui">User Interface</option>
-                        <option value="crash">Crash</option>
-                        <option value="other">Other</option>
+                        <option value="tracking" data-i18n="issueCatTracking">Tracking</option>
+                        <option value="events" data-i18n="issueCatEvents">Events</option>
+                        <option value="performance" data-i18n="issueCatPerformance">Performance</option>
+                        <option value="ui" data-i18n="issueCatUI">User Interface</option>
+                        <option value="crash" data-i18n="issueCatCrash">Crash</option>
+                        <option value="other" data-i18n="issueCatOther">Other</option>
                     </select>
                     <select id="issue-severity" class="input">
-                        <option value="low">Low - Minor inconvenience</option>
-                        <option value="medium" selected>Medium - Affects workflow</option>
-                        <option value="high">High - Major problem</option>
-                        <option value="critical">Critical - App unusable</option>
+                        <option value="low" data-i18n="issueSeverityLow">Low - Minor inconvenience</option>
+                        <option value="medium" selected data-i18n="issueSeverityMedium">Medium - Affects workflow</option>
+                        <option value="high" data-i18n="issueSeverityHigh">High - Major problem</option>
+                        <option value="critical" data-i18n="issueSeverityCritical">Critical - App unusable</option>
                     </select>
-                    <textarea id="issue-description" class="input" rows="3" placeholder="Describe the issue..."></textarea>
-                    <button id="submit-issue-btn" class="btn btn-primary">Report Issue</button>
+                    <textarea id="issue-description" class="input" rows="3" data-i18n-placeholder="issueDesc" placeholder="Describe the issue..."></textarea>
+                    <button id="submit-issue-btn" class="btn btn-primary" data-i18n="issueSubmit">Report Issue</button>
                     <div id="issue-result" class="feedback-result"></div>
                 </div>
 
                 <div class="feedback-card">
-                    <h3>Feedback Statistics</h3>
+                    <h3 data-i18n="feedbackStatsTitle">Feedback Statistics</h3>
                     <div id="feedback-stats" class="feedback-stats">
-                        <p class="hint">No feedback yet. Be the first to share your thoughts!</p>
+                        <p class="hint" data-i18n="feedbackNoData">No feedback yet. Be the first to share your thoughts!</p>
                     </div>
-                    <button id="refresh-stats-btn" class="btn btn-secondary">Refresh Stats</button>
+                    <button id="refresh-stats-btn" class="btn btn-secondary" data-i18n="refreshStatsBtn">Refresh Stats</button>
+                </div>
+            </section>
+            <!-- ============================================================
+                 Phase 2.3 — Tactical Periods
+                 ============================================================ -->
+            <section id="tactics-section" class="section hidden">
+                <h2 data-i18n="tacticsTitle">🧠 Tactical Analysis</h2>
+                <div class="tactics-match-select">
+                    <select id="tactics-match-select" class="input">
+                        <option value="">-- Select Match --</option>
+                    </select>
+                    <button id="tactics-load-btn" class="btn btn-primary">📊 Analyze Tactics</button>
+                    <span id="tactics-status" class="tactics-status"></span>
+                </div>
+                <div id="tactics-workspace" class="tactics-workspace hidden">
+                    <div class="tactics-grid">
+                        <div class="pro-card">
+                            <h3 data-i18n="tacticsPhasesTitle">⏱ Tactical Phases</h3>
+                            <div id="tactics-phases-content" class="tactics-phases-content">
+                                <p class="hint">Click "Analyze Tactics" to detect phases.</p>
+                            </div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="tacticsFormationTitle">📐 Formation Analysis</h3>
+                            <div id="tactics-formation-content" class="tactics-formation-content">
+                                <p class="hint">Click "Analyze Tactics" to detect formations.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 3 — AI Coach Chat
+                 ============================================================ -->
+            <section id="ai-section" class="section hidden">
+                <h2 data-i18n="aiTitle">🤖 AI Coach Intelligence</h2>
+                <div class="ai-chat-container">
+                    <div class="ai-chat-select">
+                        <select id="ai-match-select" class="input">
+                            <option value="">-- Select Match --</option>
+                        </select>
+                    </div>
+                    <div class="ai-chat-messages" id="ai-chat-messages">
+                        <div class="ai-message system">
+                            <span data-i18n="aiWelcome">Welcome! Select a match and ask a tactical question.</span>
+                        </div>
+                    </div>
+                    <div class="ai-chat-input-row">
+                        <input type="text" id="ai-question-input" class="input ai-input" placeholder="Ask about tactics, formations, player performance..." data-i18n-placeholder="aiPlaceholder" />
+                        <button id="ai-ask-btn" class="btn btn-primary" data-i18n="aiAskBtn">Ask</button>
+                    </div>
+                    <div class="ai-llm-status" id="ai-llm-status"></div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Wave B — Season Dashboard
+                 ============================================================ -->
+            <section id="season-section" class="section hidden">
+                <h2 data-i18n="seasonTitle">📅 Season Dashboard</h2>
+                <div class="season-summary-bar">
+                    <div class="season-stat-card"><span class="season-stat-label" data-i18n="seasonTotalMatches">Matches</span><span class="season-stat-value" id="season-match-count">0</span></div>
+                    <div class="season-stat-card"><span class="season-stat-label" data-i18n="seasonTotalEvents">Events</span><span class="season-stat-value" id="season-event-count">0</span></div>
+                    <div class="season-stat-card"><span class="season-stat-label" data-i18n="seasonTotalShots">Shots</span><span class="season-stat-value" id="season-shot-count">0</span></div>
+                    <div class="season-stat-card"><span class="season-stat-label" data-i18n="seasonAvgXg">Avg xG</span><span class="season-stat-value" id="season-avg-xg">0.000</span></div>
+                    <button id="season-refresh-btn" class="btn btn-sm btn-secondary" data-i18n="seasonRefresh">🔄 Refresh</button>
+                </div>
+                <div class="season-league-table-wrapper">
+                    <h3 data-i18n="seasonLeagueTable">🏆 League Table</h3>
+                    <div id="season-league-table" class="table-wrapper"><p class="hint">Load a season to see standings.</p></div>
+                </div>
+                <div class="pro-card">
+                    <h3 data-i18n="seasonFixtures">📋 Season Fixtures</h3>
+                    <div id="season-fixtures"><p class="hint">No matches loaded yet.</p></div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Wave C — Training Planner
+                 ============================================================ -->
+            <section id="training-section" class="section hidden">
+                <h2 data-i18n="trainingTitle">🏋️ Training Planner</h2>
+                <div class="training-layout">
+                    <div class="training-drills-panel">
+                        <h3 data-i18n="trainingDrillLibrary">📚 Drill Library</h3>
+                        <div class="training-drill-filters">
+                            <input type="text" id="training-drill-search" class="input" placeholder="Search drills..." data-i18n-placeholder="trainingSearchDrill">
+                            <select id="training-category-filter" class="input">
+                                <option value="all" data-i18n="trainingAllCat">All Categories</option>
+                                <option value="possession" data-i18n="trainingCatPossession">Possession</option>
+                                <option value="finishing" data-i18n="trainingCatFinishing">Finishing</option>
+                                <option value="defending" data-i18n="trainingCatDefending">Defending</option>
+                                <option value="passing" data-i18n="trainingCatPassing">Passing</option>
+                                <option value="fitness" data-i18n="trainingCatFitness">Fitness</option>
+                                <option value="set_piece" data-i18n="trainingCatSetPiece">Set Piece</option>
+                                <option value="general" data-i18n="trainingCatGeneral">General</option>
+                            </select>
+                        </div>
+                        <div id="training-drill-list" class="training-drill-list">
+                            <p class="hint" data-i18n="trainingLoadHint">Load drills to see library.</p>
+                        </div>
+                    </div>
+                    <div class="training-session-panel">
+                        <h3 data-i18n="trainingSessionBuilder">📝 Session Builder</h3>
+                        <div class="training-session-meta">
+                            <input type="text" id="training-session-name" class="input" placeholder="Session name..." data-i18n-placeholder="trainingSessionName">
+                            <input type="date" id="training-session-date" class="input">
+                            <input type="number" id="training-session-duration" class="input" placeholder="Total min" min="15" max="180" data-i18n-placeholder="trainingTotalMin">
+                        </div>
+                        <div id="training-session-drills" class="training-session-drills">
+                            <p class="hint" data-i18n="trainingDragHint">Drag drills here to build your session.</p>
+                        </div>
+                        <div class="training-session-actions">
+                            <button id="training-save-btn" class="btn btn-primary" data-i18n="trainingSaveSession">💾 Save Session</button>
+                            <button id="training-clear-btn" class="btn btn-secondary" data-i18n="trainingClearSession">🗑️ Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Wave D — Presentation Mode
+                 ============================================================ -->
+            <section id="presentation-section" class="section hidden">
+                <h2 data-i18n="presentationTitle">📽️ Presentation Mode</h2>
+                <div class="presentation-controls">
+                    <select id="pres-match-select" class="input">
+                        <option value="" data-i18n="presentationSelectMatch">Select Match</option>
+                    </select>
+                    <button id="pres-start-btn" class="btn btn-primary" data-i18n="presentationStart">▶️ Start Presentation</button>
+                    <button id="pres-export-btn" class="btn btn-secondary" data-i18n="presentationExport">📥 Export Video</button>
+                </div>
+                <div id="presentation-slides" class="presentation-slides hidden">
+                    <div class="pres-slide-nav">
+                        <button id="pres-prev-btn" class="btn btn-sm btn-secondary" data-i18n="presentationPrev">◀ Prev</button>
+                        <span id="pres-slide-counter" class="pres-slide-counter">1 / 5</span>
+                        <button id="pres-next-btn" class="btn btn-sm btn-secondary" data-i18n="presentationNext">Next ▶</button>
+                        <button id="pres-fullscreen-btn" class="btn btn-sm btn-secondary" data-i18n="presentationFullscreen">⛶ Fullscreen</button>
+                    </div>
+                    <div id="pres-slide-container" class="pres-slide-container">
+                        <div id="pres-slide-content" class="pres-slide-content">
+                            <p class="hint" data-i18n="presentationStartHint">Start presentation to view slides.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Wave E — Scout Portal
+                 ============================================================ -->
+            <section id="scout-section" class="section hidden">
+                <h2 data-i18n="scoutTitle">🔎 Scout Portal</h2>
+                <div class="scout-tabs">
+                    <button class="tab-btn active" data-stab="search" data-i18n="scoutTabSearch">Player Search</button>
+                    <button class="tab-btn" data-stab="compare" data-i18n="scoutTabCompare">Compare</button>
+                    <button class="tab-btn" data-stab="shortlist" data-i18n="scoutTabShortlist">Shortlist</button>
+                </div>
+                <div class="scout-tab-content active" id="scout-search">
+                    <div class="form-row">
+                        <input type="text" id="scout-search-input" class="input" placeholder="Search players..." data-i18n-placeholder="scoutSearchInput">
+                        <input type="text" id="scout-position-input" class="input" placeholder="Position (e.g., FW, MF)" data-i18n-placeholder="scoutPosition">
+                        <button id="scout-search-btn" class="btn btn-primary" data-i18n="scoutSearchBtn">🔍 Search</button>
+                    </div>
+                    <div id="scout-search-results" class="scout-results"><p class="hint" data-i18n="scoutSearchHint">Enter a player name to search.</p></div>
+                </div>
+                <div class="scout-tab-content hidden" id="scout-compare">
+                    <div class="form-row">
+                        <select id="scout-compare-a" class="input"><option value="">Player A</option></select>
+                        <select id="scout-compare-b" class="input"><option value="">Player B</option></select>
+                        <button id="scout-compare-btn" class="btn btn-primary" data-i18n="scoutCompareBtn">📊 Compare</button>
+                    </div>
+                    <div id="scout-compare-results" class="scout-compare-results hidden"><p class="hint" data-i18n="scoutCompareHint">Select two players to compare.</p></div>
+                </div>
+                <div class="scout-tab-content hidden" id="scout-shortlist">
+                    <div class="scout-actions">
+                        <button id="scout-report-btn" class="btn btn-primary" data-i18n="scoutGenerateReport">📄 Generate Scout Report</button>
+                        <button id="scout-shortlist-refresh" class="btn btn-secondary" data-i18n="scoutRefresh">🔄 Refresh</button>
+                    </div>
+                    <div id="scout-shortlist-content" class="scout-results"><p class="hint" data-i18n="scoutShortlistHint">No shortlisted players yet.</p></div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 4 — Squad Management
+                 ============================================================ -->
+            <section id="squad-section" class="section hidden">
+                <h2 data-i18n="squadTitle">👥 Squad Management</h2>
+                <div class="squad-match-select">
+                    <select id="squad-match-select" class="input">
+                        <option value="">-- Select Match --</option>
+                    </select>
+                    <button id="squad-load-btn" class="btn btn-primary">📋 Load Squad</button>
+                    <span id="squad-status" class="squad-status"></span>
+                </div>
+                <div id="squad-workspace" class="squad-workspace hidden">
+                    <div class="squad-grid">
+                        <div class="pro-card">
+                            <h3 data-i18n="squadRosterTitle">📋 Squad Roster</h3>
+                            <div id="squad-roster-content" class="squad-roster-content">
+                                <p class="hint">Select a match and click "Load Squad".</p>
+                            </div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="squadRatingsTitle">⭐ Player Ratings</h3>
+                            <div id="squad-ratings-content" class="squad-ratings-content">
+                                <p class="hint">Player ratings will appear here.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
 
         <footer class="app-footer">
-            <p>Kawkab AI v0.8.0 - 100% Private & Offline</p>
-            <p id="kb-stats">Knowledge Base: Loading...</p>
+            <p data-i18n="footerTitle">Kawkab AI v0.8.0 - 100% Private & Offline</p>
+            <p id="kb-stats" data-i18n="kbLoading">Knowledge Base: Loading...</p>
         </footer>
     </div>
 
@@ -894,6 +1536,15 @@
     <script src="vendor/popmotion.min.js"></script>
     <script src="js/kawkab_animations.js"></script>
     <script src="js/calibration.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/app-perf.js"></script>
+    <script src="js/app-ux.js"></script>
+    <script src="js/app-router.js"></script>
+    <script src="js/app-skeletons.js"></script>
+    <script src="js/app-tooltips.js"></script>
+    <script src="js/app-charts.js"></script>
+    <script src="js/app-sparklines.js"></script>
     <script src="js/app.js"></script>
     <script src="js/tactical_sandbox.js"></script>
 </body>

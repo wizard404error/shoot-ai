@@ -189,36 +189,78 @@ class SecurityValidator:
             raise ValueError("Season name cannot be empty")
         return sanitized
 
+    @staticmethod
+    def check_rate_limit(operation: str, key: str = "global") -> bool:
+        """Check whether an operation is allowed under its rate limit.
+
+        Args:
+            operation: One of 'analysis', 'export', 'search', or a custom key.
+            key: Sub-key for independent rate tracking (e.g. match ID).
+
+        Returns:
+            True if the operation is allowed, False if rate limited.
+        """
+        bucket_key = f"{operation}:{key}"
+        return _global_rate_limiter.acquire(bucket_key, cost=1)
+
 
 class RateLimiter:
-    """Simple rate limiter for expensive operations."""
+    """Token bucket rate limiter for expensive operations.
 
-    def __init__(self, max_requests: int = 5, window_seconds: float = 60.0) -> None:
-        self.max_requests = max_requests
-        self.window = window_seconds
-        self._requests: list[float] = []
+    Default per-operation limits:
+        - analysis: 5 tokens/min
+        - export:   10 tokens/min
+        - search:   30 tokens/min
+        - default:  60 tokens/min
+    """
 
-    def can_proceed(self) -> bool:
-        """Check if operation can proceed under rate limit."""
+    _DEFAULT_RATES: dict[str, int] = {
+        "analysis": 5,
+        "export": 10,
+        "search": 30,
+    }
+
+    def __init__(self, tokens_per_minute: int = 60) -> None:
+        self._default_rate = tokens_per_minute
+        self._buckets: dict[str, tuple[float, float]] = {}  # key -> (fill_time, tokens)
+        self._overrides: dict[str, int] = {}
+
+    def configure(self, key_prefix: str, tokens_per_minute: int) -> None:
+        """Set a custom rate limit for a given operation prefix."""
+        self._overrides[key_prefix] = tokens_per_minute
+
+    def _rate_for_key(self, key: str) -> int:
+        prefix = key.split(":")[0]
+        if prefix in self._overrides:
+            return self._overrides[prefix]
+        return self._DEFAULT_RATES.get(prefix, self._default_rate)
+
+    def acquire(self, key: str, cost: int = 1) -> bool:
+        """Try to consume *cost* tokens. Returns True if allowed, False if rate limited."""
         import time
+
         now = time.time()
-        # Remove old requests outside the window
-        self._requests = [t for t in self._requests if now - t < self.window]
-        return len(self._requests) < self.max_requests
+        rate = self._rate_for_key(key)
+        max_tokens = float(rate)
 
-    def record_request(self) -> None:
-        """Record that a request was made."""
-        import time
-        self._requests.append(time.time())
+        fill_time, tokens = self._buckets.get(key, (now, max_tokens))
+        elapsed = now - fill_time
+        tokens = min(max_tokens, tokens + elapsed * (rate / 60.0))
+        fill_time = now
 
-    def time_until_available(self) -> float:
-        """Get seconds until next request is allowed."""
-        import time
-        if self.can_proceed():
-            return 0.0
-        now = time.time()
-        oldest = min(self._requests)
-        return max(0.0, self.window - (now - oldest))
+        if tokens < cost:
+            self._buckets[key] = (fill_time, tokens)
+            return False
+
+        tokens -= cost
+        self._buckets[key] = (fill_time, tokens)
+        return True
+
+
+_global_rate_limiter = RateLimiter()
+_global_rate_limiter.configure("analysis", 5)
+_global_rate_limiter.configure("export", 10)
+_global_rate_limiter.configure("search", 30)
 
 
 class ErrorSanitizer:

@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -97,8 +98,8 @@ class SetPieceService:
     - Short corner recycle: 0.1
     """
 
-    PITCH_LENGTH = 105.0
-    PITCH_WIDTH = 68.0
+    PITCH_LENGTH = GAME.PITCH_LENGTH_M
+    PITCH_WIDTH = GAME.PITCH_WIDTH_M
     NEAR_POST_X = 5.5
     FAR_POST_X = 16.5
     NEAR_POST_Y = 5.5

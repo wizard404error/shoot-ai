@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 import math
 from typing import Any
 
+from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -70,8 +71,8 @@ class PossessionReport:
 class PossessionService:
     """Detailed possession analysis with proper attribution."""
 
-    PITCH_LENGTH = 105.0
-    PITCH_WIDTH = 68.0
+    PITCH_LENGTH = GAME.PITCH_LENGTH_M
+    PITCH_WIDTH = GAME.PITCH_WIDTH_M
     COUNTER_PRESS_WINDOW_S = 5.0
     TACKLE_PROXIMITY_M = 3.0
     POSSESSION_PROXIMITY_M = 5.0

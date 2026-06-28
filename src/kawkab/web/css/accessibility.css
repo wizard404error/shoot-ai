@@ -58,6 +58,19 @@ a:focus-visible {
     }
 }
 
+/* Skeleton loading shimmer */
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+.skeleton-item {
+    opacity: 0.6;
+    pointer-events: none;
+}
+.skeleton-container {
+    pointer-events: none;
+}
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
     *,

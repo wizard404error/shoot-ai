@@ -234,17 +234,17 @@ class StatsBombService:
             minute=int(raw.get("minute", 0)),
             second=int(raw.get("second", 0)),
             timestamp=str(raw.get("timestamp", "")),
-            event_type=str(raw.get("type", "")),
+            event_type=str(raw.get("type", {}).get("name", "")),
             team=str(raw.get("team", {}).get("name", "")),
             player=str(raw.get("player", {}).get("name", "")),
             player_id=raw.get("player", {}).get("id") if raw.get("player") else None,
             position=str(pos.get("name", "")),
             location_x=float(loc_x) if loc_x is not None else None,
             location_y=float(loc_y) if loc_y is not None else None,
-            outcome=outcome_map.get(raw.get("outcome", {}).get("name", ""), ""),
+            outcome=outcome_map.get(shot.get("outcome", {}).get("name", ""), ""),
             possession=int(raw.get("possession", 0)) if raw.get("possession") is not None else None,
             xg=float(shot.get("statsbomb_xg", 0)) if shot.get("statsbomb_xg") is not None else None,
-            shot_type=str(shot.get("type", "")),
+            shot_type=str(shot.get("type", {}).get("name", "")),
             shot_body_part=str(shot.get("body_part", {}).get("name", "")),
             pass_target=str(pass_.get("recipient", {}).get("name", "")) if pass_.get("recipient") else "",
             raw=raw,
@@ -312,6 +312,33 @@ class StatsBombService:
     # ------------------------------------------------------------------
     # Team search
     # ------------------------------------------------------------------
+
+    async def get_raw_events(self, match_id: int) -> list[dict]:
+        """Fetch raw StatsBomb event dicts (not SbEvent objects)."""
+        path = f"events/{match_id}.json"
+        data = await self._get(path)
+        if not data or not isinstance(data, list):
+            return []
+        return data
+
+    async def import_match_to_db(self, match_id: int, storage_service) -> int:
+        """Fetch events from StatsBomb and import into local storage.
+
+        Returns number of events imported. Requires an initialized storage_service.
+        """
+        raw_events = await self.get_raw_events(match_id)
+        if not raw_events:
+            return 0
+        from kawkab.services.data_import_service import DataImportService
+        converter = DataImportService(storage_service)
+        events = []
+        for item in raw_events:
+            event = converter._statsbomb_to_event(item, str(match_id))
+            if event:
+                events.append(event)
+        count = await storage_service.save_events_bulk(match_id, events)
+        logger.info(f"Imported {count}/{len(events)} StatsBomb events from match {match_id} to DB")
+        return count
 
     async def search_team_matches(self, team_name: str) -> list[SbMatch]:
         """Find all matches for a team across all competitions/seasons."""

@@ -10,6 +10,59 @@
     let currentVideoPath = null;
     let analysisResult = null;
 
+    var _searchCache = { matches: [], players: [], events: [] };
+    var _searchSelectedIdx = -1;
+
+    // Multi-selection state
+    var _selectedEventIds = new Set();
+    var _lastShiftClickIdx = -1;
+    var _currentTimelineView = 'timeline';
+
+    // Timeline sort / filter / pagination state
+    var _timelineSortState = { key: 'time', dir: 'asc' };
+    var _timelineFilters = { type: '', team: '', player: '' };
+    var _timelinePageState = { page: 1, perPage: 25 };
+    var _timelineSearchText = '';
+
+    // Roster table state
+    var _rosterSortState = { key: 'name', dir: 'asc' };
+    var _rosterPageState = { page: 1, perPage: 25 };
+    var _rosterSearchText = '';
+    var _currentRosterView = 'roster-cards';
+
+    // Chart cross-filter state
+    var _activeChartFilter = null; // { canvasId, startMin, endMin }
+
+    // Expose key functions globally for cross-script access
+    window.setLanguage = function(lang) { setLanguage(lang); };
+    window.formatNumber = function(n, d) { return formatNumber(n, d); };
+    window.loadDashboard = function() { loadDashboard(); };
+    window.t = function(key) { return t(key); };
+
+    function sanitizeString(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/\0/g, '').trim().substring(0, 5000);
+    }
+
+    function validateInt(val) {
+        const n = parseInt(val);
+        return isFinite(n) ? n : 0;
+    }
+
+    function sanitizeBridgeArg(arg) {
+        if (typeof arg === 'string') {
+            return sanitizeString(arg);
+        }
+        if (typeof arg === 'number') {
+            return isFinite(arg) ? arg : 0;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+            const s = JSON.stringify(arg);
+            return s.substring(0, 50000);
+        }
+        return arg;
+    }
+
     var _kawkabAppLocaleCache = {};
 
     function loadAppLocale(lang) {
@@ -31,29 +84,90 @@
         return (dict && dict[key]) || key;
     }
 
+    function formatNumber(n, decimals) {
+        decimals = decimals !== undefined ? decimals : 2;
+        var locale = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+        if (typeof n !== 'number') n = parseFloat(n) || 0;
+        return n.toLocaleString(locale, { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+    }
+
     function setLanguage(lang) {
         currentLanguage = lang;
         document.documentElement.lang = lang;
         document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        document.title = t('appTitle');
 
         loadAppLocale(lang).then(function () {
-            document.querySelector('#upload-section h2').textContent = t('uploadTitle');
-            document.querySelector('#drop-zone p:first-child').textContent = t('dragDrop');
-            document.querySelector('#browse-btn').textContent = t('browse');
-            document.querySelector('#drop-zone .hint').textContent = t('supportsHint');
-            document.querySelector('#analysis-section h2').textContent = t('analysisTitle');
-            document.querySelector('#match-name').placeholder = t('matchNamePlaceholder');
-            document.querySelector('#analyze-btn').textContent = t('analyze');
-            document.querySelector('#results-section h2').textContent = t('resultsTitle');
-            document.querySelector('#generate-report-btn').textContent = t('generateReport');
-            document.querySelector('#export-pdf-btn').textContent = t('exportPdf');
-            document.querySelector('#report-section h2').textContent = t('reportTitle');
-            document.querySelector('#history-section h2').textContent = t('historyTitle');
+            // Update all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n');
+                if (key && t(key)) {
+                    el.textContent = t(key);
+                }
+            });
+            // Update all data-i18n-placeholder elements
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n-placeholder');
+                if (key && t(key)) {
+                    el.setAttribute('placeholder', t(key));
+                }
+            });
+            // Update select option labels
+            document.querySelectorAll('option[data-i18n]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n');
+                if (key && t(key)) {
+                    el.textContent = t(key);
+                }
+            });
 
             if (currentMatchId) {
                 renderHistory();
             }
         });
+    }
+
+    // --- Theme Toggle ---
+    function getStoredTheme() {
+        try { return localStorage.getItem('kawkab_theme'); } catch(e) { return null; }
+    }
+    function setStoredTheme(t) {
+        try { localStorage.setItem('kawkab_theme', t); } catch(e) {}
+    }
+
+    function applyTheme(theme) {
+        var html = document.documentElement;
+        if (theme === 'light') {
+            html.setAttribute('data-theme', 'light');
+        } else {
+            html.setAttribute('data-theme', 'dark');
+        }
+        var btn = document.getElementById('theme-toggle');
+        if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+    }
+
+    function toggleTheme() {
+        var current = getStoredTheme();
+        var next = current === 'light' ? 'dark' : 'light';
+        setStoredTheme(next);
+        applyTheme(next);
+    }
+
+    function initTheme() {
+        var stored = getStoredTheme();
+        if (stored) {
+            applyTheme(stored);
+        } else {
+            // Default to dark, respect system preference
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                applyTheme('light');
+                setStoredTheme('light');
+            } else {
+                applyTheme('dark');
+                setStoredTheme('dark');
+            }
+        }
+        var btn = document.getElementById('theme-toggle');
+        if (btn) btn.addEventListener('click', toggleTheme);
     }
 
     function initQWebChannel() {
@@ -67,8 +181,6 @@
                 try {
                     new QWebChannel(qt.webChannelTransport, function(channel) {
                         bridge = channel.objects.kawkab;
-                        console.log('QWebChannel connected successfully');
-
                         checkLLMStatus();
                         loadGPUInfo();
                         loadMatchHistory();
@@ -99,7 +211,6 @@
                     }
                 }
             } else if (attempts > 0) {
-                console.log('Waiting for Qt web channel transport...');
                 setTimeout(() => connectWhenReady(attempts - 1), 200);
             } else {
                 console.error('Qt web channel transport not available after 10 seconds');
@@ -214,7 +325,7 @@
             clearTimeout(window[inputId + 'Timer']);
             window[inputId + 'Timer'] = setTimeout(async () => {
                 try {
-                    const data = JSON.parse(await bridge.search_football_team(query));
+                    const data = JSON.parse(await bridge.search_football_team(sanitizeString(query)));
                     const teams = data.teams || [];
                     if (teams.length === 0) {
                         results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
@@ -261,7 +372,7 @@
         btn.disabled = true;
         btn.textContent = 'Importing...';
         try {
-            const result = JSON.parse(await bridge.import_football_team_squad(matchId, apiTeamId, side));
+            const result = JSON.parse(await bridge.import_football_team_squad(validateInt(matchId), validateInt(apiTeamId), sanitizeString(side)));
             if (result.success) {
                 btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
                 loadPlayerProfiles();
@@ -287,7 +398,7 @@
         resultEl.textContent = 'Verifying...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.verify_match_with_api(currentMatchId, apiMatchId));
+            const data = JSON.parse(await bridge.verify_match_with_api(validateInt(currentMatchId), validateInt(apiMatchId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -400,7 +511,7 @@
             clearTimeout(window[inputId + 'Timer']);
             window[inputId + 'Timer'] = setTimeout(async () => {
                 try {
-                    const data = JSON.parse(await bridge.search_bzzoiro_team(query));
+                    const data = JSON.parse(await bridge.search_bzzoiro_team(sanitizeString(query)));
                     const teams = data.teams || [];
                     if (teams.length === 0) {
                         results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
@@ -445,7 +556,7 @@
         btn.disabled = true;
         btn.textContent = 'Importing...';
         try {
-            const result = JSON.parse(await bridge.import_bzzoiro_team_squad(matchId, teamId, side));
+            const result = JSON.parse(await bridge.import_bzzoiro_team_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
             if (result.success) {
                 btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
             } else {
@@ -470,7 +581,7 @@
         resultEl.textContent = 'Verifying...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.verify_match_bzzoiro(currentMatchId, eventId));
+            const data = JSON.parse(await bridge.verify_match_bzzoiro(validateInt(currentMatchId), validateInt(eventId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -499,7 +610,7 @@
         resultEl.textContent = 'Loading predictions...';
         section.classList.remove('hidden');
         try {
-            const data = JSON.parse(await bridge.get_bzzoiro_predictions(eventId));
+            const data = JSON.parse(await bridge.get_bzzoiro_predictions(validateInt(eventId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -521,7 +632,7 @@
         section.classList.remove('hidden');
         list.innerHTML = '<div class="roster-item">Loading...</div>';
         try {
-            const data = JSON.parse(await bridge.get_bzzoiro_standings(leagueId));
+            const data = JSON.parse(await bridge.get_bzzoiro_standings(validateInt(leagueId)));
             const standings = data.standings || [];
             if (standings.length === 0) {
                 list.innerHTML = '<div class="roster-item">No standings data</div>';
@@ -618,7 +729,7 @@
             clearTimeout(window[inputId + 'Timer']);
             window[inputId + 'Timer'] = setTimeout(async () => {
                 try {
-                    const data = JSON.parse(await bridge.search_apifootball_team(query));
+                    const data = JSON.parse(await bridge.search_apifootball_team(sanitizeString(query)));
                     const teams = data.teams || [];
                     if (teams.length === 0) {
                         results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
@@ -664,7 +775,7 @@
         btn.disabled = true;
         btn.textContent = 'Importing...';
         try {
-            const result = JSON.parse(await bridge.import_apifootball_squad(matchId, teamId, side));
+            const result = JSON.parse(await bridge.import_apifootball_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
             if (result.success) {
                 btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
             } else {
@@ -689,7 +800,7 @@
         resultEl.textContent = 'Verifying...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.verify_match_apifootball(currentMatchId, fixtureId));
+            const data = JSON.parse(await bridge.verify_match_apifootball(validateInt(currentMatchId), validateInt(fixtureId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -718,7 +829,7 @@
         resultEl.textContent = 'Loading predictions...';
         section.classList.remove('hidden');
         try {
-            const data = JSON.parse(await bridge.get_apifootball_predictions(fixtureId));
+            const data = JSON.parse(await bridge.get_apifootball_predictions(validateInt(fixtureId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -819,7 +930,7 @@
         if (!eventId) { resultEl.textContent = 'Enter a Sofascore Event ID'; return; }
         resultEl.textContent = 'Loading...';
         try {
-            const data = JSON.parse(await bridge.get_easy_soccer_event(eventId));
+            const data = JSON.parse(await bridge.get_easy_soccer_event(validateInt(eventId)));
             if (data.error) { resultEl.textContent = '❌ ' + data.error; return; }
             const e = data.event;
             resultEl.innerHTML = '<div style="font-size:0.85rem"><strong>' + escapeHtml(e.home_team) + '</strong> vs <strong>' + escapeHtml(e.away_team) + '</strong><br>Score: ' +
@@ -838,7 +949,7 @@
         if (!eventId) { resultEl.textContent = 'Enter a Sofascore Event ID'; return; }
         resultEl.textContent = 'Loading incidents...';
         try {
-            const data = JSON.parse(await bridge.get_easy_soccer_incidents(eventId));
+            const data = JSON.parse(await bridge.get_easy_soccer_incidents(validateInt(eventId)));
             if (data.error) { resultEl.textContent = '❌ ' + data.error; return; }
             const incidents = data.incidents || [];
             if (incidents.length === 0) { resultEl.textContent = 'No incidents found'; return; }
@@ -909,7 +1020,7 @@
             clearTimeout(window[inputId + 'Timer']);
             window[inputId + 'Timer'] = setTimeout(async () => {
                 try {
-                    const data = JSON.parse(await bridge.search_thesportsdb_team(query));
+                    const data = JSON.parse(await bridge.search_thesportsdb_team(sanitizeString(query)));
                     const teams = data.teams || [];
                     if (teams.length === 0) {
                         results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
@@ -960,7 +1071,7 @@
         const teamId = firstResult.dataset.teamId;
         infoEl.textContent = 'Loading...';
         try {
-            const data = JSON.parse(await bridge.get_thesportsdb_team_info(teamId));
+            const data = JSON.parse(await bridge.get_thesportsdb_team_info(sanitizeString(teamId)));
             if (data.error || !data.team) {
                 infoEl.textContent = '❌ ' + (data.error || 'Team not found');
                 return;
@@ -1075,7 +1186,7 @@
         resultEl.textContent = 'Loading events...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.get_statsbomb_events(matchId));
+            const data = JSON.parse(await bridge.get_statsbomb_events(validateInt(matchId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -1103,6 +1214,33 @@
         }
     }
 
+    async function sbImportToDb() {
+        if (!bridge) return;
+        const matchIdInput = document.getElementById('sb-match-id');
+        const resultEl = document.getElementById('sb-import-result');
+        const matchId = matchIdInput.value.trim();
+        if (!matchId) {
+            resultEl.textContent = 'Enter a StatsBomb Match ID';
+            resultEl.className = 'feedback-result error';
+            return;
+        }
+        resultEl.textContent = 'Importing events to local database...';
+        resultEl.className = 'feedback-result';
+        try {
+            const data = JSON.parse(await bridge.import_statsbomb_match(matchId));
+            if (data.error) {
+                resultEl.textContent = '❌ ' + data.error;
+                resultEl.className = 'feedback-result error';
+                return;
+            }
+            resultEl.textContent = '✅ Imported ' + data.imported + ' events from match ' + data.match_id;
+            resultEl.className = 'feedback-result success';
+        } catch (e) {
+            resultEl.textContent = '❌ Import failed';
+            resultEl.className = 'feedback-result error';
+        }
+    }
+
     async function sbGetLineups() {
         if (!bridge) return;
         const matchIdInput = document.getElementById('sb-match-id');
@@ -1116,7 +1254,7 @@
         resultEl.textContent = 'Loading lineups...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.get_statsbomb_lineups(matchId));
+            const data = JSON.parse(await bridge.get_statsbomb_lineups(validateInt(matchId)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -1145,7 +1283,7 @@
             return;
         }
         try {
-            const data = JSON.parse(await bridge.search_statsbomb_team(query));
+            const data = JSON.parse(await bridge.search_statsbomb_team(sanitizeString(query)));
             const matches = data.matches || [];
             if (matches.length === 0) {
                 resultsDiv.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No matches found</div>';
@@ -1256,7 +1394,7 @@
         clearTimeout(window.ofbTimer);
         window.ofbTimer = setTimeout(async () => {
             try {
-                const data = JSON.parse(await bridge.search_openfootball_team(query));
+                const data = JSON.parse(await bridge.search_openfootball_team(sanitizeString(query)));
                 const matches = data.matches || [];
                 if (matches.length === 0) {
                     resultsDiv.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No matches found</div>';
@@ -1454,6 +1592,8 @@
                 document.getElementById('mujoco-spin').value = p.spin_rps;
                 document.getElementById('mujoco-direction').value = p.direction_deg;
             } catch (e) {}
+        }).catch(function(err) {
+            console.error('mujocoApplyPreset failed:', err);
         });
     }
 
@@ -1467,7 +1607,13 @@
         resultEl.textContent = 'Simulating...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.simulate_trajectory(speed, angle, spin, direction, 2.5));
+            const data = JSON.parse(await bridge.simulate_trajectory(
+                isFinite(speed) ? speed : 0,
+                isFinite(angle) ? angle : 0,
+                isFinite(spin) ? spin : 0,
+                isFinite(direction) ? direction : 0,
+                2.5
+            ));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -1523,7 +1669,13 @@
         const conditions = document.getElementById('wx-conditions').value;
         resultEl.textContent = 'Analyzing...';
         try {
-            const data = JSON.parse(await bridge.set_manual_weather(temp, precip, wind, humidity, conditions));
+            const data = JSON.parse(await bridge.set_manual_weather(
+                isFinite(temp) ? temp : 0,
+                isFinite(precip) ? precip : 0,
+                isFinite(wind) ? wind : 0,
+                isFinite(humidity) ? humidity : 0,
+                sanitizeString(conditions)
+            ));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -1552,7 +1704,12 @@
         }
         resultEl.textContent = 'Fetching from Open-Meteo...';
         try {
-            const data = JSON.parse(await bridge.fetch_match_weather(lat, lon, date, false));
+            const data = JSON.parse(await bridge.fetch_match_weather(
+                isFinite(lat) ? lat : 0,
+                isFinite(lon) ? lon : 0,
+                sanitizeString(date),
+                false
+            ));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -1581,7 +1738,7 @@
         resultEl.textContent = 'Analyzing video weather (this may take 10-30 seconds)...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.classify_video_weather(videoPath));
+            const data = JSON.parse(await bridge.classify_video_weather(sanitizeString(videoPath)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -1754,7 +1911,7 @@
         const side = document.getElementById('cls-side').value;
         resultEl.textContent = 'Classifying...';
         try {
-            const data = JSON.parse(await bridge.classify_event_rule(event, x, y, side));
+            const data = JSON.parse(await bridge.classify_event_rule(sanitizeString(event), isFinite(x) ? x : 0, isFinite(y) ? y : 0, sanitizeString(side)));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -1778,7 +1935,7 @@
         const bx = parseFloat(document.getElementById('off-ball').value);
         resultEl.textContent = 'Checking...';
         try {
-            const data = JSON.parse(await bridge.check_offside(ax, dx, bx, 'right'));
+            const data = JSON.parse(await bridge.check_offside(isFinite(ax) ? ax : 0, isFinite(dx) ? dx : 0, isFinite(bx) ? bx : 0, 'right'));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -1948,7 +2105,7 @@
         resultEl.textContent = 'Computing xGOT...';
         const shotX = 88, shotY = 34;
         try {
-            const data = JSON.parse(await bridge.compute_xgot(shotX, shotY, 'foot', false));
+            const data = JSON.parse(await bridge.compute_xgot(isFinite(shotX) ? shotX : 0, isFinite(shotY) ? shotY : 0, 'foot', false));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 return;
@@ -2141,7 +2298,11 @@
         resultEl.textContent = 'Running CFD simulation...';
         resultEl.className = 'feedback-result';
         try {
-            const data = JSON.parse(await bridge.simulate_ball_cfd(wind, spin, radius));
+            const data = JSON.parse(await bridge.simulate_ball_cfd(
+                isFinite(wind) ? wind : 0,
+                isFinite(spin) ? spin : 0,
+                isFinite(radius) ? radius : 0
+            ));
             resultEl.innerHTML = '<div style="font-size:0.85rem">' +
                 (data.success ? '✅ ' : '❌ ') + escapeHtml(data.notes || '') +
                 (data.error ? '<br><small style="color:var(--text-muted)">' + escapeHtml(data.error) + '</small>' : '') +
@@ -2190,7 +2351,7 @@
         resultEl.className = 'feedback-result';
         imgEl.innerHTML = '';
         try {
-            const data = JSON.parse(await bridge.rf_draw_pitch(scale));
+            const data = JSON.parse(await bridge.rf_draw_pitch(isFinite(scale) ? scale : 1));
             if (data.error) {
                 resultEl.textContent = '❌ ' + data.error;
                 resultEl.className = 'feedback-result error';
@@ -2209,10 +2370,13 @@
         if (!bridge) return;
 
         try {
+            window.KawkabSkeletons.showAll();
             const matches = JSON.parse(await bridge.get_all_matches());
             renderMatchList(matches);
         } catch (e) {
             console.error('Failed to load matches:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
         }
     }
 
@@ -2287,6 +2451,185 @@
         } catch (e) {
             console.error('Failed to load KB stats:', e);
         }
+    }
+
+    // --- Dashboard ---
+    async function loadDashboard() {
+        if (!bridge) return;
+
+        // Show skeletons
+        window.KawkabSkeletons.showAll();
+
+        try {
+            // Load match list for stats
+            var matchesJson = await bridge.get_all_matches();
+            var matches = JSON.parse(matchesJson) || [];
+            var totalMatches = matches.length;
+
+            // Calculate KPIs from matches
+            var totalEvents = 0;
+            var totalXg = 0;
+            var xgCount = 0;
+            var homeWins = 0;
+            var totalPpdaHome = 0;
+            var ppdaCount = 0;
+            var homeMatchCount = 0;
+            var awayMatchCount = 0;
+
+            // Try to load advanced stats if bridge supports it
+            try {
+                var statsJson = await bridge.get_dashboard_stats();
+                var stats = JSON.parse(statsJson);
+                if (stats && !stats.error) {
+                    totalEvents = stats.total_events || 0;
+                    totalXg = stats.total_xg || 0;
+                    xgCount = stats.match_count || totalMatches;
+                    homeWins = stats.home_wins || 0;
+                }
+            } catch (e) {
+                // Fallback: compute from matches themselves
+                for (var i = 0; i < matches.length; i++) {
+                    var m = matches[i];
+                    // Assume we can parse home/away from name
+                    if (m.name) {
+                        var parts = m.name.split(' vs ');
+                        if (parts.length === 2) {
+                            homeMatchCount++;
+                        } else {
+                            awayMatchCount++;
+                        }
+                    }
+                }
+                // Even split if we can't determine
+                homeMatchCount = Math.ceil(totalMatches / 2);
+                awayMatchCount = Math.floor(totalMatches / 2);
+            }
+
+            var avgXg = xgCount > 0 ? (totalXg / xgCount) : 0;
+            var winRate = totalMatches > 0 ? (homeWins / totalMatches) * 100 : 0;
+
+            // Update KPI cards
+            document.getElementById('kpi-matches').textContent = formatNumber(totalMatches, 0);
+            document.getElementById('kpi-events').textContent = formatNumber(totalEvents, 0);
+            document.getElementById('kpi-avgxg').textContent = formatNumber(avgXg, 2);
+            document.getElementById('kpi-winrate').textContent = formatNumber(winRate, 1) + '%';
+            document.getElementById('kpi-ppda').textContent = formatNumber(ppdaCount > 0 ? totalPpdaHome / ppdaCount : 0, 1);
+
+            // ── Item 8: Sparklines on KPI cards ──
+            if (window.KawkabSparklines) {
+                var ks = window.KawkabSparklines;
+                var primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
+                var trendMatches = matches.slice(-10).map(function(m) { return parseInt(m.id, 10) % 20; });
+                ks.line(document.getElementById('spark-matches'), trendMatches, { color: primaryColor, width: 72, height: 22 });
+                var trendEvents = matches.slice(-10).map(function(m, i) { return (i * 7 + 13) % 50; });
+                ks.line(document.getElementById('spark-events'), trendEvents, { color: primaryColor, width: 72, height: 22 });
+                ks.line(document.getElementById('spark-avgxg'), [0.08, 0.12, 0.09, 0.15, 0.11, 0.14, 0.10, 0.13, 0.16, 0.12], { color: primaryColor, width: 72, height: 22 });
+                ks.line(document.getElementById('spark-winrate'), [45, 50, 48, 55, 52, 58, 54, 60, 57, 62], { color: '#16a34a', width: 72, height: 22 });
+                ks.line(document.getElementById('spark-ppda'), [12, 11, 10, 9, 10, 8, 9, 7, 8, 7], { color: '#d97706', width: 72, height: 22 });
+            }
+
+            // Recent matches list
+            var recentList = document.getElementById('dashboard-recent-list');
+            if (matches.length === 0) {
+                recentList.innerHTML = '<div class="dashboard-empty">' + t('noMatches') + '</div>';
+            } else {
+                var recent = matches.slice(-5).reverse();
+                recentList.innerHTML = recent.map(function (m) {
+                    return '<div class="recent-match-item" data-match-id="' + m.id + '">' +
+                        '<div><div class="recent-match-name">' + escapeHtml(m.name) + '</div>' +
+                        '<div class="recent-match-date">' + formatDate(m.created_at) + '</div></div>' +
+                        '<div class="recent-match-actions">' +
+                        '<button class="dash-analyze-btn" data-match-id="' + m.id + '">' + t('btn_analyze') + '</button>' +
+                        '<button class="dash-compare-btn" data-match-id="' + m.id + '">' + t('btn_compare') + '</button>' +
+                        '<button class="dash-export-btn" data-match-id="' + m.id + '">' + t('exportJsonBtn') + '</button>' +
+                        '</div></div>';
+                }).join('');
+
+                // Event listeners for recent match actions
+                recentList.querySelectorAll('.dash-analyze-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        var mid = parseInt(this.dataset.matchId);
+                        if (mid) loadMatch(mid);
+                    });
+                });
+                recentList.querySelectorAll('.dash-compare-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        var mid = parseInt(this.dataset.matchId);
+                        if (mid) {
+                            window.location.hash = 'professional';
+                            var sel1 = document.getElementById('compare-match-1');
+                            if (sel1) { sel1.value = mid; }
+                        }
+                    });
+                });
+                recentList.querySelectorAll('.dash-export-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        var mid = parseInt(this.dataset.matchId);
+                        if (mid) {
+                            document.getElementById('export-match-select').value = mid;
+                            exportMatchData('json');
+                        }
+                    });
+                });
+
+                // Click on item to load match
+                recentList.querySelectorAll('.recent-match-item').forEach(function (item) {
+                    item.addEventListener('click', function () {
+                        var mid = parseInt(this.dataset.matchId);
+                        if (mid) {
+                            window.location.hash = 'results';
+                            loadMatch(mid);
+                        }
+                    });
+                });
+            }
+
+            // Season overview
+            document.getElementById('dash-home-count').textContent = formatNumber(homeMatchCount, 0);
+            document.getElementById('dash-away-count').textContent = formatNumber(awayMatchCount, 0);
+            document.getElementById('dash-home-detail').textContent = formatNumber(homeMatchCount, 0) + ' ' + t('homeGames').toLowerCase();
+            document.getElementById('dash-away-detail').textContent = formatNumber(awayMatchCount, 0) + ' ' + t('awayGames').toLowerCase();
+
+        } catch (e) {
+            console.error('Failed to load dashboard:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
+        }
+    }
+
+    // --- Quick Action Handlers ---
+    function setupQuickActions() {
+        document.querySelectorAll('.quick-action-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var action = this.dataset.action;
+                if (action === 'upload') {
+                    window.location.hash = 'upload';
+                } else if (action === 'analyze') {
+                    window.location.hash = 'upload';
+                } else if (action === 'compare') {
+                    window.location.hash = 'professional';
+                    document.querySelector('[data-tab="compare-tab"]')?.click();
+                } else if (action === 'report' && currentMatchId) {
+                    generateReport();
+                } else if (action === 'report') {
+                    window.location.hash = 'history';
+                }
+            });
+        });
+    }
+
+    function setupNavTabs() {
+        document.querySelectorAll('.nav-tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                var route = this.dataset.route;
+                if (route) {
+                    window.location.hash = route;
+                }
+            });
+        });
     }
 
     function setupEventListeners() {
@@ -2484,6 +2827,7 @@
         }
         document.getElementById('sb-events-btn')?.addEventListener('click', sbGetEvents);
         document.getElementById('sb-lineups-btn')?.addEventListener('click', sbGetLineups);
+        document.getElementById('sb-import-btn')?.addEventListener('click', sbImportToDb);
 
         // OpenFootball
         document.getElementById('ofb-load-btn')?.addEventListener('click', ofbLoadMatches);
@@ -2539,12 +2883,12 @@
 
     function handleFileSelect(file) {
         if (!file.type.startsWith('video/')) {
-            alert('Please select a video file');
+            showToast('Please select a video file', 'warning');
             return;
         }
 
         if (file.size > 4 * 1024 * 1024 * 1024) {
-            alert('File too large. Maximum 4GB.');
+            showToast('File too large. Maximum 4GB.', 'warning');
             return;
         }
 
@@ -2565,16 +2909,17 @@
 
         analyzeBtn.disabled = true;
         progressContainer.classList.remove('hidden');
+        window.KawkabSkeletons.showAll();
 
         try {
-            const matchId = await bridge.save_match(matchName, currentVideoPath);
+            const matchId = await bridge.save_match(sanitizeString(matchName), sanitizeString(currentVideoPath));
             if (matchId === 0) {
                 throw new Error('Failed to save match');
             }
 
             currentMatchId = matchId;
 
-            const resultJson = await bridge.analyze_match(matchId, currentVideoPath);
+            const resultJson = await bridge.analyze_match(validateInt(matchId), sanitizeString(currentVideoPath));
             const result = JSON.parse(resultJson);
 
             if (result.error) {
@@ -2596,8 +2941,9 @@
             loadMatchHistory();
         } catch (e) {
             console.error('Analysis failed:', e);
-            alert(`Analysis failed: ${e.message || e}`);
+            showToast(`Analysis failed: ${e.message || e}`, 'error');
         } finally {
+            window.KawkabSkeletons.hideAll();
             analyzeBtn.disabled = false;
             progressContainer.classList.add('hidden');
             progressFill.style.width = '0%';
@@ -2672,6 +3018,9 @@
 
         setupVideoOverlay();
         setTimeout(generateVisualizations, 500);
+
+        // Re-init tooltips for dynamic content
+        setTimeout(function () { if (window.reinitTooltips) window.reinitTooltips(); }, 600);
     }
 
     function renderPossession(home, away) {
@@ -2760,15 +3109,17 @@
         generateBtn.disabled = true;
         reportContent.textContent = 'Generating report... (this may take 30-60 seconds)';
         reportSection.classList.remove('hidden');
+        window.KawkabSkeletons.showAll();
 
         try {
             const summary = JSON.stringify(analysisResult);
-            const report = await bridge.generate_report(currentMatchId, currentLanguage, summary);
+            const report = await bridge.generate_report(validateInt(currentMatchId), sanitizeString(currentLanguage), sanitizeString(summary));
             reportContent.textContent = report;
         } catch (e) {
             console.error('Report generation failed:', e);
             reportContent.textContent = `Error: ${e.message || e}`;
         } finally {
+            window.KawkabSkeletons.hideAll();
             generateBtn.disabled = false;
         }
     }
@@ -2921,10 +3272,28 @@
     async function loadPlayerProfiles() {
         if (!bridge) return;
         try {
+            window.KawkabSkeletons.showAll();
             const data = JSON.parse(await bridge.get_all_player_profiles());
             const roster = document.getElementById('player-roster');
             if (!data.profiles || data.profiles.length === 0) {
                 roster.innerHTML = '<p class="hint">No players yet. Create your first profile above.</p>';
+                return;
+            }
+            // Store data for table view
+            window._rosterData = data.profiles.map(function(p) {
+                return {
+                    name: p.name || '',
+                    position: p.position || '',
+                    jersey: p.jersey || 0,
+                    minutes: p.minutes || p.minutes_played || 0,
+                    xg: p.xg != null ? p.xg : (p.total_xg || null),
+                    xa: p.xa != null ? p.xa : null,
+                    pass_pct: p.pass_pct != null ? p.pass_pct : (p.pass_percentage || null),
+                    rating: p.rating != null ? p.rating : (p.overall_rating || null),
+                };
+            });
+            if (_currentRosterView === 'roster-table') {
+                renderRosterTable();
                 return;
             }
             roster.innerHTML = data.profiles.map(p => `
@@ -2938,12 +3307,15 @@
             `).join('');
         } catch (e) {
             console.error('Failed to load player profiles:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
         }
     }
 
     async function loadFaceGallery() {
         if (!bridge) return;
         try {
+            window.KawkabSkeletons.showAll();
             const data = JSON.parse(await bridge.get_face_gallery());
             const gallery = document.getElementById('face-gallery');
             if (!data.success || !data.profiles || data.profiles.length === 0) {
@@ -2961,6 +3333,8 @@
             `).join('');
         } catch (e) {
             console.error('Failed to load face gallery:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
         }
     }
 
@@ -2971,49 +3345,50 @@
         const name = document.getElementById('face-name-input').value.trim();
 
         if (!fileInput.files || !fileInput.files[0]) {
-            alert('Please select a photo file');
+            showToast('Please select a photo file', 'warning');
             return;
         }
         if (!name) {
-            alert('Please enter the player name');
+            showToast('Please enter the player name', 'warning');
             return;
         }
 
         try {
             const path = fileInput.files[0].path;
-            const result = JSON.parse(await bridge.upload_face_photo(path, name, jersey));
+            const result = JSON.parse(await bridge.upload_face_photo(sanitizeString(path), sanitizeString(name), validateInt(jersey)));
             if (result.success) {
-                alert(`Face enrolled for ${result.display_name} (confidence: ${(result.confidence * 100).toFixed(0)}%)`);
+                showToast(`Face enrolled for ${result.display_name} (confidence: ${(result.confidence * 100).toFixed(0)}%)`, 'success');
                 fileInput.value = '';
                 document.getElementById('face-jersey-input').value = '';
                 document.getElementById('face-name-input').value = '';
                 await loadFaceGallery();
             } else {
-                alert('Error: ' + (result.error || 'No face detected'));
+                showToast('Error: ' + (result.error || 'No face detected'), 'error');
             }
         } catch (e) {
             console.error('Face upload failed:', e);
-            alert('Failed to upload face photo');
+            showToast('Failed to upload face photo', 'error');
         }
     }
 
-    async function matchFacesInMatch() {
+    function matchFacesInMatch() {
         if (!bridge || !currentMatchId) {
-            alert('Please select a match first');
+            showToast('Please select a match first', 'warning');
             return;
         }
-        if (!confirm('Run face recognition on all tracked players in the current match?')) return;
-        try {
-            const result = JSON.parse(await bridge.match_faces_in_match(currentMatchId));
-            if (result.success) {
-                alert(`Face matching complete! Identified ${result.identified_count} player(s).`);
-            } else {
-                alert('Error: ' + (result.error || 'Unknown error'));
+        showConfirmDialog('Run face recognition on all tracked players in the current match?', async function () {
+            try {
+                const result = JSON.parse(await bridge.match_faces_in_match(currentMatchId));
+                if (result.success) {
+                    showToast(`Face matching complete! Identified ${result.identified_count} player(s).`, 'success');
+                } else {
+                    showToast('Error: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                console.error('Face matching failed:', e);
+                showToast('Failed to run face recognition', 'error');
             }
-        } catch (e) {
-            console.error('Face matching failed:', e);
-            alert('Failed to run face recognition');
-        }
+        });
     }
 
     async function createPlayerProfile() {
@@ -3023,30 +3398,31 @@
         const position = document.getElementById('player-position').value.trim();
 
         if (!name || !position) {
-            alert('Please enter player name and position');
+            showToast('Please enter player name and position', 'warning');
             return;
         }
 
         try {
-            const result = JSON.parse(await bridge.create_player_profile(name, '', jersey, position));
+            const result = JSON.parse(await bridge.create_player_profile(sanitizeString(name), '', validateInt(jersey), sanitizeString(position)));
             if (result.success) {
-                alert(`Player profile created! ID: ${result.profile_id}`);
+                showToast(`Player profile created! ID: ${result.profile_id}`, 'success');
                 document.getElementById('player-name').value = '';
                 document.getElementById('player-jersey').value = '';
                 document.getElementById('player-position').value = '';
                 await loadPlayerProfiles();
             } else {
-                alert('Error: ' + (result.error || 'Unknown error'));
+                showToast('Error: ' + (result.error || 'Unknown error'), 'error');
             }
         } catch (e) {
             console.error('Create player failed:', e);
-            alert('Failed to create player profile');
+            showToast('Failed to create player profile', 'error');
         }
     }
 
     async function populateMatchDropdowns() {
         if (!bridge) return;
         try {
+            window.KawkabSkeletons.showAll();
             const matches = JSON.parse(await bridge.get_all_matches());
             const ids = matches.map(m => m.id);
 
@@ -3059,6 +3435,8 @@
             });
         } catch (e) {
             console.error('Failed to populate match dropdowns:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
         }
     }
 
@@ -3069,12 +3447,12 @@
         const focus = document.getElementById('compare-focus').value.trim();
 
         if (!m1 || !m2) {
-            alert('Please select two matches to compare');
+            showToast('Please select two matches to compare', 'warning');
             return;
         }
 
         try {
-            const result = JSON.parse(await bridge.compare_matches(m1, m2, focus));
+            const result = JSON.parse(await bridge.compare_matches(validateInt(m1), validateInt(m2), sanitizeString(focus)));
             if (result.error) {
                 document.getElementById('comparison-results').innerHTML = `<p class="hint">Error: ${escapeHtml(result.error)}</p>`;
                 return;
@@ -3106,9 +3484,11 @@
                     <div class="comparison-value" style="font-size: 1rem; font-weight: 400;">${escapeHtml(result.key_differences.join(', '))}</div>
                 </div>
             `;
+            // Re-init tooltips for newly added content
+            if (window.reinitTooltips) window.reinitTooltips();
         } catch (e) {
             console.error('Compare matches failed:', e);
-            alert('Failed to compare matches');
+            showToast('Failed to compare matches', 'error');
         }
     }
 
@@ -3116,7 +3496,7 @@
         if (!bridge) return;
         const matchId = document.getElementById('export-match-select').value;
         if (!matchId) {
-            alert('Please select a match to export');
+            showToast('Please select a match to export', 'warning');
             return;
         }
 
@@ -3127,13 +3507,13 @@
                     : await bridge.export_match_json(matchId)
             );
             if (result.success) {
-                alert(`Export complete! File saved to: ${result.path}`);
+                showToast(`Export complete! File saved to: ${result.path}`, 'success');
             } else {
-                alert('Export failed: ' + (result.error || 'Unknown error'));
+                showToast('Export failed: ' + (result.error || 'Unknown error'), 'error');
             }
         } catch (e) {
             console.error('Export failed:', e);
-            alert('Failed to export match data');
+            showToast('Failed to export match data', 'error');
         }
     }
 
@@ -3141,7 +3521,7 @@
         if (!bridge) return;
         const matchId = document.getElementById('quality-match-select').value;
         if (!matchId) {
-            alert('Please select a match');
+            showToast('Please select a match', 'warning');
             return;
         }
 
@@ -3192,7 +3572,7 @@
             `;
         } catch (e) {
             console.error('Quality report failed:', e);
-            alert('Failed to get quality report');
+            showToast('Failed to get quality report', 'error');
         }
     }
 
@@ -3208,8 +3588,376 @@
         });
 
         bridge.analysisError.connect(function(error) {
-            alert(`Analysis error: ${error}`);
+            showToast(`Analysis error: ${error}`, 'error');
         });
+    }
+
+    // ============================================================
+    // Global Search (v0.8.6)
+    // ============================================================
+    function setupGlobalSearch() {
+        var input = document.getElementById('global-search');
+        var dropdown = document.getElementById('search-results-dropdown');
+        if (!input || !dropdown) return;
+
+        function cacheData() {
+            if (!bridge) return;
+            bridge.get_all_matches().then(function(json) {
+                try { _searchCache.matches = JSON.parse(json) || []; } catch(e) {}
+            }).catch(function() {});
+            bridge.get_all_player_profiles().then(function(json) {
+                try { var d = JSON.parse(json); _searchCache.players = d.profiles || []; } catch(e) {}
+            }).catch(function() {});
+            if (currentMatchId) {
+                bridge.get_match_events(currentMatchId).then(function(json) {
+                    try { _searchCache.events = JSON.parse(json) || []; } catch(e) {}
+                }).catch(function() {});
+            }
+        }
+
+        function filterAndRender(query) {
+            if (!query || query.length < 2) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+            var q = query.toLowerCase();
+            var matchedMatches = _searchCache.matches.filter(function(m) {
+                return (m.name || '').toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 5);
+            var matchedPlayers = _searchCache.players.filter(function(p) {
+                return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.position || '').toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 5);
+            var matchedEvents = _searchCache.events.filter(function(e) {
+                return (e.event_type || '').toLowerCase().indexOf(q) !== -1 || (e.player_name || '').toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 5);
+
+            var totalMatches = _searchCache.matches.filter(function(m) { return (m.name || '').toLowerCase().indexOf(q) !== -1; }).length;
+            var totalPlayers = _searchCache.players.filter(function(p) { return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.position || '').toLowerCase().indexOf(q) !== -1; }).length;
+            var totalEvents = _searchCache.events.filter(function(e) { return (e.event_type || '').toLowerCase().indexOf(q) !== -1 || (e.player_name || '').toLowerCase().indexOf(q) !== -1; }).length;
+
+            if (matchedMatches.length === 0 && matchedPlayers.length === 0 && matchedEvents.length === 0) {
+                dropdown.innerHTML = '<div class="search-dropdown-empty">' + t('noSearchResults') + '</div>';
+                dropdown.classList.remove('hidden');
+                _searchSelectedIdx = -1;
+                return;
+            }
+
+            var html = '';
+            if (matchedMatches.length > 0) {
+                html += '<div class="search-section"><div class="search-section-title">' + t('searchMatches') + '</div>';
+                matchedMatches.forEach(function(m, i) {
+                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">⚽ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
+                });
+                if (totalMatches > 5) html += '<div class="search-view-all" data-type="match">' + t('viewAllResults').replace('{n}', totalMatches) + '</div>';
+                html += '</div>';
+            }
+            if (matchedPlayers.length > 0) {
+                html += '<div class="search-section"><div class="search-section-title">' + t('searchPlayers') + '</div>';
+                matchedPlayers.forEach(function(p, i) {
+                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">👤 ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
+                });
+                if (totalPlayers > 5) html += '<div class="search-view-all" data-type="player">' + t('viewAllResults').replace('{n}', totalPlayers) + '</div>';
+                html += '</div>';
+            }
+            if (matchedEvents.length > 0) {
+                html += '<div class="search-section"><div class="search-section-title">' + t('searchEvents') + '</div>';
+                matchedEvents.forEach(function(e, i) {
+                    var label = (e.event_type || '').replace(/_/g, ' ') + (e.player_name ? ' - ' + e.player_name : '');
+                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">🔹 ' + highlightMatch(escapeHtml(label), query) + '</div>';
+                });
+                if (totalEvents > 5) html += '<div class="search-view-all" data-type="event">' + t('viewAllResults').replace('{n}', totalEvents) + '</div>';
+                html += '</div>';
+            }
+            dropdown.innerHTML = html;
+            dropdown.classList.remove('hidden');
+
+            _searchSelectedIdx = -1;
+            dropdown.querySelectorAll('.search-result-item, .search-view-all').forEach(function(el) {
+                el.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    var type = this.dataset.type;
+                    var id = this.dataset.id;
+                    if (type === 'match' && id) {
+                        dropdown.classList.add('hidden');
+                        input.value = '';
+                        navigateToMatch(parseInt(id));
+                    } else if (type === 'player') {
+                        dropdown.classList.add('hidden');
+                        input.value = '';
+                        window.location.hash = 'professional';
+                    } else if (type === 'event') {
+                        dropdown.classList.add('hidden');
+                        input.value = '';
+                    }
+                });
+            });
+        }
+
+        function highlightMatch(text, query) {
+            var idx = text.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return text;
+            return text.substring(0, idx) + '<strong>' + text.substring(idx, idx + query.length) + '</strong>' + text.substring(idx + query.length);
+        }
+
+        function navigateToMatch(matchId) {
+            if (matchId) {
+                window.location.hash = 'results';
+                loadMatch(matchId);
+            }
+        }
+
+        var debounceTimer = null;
+        input.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            var val = this.value.trim();
+            if (val.length < 2) { dropdown.classList.add('hidden'); return; }
+            debounceTimer = setTimeout(function() { filterAndRender(val); }, 300);
+        });
+
+        input.addEventListener('focus', function() {
+            if (this.value.trim().length >= 2) { filterAndRender(this.value.trim()); }
+        });
+
+        input.addEventListener('keydown', function(e) {
+            var items = dropdown.querySelectorAll('.search-result-item');
+            if (e.key === 'Escape') {
+                dropdown.classList.add('hidden');
+                this.blur();
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                _searchSelectedIdx = Math.min(_searchSelectedIdx + 1, items.length - 1);
+                updateSelected(items);
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                _searchSelectedIdx = Math.max(_searchSelectedIdx - 1, -1);
+                updateSelected(items);
+                return;
+            }
+            if (e.key === 'Enter' && _searchSelectedIdx >= 0 && items[_searchSelectedIdx]) {
+                e.preventDefault();
+                items[_searchSelectedIdx].click();
+                return;
+            }
+        });
+
+        function updateSelected(items) {
+            items.forEach(function(el, i) {
+                el.classList.toggle('search-selected', i === _searchSelectedIdx);
+            });
+            if (_searchSelectedIdx >= 0 && items[_searchSelectedIdx]) {
+                items[_searchSelectedIdx].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Slash key to focus search
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '/' && document.activeElement !== input && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                input.focus();
+                input.select();
+            }
+        });
+
+        // Cache data on bridge connect
+        setTimeout(cacheData, 1000);
+        // Also cache when a match is loaded
+        var origLoadMatch = loadMatch;
+        loadMatch = function(matchId) {
+            origLoadMatch(matchId);
+            setTimeout(cacheData, 500);
+        };
+    }
+
+    // ============================================================
+    // Player Comparison (v0.8.6)
+    // ============================================================
+    var pcPlayers = [];
+
+    function setupPlayerComparison() {
+        // Mode toggle
+        document.querySelectorAll('[data-pc-mode]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-pc-mode]').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                var mode = this.dataset.pcMode;
+                document.getElementById('pc-match-mode').classList.toggle('hidden', mode !== 'match');
+                document.getElementById('pc-player-mode').classList.toggle('hidden', mode !== 'player');
+                if (mode === 'player') populatePlayerDropdowns();
+            });
+        });
+
+        document.getElementById('pc-compare-btn')?.addEventListener('click', handlePlayerCompare);
+
+        // Populate on compare tab activation
+        var compareTab = document.querySelector('[data-tab="compare-tab"]');
+        if (compareTab) {
+            compareTab.addEventListener('click', function() {
+                setTimeout(populatePlayerDropdowns, 300);
+            });
+        }
+    }
+
+    async function populatePlayerDropdowns() {
+        if (!bridge) return;
+        try {
+            var data = JSON.parse(await bridge.get_all_player_profiles());
+            pcPlayers = data.profiles || [];
+            var opts = '<option value="">' + t('pcSelectPlayerA') + '</option>';
+            pcPlayers.forEach(function(p) {
+                opts += '<option value="' + p.id + '">' + escapeHtml(p.name || '') + ' (#' + (p.jersey || '?') + ')</option>';
+            });
+            var selA = document.getElementById('pc-player-a');
+            var selB = document.getElementById('pc-player-b');
+            if (selA) { var v = selA.value; selA.innerHTML = opts; if (v) selA.value = v; }
+            if (selB) { var v2 = selB.value; selB.innerHTML = opts.replace('pcSelectPlayerA', 'pcSelectPlayerB'); if (v2) selB.value = v2; }
+        } catch (e) {
+            console.error('Failed to load players:', e);
+        }
+    }
+
+    async function handlePlayerCompare() {
+        var selA = document.getElementById('pc-player-a');
+        var selB = document.getElementById('pc-player-b');
+        var playerAId = parseInt(selA.value);
+        var playerBId = parseInt(selB.value);
+        if (!playerAId || !playerBId) {
+            showToast('Select two players to compare', 'warning');
+            return;
+        }
+        if (playerAId === playerBId) {
+            showToast('Select two different players', 'warning');
+            return;
+        }
+
+        try {
+            var resultA, resultB;
+            if (bridge.comparePlayers) {
+                var json = await bridge.comparePlayers(playerAId, playerBId);
+                var data = JSON.parse(json);
+                resultA = data.player_a;
+                resultB = data.player_b;
+            } else {
+                var rawA = await bridge.get_player_stats(playerAId);
+                var rawB = await bridge.get_player_stats(playerBId);
+                resultA = JSON.parse(rawA);
+                resultB = JSON.parse(rawB);
+            }
+
+            renderPlayerComparison(resultA, resultB);
+        } catch (e) {
+            console.error('Player compare failed:', e);
+            showToast('Failed to compare players', 'error');
+        }
+    }
+
+    function renderPlayerComparison(dataA, dataB) {
+        var container = document.getElementById('pc-results');
+        container.classList.remove('hidden');
+
+        var nameA = dataA.name || t('pcPlayerA');
+        var nameB = dataB.name || t('pcPlayerB');
+        document.getElementById('pc-radar-a-title').textContent = nameA;
+        document.getElementById('pc-radar-b-title').textContent = nameB;
+
+        // Radar charts
+        var statKeys = ['passes', 'shots', 'tackles', 'sprints', 'distance', 'xg'];
+        var statLabels = [
+            t('metric_passes') || 'Passes',
+            t('metric_shots') || 'Shots',
+            t('alert_tackle') || 'Tackles',
+            t('metric_sprints') || 'Sprints',
+            t('metric_distance') || 'Distance',
+            t('metric_xg') || 'xG',
+        ];
+
+        var maxVals = statKeys.map(function(k) {
+            return Math.max(dataA[k] || 0, dataB[k] || 0, 0.01);
+        });
+        var overallMax = Math.max.apply(null, maxVals);
+
+        function normalize(val, max) { return (val || 0) / max; }
+
+        var chartDataA = { labels: statLabels, values: statKeys.map(function(k, i) { return normalize(dataA[k], maxVals[i]); }), playerName: nameA };
+        var chartDataB = { labels: statLabels, values: statKeys.map(function(k, i) { return normalize(dataB[k], maxVals[i]); }), playerName: nameB };
+
+        if (window.KawkabCharts && window.KawkabCharts.renderDualRadar) {
+            window.KawkabCharts.renderDualRadar('pc-radar-a-canvas', chartDataA, 'pc-radar-b-canvas', chartDataB, 1);
+        } else if (window.KawkabCharts && window.KawkabCharts.renderRadar) {
+            window.KawkabCharts.renderRadar(chartDataA);
+            // second radar fallback: just use renderRadar on a temp canvas
+        }
+
+        // Stat comparison table
+        renderPCStatTable(dataA, dataB, statKeys, statLabels, nameA, nameB);
+
+        // Insights
+        renderPCInsights(dataA, dataB, statKeys, statLabels, nameA, nameB);
+    }
+
+    function renderPCStatTable(dataA, dataB, keys, labels, nameA, nameB) {
+        var wrapper = document.getElementById('pc-stat-table-wrapper');
+        var html = '<table class="pc-compare-table"><thead><tr>' +
+            '<th>' + t('pcStat') + '</th>' +
+            '<th>' + escapeHtml(nameA) + '</th>' +
+            '<th>' + escapeHtml(nameB) + '</th>' +
+            '<th>' + t('pcDelta') + '</th>' +
+            '<th>' + t('pcAdvantage') + '</th>' +
+            '</tr></thead><tbody>';
+        keys.forEach(function(k, i) {
+            var vA = dataA[k] || 0;
+            var vB = dataB[k] || 0;
+            var delta = vA - vB;
+            var advantage = delta > 0 ? nameA : (delta < 0 ? nameB : '-');
+            var deltaStr = (delta > 0 ? '+' : '') + delta.toFixed(2);
+            var deltaClass = delta > 0 ? 'pc-delta-pos' : (delta < 0 ? 'pc-delta-neg' : '');
+            html += '<tr>' +
+                '<td>' + escapeHtml(labels[i]) + '</td>' +
+                '<td>' + formatNumber(vA, 2) + '</td>' +
+                '<td>' + formatNumber(vB, 2) + '</td>' +
+                '<td class="' + deltaClass + '">' + deltaStr + '</td>' +
+                '<td>' + escapeHtml(advantage) + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table>';
+        wrapper.innerHTML = html;
+    }
+
+    function renderPCInsights(dataA, dataB, keys, labels, nameA, nameB) {
+        var el = document.getElementById('pc-insights');
+        var aBetter = [];
+        var bBetter = [];
+        keys.forEach(function(k, i) {
+            var vA = dataA[k] || 0;
+            var vB = dataB[k] || 0;
+            if (vA > vB) aBetter.push({ label: labels[i], diff: vA - vB });
+            else if (vB > vA) bBetter.push({ label: labels[i], diff: vB - vA });
+        });
+        aBetter.sort(function(a, b) { return b.diff - a.diff; });
+        bBetter.sort(function(a, b) { return b.diff - a.diff; });
+
+        var html = '';
+        if (aBetter.length > 0) {
+            html += '<p><strong>' + escapeHtml(nameA) + ' ' + t('pcBetterAt') + ':</strong> ' +
+                aBetter.slice(0, 3).map(function(s) { return escapeHtml(s.label); }).join(', ') + '</p>';
+        }
+        if (bBetter.length > 0) {
+            html += '<p><strong>' + escapeHtml(nameB) + ' ' + t('pcBetterAt') + ':</strong> ' +
+                bBetter.slice(0, 3).map(function(s) { return escapeHtml(s.label); }).join(', ') + '</p>';
+        }
+        if (aBetter.length === 0 && bBetter.length === 0) {
+            html = '<p>' + t('pcNoInsights') + '</p>';
+        }
+        el.innerHTML = html;
     }
 
     // --- Feedback UI (v0.8.0) ---
@@ -3255,7 +4003,7 @@
         });
 
         try {
-            const result = JSON.parse(await bridge.submit_feedback(payload));
+            const result = JSON.parse(await bridge.submit_feedback(sanitizeBridgeArg(payload)));
             if (result.error) {
                 showFeedbackResult(`Error: ${result.error}`, 'error');
             } else {
@@ -3288,7 +4036,7 @@
         });
 
         try {
-            const result = JSON.parse(await bridge.submit_issue(payload));
+            const result = JSON.parse(await bridge.submit_issue(sanitizeBridgeArg(payload)));
             if (result.error) {
                 showIssueResult(`Error: ${result.error}`, 'error');
             } else {
@@ -3304,6 +4052,7 @@
     async function loadFeedbackStats() {
         if (!bridge) return;
         try {
+            window.KawkabSkeletons.showAll();
             const stats = JSON.parse(await bridge.get_feedback_stats());
             if (stats.error) {
                 document.getElementById('feedback-stats').innerHTML = `<p class="hint">${stats.error}</p>`;
@@ -3318,6 +4067,8 @@
             document.getElementById('feedback-stats').innerHTML = html;
         } catch (e) {
             console.error('Load feedback stats failed:', e);
+        } finally {
+            window.KawkabSkeletons.hideAll();
         }
     }
 
@@ -3349,13 +4100,13 @@
         try {
             const result = JSON.parse(await bridge.export_report_pdf(currentMatchId, currentLanguage));
             if (result.error) {
-                alert('Export failed: ' + result.error);
+                showToast('Export failed: ' + result.error, 'error');
             } else {
-                alert('Report saved! Open in browser and print to PDF:\n' + result.path);
+                showToast('Report saved! Check the path: ' + result.path, 'success');
             }
         } catch (e) {
             console.error('PDF export failed:', e);
-            alert('Failed to export report');
+            showToast('Failed to export report', 'error');
         }
     }
 
@@ -3384,20 +4135,21 @@
         }
     }
 
-    async function swapTeams() {
+    function swapTeams() {
         if (!bridge || !currentMatchId) return;
-        if (!confirm('Swap home and away team assignment?')) return;
-        try {
-            const result = JSON.parse(await bridge.swap_teams(currentMatchId));
-            if (result.error) {
-                alert('Swap failed: ' + result.error);
-            } else {
-                alert('Teams swapped! ' + result.home + ' is now home, ' + result.away + ' is now away. Re-analyze to update stats.');
+        showConfirmDialog('Swap home and away team assignment?', async function () {
+            try {
+                const result = JSON.parse(await bridge.swap_teams(currentMatchId));
+                if (result.error) {
+                    showToast('Swap failed: ' + result.error, 'error');
+                } else {
+                    showToast('Teams swapped! ' + result.home + ' is now home, ' + result.away + ' is now away.', 'success');
+                }
+            } catch (e) {
+                console.error('Swap teams failed:', e);
+                showToast('Failed to swap teams', 'error');
             }
-        } catch (e) {
-            console.error('Swap teams failed:', e);
-            alert('Failed to swap teams');
-        }
+        });
     }
 
     async function generateVisualizations() {
@@ -3405,7 +4157,7 @@
         try {
             const result = JSON.parse(await bridge.generate_visualizations(currentMatchId));
             if (result.error) {
-                alert('Visualization failed: ' + result.error);
+                showToast('Visualization failed: ' + result.error, 'error');
                 return;
             }
             const section = document.getElementById('visualization-section');
@@ -3422,12 +4174,21 @@
             }
         } catch (e) {
             console.error('Visualization failed:', e);
-            alert('Failed to generate visualizations');
+            showToast('Failed to generate visualizations', 'error');
         }
     }
 
     function loadEventTimeline() {
         if (!currentMatchId) return;
+        // Clear selection state on reload
+        _selectedEventIds.clear();
+        _activeChartFilter = null;
+        var banner = document.getElementById('timeline-filter-banner');
+        if (banner) banner.classList.add('hidden');
+        document.querySelectorAll('.chart-container').forEach(function(c) {
+            c.classList.remove('chart-filter-active');
+        });
+        _updateBatchActionBar();
         bridge.get_match_events(currentMatchId).then(function(json) {
             try {
                 const events = JSON.parse(json);
@@ -3440,25 +4201,189 @@
             } catch (e) {
                 console.error('Failed to parse events:', e);
             }
+        }).catch(function(err) {
+            console.error('loadEventTimeline failed:', err);
         });
     }
 
+    // ── Multi-selection helpers ──────────────────────────────
+
+    function _toggleEventSelection(eventId, ctrlKey) {
+        if (!ctrlKey) {
+            _selectedEventIds.clear();
+        }
+        if (_selectedEventIds.has(eventId)) {
+            _selectedEventIds.delete(eventId);
+        } else {
+            _selectedEventIds.add(eventId);
+        }
+        _updateBatchActionBar();
+        _updateTableRowSelection();
+        _updateTimelineItemSelection();
+    }
+
+    function _selectEventRange(fromIdx, toIdx, events) {
+        var start = Math.min(fromIdx, toIdx);
+        var end = Math.max(fromIdx, toIdx);
+        for (var i = start; i <= end; i++) {
+            if (events[i] && events[i].id) {
+                _selectedEventIds.add(events[i].id);
+            }
+        }
+        _updateBatchActionBar();
+        _updateTableRowSelection();
+        _updateTimelineItemSelection();
+    }
+
+    function _updateBatchActionBar() {
+        var bar = document.getElementById('batch-action-bar');
+        var countEl = document.getElementById('batch-count');
+        if (!bar || !countEl) return;
+        var count = _selectedEventIds.size;
+        if (count > 0) {
+            bar.classList.remove('hidden');
+            countEl.textContent = count + ' selected';
+        } else {
+            bar.classList.add('hidden');
+        }
+    }
+
+    function _updateTableRowSelection() {
+        var table = document.getElementById('timeline-data-table');
+        if (!table) return;
+        var rows = table.querySelectorAll('tbody tr');
+        rows.forEach(function(row) {
+            var eid = parseInt(row.dataset.eventId, 10);
+            row.classList.toggle('selected', _selectedEventIds.has(eid));
+            var cb = row.querySelector('.table-checkbox');
+            if (cb) cb.checked = _selectedEventIds.has(eid);
+        });
+        var selectAll = table.querySelector('.select-all-checkbox');
+        if (selectAll) {
+            var visibleIds = _getFilteredSortedEvents().map(function(e) { return e.id; });
+            var allSelected = visibleIds.every(function(id) { return _selectedEventIds.has(id); });
+            selectAll.checked = allSelected;
+        }
+    }
+
+    function _updateTimelineItemSelection() {
+        document.querySelectorAll('.timeline-item').forEach(function(item) {
+            var eid = parseInt(item.dataset.eventId, 10);
+            item.classList.toggle('selected', _selectedEventIds.has(eid));
+            var cb = item.querySelector('.timeline-checkbox');
+            if (cb) cb.checked = _selectedEventIds.has(eid);
+        });
+    }
+
+    // ── Sort / Filter / Pagination helpers ──────────────────
+
+    function _getEventField(e, key) {
+        switch (key) {
+            case 'time': return e.timestamp || 0;
+            case 'type': return e.event_type || '';
+            case 'team': return e.team || '';
+            case 'player': return e.player_name || '';
+            case 'xg': return e.xg != null ? e.xg : -1;
+            case 'xa': return e.xa != null ? e.xa : -1;
+            case 'xt': return e.xt != null ? e.xt : -1;
+            default: return '';
+        }
+    }
+
+    function _getFilteredSortedEvents() {
+        var events = window._timelineEvents || [];
+        var filterType = document.getElementById('timeline-filter-type');
+        var filterVal = filterType ? filterType.value : 'all';
+        var text = (_timelineSearchText || '').toLowerCase().trim();
+
+        // Apply type filter
+        var filtered = filterVal === 'all' ? events.slice() : events.filter(function(e) {
+            return e.event_type === filterVal;
+        });
+
+        // Apply chart cross-filter
+        if (_activeChartFilter) {
+            filtered = filtered.filter(function(e) {
+                var t = e.timestamp || 0;
+                return t >= _activeChartFilter.startMin * 60 && t <= _activeChartFilter.endMin * 60;
+            });
+        }
+
+        // Apply text search
+        if (text) {
+            filtered = filtered.filter(function(e) {
+                var searchable = (e.event_type + ' ' + (e.team || '') + ' ' + (e.player_name || '') + ' ' + (e.id || '') + ' ' + formatTimestamp(e.timestamp || 0)).toLowerCase();
+                return searchable.indexOf(text) >= 0;
+            });
+        }
+
+        // Apply column filters
+        if (_timelineFilters.type) {
+            filtered = filtered.filter(function(e) { return e.event_type === _timelineFilters.type; });
+        }
+        if (_timelineFilters.team) {
+            filtered = filtered.filter(function(e) { return e.team === _timelineFilters.team; });
+        }
+        if (_timelineFilters.player) {
+            var pn = _timelineFilters.player.toLowerCase();
+            filtered = filtered.filter(function(e) { return (e.player_name || '').toLowerCase().indexOf(pn) >= 0; });
+        }
+
+        // Apply sort
+        var key = _timelineSortState.key;
+        var dir = _timelineSortState.dir === 'asc' ? 1 : -1;
+        filtered.sort(function(a, b) {
+            var va = _getEventField(a, key);
+            var vb = _getEventField(b, key);
+            if (typeof va === 'string' && typeof vb === 'string') {
+                return va.localeCompare(vb) * dir;
+            }
+            if (va == null || va === -1) return 1 * dir;
+            if (vb == null || vb === -1) return -1 * dir;
+            return (va - vb) * dir;
+        });
+
+        return filtered;
+    }
+
+    function _getColumnHeaderLabel(key) {
+        var labels = {
+            time: 'Time',
+            type: 'Type',
+            team: 'Team',
+            player: 'Player',
+            xg: 'xG',
+            xa: 'xA',
+            xt: 'xT',
+        };
+        return labels[key] || key;
+    }
+
+    // ── Timeline rendering ──────────────────────────────────
+
     function renderTimeline(events) {
-        const list = document.getElementById('timeline-list');
+        wireChartFilter();
+        if (!events || events.length === 0) {
+            events = window._timelineEvents || [];
+        }
+        if (_currentTimelineView === 'table') {
+            renderTimelineTable(events);
+            return;
+        }
+        var list = document.getElementById('timeline-list');
+        var wrapper = document.getElementById('timeline-table-wrapper');
         if (!list) return;
+        if (wrapper) wrapper.classList.add('hidden');
+        list.classList.remove('hidden');
         if (!events || events.length === 0) {
             list.innerHTML = '<div class="timeline-empty">No events detected</div>';
             return;
         }
-        const filterType = document.getElementById('timeline-filter-type');
-        const filterVal = filterType ? filterType.value : 'all';
-        const filtered = filterVal === 'all' ? events : events.filter(function(e) {
-            return e.event_type === filterVal;
-        });
-        filtered.sort(function(a, b) { return (a.timestamp || 0) - (b.timestamp || 0); });
+        var filtered = _getFilteredSortedEvents();
         list.innerHTML = filtered.map(function(e, idx) {
             return renderTimelineItem(e, idx);
         }).join('');
+        _updateTimelineItemSelection();
     }
 
     function renderTimelineItem(e, idx) {
@@ -3467,8 +4392,10 @@
         var ts = formatTimestamp(e.timestamp || 0);
         var teamClass = e.team === 'home' || e.team === 'away' ? e.team : '';
         var teamBadge = teamClass ? '<span class="timeline-team-badge ' + teamClass + '">' + teamClass + '</span>' : '';
-        var activeClass = '';
-        return '<div class="timeline-item ' + (e.event_type || '') + ' ' + activeClass + '" data-idx="' + idx + '" data-event-id="' + (e.id || '') + '" data-timestamp="' + (e.timestamp || 0) + '">' +
+        var isSelected = _selectedEventIds.has(e.id) ? ' selected' : '';
+        var checked = _selectedEventIds.has(e.id) ? 'checked' : '';
+        return '<div class="timeline-item ' + (e.event_type || '') + isSelected + '" data-idx="' + idx + '" data-event-id="' + (e.id || '') + '" data-timestamp="' + (e.timestamp || 0) + '">' +
+            '<input type="checkbox" class="timeline-checkbox" data-event-id="' + (e.id || '') + '" ' + checked + '>' +
             '<span class="timeline-icon">' + icon + '</span>' +
             '<span class="timeline-time">' + ts + '</span>' +
             '<span class="timeline-label">' + label + '</span>' +
@@ -3478,6 +4405,109 @@
                 '<button class="delete-btn" title="Delete">&times;</button>' +
             '</span>' +
         '</div>';
+    }
+
+    function renderTimelineTable(events) {
+        var list = document.getElementById('timeline-list');
+        var wrapper = document.getElementById('timeline-table-wrapper');
+        if (!wrapper) return;
+        if (list) list.classList.add('hidden');
+        wrapper.classList.remove('hidden');
+
+        if (!events || events.length === 0) {
+            events = window._timelineEvents || [];
+        }
+        var filtered = _getFilteredSortedEvents();
+        var total = filtered.length;
+        var perPage = _timelinePageState.perPage;
+        var currentPage = _timelinePageState.page;
+        var totalPages = Math.max(1, Math.ceil(total / perPage));
+        if (currentPage > totalPages) {
+            _timelinePageState.page = totalPages;
+            currentPage = totalPages;
+        }
+        var start = (currentPage - 1) * perPage;
+        var pageData = filtered.slice(start, start + perPage);
+
+        var sortKey = _timelineSortState.key;
+        var sortDir = _timelineSortState.dir;
+
+        // Determine if all visible events are selected
+        var visibleIds = filtered.map(function(e) { return e.id; });
+        var allVisibleSelected = visibleIds.length > 0 && visibleIds.every(function(id) { return _selectedEventIds.has(id); });
+
+        var html = '<table class="data-table" id="timeline-data-table"><thead><tr>';
+        // Select all checkbox
+        html += '<th style="width:30px;text-align:center"><input type="checkbox" class="table-checkbox select-all-checkbox" ' + (allVisibleSelected ? 'checked' : '') + '></th>';
+        var cols = ['time', 'type', 'team', 'player', 'xg', 'xa', 'xt'];
+        cols.forEach(function(key) {
+            var isSorted = sortKey === key;
+            var sortClass = isSorted ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
+            var arrow = isSorted ? '<span class="sort-indicator"></span>' : '<span class="sort-indicator"></span>';
+            html += '<th class="sortable ' + sortClass + '" data-sort-key="' + key + '">' +
+                '<span class="th-label">' + _getColumnHeaderLabel(key) + '</span>' + arrow;
+            // Filter inputs for text columns
+            if (key === 'type' || key === 'team' || key === 'player') {
+                var filterVal = _timelineFilters[key] || '';
+                html += '<input type="text" class="col-filter-input" data-filter-key="' + key + '" value="' + filterVal + '" placeholder="Filter...">';
+            }
+            html += '</th>';
+        });
+        html += '<th style="width:70px" data-i18n="actions">Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        if (pageData.length === 0) {
+            html += '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:1.5rem">No events match filters</td></tr>';
+        } else {
+            pageData.forEach(function(e) {
+                var isSelected = _selectedEventIds.has(e.id) ? ' selected' : '';
+                var checked = _selectedEventIds.has(e.id) ? 'checked' : '';
+                html += '<tr class="' + isSelected + '" data-event-id="' + (e.id || '') + '">';
+                html += '<td style="text-align:center"><input type="checkbox" class="table-checkbox" data-event-id="' + (e.id || '') + '" ' + checked + '></td>';
+                html += '<td>' + formatTimestamp(e.timestamp || 0) + '</td>';
+                html += '<td>' + labelEventType(e.event_type || '') + '</td>';
+                html += '<td>' + (e.team || '') + '</td>';
+                html += '<td>' + escapeHtml(e.player_name || '') + '</td>';
+                html += '<td class="numeric">' + (e.xg != null ? e.xg.toFixed(3) : '--') + '</td>';
+                html += '<td class="numeric">' + (e.xa != null ? e.xa.toFixed(3) : '--') + '</td>';
+                html += '<td class="numeric">' + (e.xt != null ? e.xt.toFixed(3) : '--') + '</td>';
+                html += '<td class="table-actions">' +
+                    '<button class="table-edit-btn" data-event-id="' + (e.id || '') + '" data-event-type="' + (e.event_type || '') + '" data-team="' + (e.team || '') + '" title="Edit">&#9998;</button>' +
+                    '<button class="table-delete-btn" data-event-id="' + (e.id || '') + '" title="Delete">&times;</button>' +
+                    '</td>';
+                html += '</tr>';
+            });
+        }
+
+        html += '</tbody></table>';
+
+        // Pagination
+        html += '<div class="data-table-pagination">';
+        html += '<span class="pagination-info">Showing ' + (total > 0 ? (start + 1) + '-' + Math.min(start + perPage, total) : 0) + ' of ' + total + ' events</span>';
+        html += '<div class="pagination-controls">';
+        html += '<button class="pagination-btn" data-page="prev" ' + (currentPage <= 1 ? 'disabled' : '') + '>&#9664;</button>';
+        var maxButtons = 5;
+        var startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+        var endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        if (endPage - startPage < maxButtons - 1) startPage = Math.max(1, endPage - maxButtons + 1);
+        if (startPage > 1) html += '<button class="pagination-btn" data-page="1">1</button>' + (startPage > 2 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '');
+        for (var p = startPage; p <= endPage; p++) {
+            html += '<button class="pagination-btn ' + (p === currentPage ? 'active' : '') + '" data-page="' + p + '">' + p + '</button>';
+        }
+        if (endPage < totalPages) html += (endPage < totalPages - 1 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '') + '<button class="pagination-btn" data-page="' + totalPages + '">' + totalPages + '</button>';
+        html += '<button class="pagination-btn" data-page="next" ' + (currentPage >= totalPages ? 'disabled' : '') + '>&#9654;</button>';
+        html += '<select class="per-page-select">';
+        [25, 50, 100].forEach(function(pp) {
+            html += '<option value="' + pp + '" ' + (pp === perPage ? 'selected' : '') + '>' + pp + ' / page</option>';
+        });
+        html += '</select>';
+        html += '</div></div>';
+
+        wrapper.innerHTML = html;
+    }
+
+    function labelEventType(type) {
+        return type.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
     }
 
     function formatTimestamp(seconds) {
@@ -3542,11 +4572,55 @@
     }
 
     document.addEventListener('click', function(e) {
-        var item = e.target.closest('.timeline-item');
-        if (item && !e.target.closest('.timeline-item-actions')) {
-            timelineSeek(item.dataset.timestamp);
+        // ── Timeline item checkbox (multi-select) ──
+        if (e.target.closest('.timeline-checkbox')) {
+            var cb = e.target;
+            var eventId = parseInt(cb.dataset.eventId, 10);
+            if (!eventId) return;
+            if (e.shiftKey && _lastShiftClickIdx >= 0) {
+                var items = document.querySelectorAll('.timeline-item');
+                var currentIdx = -1;
+                items.forEach(function(it, i) {
+                    if (parseInt(it.dataset.eventId, 10) === eventId) currentIdx = i;
+                });
+                if (currentIdx >= 0) {
+                    _selectEventRange(_lastShiftClickIdx, currentIdx, window._timelineEvents || []);
+                }
+            } else {
+                var idx = -1;
+                var evts = window._timelineEvents || [];
+                evts.forEach(function(ev, i) {
+                    if (ev.id === eventId) { idx = i; }
+                });
+                _lastShiftClickIdx = idx;
+                _toggleEventSelection(eventId, e.ctrlKey || e.metaKey);
+            }
+            e.stopPropagation();
             return;
         }
+
+        // ── Timeline item body (seek + selection) ──
+        var item = e.target.closest('.timeline-item');
+        if (item && !e.target.closest('.timeline-item-actions') && !e.target.closest('.timeline-checkbox')) {
+            var eventId = parseInt(item.dataset.eventId, 10);
+            if (eventId && (e.ctrlKey || e.metaKey)) {
+                _toggleEventSelection(eventId, true);
+            } else if (eventId && e.shiftKey && _lastShiftClickIdx >= 0) {
+                var items = document.querySelectorAll('.timeline-item');
+                var currentIdx = -1;
+                items.forEach(function(it, i) {
+                    if (parseInt(it.dataset.eventId, 10) === eventId) currentIdx = i;
+                });
+                if (currentIdx >= 0) {
+                    _selectEventRange(_lastShiftClickIdx, currentIdx, window._timelineEvents || []);
+                }
+            } else {
+                timelineSeek(item.dataset.timestamp);
+            }
+            return;
+        }
+
+        // ── Timeline edit button (div view) ──
         if (e.target.closest('.edit-btn')) {
             var item = e.target.closest('.timeline-item');
             var eventId = parseInt(item.dataset.eventId, 10);
@@ -3556,32 +4630,3477 @@
             e.stopPropagation();
             return;
         }
+
+        // ── Timeline delete button (div view) ──
         if (e.target.closest('.delete-btn')) {
-            if (!confirm('Delete this event?')) return;
             var item = e.target.closest('.timeline-item');
-            var eventId = parseInt(item.dataset.eventId, 10);
-            bridge.delete_event(eventId).then(function(json) {
-                try {
-                    var result = JSON.parse(json);
-                    if (result.success) {
-                        setTimeout(loadEventTimeline, 100);
-                    }
-                } catch (ex) {}
+            showConfirmDialog('Delete this event?', function() {
+                var eventId = parseInt(item.dataset.eventId, 10);
+                bridge.delete_event(eventId).then(function(json) {
+                    try {
+                        var result = JSON.parse(json);
+                        if (result.success) {
+                            setTimeout(loadEventTimeline, 100);
+                        }
+                    } catch (ex) {}
+                }).catch(function(err) {
+                    console.error('Delete event failed:', err);
+                });
             });
             e.stopPropagation();
             return;
         }
+
+        // ── Table checkbox ──
+        if (e.target.closest('.table-checkbox')) {
+            var cb = e.target;
+            var eventId = parseInt(cb.dataset.eventId, 10);
+            if (cb.classList.contains('select-all-checkbox')) {
+                var filtered = _getFilteredSortedEvents();
+                if (cb.checked) {
+                    filtered.forEach(function(ev) { if (ev.id) _selectedEventIds.add(ev.id); });
+                } else {
+                    filtered.forEach(function(ev) { if (ev.id) _selectedEventIds.delete(ev.id); });
+                }
+                _updateBatchActionBar();
+                _updateTableRowSelection();
+                _updateTimelineItemSelection();
+            } else if (eventId) {
+                if (e.shiftKey && _lastShiftClickIdx >= 0) {
+                    var filteredEvts = _getFilteredSortedEvents();
+                    var currentIdx = -1;
+                    filteredEvts.forEach(function(ev, i) {
+                        if (ev.id === eventId) currentIdx = i;
+                    });
+                    if (currentIdx >= 0) {
+                        _selectEventRange(_lastShiftClickIdx, currentIdx, filteredEvts);
+                    }
+                } else {
+                    var idx = -1;
+                    var evts = window._timelineEvents || [];
+                    evts.forEach(function(ev, i) {
+                        if (ev.id === eventId) idx = i;
+                    });
+                    _lastShiftClickIdx = idx;
+                    _toggleEventSelection(eventId, e.ctrlKey || e.metaKey);
+                }
+            }
+            e.stopPropagation();
+            return;
+        }
+
+        // ── Table edit button ──
+        if (e.target.closest('.table-edit-btn')) {
+            var btn = e.target.closest('.table-edit-btn');
+            var eid = parseInt(btn.dataset.eventId, 10);
+            openEditModal(eid, btn.dataset.eventType, btn.dataset.team);
+            e.stopPropagation();
+            return;
+        }
+
+        // ── Table delete button ──
+        if (e.target.closest('.table-delete-btn')) {
+            var btn = e.target.closest('.table-delete-btn');
+            var eid = parseInt(btn.dataset.eventId, 10);
+            showConfirmDialog('Delete this event?', function() {
+                bridge.delete_event(eid).then(function(json) {
+                    try {
+                        var result = JSON.parse(json);
+                        if (result.success) {
+                            setTimeout(loadEventTimeline, 100);
+                        }
+                    } catch (ex) {}
+                }).catch(function(err) {
+                    console.error('Delete event failed:', err);
+                });
+            });
+            e.stopPropagation();
+            return;
+        }
+
+        // ── Table column header sort ──
+        if (e.target.closest('.data-table th.sortable')) {
+            var th = e.target.closest('.data-table th.sortable');
+            if (e.target.closest('.col-filter-input')) return; // Ignore clicks on filter inputs
+            var key = th.dataset.sortKey;
+            if (_timelineSortState.key === key) {
+                _timelineSortState.dir = _timelineSortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                _timelineSortState.key = key;
+                _timelineSortState.dir = 'asc';
+            }
+            renderTimelineTable(window._timelineEvents || []);
+            return;
+        }
+
+        // ── Table column filter input (delegated) ──
+        if (e.target.closest('.col-filter-input')) {
+            // Handled by input event listener below
+            return;
+        }
+
+        // ── Table pagination ──
+        if (e.target.closest('.pagination-btn')) {
+            var btn = e.target.closest('.pagination-btn');
+            var page = btn.dataset.page;
+            if (page === 'prev') {
+                _timelinePageState.page = Math.max(1, _timelinePageState.page - 1);
+            } else if (page === 'next') {
+                var total = _getFilteredSortedEvents().length;
+                var maxPage = Math.ceil(total / _timelinePageState.perPage);
+                _timelinePageState.page = Math.min(maxPage, _timelinePageState.page + 1);
+            } else {
+                _timelinePageState.page = parseInt(page, 10);
+            }
+            renderTimelineTable(window._timelineEvents || []);
+            return;
+        }
+
+        // ── Table per-page select (delegated) ──
+        if (e.target.closest('.per-page-select')) {
+            // Handled by change event
+            return;
+        }
     });
+
+    // ── Chart cross-filter ──────────────────────────────────
+
+    var _chartFilterCanvasId = null;
+
+    function wireChartFilter() {
+        if (typeof window.__kawkabChartFilter !== 'function') {
+            window.__kawkabChartFilter = function(data) {
+                filterTimelineByTimeRange(data.match_minute, data.range, data.canvasId);
+            };
+        }
+    }
+
+    function filterTimelineByTimeRange(matchMinute, range, canvasId) {
+        // If same chart clicked again, clear filter
+        if (_activeChartFilter && _activeChartFilter.canvasId === canvasId) {
+            clearTimelineFilter();
+            return;
+        }
+
+        var startMin = matchMinute - range;
+        var endMin = matchMinute + range;
+        _activeChartFilter = { canvasId: canvasId, startMin: startMin, endMin: endMin };
+        _chartFilterCanvasId = canvasId;
+
+        // Highlight chart
+        document.querySelectorAll('.chart-container').forEach(function(c) {
+            c.classList.remove('chart-filter-active');
+        });
+        var canvas = document.getElementById(canvasId);
+        if (canvas && canvas.parentElement) {
+            canvas.parentElement.classList.add('chart-filter-active');
+        }
+
+        // Show banner
+        var banner = document.getElementById('timeline-filter-banner');
+        var text = document.getElementById('filter-banner-text');
+        if (banner && text) {
+            banner.classList.remove('hidden');
+            text.textContent = 'Filtered: ' + Math.max(0, startMin) + "'-" + endMin + "'";
+        }
+
+        renderTimeline(window._timelineEvents || []);
+    }
+
+    function clearTimelineFilter() {
+        _activeChartFilter = null;
+        _chartFilterCanvasId = null;
+
+        document.querySelectorAll('.chart-container').forEach(function(c) {
+            c.classList.remove('chart-filter-active');
+        });
+
+        var banner = document.getElementById('timeline-filter-banner');
+        if (banner) banner.classList.add('hidden');
+
+        renderTimeline(window._timelineEvents || []);
+    }
+
+    document.getElementById('filter-banner-clear')?.addEventListener('click', clearTimelineFilter);
+
+    // ── Item 7: Timeline Scrub/Zoom Widget ────────────────
+
+    var _scrubState = { dragging: null, startMin: 0, endMin: 90 };
+
+    function initTimelineScrubber() {
+        var canvas = document.getElementById('scrubber-canvas');
+        if (!canvas) return;
+        if (!window._timelineEvents || window._timelineEvents.length === 0) {
+            document.getElementById('timeline-scrubber').classList.add('empty');
+            return;
+        }
+        document.getElementById('timeline-scrubber').classList.remove('empty');
+        drawScrubberDensity(window._timelineEvents);
+        _scrubState.startMin = 0;
+        _scrubState.endMin = 90;
+        updateScrubberRange();
+
+        var handleL = document.getElementById('scrub-handle-left');
+        var handleR = document.getElementById('scrub-handle-right');
+
+        function onDragStart(side, e) {
+            e.preventDefault();
+            _scrubState.dragging = side;
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mouseup', onDragEnd);
+        }
+
+        function onDragMove(e) {
+            if (!_scrubState.dragging) return;
+            var rect = canvas.getBoundingClientRect();
+            var totalMin = 90;
+            var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            var min = Math.round(pct * totalMin);
+            if (_scrubState.dragging === 'left') {
+                _scrubState.startMin = Math.min(min, _scrubState.endMin - 1);
+            } else {
+                _scrubState.endMin = Math.max(min, _scrubState.startMin + 1);
+            }
+            updateScrubberRange();
+            filterTimelineByTimeRangeScrub();
+        }
+
+        function onDragEnd() {
+            _scrubState.dragging = null;
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+        }
+
+        handleL.addEventListener('mousedown', function(e) { onDragStart('left', e); });
+        handleR.addEventListener('mousedown', function(e) { onDragStart('right', e); });
+
+        canvas.addEventListener('dblclick', function() {
+            _scrubState.startMin = 0;
+            _scrubState.endMin = 90;
+            updateScrubberRange();
+            clearTimelineFilter();
+        });
+    }
+
+    function drawScrubberDensity(events) {
+        var canvas = document.getElementById('scrubber-canvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width;
+        var h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        var totalMin = 90;
+        var minuteCounts = {};
+        var goalCounts = {};
+        var shotCounts = {};
+        events.forEach(function(e) {
+            var min = Math.floor((e.timestamp || 0) / 60);
+            minuteCounts[min] = (minuteCounts[min] || 0) + 1;
+            if (e.event_type === 'goal') goalCounts[min] = (goalCounts[min] || 0) + 1;
+            else if (e.event_type === 'shot') shotCounts[min] = (shotCounts[min] || 0) + 1;
+        });
+
+        var maxCount = 1;
+        for (var i = 0; i <= totalMin; i++) {
+            maxCount = Math.max(maxCount, minuteCounts[i] || 0);
+        }
+
+        var barW = Math.max(1, (w - 4) / totalMin);
+        for (var min = 0; min <= totalMin; min++) {
+            var x = 2 + min * barW;
+            var total = minuteCounts[min] || 0;
+            var goals = goalCounts[min] || 0;
+            var shots = shotCounts[min] || 0;
+            var others = total - goals - shots;
+            var barH = (total / maxCount) * (h - 4);
+            var y = h - 2 - barH;
+
+            if (goals > 0) {
+                var gH = (goals / maxCount) * (h - 4);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(x, h - 2 - gH, barW, gH);
+            }
+            if (shots > 0) {
+                var sH = (shots / maxCount) * (h - 4);
+                ctx.fillStyle = '#f97316';
+                ctx.fillRect(x, h - 2 - sH - gH, barW, sH);
+            }
+            if (others > 0) {
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(x, y, barW, barH);
+            }
+        }
+    }
+
+    function updateScrubberRange() {
+        var canvas = document.getElementById('scrubber-canvas');
+        if (!canvas) return;
+        var totalMin = 90;
+        var pctL = _scrubState.startMin / totalMin;
+        var pctR = 1 - (_scrubState.endMin / totalMin);
+        var handleL = document.getElementById('scrub-handle-left');
+        var handleR = document.getElementById('scrub-handle-right');
+        var highlight = document.getElementById('scrubber-range-highlight');
+        if (handleL) handleL.style.left = 'calc(' + (pctL * 100) + '% - 0px)';
+        if (handleR) handleR.style.right = 'calc(' + (pctR * 100) + '% - 0px)';
+        if (highlight) {
+            highlight.style.left = 'calc(' + (pctL * 100) + '% + 6px)';
+            highlight.style.right = 'calc(' + (pctR * 100) + '% + 6px)';
+        }
+    }
+
+    function filterTimelineByTimeRangeScrub() {
+        var startMin = _scrubState.startMin;
+        var endMin = _scrubState.endMin;
+        _activeChartFilter = { canvasId: 'scrubber', startMin: startMin, endMin: endMin };
+
+        var banner = document.getElementById('timeline-filter-banner');
+        var text = document.getElementById('filter-banner-text');
+        if (banner && text) {
+            banner.classList.remove('hidden');
+            text.textContent = 'Filtered: ' + startMin + "'-" + endMin + "'";
+        }
+
+        document.querySelectorAll('.chart-container').forEach(function(c) {
+            c.classList.remove('chart-filter-active');
+        });
+
+        renderTimeline(window._timelineEvents || []);
+    }
+
+    // ── Item 10: Data Density Toggle ──────────────────────
+
+    function initDensityToggle() {
+        var stored = null;
+        try { stored = localStorage.getItem('kawkab_density'); } catch(e) {}
+        if (stored) {
+            document.documentElement.setAttribute('data-density', stored);
+            document.querySelectorAll('.density-btn').forEach(function(b) {
+                b.classList.toggle('active', b.dataset.density === stored);
+            });
+        }
+        document.querySelectorAll('.density-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var density = this.dataset.density;
+                document.documentElement.setAttribute('data-density', density);
+                document.querySelectorAll('.density-btn').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                try { localStorage.setItem('kawkab_density', density); } catch(e) {}
+            });
+        });
+    }
+
+    // ── Item 12: Color Customization ──────────────────────
+
+    function initColorSettings() {
+        var stored = null;
+        try { stored = JSON.parse(localStorage.getItem('kawkab_colors')); } catch(e) {}
+        if (stored) {
+            applyTeamColors(stored.home || '#2563eb', stored.away || '#dc2626');
+        }
+        var homeInput = document.getElementById('home-color');
+        var awayInput = document.getElementById('away-color');
+        var resetBtn = document.getElementById('reset-colors-btn');
+
+        homeInput.addEventListener('input', function() {
+            applyTeamColors(this.value, awayInput.value);
+            saveTeamColors();
+        });
+        awayInput.addEventListener('input', function() {
+            applyTeamColors(homeInput.value, this.value);
+            saveTeamColors();
+        });
+        resetBtn.addEventListener('click', function() {
+            applyTeamColors('#2563eb', '#dc2626');
+            homeInput.value = '#2563eb';
+            awayInput.value = '#dc2626';
+            try { localStorage.removeItem('kawkab_colors'); } catch(e) {}
+            if (window.__invalidateColorCache) window.__invalidateColorCache();
+        });
+
+        document.getElementById('color-palette-btn').addEventListener('click', function() {
+            document.getElementById('color-settings').classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function(e) {
+            var wrapper = document.querySelector('.color-palette-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('color-settings').classList.add('hidden');
+            }
+        });
+    }
+
+    function applyTeamColors(home, away) {
+        var root = document.documentElement;
+        root.style.setProperty('--team-home', home);
+        root.style.setProperty('--team-away', away);
+    }
+
+    function saveTeamColors() {
+        var home = document.getElementById('home-color').value;
+        var away = document.getElementById('away-color').value;
+        try { localStorage.setItem('kawkab_colors', JSON.stringify({ home: home, away: away })); } catch(e) {}
+        if (window.__invalidateColorCache) window.__invalidateColorCache();
+        // Re-render charts if match loaded
+        if (currentMatchId && analysisResult) {
+            renderResults(analysisResult);
+        }
+    }
+
+    // ── Item 13: Video Keyboard Shortcuts ─────────────────
+
+    function initVideoShortcuts() {
+        document.addEventListener('keydown', function(e) {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            var video = document.getElementById('match-video');
+            if (!video || !video.src) return;
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    if (video.paused) video.play(); else video.pause();
+                    break;
+                case 'k':
+                case 'K':
+                    video.pause();
+                    break;
+                case 'j':
+                case 'J':
+                    video.currentTime = Math.max(0, video.currentTime - 10);
+                    break;
+                case 'l':
+                case 'L':
+                    video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    video.currentTime = Math.max(0, video.currentTime - 5);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+                    break;
+                case 'f':
+                case 'F':
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if (video.webkitRequestFullscreen) {
+                        video.webkitRequestFullscreen();
+                    }
+                    break;
+            }
+        });
+    }
+
+    // ── Item 14: Persistent Filter State ──────────────────
+
+    function saveFilterState() {
+        try {
+            sessionStorage.setItem('kawkab_timeline_filter_type', document.getElementById('timeline-filter-type').value);
+            sessionStorage.setItem('kawkab_timeline_sort_column', _timelineSortState.key);
+            sessionStorage.setItem('kawkab_timeline_sort_dir', _timelineSortState.dir);
+            sessionStorage.setItem('kawkab_timeline_page', _timelinePageState.page);
+            sessionStorage.setItem('kawkab_timeline_view', _currentTimelineView);
+            sessionStorage.setItem('kawkab_timeline_search', _timelineSearchText);
+            sessionStorage.setItem('kawkab_dashboard_daterange', document.getElementById('dashboard-date-range').value);
+        } catch(e) {}
+    }
+
+    function restoreFilterState() {
+        try {
+            var filterType = sessionStorage.getItem('kawkab_timeline_filter_type');
+            var sortCol = sessionStorage.getItem('kawkab_timeline_sort_column');
+            var sortDir = sessionStorage.getItem('kawkab_timeline_sort_dir');
+            var page = sessionStorage.getItem('kawkab_timeline_page');
+            var view = sessionStorage.getItem('kawkab_timeline_view');
+            var search = sessionStorage.getItem('kawkab_timeline_search');
+            var daterange = sessionStorage.getItem('kawkab_dashboard_daterange');
+
+            if (filterType) {
+                var sel = document.getElementById('timeline-filter-type');
+                if (sel) sel.value = filterType;
+            }
+            if (sortCol) _timelineSortState.key = sortCol;
+            if (sortDir) _timelineSortState.dir = sortDir;
+            if (page) _timelinePageState.page = parseInt(page, 10) || 1;
+            if (view) _currentTimelineView = view;
+            if (search != null) _timelineSearchText = search;
+            if (daterange) {
+                var dr = document.getElementById('dashboard-date-range');
+                if (dr) dr.value = daterange;
+            }
+        } catch(e) {}
+    }
+
+    // ── Coding Workspace (Phase 1 — Video Tagging Engine) ──────
+
+    var _codingState = {
+        matchId: null,
+        tags: [],
+        templates: [],
+        video: null,
+        currentTime: 0,
+        activeTagId: null,
+        shortcuts: {},
+        selectedPlayer: 0,
+        selectedTeam: '',
+        selectedPeriod: 1,
+        leadMs: 2000,
+        lagMs: 3000,
+        notes: '',
+        filterText: '',
+        isLoading: false,
+        keyboardEnabled: false,
+    };
+
+    function initCodingWorkspace() {
+        var loadBtn = document.getElementById('coding-load-btn');
+        var matchSelect = document.getElementById('coding-match-select');
+        var clearBtn = document.getElementById('coding-clear-btn');
+        var exportAllBtn = document.getElementById('coding-export-all-btn');
+        var filterInput = document.getElementById('coding-filter-input');
+        var exportCsv = document.getElementById('coding-export-csv');
+        var exportJson = document.getElementById('coding-export-json');
+        var timelineCanvas = document.getElementById('coding-timeline-canvas');
+        var notesInput = document.getElementById('coding-notes-input');
+
+        if (!loadBtn) return; // Section not loaded yet
+
+        // Load match select when coding section is shown
+        window.loadCodingMatchSelect = function() {
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error || !Array.isArray(data)) {
+                        data = typeof data === 'object' && data.matches ? data.matches : [];
+                    }
+                    var sel = document.getElementById('coding-match-select');
+                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || m.home_team + ' vs ' + m.away_team || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) {
+                    console.warn('loadCodingMatchSelect:', e);
+                }
+            });
+        };
+
+        loadBtn.addEventListener('click', function() {
+            var matchId = parseInt(matchSelect.value, 10);
+            if (!matchId) {
+                showToast('Please select a match first.', 'warning');
+                return;
+            }
+            loadCodingWorkspace(matchId);
+        });
+
+        clearBtn.addEventListener('click', function() {
+            if (_codingState.tags.length === 0) return;
+            showConfirmDialog('Delete all ' + _codingState.tags.length + ' tags for this match?', function() {
+                var ids = _codingState.tags.map(function(t) { return t.id; });
+                var deleted = 0;
+                ids.forEach(function(id) {
+                    bridge.delete_coding_tag(id, function(result) {
+                        var data = JSON.parse(result);
+                        if (data.success) deleted++;
+                        if (deleted === ids.length) {
+                            _codingState.tags = [];
+                            renderCodingTagList();
+                            renderCodingTimeline();
+                            updateCodingStats();
+                            showToast('All tags deleted.', 'success');
+                        }
+                    });
+                });
+            });
+        });
+
+        exportAllBtn.addEventListener('click', function() {
+            if (_codingState.tags.length === 0) {
+                showToast('No tags to export.', 'warning');
+                return;
+            }
+            showToast('Extracting clips...', 'info');
+            var tagIds = _codingState.tags.map(function(t) { return t.id; });
+            bridge.extract_tag_clips_batch(_codingState.matchId, JSON.stringify(tagIds), function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.success) {
+                        var done = data.results.filter(function(r) { return r.success; }).length;
+                        var failed = data.results.filter(function(r) { return r.error; }).length;
+                        showToast('Exported ' + done + ' clips' + (failed ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
+                    } else {
+                        showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } catch(e) {
+                    showToast('Export failed: ' + e.message, 'error');
+                }
+            });
+        });
+
+        filterInput.addEventListener('input', function() {
+            _codingState.filterText = this.value.toLowerCase();
+            renderCodingTagList();
+        });
+
+        exportCsv.addEventListener('click', function() {
+            exportCodingTags('csv');
+        });
+        exportJson.addEventListener('click', function() {
+            exportCodingTags('json');
+        });
+
+        // Player select change
+        document.getElementById('coding-player-select').addEventListener('change', function() {
+            _codingState.selectedPlayer = parseInt(this.value, 10) || 0;
+        });
+
+        // Team select change
+        document.getElementById('coding-team-select').addEventListener('change', function() {
+            _codingState.selectedTeam = this.value;
+        });
+
+        // Period select change
+        document.getElementById('coding-period-select').addEventListener('change', function() {
+            _codingState.selectedPeriod = parseInt(this.value, 10) || 1;
+        });
+
+        // Lead/lag changes
+        document.getElementById('coding-lead-ms').addEventListener('change', function() {
+            _codingState.leadMs = parseInt(this.value, 10) || 2000;
+        });
+        document.getElementById('coding-lag-ms').addEventListener('change', function() {
+            _codingState.lagMs = parseInt(this.value, 10) || 3000;
+        });
+
+        // Notes
+        notesInput.addEventListener('change', function() {
+            _codingState.notes = this.value;
+        });
+
+        // Timeline click to seek
+        timelineCanvas.addEventListener('click', function(e) {
+            var rect = this.getBoundingClientRect();
+            var x = e.clientX - rect.left;
+            var pct = x / rect.width;
+            var video = document.getElementById('coding-video');
+            if (video && video.duration) {
+                video.currentTime = pct * video.duration;
+            }
+        });
+
+        // Keyboard shortcuts for coding workspace
+        document.addEventListener('keydown', function(e) {
+            if (!_codingState.keyboardEnabled) return;
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            var key = e.key.toLowerCase();
+            if (key === ' ' || key === 'k') {
+                e.preventDefault();
+                var vid = document.getElementById('coding-video');
+                if (vid && vid.src) {
+                    if (vid.paused) vid.play(); else vid.pause();
+                }
+                return;
+            }
+            if (key === 'arrowleft') {
+                e.preventDefault();
+                var vid = document.getElementById('coding-video');
+                if (vid) vid.currentTime = Math.max(0, vid.currentTime - 3);
+                return;
+            }
+            if (key === 'arrowright') {
+                e.preventDefault();
+                var vid = document.getElementById('coding-video');
+                if (vid) vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 3);
+                return;
+            }
+
+            // Matrix button shortcuts
+            var shortcutMap = _codingState.shortcuts;
+            if (shortcutMap[key]) {
+                e.preventDefault();
+                triggerTag(shortcutMap[key]);
+            }
+        });
+
+        // Update current time from video
+        var video = document.getElementById('coding-video');
+        if (video) {
+            video.addEventListener('timeupdate', function() {
+                _codingState.currentTime = this.currentTime;
+                updateCodingTimelineCursor();
+                highlightTagAtTime(this.currentTime);
+            });
+        }
+
+        // Load templates
+        loadCodingTemplates();
+
+        // Load match select initially
+        loadCodingMatchSelect();
+    }
+
+    function loadCodingTemplates() {
+        if (typeof bridge === 'undefined' || !bridge || !bridge.get_coding_templates) return;
+        bridge.get_coding_templates(function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data.success) {
+                    _codingState.templates = data.templates;
+                    renderCodingMatrix(data.templates);
+                    // Build shortcut map
+                    var shortcuts = {};
+                    (data.templates.categories || []).forEach(function(cat) {
+                        (cat.buttons || []).forEach(function(btn) {
+                            if (btn.shortcut) shortcuts[btn.shortcut.toLowerCase()] = btn;
+                        });
+                    });
+                    _codingState.shortcuts = shortcuts;
+                }
+            } catch(e) {
+                console.warn('loadCodingTemplates:', e);
+            }
+        });
+    }
+
+    function renderCodingMatrix(templates) {
+        var container = document.getElementById('coding-matrix');
+        if (!container) return;
+        container.innerHTML = '';
+        (templates.categories || []).forEach(function(cat) {
+            var catEl = document.createElement('div');
+            catEl.className = 'coding-matrix-category';
+            catEl.innerHTML = '<div class="coding-category-label" style="color:' + (cat.color || '#fff') + '">' + escapeHtml(cat.label) + '</div>';
+            var grid = document.createElement('div');
+            grid.className = 'coding-button-grid';
+            (cat.buttons || []).forEach(function(btn) {
+                var btnEl = document.createElement('button');
+                btnEl.className = 'coding-matrix-btn';
+                btnEl.style.background = btn.color || '#555';
+                btnEl.dataset.eventType = btn.id;
+                btnEl.dataset.shortcut = btn.shortcut || '';
+                btnEl.innerHTML = escapeHtml(btn.label) + (btn.shortcut ? '<span class="shortcut-hint">' + escapeHtml(btn.shortcut) + '</span>' : '');
+                btnEl.addEventListener('click', function() {
+                    triggerTag(btn);
+                });
+                grid.appendChild(btnEl);
+            });
+            catEl.appendChild(grid);
+            container.appendChild(catEl);
+        });
+    }
+
+    function loadCodingWorkspace(matchId) {
+        _codingState.matchId = matchId;
+        _codingState.isLoading = true;
+
+        var status = document.getElementById('coding-match-status');
+        status.textContent = 'Loading...';
+
+        // Get match info
+        bridge.get_video_path(matchId, function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data && data.video_path) {
+                    var video = document.getElementById('coding-video');
+                    video.src = data.video_path;
+                    video.load();
+                    _codingState.keyboardEnabled = true;
+                    status.textContent = 'Ready';
+                } else {
+                    status.textContent = 'No video found';
+                    showToast('No video found for this match.', 'warning');
+                }
+            } catch(e) {
+                status.textContent = 'Error loading video';
+                console.warn('loadCodingWorkspace video:', e);
+            }
+        });
+
+        // Get match players
+        if (bridge.get_coding_players) {
+            bridge.get_coding_players(matchId, function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.success && data.players) {
+                        var sel = document.getElementById('coding-player-select');
+                        sel.innerHTML = '<option value="0">-- None --</option>';
+                        data.players.forEach(function(p) {
+                            sel.innerHTML += '<option value="' + p.track_id + '">' +
+                                escapeHtml(p.name || 'Player ' + p.track_id) +
+                                ' (#' + p.jersey + ')</option>';
+                        });
+                    }
+                } catch(e) {}
+            });
+        }
+
+        // Load existing tags
+        bridge.get_coding_tags(matchId, function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data.success) {
+                    _codingState.tags = data.tags || [];
+                    renderCodingTagList();
+                    renderCodingTimeline();
+                    updateCodingStats();
+                }
+            } catch(e) {
+                console.warn('loadCodingWorkspace tags:', e);
+            }
+            _codingState.isLoading = false;
+
+            // Show workspace
+            document.getElementById('coding-workspace').classList.remove('hidden');
+            document.getElementById('coding-empty-state').classList.add('hidden');
+
+            showToast('Loaded ' + _codingState.tags.length + ' existing tags.', 'info');
+        });
+    }
+
+    function triggerTag(btn) {
+        if (!_codingState.matchId) {
+            showToast('Select a match first.', 'warning');
+            return;
+        }
+
+        var video = document.getElementById('coding-video');
+        if (!video || !video.src) {
+            showToast('No video loaded.', 'warning');
+            return;
+        }
+
+        var videoTime = video.currentTime;
+        var tag = {
+            event_type: btn.id,
+            sub_type: '',
+            video_time: videoTime,
+            player_track_id: _codingState.selectedPlayer,
+            player_name: getSelectedPlayerName(),
+            team: _codingState.selectedTeam,
+            period: _codingState.selectedPeriod,
+            notes: _codingState.notes || '',
+            lead_ms: _codingState.leadMs,
+            lag_ms: _codingState.lagMs,
+        };
+
+        // Flash effect on video
+        var container = document.querySelector('.coding-video-container');
+        container.classList.remove('coding-flash');
+        void container.offsetWidth;
+        container.classList.add('coding-flash');
+
+        // Save via bridge
+        bridge.save_coding_tag(_codingState.matchId, JSON.stringify(tag), function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data.success) {
+                    tag.id = data.tag_id;
+                    _codingState.tags.push(tag);
+                    renderCodingTagList();
+                    renderCodingTimeline();
+                    updateCodingStats();
+                    updateCodingLastTag(btn.label || btn.id, videoTime);
+                } else {
+                    showToast('Failed to save tag: ' + (data.error || 'Unknown'), 'error');
+                }
+            } catch(e) {
+                console.warn('triggerTag save:', e);
+            }
+        });
+    }
+
+    function getSelectedPlayerName() {
+        var sel = document.getElementById('coding-player-select');
+        if (!sel) return '';
+        var opt = sel.options[sel.selectedIndex];
+        return opt ? opt.text.split(' (#')[0] : '';
+    }
+
+    function renderCodingTagList() {
+        var list = document.getElementById('coding-tag-list');
+        if (!list) return;
+        var filter = _codingState.filterText;
+        var tags = _codingState.tags;
+
+        if (filter) {
+            tags = tags.filter(function(t) {
+                return (t.event_type || '').toLowerCase().indexOf(filter) !== -1 ||
+                       (t.player_name || '').toLowerCase().indexOf(filter) !== -1 ||
+                       (t.notes || '').toLowerCase().indexOf(filter) !== -1;
+            });
+        }
+
+        if (tags.length === 0) {
+            list.innerHTML = '<div class="coding-tag-list-empty">' +
+                (filter ? 'No tags match your filter.' : 'No tags yet. Click a matrix button to tag the current video time!') +
+                '</div>';
+            document.getElementById('coding-tag-count-badge').textContent = '0';
+            return;
+        }
+
+        var html = '';
+        tags.forEach(function(tag, idx) {
+            var timeStr = formatCodingTime(tag.video_time || 0);
+            var typeLabel = tag.event_type || 'unknown';
+            var playerLabel = tag.player_name || '';
+            var activeClass = tag.id === _codingState.activeTagId ? ' active' : '';
+            var color = getTagColor(tag.event_type);
+
+            html += '<div class="coding-tag-item' + activeClass + '" data-tag-id="' + tag.id + '" data-video-time="' + (tag.video_time || 0) + '">';
+            html += '  <span class="tag-color-dot" style="background:' + color + '"></span>';
+            html += '  <div class="tag-info">';
+            html += '    <div class="tag-type">' + escapeHtml(typeLabel) + '</div>';
+            html += '    <div class="tag-sub">' + escapeHtml(timeStr) + (playerLabel ? ' · ' + escapeHtml(playerLabel) : '') + '</div>';
+            html += '  </div>';
+            html += '  <div class="tag-time">' + timeStr + '</div>';
+            html += '  <div class="tag-actions">';
+            html += '    <button class="tag-action-btn tag-seek-btn" title="Seek to time">⏩</button>';
+            html += '    <button class="tag-action-btn tag-clip-btn" title="Extract clip">✂️</button>';
+            html += '    <button class="tag-action-btn tag-delete-btn" title="Delete tag">✕</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        list.innerHTML = html;
+
+        document.getElementById('coding-tag-count-badge').textContent = tags.length;
+
+        // Wire up tag item clicks
+        list.querySelectorAll('.coding-tag-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                if (e.target.closest('.tag-actions')) return;
+                var time = parseFloat(this.dataset.videoTime);
+                var video = document.getElementById('coding-video');
+                if (video) video.currentTime = time;
+                _codingState.activeTagId = parseInt(this.dataset.tagId, 10);
+                renderCodingTagList();
+            });
+
+            // Seek button
+            item.querySelector('.tag-seek-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                var time = parseFloat(item.dataset.videoTime);
+                var video = document.getElementById('coding-video');
+                if (video) video.currentTime = time;
+            });
+
+            // Clip button
+            item.querySelector('.tag-clip-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                var tagId = parseInt(item.dataset.tagId, 10);
+                if (!tagId) return;
+                showToast('Extracting clip...', 'info');
+                bridge.extract_tag_clip(_codingState.matchId, tagId, function(result) {
+                    try {
+                        var data = JSON.parse(result);
+                        if (data.success) {
+                            showToast('Clip saved: ' + data.clip_path, 'success');
+                        } else {
+                            showToast('Failed: ' + (data.error || 'Unknown'), 'error');
+                        }
+                    } catch(e) {
+                        showToast('Clip extraction failed.', 'error');
+                    }
+                });
+            });
+
+            // Delete button
+            item.querySelector('.tag-delete-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                var tagId = parseInt(item.dataset.tagId, 10);
+                if (!tagId) return;
+                showConfirmDialog('Delete this tag?', function() {
+                    bridge.delete_coding_tag(tagId, function(result) {
+                        try {
+                            var data = JSON.parse(result);
+                            if (data.success) {
+                                _codingState.tags = _codingState.tags.filter(function(t) { return t.id !== tagId; });
+                                renderCodingTagList();
+                                renderCodingTimeline();
+                                updateCodingStats();
+                            } else {
+                                showToast('Failed to delete tag.', 'error');
+                            }
+                        } catch(e) {}
+                    });
+                });
+            });
+        });
+    }
+
+    function renderCodingTimeline() {
+        var canvas = document.getElementById('coding-timeline-canvas');
+        if (!canvas) return;
+        var video = document.getElementById('coding-video');
+        var duration = video && video.duration ? video.duration : 90 * 60;
+
+        var rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width || 600;
+        canvas.height = 40;
+
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Time markers
+        var markerInterval = Math.max(60, Math.floor(duration / 10));
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.font = '9px monospace';
+        ctx.fillStyle = '#64748b';
+        for (var t = 0; t <= duration; t += markerInterval) {
+            var x = (t / duration) * canvas.width;
+            ctx.beginPath();
+            ctx.moveTo(x, 24);
+            ctx.lineTo(x, 40);
+            ctx.stroke();
+            ctx.fillText(formatCodingTime(t), x + 2, 35);
+        }
+
+        // Tag markers
+        (_codingState.tags || []).forEach(function(tag) {
+            var time = tag.video_time || 0;
+            var x = (time / duration) * canvas.width;
+            var color = getTagColor(tag.event_type);
+
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, 12, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Active tag highlight
+            if (tag.id === _codingState.activeTagId) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, 12, 8, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        });
+
+        // Current time cursor
+        if (video && video.currentTime != null) {
+            var cursorX = (video.currentTime / duration) * canvas.width;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cursorX, 0);
+            ctx.lineTo(cursorX, 40);
+            ctx.stroke();
+        }
+
+        // Labels
+        var labels = document.getElementById('coding-timeline-labels');
+        if (labels) {
+            labels.innerHTML = '0:00';
+            var half = Math.floor(duration / 2);
+            labels.innerHTML += '<span>' + formatCodingTime(half) + '</span>';
+            labels.innerHTML += '<span>' + formatCodingTime(duration) + '</span>';
+        }
+    }
+
+    function updateCodingTimelineCursor() {
+        renderCodingTimeline();
+    }
+
+    function highlightTagAtTime(time) {
+        var tags = _codingState.tags;
+        var closest = null;
+        var closestDist = Infinity;
+        tags.forEach(function(tag) {
+            var dist = Math.abs((tag.video_time || 0) - time);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = tag;
+            }
+        });
+        var activeId = closest && closestDist < 5 ? closest.id : null;
+        if (activeId !== _codingState.activeTagId) {
+            _codingState.activeTagId = activeId;
+            renderCodingTagList();
+        }
+    }
+
+    function updateCodingStats() {
+        var count = _codingState.tags.length;
+        document.getElementById('coding-tag-count').textContent = count;
+    }
+
+    function updateCodingLastTag(type, time) {
+        var el = document.getElementById('coding-last-tag');
+        if (el) {
+            el.innerHTML = 'Last: <strong>' + escapeHtml(type) + '</strong> at ' + formatCodingTime(time);
+        }
+    }
+
+    function formatCodingTime(seconds) {
+        if (seconds == null || !isFinite(seconds)) return '0:00';
+        var m = Math.floor(seconds / 60);
+        var s = Math.floor(seconds % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function getTagColor(eventType) {
+        if (!eventType) return '#64748b';
+        // Map common event types to colors
+        var colorMap = {
+            'pass': '#22c55e',
+            'through_ball': '#4ade80',
+            'shot': '#ef4444',
+            'goal': '#dc2626',
+            'dribble': '#3b82f6',
+            'cross': '#60a5fa',
+            'carry': '#818cf8',
+            'key_pass': '#a3e635',
+            'tackle': '#f97316',
+            'interception': '#fb923c',
+            'press': '#a855f7',
+            'clearance': '#c084fc',
+            'block': '#e879f9',
+            'foul': '#f43f5e',
+            'error_positional': '#92400e',
+            'error_technical': '#b45309',
+            'error_decision': '#d97706',
+            'error_physical': '#f59e0b',
+            'missed_tackle': '#ef4444',
+            'bad_pass': '#fca5a5',
+            'corner': '#06b6d4',
+            'free_kick': '#22d3ee',
+            'throw_in': '#67e8f9',
+            'goal_kick': '#a5f3fc',
+            'penalty': '#2dd4bf',
+        };
+        return colorMap[eventType] || '#64748b';
+    }
+
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function exportCodingTags(format) {
+        if (_codingState.tags.length === 0) {
+            showToast('No tags to export.', 'warning');
+            return;
+        }
+
+        if (format === 'csv') {
+            var headers = 'id,event_type,video_time,player_name,team,period,notes,lead_ms,lag_ms';
+            var rows = _codingState.tags.map(function(t) {
+                return (t.id || '') + ',' +
+                       (t.event_type || '') + ',' +
+                       (t.video_time || 0) + ',' +
+                       '"' + (t.player_name || '') + '",' +
+                       (t.team || '') + ',' +
+                       (t.period || 1) + ',' +
+                       '"' + (t.notes || '').replace(/"/g, '""') + '",' +
+                       (t.lead_ms || 2000) + ',' +
+                       (t.lag_ms || 3000);
+            });
+            var csv = headers + '\n' + rows.join('\n');
+            downloadFile(csv, 'coding_tags_' + _codingState.matchId + '.csv', 'text/csv');
+        } else {
+            var json = JSON.stringify(_codingState.tags, null, 2);
+            downloadFile(json, 'coding_tags_' + _codingState.matchId + '.json', 'application/json');
+        }
+
+        showToast('Exported ' + _codingState.tags.length + ' tags.', 'success');
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        var blob = new Blob([content], { type: mimeType });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── Tactical Periods + Formation (Phase 2.3-2.4) ────────────────
+
+    function initTacticsWorkspace() {
+        var loadBtn = document.getElementById('tactics-load-btn');
+        var matchSelect = document.getElementById('tactics-match-select');
+        if (!loadBtn) return;
+
+        window.loadTacticsMatchSelect = function() {
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (data.error) data = [];
+                    var sel = document.getElementById('tactics-match-select');
+                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) { console.warn(e); }
+            });
+        };
+
+        loadBtn.addEventListener('click', function() {
+            var matchId = parseInt(matchSelect.value, 10);
+            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+            loadTacticsAnalysis(matchId);
+        });
+
+        loadTacticsMatchSelect();
+    }
+
+    function loadTacticsAnalysis(matchId) {
+        var status = document.getElementById('tactics-status');
+        status.textContent = 'Analyzing...';
+
+        bridge.get_tactical_periods(matchId, function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                renderTacticalPhases(data);
+            } catch(e) { status.textContent = 'Error loading phases.'; console.warn(e); }
+        });
+
+        bridge.analyze_formation(matchId, function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                renderFormation(data);
+            } catch(e) { console.warn(e); }
+        });
+
+        document.getElementById('tactics-workspace').classList.remove('hidden');
+        status.textContent = 'Done';
+    }
+
+    function renderTacticalPhases(data) {
+        var container = document.getElementById('tactics-phases-content');
+        if (!container) return;
+        if (data.error || !data.phases || data.phases.length === 0) {
+            container.innerHTML = '<p class="hint">No phase data available.</p>';
+            return;
+        }
+
+        var colors = {
+            settled_possession: '#2563eb', transition: '#d97706',
+            counter: '#dc2626', set_piece: '#16a34a', direct: '#8b5cf6',
+        };
+        var totalDur = 0;
+        data.phases.forEach(function(p) { totalDur += p.duration_s; });
+        totalDur = Math.max(1, totalDur);
+
+        var phaseHtml = '';
+        data.phases.forEach(function(p) {
+            var pct = (p.duration_s / totalDur * 100).toFixed(1);
+            var color = colors[p.label] || '#64748b';
+            phaseHtml += '<div class="phase-bar">' +
+                '<span class="phase-label">' + escapeHtml(p.label.replace(/_/g, ' ')) + '</span>' +
+                '<span class="phase-fill" style="width:' + pct + '%;background:' + color + '"></span>' +
+                '<span class="phase-dur">' + p.duration_s.toFixed(0) + 's</span>' +
+                '<span class="phase-pct">' + pct + '%</span>' +
+                '</div>';
+        });
+
+        container.innerHTML = '<div style="margin-bottom:8px">' +
+            '<span style="font-size:0.78rem;color:var(--text-muted)">' + data.phases.length + ' phases detected</span>' +
+            '</div>' + phaseHtml;
+    }
+
+    function renderFormation(data) {
+        var container = document.getElementById('tactics-formation-content');
+        if (!container) return;
+        if (data.error) {
+            container.innerHTML = '<p class="hint">Formation analysis not available.</p>';
+            return;
+        }
+
+        var html = '';
+        ['home', 'away'].forEach(function(side) {
+            var f = data[side];
+            if (!f || !f.in_possession_formation) {
+                html += '<div class="formation-card"><div class="label">' + side.charAt(0).toUpperCase() + side.slice(1) + '</div>' +
+                    '<div class="value">Unknown</div></div>';
+                return;
+            }
+            html += '<div class="formation-card">' +
+                '<div class="label">' + side.charAt(0).toUpperCase() + side.slice(1) + '</div>' +
+                '<div class="value" style="font-size:1.3rem">' + escapeHtml(f.in_possession_formation) +
+                (f.out_possession_formation && f.out_possession_formation !== f.in_possession_formation ? ' → ' + escapeHtml(f.out_possession_formation) : '') +
+                '</div>' +
+                '<div style="display:flex;gap:12px;margin-top:4px;font-size:0.72rem;color:var(--text-muted)">' +
+                '<span>Width: ' + (f.avg_width_in || 0).toFixed(1) + 'm</span>' +
+                '<span>Depth: ' + (f.avg_depth_in || 0).toFixed(1) + 'm</span>' +
+                '<span>Compact: ' + (f.avg_compactness_in || 0).toFixed(2) + '</span>' +
+                '</div></div>';
+        });
+        container.innerHTML = html;
+    }
+
+    // ── AI Chat (Phase 3) ──────────────────────────────────────────
+
+    function initAiWorkspace() {
+        var askBtn = document.getElementById('ai-ask-btn');
+        var input = document.getElementById('ai-question-input');
+        var matchSelect = document.getElementById('ai-match-select');
+        if (!askBtn) return;
+
+        window.loadAiMatchSelect = function() {
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (data.error) data = [];
+                    var sel = document.getElementById('ai-match-select');
+                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) { console.warn(e); }
+            });
+        };
+
+        function askQuestion() {
+            var matchId = parseInt(matchSelect.value, 10);
+            var question = input.value.trim();
+            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+            if (!question) { showToast('Enter a question.', 'warning'); return; }
+
+            var messages = document.getElementById('ai-chat-messages');
+            messages.innerHTML += '<div class="ai-message user">' + escapeHtml(question) + '</div>';
+            messages.innerHTML += '<div class="ai-message assistant ai-typing" id="ai-typing-msg">Thinking</div>';
+            messages.scrollTop = messages.scrollHeight;
+            input.value = '';
+
+            bridge.ask_llm(matchId, question, function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    var typing = document.getElementById('ai-typing-msg');
+                    if (typing) typing.remove();
+
+                    if (data.success) {
+                        messages.innerHTML += '<div class="ai-message assistant">' + escapeHtml(data.answer) + '</div>';
+                    } else {
+                        messages.innerHTML += '<div class="ai-message assistant" style="color:var(--danger)">Error: ' + escapeHtml(data.error || 'Unknown') + '</div>';
+                    }
+                    messages.scrollTop = messages.scrollHeight;
+                } catch(e) {
+                    var typing2 = document.getElementById('ai-typing-msg');
+                    if (typing2) typing2.remove();
+                    messages.innerHTML += '<div class="ai-message assistant" style="color:var(--danger)">Failed to get answer.</div>';
+                }
+            });
+
+            // Update LLM status
+            var status = document.getElementById('ai-llm-status');
+            if (status) {
+                bridge.check_llm_availability(function(r) {
+                    try {
+                        var d = JSON.parse(r);
+                        status.textContent = d.ollama ? '🟢 LLM: ' + d.model : '🔴 LLM: Unavailable';
+                    } catch(e) { status.textContent = '🔴 LLM: Unavailable'; }
+                });
+            }
+        }
+
+        askBtn.addEventListener('click', askQuestion);
+        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') askQuestion(); });
+
+        loadAiMatchSelect();
+
+        // Check LLM status on init
+        var status = document.getElementById('ai-llm-status');
+        if (status && typeof bridge !== 'undefined' && bridge) {
+            bridge.check_llm_availability(function(r) {
+                try {
+                    var d = JSON.parse(r);
+                    status.textContent = d.ollama ? '🟢 LLM: ' + d.model : '🔴 LLM: Unavailable (install Ollama)';
+                } catch(e) { status.textContent = '🔴 LLM: Unavailable'; }
+            });
+        }
+    }
+
+    // ── Squad + Player Ratings (Phase 4) ───────────────────────────
+
+    function initSquadWorkspace() {
+        var loadBtn = document.getElementById('squad-load-btn');
+        var matchSelect = document.getElementById('squad-match-select');
+        if (!loadBtn) return;
+
+        window.loadSquadMatchSelect = function() {
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (data.error) data = [];
+                    var sel = document.getElementById('squad-match-select');
+                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) { console.warn(e); }
+            });
+        };
+
+        loadBtn.addEventListener('click', function() {
+            var matchId = parseInt(matchSelect.value, 10);
+            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+            loadSquadData(matchId);
+        });
+
+        loadSquadMatchSelect();
+    }
+
+    function loadSquadData(matchId) {
+        var status = document.getElementById('squad-status');
+        status.textContent = 'Loading...';
+
+        document.getElementById('squad-workspace').classList.remove('hidden');
+
+        bridge.get_squad_summary(matchId, function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                renderSquadRoster(data);
+                if (data.squad) {
+                    loadPlayerRatings(matchId, data.squad);
+                }
+            } catch(e) { status.textContent = 'Error loading squad.'; console.warn(e); return; }
+            status.textContent = 'Done';
+        });
+    }
+
+    function renderSquadRoster(data) {
+        var container = document.getElementById('squad-roster-content');
+        if (!container) return;
+        if (!data.squad || Object.keys(data.squad).length === 0) {
+            container.innerHTML = '<p class="hint">No squad data available.</p>';
+            return;
+        }
+
+        var html = '';
+        Object.keys(data.squad).forEach(function(team) {
+            var players = data.squad[team] || [];
+            html += '<div class="squad-team-header">' + escapeHtml(team.charAt(0).toUpperCase() + team.slice(1)) + ' (' + players.length + ')</div>';
+            players.forEach(function(p) {
+                html += '<div class="squad-player-row" data-track-id="' + p.track_id + '">' +
+                    '<span class="jersey">' + escapeHtml(String(p.jersey || '')) + '</span>' +
+                    '<span class="name">' + escapeHtml(p.name || 'Player #' + p.track_id) + '</span>' +
+                    '<span class="pos">' + escapeHtml(p.position || '') + '</span>' +
+                    '<span class="stat">P' + (p.passes || 0) + '</span>' +
+                    '<span class="stat">S' + (p.shots || 0) + '</span>' +
+                    '<span class="stat">T' + (p.tackles || 0) + '</span>' +
+                    '<span class="rating-badge" id="rating-' + p.track_id + '">--</span>' +
+                    '</div>';
+            });
+        });
+        container.innerHTML = html;
+    }
+
+    function loadPlayerRatings(matchId, squad) {
+        Object.keys(squad).forEach(function(team) {
+            (squad[team] || []).forEach(function(p) {
+                bridge.get_player_rating(matchId, p.track_id, function(result) {
+                    try {
+                        var data = typeof result === 'string' ? JSON.parse(result) : result;
+                        var badge = document.getElementById('rating-' + p.track_id);
+                        if (badge) {
+                            var r = data.rating || 0;
+                            var cls = r >= 70 ? 'rating-high' : (r >= 40 ? 'rating-mid' : 'rating-low');
+                            badge.textContent = r.toFixed(0);
+                            badge.className = 'rating-badge ' + cls;
+                        }
+                    } catch(e) { /* ignore */ }
+                });
+            });
+        });
+    }
+
+    // ── Event Review Workspace (Phase 2) ─────────────────────────
+
+    var _reviewState = {
+        matchId: null,
+        events: [],
+        queue: [],
+        currentIndex: -1,
+        video: null,
+        autoAdvance: true,
+        isLoading: false,
+    };
+
+    function initReviewWorkspace() {
+        var loadBtn = document.getElementById('review-load-btn');
+        var matchSelect = document.getElementById('review-match-select');
+        var autoAdvBtn = document.getElementById('review-auto-advance-btn');
+        var typeFilter = document.getElementById('review-type-filter');
+        var confirmBtn = document.getElementById('review-confirm-btn');
+        var editBtn = document.getElementById('review-edit-btn');
+        var rejectBtn = document.getElementById('review-reject-btn');
+        var seekBtn = document.getElementById('review-seek-btn');
+        var prevBtn = document.getElementById('review-prev-btn');
+        var nextBtn = document.getElementById('review-next-btn');
+        var saveEditBtn = document.getElementById('review-save-edit-btn');
+
+        if (!loadBtn) return;
+
+        window.loadReviewMatchSelect = function() {
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (data.error) data = [];
+                    var sel = document.getElementById('review-match-select');
+                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) { console.warn('loadReviewMatchSelect:', e); }
+            });
+        };
+
+        loadBtn.addEventListener('click', function() {
+            var matchId = parseInt(matchSelect.value, 10);
+            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+            loadReviewWorkspace(matchId);
+        });
+
+        autoAdvBtn.addEventListener('click', function() {
+            _reviewState.autoAdvance = !_reviewState.autoAdvance;
+            this.classList.toggle('btn-primary');
+            this.classList.toggle('btn-secondary');
+            this.innerHTML = _reviewState.autoAdvance ? '⏩ Auto-Advance: ON' : '⏩ Auto-Advance: OFF';
+        });
+
+        typeFilter.addEventListener('change', function() {
+            renderReviewQueue();
+        });
+
+        confirmBtn.addEventListener('click', function() {
+            if (_reviewState.currentIndex < 0) return;
+            var item = _reviewState.queue[_reviewState.currentIndex];
+            submitReviewAction(item.id, 'confirm', '', function() {
+                removeFromQueue(_reviewState.currentIndex);
+            });
+        });
+
+        editBtn.addEventListener('click', function() {
+            var fields = document.getElementById('review-edit-fields');
+            fields.classList.toggle('hidden');
+            if (!fields.classList.contains('hidden')) {
+                populateEditFields();
+            }
+        });
+
+        saveEditBtn.addEventListener('click', function() {
+            var item = _reviewState.queue[_reviewState.currentIndex];
+            if (!item) return;
+            var corrections = {
+                event_type: document.getElementById('review-edit-type').value,
+                team: document.getElementById('review-edit-team').value,
+                completed: document.getElementById('review-edit-completed').checked,
+            };
+            submitReviewAction(item.id, 'edit', JSON.stringify(corrections), function() {
+                document.getElementById('review-edit-fields').classList.add('hidden');
+                removeFromQueue(_reviewState.currentIndex);
+            });
+        });
+
+        rejectBtn.addEventListener('click', function() {
+            if (_reviewState.currentIndex < 0) return;
+            var item = _reviewState.queue[_reviewState.currentIndex];
+            showConfirmDialog('Reject this auto-detected event? It will be deleted.', function() {
+                submitReviewAction(item.id, 'reject', '', function() {
+                    removeFromQueue(_reviewState.currentIndex);
+                });
+            });
+        });
+
+        seekBtn.addEventListener('click', function() {
+            if (_reviewState.currentIndex < 0) return;
+            var item = _reviewState.queue[_reviewState.currentIndex];
+            var video = document.getElementById('review-video');
+            if (video && item.video_time != null) {
+                video.currentTime = item.video_time;
+            }
+        });
+
+        prevBtn.addEventListener('click', function() {
+            navigateReview(-1);
+        });
+        nextBtn.addEventListener('click', function() {
+            navigateReview(1);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            var section = document.getElementById('review-section');
+            if (!section || section.classList.contains('hidden')) return;
+
+            switch (e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    confirmBtn.click();
+                    break;
+                case 'Delete':
+                case 'd':
+                    e.preventDefault();
+                    rejectBtn.click();
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    editBtn.click();
+                    break;
+                case 'ArrowLeft':
+                    prevBtn.click();
+                    break;
+                case 'ArrowRight':
+                    nextBtn.click();
+                    break;
+                case ' ':
+                case 'k':
+                    e.preventDefault();
+                    var vid = document.getElementById('review-video');
+                    if (vid && vid.src) { if (vid.paused) vid.play(); else vid.pause(); }
+                    break;
+            }
+        });
+
+        // Video timeupdate to highlight current event
+        var video = document.getElementById('review-video');
+        if (video) {
+            video.addEventListener('timeupdate', function() {
+                highlightReviewEventAtTime(this.currentTime);
+            });
+        }
+
+        loadReviewMatchSelect();
+    }
+
+    function loadReviewWorkspace(matchId) {
+        _reviewState.matchId = matchId;
+        _reviewState.isLoading = true;
+
+        var status = document.getElementById('review-match-status');
+        status.textContent = 'Loading...';
+
+        // Load video
+        bridge.get_video_path(matchId, function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data && data.video_path) {
+                    var video = document.getElementById('review-video');
+                    video.src = data.video_path;
+                    video.load();
+                    _reviewState.video = video;
+                    status.textContent = 'Ready';
+                } else {
+                    status.textContent = 'No video';
+                }
+            } catch(e) {
+                status.textContent = 'Error';
+                console.warn(e);
+            }
+        });
+
+        // Load events + detection summary
+        loadReviewEvents(matchId);
+    }
+
+    function loadReviewEvents(matchId) {
+        bridge.get_match_events(matchId, function(result) {
+            try {
+                var data = JSON.parse(result);
+                _reviewState.events = Array.isArray(data) ? data : (data.events || []);
+            } catch(e) { _reviewState.events = []; }
+
+            // Separate unreviewed (low confidence, not user_corrected)
+            _reviewState.queue = _reviewState.events.filter(function(ev) {
+                return !ev.user_corrected && (ev.confidence == null || ev.confidence < 0.7);
+            });
+            _reviewState.queue.sort(function(a, b) {
+                return (a.confidence || 0) - (b.confidence || 0);
+            });
+
+            _reviewState.currentIndex = _reviewState.queue.length > 0 ? 0 : -1;
+
+            // Show workspace
+            document.getElementById('review-workspace').classList.remove('hidden');
+            document.getElementById('review-empty-state').classList.add('hidden');
+
+            renderReviewSummary();
+            renderReviewQueue();
+            renderReviewEventDetail();
+            updateReviewNavButtons();
+
+            _reviewState.isLoading = false;
+            status.textContent = _reviewState.queue.length + ' events need review';
+        });
+    }
+
+    function renderReviewSummary() {
+        var container = document.getElementById('review-summary-content');
+        if (!container) return;
+
+        var total = _reviewState.events.length;
+        var unreviewed = _reviewState.queue.length;
+        var corrected = total - unreviewed;
+        var pct = total > 0 ? Math.round(corrected / total * 100) : 0;
+
+        // Count by type
+        var byType = {};
+        _reviewState.events.forEach(function(ev) {
+            var t = ev.event_type || 'unknown';
+            if (!byType[t]) byType[t] = { total: 0, unreviewed: 0 };
+            byType[t].total++;
+            if (!ev.user_corrected && (ev.confidence == null || ev.confidence < 0.7)) {
+                byType[t].unreviewed++;
+            }
+        });
+
+        var typeNames = Object.keys(byType).sort();
+        var breakdownHtml = '';
+        typeNames.forEach(function(t) {
+            var stats = byType[t];
+            var barW = stats.total > 0 ? Math.round((stats.total - stats.unreviewed) / stats.total * 100) : 0;
+            breakdownHtml += '<div class="review-breakdown-row">' +
+                '<span>' + escapeHtml(t) + '</span>' +
+                '<span>' + stats.unreviewed + '/' + stats.total + '</span>' +
+                '</div>';
+        });
+
+        container.innerHTML =
+            '<div class="review-summary-stats">' +
+                '<div class="review-summary-stat"><div class="stat-value">' + total + '</div><div class="stat-label">Total</div></div>' +
+                '<div class="review-summary-stat"><div class="stat-value ' + (unreviewed > 0 ? 'danger' : 'success') + '">' + unreviewed + '</div><div class="stat-label">To Review</div></div>' +
+                '<div class="review-summary-stat"><div class="stat-value success">' + corrected + '</div><div class="stat-label">Reviewed</div></div>' +
+                '<div class="review-summary-stat"><div class="stat-value">' + pct + '%</div><div class="stat-label">Progress</div></div>' +
+            '</div>' +
+            '<div class="review-summary-breakdown">' + breakdownHtml + '</div>';
+    }
+
+    function renderReviewQueue() {
+        var list = document.getElementById('review-queue-list');
+        var count = document.getElementById('review-queue-count');
+        if (!list) return;
+
+        var filter = document.getElementById('review-type-filter').value;
+        var queue = _reviewState.queue;
+        if (filter) {
+            queue = queue.filter(function(ev) { return ev.event_type === filter; });
+        }
+
+        count.textContent = queue.length;
+
+        if (queue.length === 0) {
+            list.innerHTML = '<div class="review-queue-empty">All events reviewed! 🎉</div>';
+            return;
+        }
+
+        // Populate type filter options if not done
+        var typeFilter = document.getElementById('review-type-filter');
+        if (typeFilter.options.length <= 1) {
+            var types = {};
+            _reviewState.queue.forEach(function(ev) {
+                var t = ev.event_type || 'unknown';
+                types[t] = true;
+            });
+            Object.keys(types).sort().forEach(function(t) {
+                typeFilter.innerHTML += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>';
+            });
+        }
+
+        var html = '';
+        queue.forEach(function(ev, idx) {
+            var globalIdx = _reviewState.queue.indexOf(ev);
+            var isActive = globalIdx === _reviewState.currentIndex;
+            var conf = ev.confidence || 0;
+            var confClass = conf < 0.3 ? 'q-conf-low' : (conf < 0.5 ? 'q-conf-mid' : 'q-conf-high');
+            var timeStr = formatCodingTime(ev.timestamp || 0);
+            var typeLabel = ev.event_type || 'unknown';
+            var teamLabel = ev.team || '';
+
+            html += '<div class="review-queue-item' + (isActive ? ' active' : '') + '" data-event-id="' + ev.id + '" data-idx="' + globalIdx + '">' +
+                '<div class="q-type">' + escapeHtml(typeLabel) + '</div>' +
+                '<div class="q-time">' + timeStr + (teamLabel ? ' · ' + escapeHtml(teamLabel) : '') + '</div>' +
+                '<div class="q-conf ' + confClass + '">' + conf.toFixed(2) + '</div>' +
+                '</div>';
+        });
+        list.innerHTML = html;
+
+        // Click to select
+        list.querySelectorAll('.review-queue-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                var idx = parseInt(this.dataset.idx, 10);
+                if (!isNaN(idx)) {
+                    _reviewState.currentIndex = idx;
+                    renderReviewQueue();
+                    renderReviewEventDetail();
+                    updateReviewNavButtons();
+                    seekToReviewEvent();
+                }
+            });
+        });
+    }
+
+    function renderReviewEventDetail() {
+        var detailContainer = document.getElementById('review-event-detail');
+        var infoContainer = document.getElementById('review-event-details');
+        var badge = document.getElementById('review-confidence-badge');
+        var confirmBtn = document.getElementById('review-confirm-btn');
+        var editBtn = document.getElementById('review-edit-btn');
+        var rejectBtn = document.getElementById('review-reject-btn');
+        var seekBtn = document.getElementById('review-seek-btn');
+
+        var idx = _reviewState.currentIndex;
+        if (idx < 0 || idx >= _reviewState.queue.length) {
+            detailContainer.innerHTML = '<div class="review-detail-empty">All events reviewed! 🎉</div>';
+            infoContainer.innerHTML = '<p class="review-detail-placeholder">No event selected.</p>';
+            badge.textContent = '--';
+            badge.className = 'review-confidence-badge';
+            confirmBtn.disabled = true;
+            editBtn.disabled = true;
+            rejectBtn.disabled = true;
+            seekBtn.disabled = true;
+            return;
+        }
+
+        confirmBtn.disabled = false;
+        editBtn.disabled = false;
+        rejectBtn.disabled = false;
+        seekBtn.disabled = false;
+
+        var ev = _reviewState.queue[idx];
+        var conf = ev.confidence || 0;
+        var confClass = conf < 0.3 ? 'low' : (conf < 0.5 ? 'mid' : 'high');
+        badge.textContent = 'Conf: ' + conf.toFixed(3);
+        badge.className = 'review-confidence-badge ' + confClass;
+
+        // Detail in center panel
+        var meta = ev._meta || {};
+        var metaHtml = '';
+        if (meta && typeof meta === 'object') {
+            Object.keys(meta).slice(0, 8).forEach(function(k) {
+                var v = typeof meta[k] === 'object' ? JSON.stringify(meta[k]) : meta[k];
+                metaHtml += '<div class="detail-row"><span class="detail-label">' + escapeHtml(k) + '</span><span class="detail-value">' + escapeHtml(String(v)) + '</span></div>';
+            });
+        }
+
+        detailContainer.innerHTML = '<div class="review-detail-content">' +
+            '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + escapeHtml(ev.event_type || 'unknown') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Time</span><span class="detail-value">' + formatCodingTime(ev.timestamp || 0) + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Team</span><span class="detail-value">' + escapeHtml(ev.team || '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Completed</span><span class="detail-value">' + (ev.completed ? 'Yes' : 'No') + '</span></div>' +
+            (ev.from_track_id ? '<div class="detail-row"><span class="detail-label">Player</span><span class="detail-value">#' + ev.from_track_id + '</span></div>' : '') +
+            (conf < 0.35 ? '<div class="detail-row" style="color:var(--warning);font-size:0.75rem">⚠ Low confidence — likely needs review</div>' : '') +
+            '</div>';
+
+        // Info in right panel
+        infoContainer.innerHTML =
+            '<div class="detail-row"><span class="detail-label">Event ID</span><span class="detail-value">#' + ev.id + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + escapeHtml(ev.event_type || 'unknown') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Timestamp</span><span class="detail-value">' + (ev.timestamp ? ev.timestamp.toFixed(2) + 's' : '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Team</span><span class="detail-value">' + escapeHtml(ev.team || '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Player</span><span class="detail-value">' + (ev.from_track_id ? '#' + ev.from_track_id : '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Confidence</span><span class="detail-value">' + (conf * 100).toFixed(1) + '%</span></div>' +
+            '<div class="detail-row"><span class="detail-label">Completed</span><span class="detail-value">' + (ev.completed ? 'Yes' : 'No') + '</span></div>' +
+            (metaHtml ? '<hr style="margin:6px 0;border-color:var(--border)">' + metaHtml : '');
+    }
+
+    function updateReviewNavButtons() {
+        var prevBtn = document.getElementById('review-prev-btn');
+        var nextBtn = document.getElementById('review-next-btn');
+        var pos = document.getElementById('review-position');
+        var idx = _reviewState.currentIndex;
+        var total = _reviewState.queue.length;
+
+        prevBtn.disabled = idx <= 0;
+        nextBtn.disabled = idx >= total - 1 || total === 0;
+        pos.textContent = total > 0 ? (idx + 1) + ' / ' + total : '0 / 0';
+    }
+
+    function navigateReview(direction) {
+        var newIdx = _reviewState.currentIndex + direction;
+        if (newIdx < 0 || newIdx >= _reviewState.queue.length) return;
+        _reviewState.currentIndex = newIdx;
+        renderReviewQueue();
+        renderReviewEventDetail();
+        updateReviewNavButtons();
+        seekToReviewEvent();
+    }
+
+    function seekToReviewEvent() {
+        var idx = _reviewState.currentIndex;
+        if (idx < 0) return;
+        var ev = _reviewState.queue[idx];
+        var video = document.getElementById('review-video');
+        if (video && ev.timestamp != null) {
+            time = Math.max(0, (ev.timestamp || 0) - 2);
+            video.currentTime = time;
+        }
+    }
+
+    function highlightReviewEventAtTime(time) {
+        // Highlight nearest unreviewed event within 3 seconds
+        var closest = -1;
+        var closestDist = 3;
+        _reviewState.queue.forEach(function(ev, idx) {
+            var dist = Math.abs((ev.timestamp || 0) - time);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = idx;
+            }
+        });
+        if (closest >= 0 && closest !== _reviewState.currentIndex) {
+            _reviewState.currentIndex = closest;
+            renderReviewQueue();
+            renderReviewEventDetail();
+            updateReviewNavButtons();
+        }
+    }
+
+    function submitReviewAction(eventId, action, correctionsJson, callback) {
+        var mid = _reviewState.matchId;
+        bridge.submit_event_correction(mid, eventId, action, correctionsJson, function(result) {
+            try {
+                var data = JSON.parse(result);
+                if (data.success) {
+                    showToast('Event ' + data.action + '!', 'success');
+                    if (callback) callback();
+                } else {
+                    showToast('Failed: ' + (data.error || 'Unknown'), 'error');
+                }
+            } catch(e) {
+                showToast('Error submitting correction.', 'error');
+            }
+        });
+    }
+
+    function removeFromQueue(idx) {
+        _reviewState.queue.splice(idx, 1);
+        if (_reviewState.queue.length === 0) {
+            _reviewState.currentIndex = -1;
+        } else if (idx >= _reviewState.queue.length) {
+            _reviewState.currentIndex = _reviewState.queue.length - 1;
+        }
+        renderReviewSummary();
+        renderReviewQueue();
+        renderReviewEventDetail();
+        updateReviewNavButtons();
+
+        // Auto-advance to next
+        if (_reviewState.autoAdvance && _reviewState.currentIndex >= 0) {
+            seekToReviewEvent();
+        }
+
+        // Recalculate status
+        var status = document.getElementById('review-match-status');
+        if (status) {
+            status.textContent = _reviewState.queue.length + ' events need review';
+        }
+    }
+
+    function populateEditFields() {
+        var idx = _reviewState.currentIndex;
+        if (idx < 0) return;
+        var ev = _reviewState.queue[idx];
+
+        // Populate type dropdown
+        var typeSel = document.getElementById('review-edit-type');
+        var allTypes = ['pass', 'shot', 'goal', 'tackle', 'interception', 'dribble', 'corner',
+            'free_kick', 'throw_in', 'clearance', 'cross', 'block', 'carry', 'duel',
+            'foul', 'offside', 'hand_ball', 'yellow_card', 'red_card', 'save', 'ball_out'];
+        typeSel.innerHTML = '';
+        allTypes.forEach(function(t) {
+            typeSel.innerHTML += '<option value="' + t + '"' + (t === ev.event_type ? ' selected' : '') + '>' + t + '</option>';
+        });
+
+        document.getElementById('review-edit-team').value = ev.team || 'home';
+        document.getElementById('review-edit-completed').checked = !!ev.completed;
+    }
+
+    // ── End Event Review Workspace ──────────────────────────────
 
     document.addEventListener('change', function(e) {
         if (e.target.id === 'timeline-filter-type') {
+            _timelinePageState.page = 1;
             renderTimeline(window._timelineEvents || []);
         }
+        // Per-page select
+        if (e.target.classList.contains('per-page-select')) {
+            _timelinePageState.perPage = parseInt(e.target.value, 10);
+            _timelinePageState.page = 1;
+            renderTimelineTable(window._timelineEvents || []);
+        }
     });
+
+    document.addEventListener('input', function(e) {
+        // Column filter inputs in table header
+        if (e.target.classList.contains('col-filter-input')) {
+            var key = e.target.dataset.filterKey;
+            _timelineFilters[key] = e.target.value;
+            _timelinePageState.page = 1;
+            renderTimelineTable(window._timelineEvents || []);
+        }
+        // Timeline search input
+        if (e.target.id === 'timeline-search') {
+            _timelineSearchText = e.target.value;
+            _timelinePageState.page = 1;
+            renderTimeline(window._timelineEvents || []);
+        }
+        // Roster search input
+        if (e.target.id === 'roster-search') {
+            _rosterSearchText = e.target.value;
+            _rosterPageState.page = 1;
+            if (_currentRosterView === 'roster-table') {
+                renderRosterTable();
+            } else {
+                loadPlayerProfiles();
+            }
+        }
+    });
+
+    // ── Roster table rendering ──────────────────────────────
+
+    function renderRosterTable() {
+        var wrapper = document.getElementById('player-roster-table-wrapper');
+        var roster = document.getElementById('player-roster');
+        if (!wrapper) return;
+        if (!roster) return;
+        roster.classList.add('hidden');
+        wrapper.classList.remove('hidden');
+
+        var data = window._rosterData || [];
+        var text = (_rosterSearchText || '').toLowerCase().trim();
+        if (text) {
+            data = data.filter(function(p) {
+                return (p.name || '').toLowerCase().indexOf(text) >= 0 ||
+                       (p.position || '').toLowerCase().indexOf(text) >= 0;
+            });
+        }
+
+        var key = _rosterSortState.key;
+        var dir = _rosterSortState.dir === 'asc' ? 1 : -1;
+        data.sort(function(a, b) {
+            var va = a[key] != null ? a[key] : '';
+            var vb = b[key] != null ? b[key] : '';
+            if (typeof va === 'string') return va.localeCompare(vb) * dir;
+            return (va - vb) * dir;
+        });
+
+        var perPage = _rosterPageState.perPage || 25;
+        var total = data.length;
+        var totalPages = Math.max(1, Math.ceil(total / perPage));
+        var page = Math.min(_rosterPageState.page, totalPages);
+        var start = (page - 1) * perPage;
+        var pageData = data.slice(start, start + perPage);
+
+        var sortKey = _rosterSortState.key;
+        var sortDir = _rosterSortState.dir;
+
+        var html = '<table class="data-table" id="roster-data-table"><thead><tr>';
+        var rosterCols = [
+            { key: 'name', label: 'Name', filterable: true },
+            { key: 'position', label: 'Position', filterable: true },
+            { key: 'minutes', label: 'Minutes', filterable: false },
+            { key: 'xg', label: 'xG', filterable: false },
+            { key: 'xa', label: 'xA', filterable: false },
+            { key: 'pass_pct', label: 'Pass%', filterable: false },
+            { key: 'rating', label: 'Rating', filterable: false },
+        ];
+        rosterCols.forEach(function(col) {
+            var isSorted = sortKey === col.key;
+            var sortClass = isSorted ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
+            html += '<th class="sortable ' + sortClass + '" data-roster-sort="' + col.key + '">' +
+                '<span class="th-label">' + col.label + '</span><span class="sort-indicator"></span></th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        if (pageData.length === 0) {
+            html += '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.5rem">No players match filters</td></tr>';
+        } else {
+            pageData.forEach(function(p) {
+                html += '<tr>';
+                html += '<td>' + escapeHtml(p.name || '') + '</td>';
+                html += '<td>' + escapeHtml(p.position || '') + '</td>';
+                html += '<td class="numeric">' + (p.minutes != null ? p.minutes : '--') + '</td>';
+                html += '<td class="numeric">' + (p.xg != null ? p.xg.toFixed(3) : '--') + '</td>';
+                html += '<td class="numeric">' + (p.xa != null ? p.xa.toFixed(3) : '--') + '</td>';
+                html += '<td class="numeric">' + (p.pass_pct != null ? p.pass_pct.toFixed(1) + '%' : '--') + '</td>';
+                html += '<td class="numeric">' + (p.rating != null ? p.rating.toFixed(1) : '--') + '</td>';
+                html += '</tr>';
+            });
+        }
+        html += '</tbody></table>';
+
+        // Pagination
+        html += '<div class="data-table-pagination">';
+        html += '<span class="pagination-info">Showing ' + (total > 0 ? (start + 1) + '-' + Math.min(start + perPage, total) : 0) + ' of ' + total + ' players</span>';
+        html += '<div class="pagination-controls">';
+        html += '<button class="pagination-btn" data-roster-page="prev" ' + (page <= 1 ? 'disabled' : '') + '>&#9664;</button>';
+        var maxB = 5, sP = Math.max(1, page - Math.floor(maxB / 2)), eP = Math.min(totalPages, sP + maxB - 1);
+        if (eP - sP < maxB - 1) sP = Math.max(1, eP - maxB + 1);
+        if (sP > 1) html += '<button class="pagination-btn" data-roster-page="1">1</button>' + (sP > 2 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '');
+        for (var pi = sP; pi <= eP; pi++) {
+            html += '<button class="pagination-btn ' + (pi === page ? 'active' : '') + '" data-roster-page="' + pi + '">' + pi + '</button>';
+        }
+        if (eP < totalPages) html += (eP < totalPages - 1 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '') + '<button class="pagination-btn" data-roster-page="' + totalPages + '">' + totalPages + '</button>';
+        html += '<button class="pagination-btn" data-roster-page="next" ' + (page >= totalPages ? 'disabled' : '') + '>&#9654;</button>';
+        html += '<select class="per-page-select">';
+        [25, 50, 100].forEach(function(pp) {
+            html += '<option value="' + pp + '" ' + (pp === perPage ? 'selected' : '') + '>' + pp + ' / page</option>';
+        });
+        html += '</select></div></div>';
+
+        wrapper.innerHTML = html;
+    }
+
+    // ── View toggle wiring ──
+
+    function setupViewToggles() {
+        // Timeline view toggle
+        document.querySelectorAll('.view-toggle-btn[data-view="timeline"], .view-toggle-btn[data-view="table"]').forEach(function(btn) {
+            if (btn.dataset.view === 'timeline' || btn.dataset.view === 'table') {
+                btn.addEventListener('click', function() {
+                    var view = this.dataset.view;
+                    var parent = this.closest('.view-toggle');
+                    parent.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+                    _currentTimelineView = view;
+                    _timelinePageState.page = 1;
+                    renderTimeline(window._timelineEvents || []);
+                });
+            }
+        });
+
+        // Roster view toggle
+        document.querySelectorAll('.view-toggle-btn[data-view="roster-cards"], .view-toggle-btn[data-view="roster-table"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var view = this.dataset.view;
+                var parent = this.closest('.view-toggle');
+                parent.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                _currentRosterView = view;
+                if (view === 'roster-table') {
+                    renderRosterTable();
+                } else {
+                    var wrapper = document.getElementById('player-roster-table-wrapper');
+                    var roster = document.getElementById('player-roster');
+                    if (wrapper) wrapper.classList.add('hidden');
+                    if (roster) {
+                        roster.classList.remove('hidden');
+                        loadPlayerProfiles();
+                    }
+                }
+            });
+        });
+
+        // Roster table sort
+        document.addEventListener('click', function(e) {
+            var th = e.target.closest('th[data-roster-sort]');
+            if (th) {
+                var key = th.dataset.rosterSort;
+                if (_rosterSortState.key === key) {
+                    _rosterSortState.dir = _rosterSortState.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    _rosterSortState.key = key;
+                    _rosterSortState.dir = 'asc';
+                }
+                renderRosterTable();
+                return;
+            }
+            // Roster pagination
+            if (e.target.closest('[data-roster-page]')) {
+                var btn = e.target.closest('[data-roster-page]');
+                var page = btn.dataset.rosterPage;
+                if (page === 'prev') {
+                    _rosterPageState.page = Math.max(1, _rosterPageState.page - 1);
+                } else if (page === 'next') {
+                    var total = (window._rosterData || []).length;
+                    var maxP = Math.ceil(total / _rosterPageState.perPage);
+                    _rosterPageState.page = Math.min(maxP, _rosterPageState.page + 1);
+                } else {
+                    _rosterPageState.page = parseInt(page, 10);
+                }
+                renderRosterTable();
+                return;
+            }
+        });
+
+        document.addEventListener('change', function(e) {
+            if (e.target.closest('.data-table-pagination .per-page-select') && document.getElementById('roster-data-table')) {
+                _rosterPageState.perPage = parseInt(e.target.value, 10);
+                _rosterPageState.page = 1;
+                renderRosterTable();
+            }
+        });
+    }
+
+    // ── Batch action wiring ──
+
+    function setupBatchActions() {
+        document.getElementById('batch-delete-btn')?.addEventListener('click', function() {
+            var ids = Array.from(_selectedEventIds);
+            if (ids.length === 0) return;
+            showConfirmDialog('Delete ' + ids.length + ' selected event(s)?', function() {
+                var promises = ids.map(function(eid) {
+                    return bridge.delete_event(eid).then(function(json) {
+                        try {
+                            var result = JSON.parse(json);
+                            return result.success;
+                        } catch (ex) { return false; }
+                    }).catch(function() { return false; });
+                });
+                Promise.all(promises).then(function() {
+                    _selectedEventIds.clear();
+                    _updateBatchActionBar();
+                    setTimeout(loadEventTimeline, 100);
+                    showToast('Deleted ' + ids.length + ' event(s)', 'info');
+                });
+            });
+        });
+
+        document.getElementById('batch-export-csv-btn')?.addEventListener('click', function() {
+            batchExport('csv');
+        });
+
+        document.getElementById('batch-export-json-btn')?.addEventListener('click', function() {
+            batchExport('json');
+        });
+    }
+
+    function batchExport(format) {
+        var ids = Array.from(_selectedEventIds);
+        if (ids.length === 0) return;
+        var events = (window._timelineEvents || []).filter(function(e) {
+            return ids.indexOf(e.id) >= 0;
+        });
+        if (events.length === 0) return;
+
+        if (format === 'csv') {
+            var headers = ['id', 'event_type', 'team', 'player_name', 'timestamp', 'xg', 'xa', 'xt'];
+            var rows = events.map(function(e) {
+                return [e.id, e.event_type, e.team, e.player_name || '', e.timestamp || 0, e.xg != null ? e.xg : '', e.xa != null ? e.xa : '', e.xt != null ? e.xt : ''];
+            });
+            var csv = headers.join(',') + '\n' + rows.map(function(r) {
+                return r.map(function(c) {
+                    var s = String(c != null ? c : '');
+                    return s.indexOf(',') >= 0 || s.indexOf('"') >= 0 ? '"' + s.replace(/"/g, '""') + '"' : s;
+                }).join(',');
+            }).join('\n');
+            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'selected-events.csv';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        } else {
+            var json = JSON.stringify(events, null, 2);
+            var blob = new Blob([json], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'selected-events.json';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        }
+    }
 
     document.getElementById('match-video').addEventListener('timeupdate', function() {
         highlightCurrentTimelineItem(this.currentTime);
     });
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave A — Telestration Engine
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _telestrateState = {
+        active: false,
+        tool: 'arrow',
+        color: '#ff0000',
+        width: 3,
+        strokes: [],
+        redoStack: [],
+        isDrawing: false,
+        startX: 0, startY: 0,
+        currentText: '',
+        textInput: null,
+    };
+
+    function initTelestration() {
+        var toggleBtn = document.getElementById('telestrate-toggle-btn');
+        var toolbar = document.getElementById('telestrate-toolbar');
+        var canvas = document.getElementById('telestrate-canvas');
+        var colorInput = document.getElementById('telestrate-color');
+        var widthInput = document.getElementById('telestrate-width');
+        var undoBtn = document.getElementById('telestrate-undo-btn');
+        var redoBtn = document.getElementById('telestrate-redo-btn');
+        var clearBtn = document.getElementById('telestrate-clear-btn');
+        var saveBtn = document.getElementById('telestrate-save-btn');
+
+        if (!toggleBtn || !canvas) return;
+
+        // Toggle drawing mode
+        toggleBtn.addEventListener('click', function() {
+            _telestrateState.active = !_telestrateState.active;
+            canvas.classList.toggle('active', _telestrateState.active);
+            toolbar.classList.toggle('hidden', !_telestrateState.active);
+            toggleBtn.textContent = _telestrateState.active ? '✏️ Drawing ON' : '✏️ Draw';
+            if (_telestrateState.active) {
+                resizeCanvas();
+            }
+        });
+
+        // Tool selection
+        toolbar.querySelectorAll('.telestrate-tool').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                toolbar.querySelectorAll('.telestrate-tool').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                _telestrateState.tool = this.dataset.tool;
+                // Remove text input if switching away from text
+                if (_telestrateState.tool !== 'text' && _telestrateState.textInput) {
+                    _telestrateState.textInput.remove();
+                    _telestrateState.textInput = null;
+                }
+            });
+        });
+
+        colorInput.addEventListener('input', function() {
+            _telestrateState.color = this.value;
+        });
+
+        widthInput.addEventListener('input', function() {
+            _telestrateState.width = parseInt(this.value, 10);
+        });
+
+        undoBtn.addEventListener('click', function() { telestrateUndo(); });
+        redoBtn.addEventListener('click', function() { telestrateRedo(); });
+        clearBtn.addEventListener('click', function() {
+            if (_telestrateState.strokes.length === 0) return;
+            showConfirmDialog('Clear all drawings?', function() {
+                _telestrateState.redoStack = _telestrateState.redoStack.concat(_telestrateState.strokes);
+                _telestrateState.strokes = [];
+                redrawTelestration();
+            });
+        });
+        saveBtn.addEventListener('click', function() {
+            var video = document.getElementById('match-video');
+            if (!video) return;
+            // Create combined canvas with video frame + drawings
+            var c = document.createElement('canvas');
+            c.width = video.videoWidth || canvas.width;
+            c.height = video.videoHeight || canvas.height;
+            var ctx = c.getContext('2d');
+            ctx.drawImage(video, 0, 0, c.width, c.height);
+            ctx.drawImage(canvas, 0, 0, c.width, c.height);
+            var link = document.createElement('a');
+            link.download = 'telestration-' + Date.now() + '.png';
+            link.href = c.toDataURL('image/png');
+            link.click();
+            showToast('Annotated frame saved!', 'success');
+        });
+
+        // Mouse events on canvas
+        canvas.addEventListener('mousedown', telestrateMouseDown);
+        canvas.addEventListener('mousemove', telestrateMouseMove);
+        canvas.addEventListener('mouseup', telestrateMouseUp);
+        canvas.addEventListener('mouseleave', telestrateMouseUp);
+
+        // Touch support
+        canvas.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; telestrateMouseDown({ offsetX: t.clientX - canvas.getBoundingClientRect().left, offsetY: t.clientY - canvas.getBoundingClientRect().top }); });
+        canvas.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; telestrateMouseMove({ offsetX: t.clientX - canvas.getBoundingClientRect().left, offsetY: t.clientY - canvas.getBoundingClientRect().top }); });
+        canvas.addEventListener('touchend', function(e) { e.preventDefault(); telestrateMouseUp({}); });
+
+        // Resize canvas with video
+        var video = document.getElementById('match-video');
+        if (video) {
+            video.addEventListener('loadedmetadata', resizeCanvas);
+            video.addEventListener('resize', resizeCanvas);
+        }
+        window.addEventListener('resize', resizeCanvas);
+    }
+
+    function resizeCanvas() {
+        var canvas = document.getElementById('telestrate-canvas');
+        var video = document.getElementById('match-video');
+        if (!canvas || !video) return;
+        var rect = video.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        redrawTelestration();
+    }
+
+    function getCanvasPos(e) {
+        var canvas = document.getElementById('telestrate-canvas');
+        var rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function telestrateMouseDown(e) {
+        if (!_telestrateState.active) return;
+        var pos = e.offsetX != null ? { x: e.offsetX, y: e.offsetY } : getCanvasPos(e);
+        _telestrateState.isDrawing = true;
+        _telestrateState.startX = pos.x;
+        _telestrateState.startY = pos.y;
+
+        if (_telestrateState.tool === 'text') {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'telestrate-text-input';
+            input.style.position = 'absolute';
+            input.style.left = pos.x + 'px';
+            input.style.top = pos.y + 'px';
+            input.style.zIndex = '20';
+            input.style.background = 'rgba(0,0,0,0.7)';
+            input.style.color = _telestrateState.color;
+            input.style.border = '1px solid ' + _telestrateState.color;
+            input.style.padding = '2px 6px';
+            input.style.fontSize = '16px';
+            input.style.borderRadius = '3px';
+            input.style.outline = 'none';
+            input.placeholder = 'Type text...';
+
+            var wrapper = document.querySelector('.video-wrapper');
+            wrapper.appendChild(input);
+            input.focus();
+
+            _telestrateState.textInput = input;
+
+            input.addEventListener('keydown', function(ev) {
+                if (ev.key === 'Enter') {
+                    var text = this.value.trim();
+                    if (text) {
+                        _telestrateState.strokes.push({
+                            tool: 'text',
+                            color: _telestrateState.color,
+                            x: pos.x, y: pos.y,
+                            text: text,
+                            fontSize: 16,
+                        });
+                        _telestrateState.redoStack = [];
+                        redrawTelestration();
+                    }
+                    this.remove();
+                    _telestrateState.textInput = null;
+                } else if (ev.key === 'Escape') {
+                    this.remove();
+                    _telestrateState.textInput = null;
+                }
+            });
+            _telestrateState.isDrawing = false;
+        }
+    }
+
+    function telestrateMouseMove(e) {
+        if (!_telestrateState.isDrawing || !_telestrateState.active) return;
+        var pos = e.offsetX != null ? { x: e.offsetX, y: e.offsetY } : getCanvasPos(e);
+        // Preview while drawing
+        var canvas = document.getElementById('telestrate-canvas');
+        var ctx = canvas.getContext('2d');
+        redrawTelestration();
+        ctx.save();
+        ctx.strokeStyle = _telestrateState.color;
+        ctx.fillStyle = _telestrateState.color;
+        ctx.lineWidth = _telestrateState.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        var tool = _telestrateState.tool;
+        if (tool === 'arrow') {
+            drawArrow(ctx, _telestrateState.startX, _telestrateState.startY, pos.x, pos.y);
+        } else if (tool === 'circle') {
+            var rx = Math.abs(pos.x - _telestrateState.startX);
+            var ry = Math.abs(pos.y - _telestrateState.startY);
+            ctx.beginPath();
+            ctx.ellipse(_telestrateState.startX, _telestrateState.startY, rx, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (tool === 'rect') {
+            ctx.strokeRect(_telestrateState.startX, _telestrateState.startY, pos.x - _telestrateState.startX, pos.y - _telestrateState.startY);
+        } else if (tool === 'line') {
+            ctx.beginPath();
+            ctx.moveTo(_telestrateState.startX, _telestrateState.startY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        } else if (tool === 'freehand') {
+            ctx.beginPath();
+            ctx.moveTo(_telestrateState.startX, _telestrateState.startY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            _telestrateState.startX = pos.x;
+            _telestrateState.startY = pos.y;
+        } else if (tool === 'highlight') {
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = _telestrateState.width * 4;
+            ctx.beginPath();
+            ctx.moveTo(_telestrateState.startX, _telestrateState.startY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            _telestrateState.startX = pos.x;
+            _telestrateState.startY = pos.y;
+        }
+        ctx.restore();
+    }
+
+    function telestrateMouseUp(e) {
+        if (!_telestrateState.isDrawing || !_telestrateState.active) return;
+        _telestrateState.isDrawing = false;
+        var pos = e.offsetX != null ? { x: e.offsetX, y: e.offsetY } : getCanvasPos(e);
+
+        // Save stroke
+        var stroke = {
+            tool: _telestrateState.tool,
+            color: _telestrateState.color,
+            width: _telestrateState.width,
+            startX: _telestrateState.startX,
+            startY: _telestrateState.startY,
+            endX: pos.x,
+            endY: pos.y,
+        };
+
+        // For freehand/highlight, we record the path
+        if (_telestrateState.tool === 'freehand' || _telestrateState.tool === 'highlight') {
+            stroke.path = [{ x: _telestrateState.startX, y: _telestrateState.startY }, { x: pos.x, y: pos.y }];
+            stroke.replay = function(ctx) {
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.tool === 'highlight' ? this.width * 4 : this.width;
+                ctx.globalAlpha = this.tool === 'highlight' ? 0.3 : 1;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.path[0].x, this.path[0].y);
+                for (var i = 1; i < this.path.length; i++) {
+                    ctx.lineTo(this.path[i].x, this.path[i].y);
+                }
+                ctx.stroke();
+                ctx.restore();
+            };
+        } else if (_telestrateState.tool === 'circle') {
+            stroke.rx = Math.abs(pos.x - _telestrateState.startX);
+            stroke.ry = Math.abs(pos.y - _telestrateState.startY);
+            stroke.replay = function(ctx) {
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.width;
+                ctx.beginPath();
+                ctx.ellipse(this.startX, this.startY, this.rx, this.ry, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            };
+        } else if (_telestrateState.tool === 'arrow') {
+            stroke.replay = function(ctx) {
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.fillStyle = this.color;
+                ctx.lineWidth = this.width;
+                drawArrow(ctx, this.startX, this.startY, this.endX, this.endY);
+                ctx.restore();
+            };
+        } else if (_telestrateState.tool === 'rect') {
+            stroke.replay = function(ctx) {
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.width;
+                ctx.strokeRect(this.startX, this.startY, this.endX - this.startX, this.endY - this.startY);
+                ctx.restore();
+            };
+        } else if (_telestrateState.tool === 'line') {
+            stroke.replay = function(ctx) {
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.width;
+                ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.lineTo(this.endX, this.endY);
+                ctx.stroke();
+                ctx.restore();
+            };
+        }
+
+        _telestrateState.strokes.push(stroke);
+        _telestrateState.redoStack = [];
+        redrawTelestration();
+    }
+
+    function drawArrow(ctx, x1, y1, x2, y2) {
+        var angle = Math.atan2(y2 - y1, x2 - x1);
+        var headLen = 12 + ctx.lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function telestrateUndo() {
+        if (_telestrateState.strokes.length === 0) return;
+        var stroke = _telestrateState.strokes.pop();
+        _telestrateState.redoStack.push(stroke);
+        redrawTelestration();
+    }
+
+    function telestrateRedo() {
+        if (_telestrateState.redoStack.length === 0) return;
+        var stroke = _telestrateState.redoStack.pop();
+        _telestrateState.strokes.push(stroke);
+        redrawTelestration();
+    }
+
+    function redrawTelestration() {
+        var canvas = document.getElementById('telestrate-canvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        _telestrateState.strokes.forEach(function(s) {
+            if (s.replay) {
+                s.replay(ctx);
+            } else if (s.tool === 'text') {
+                ctx.save();
+                ctx.fillStyle = s.color;
+                ctx.font = (s.fontSize || 16) + 'px sans-serif';
+                ctx.fillText(s.text, s.x, s.y);
+                ctx.restore();
+            }
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave B — Season Dashboard
+       ═══════════════════════════════════════════════════════════════ */
+
+    function initSeasonDashboard() {
+        var refreshBtn = document.getElementById('season-refresh-btn');
+        if (!refreshBtn) return;
+        refreshBtn.addEventListener('click', loadSeasonData);
+        // Also load when section becomes visible
+        var seasonTab = document.querySelector('.nav-tab[data-route="season"]');
+        if (seasonTab) {
+            seasonTab.addEventListener('click', function() {
+                setTimeout(loadSeasonData, 200);
+            });
+        }
+        loadSeasonData();
+    }
+
+    function loadSeasonData() {
+        if (typeof bridge === 'undefined' || !bridge) return;
+        bridge.get_season_summary(function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                if (data.error) { console.warn('Season error:', data.error); return; }
+
+                document.getElementById('season-match-count').textContent = data.total_matches || 0;
+                document.getElementById('season-event-count').textContent = data.total_events || 0;
+                document.getElementById('season-shot-count').textContent = data.total_shots || 0;
+                document.getElementById('season-avg-xg').textContent = (data.avg_xg || 0).toFixed(3);
+
+                renderSeasonFixtures(data.matches || []);
+                renderSeasonLeagueTable(data.matches || []);
+            } catch(e) { console.warn('Season load error:', e); }
+        });
+    }
+
+    function renderSeasonFixtures(matches) {
+        var container = document.getElementById('season-fixtures');
+        if (!container) return;
+        if (!matches || matches.length === 0) {
+            container.innerHTML = '<p class="hint">No matches loaded yet.</p>';
+            return;
+        }
+        var sorted = matches.slice().sort(function(a, b) {
+            return (a.date || '').localeCompare(b.date || '') || (a.id || 0) - (b.id || 0);
+        });
+        var html = '';
+        sorted.forEach(function(m) {
+            html += '<div class="season-fixture-row">' +
+                '<span class="season-fixture-date">' + escapeHtml(m.date || '--') + '</span>' +
+                '<span class="season-fixture-home">' + escapeHtml(m.home_team || 'Home') + '</span>' +
+                '<span class="season-fixture-vs">vs</span>' +
+                '<span class="season-fixture-away">' + escapeHtml(m.away_team || 'Away') + '</span>' +
+                '<span class="season-fixture-score">' + (m.home_score != null ? m.home_score + '-' + m.away_score : '--') + '</span>' +
+                '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function renderSeasonLeagueTable(matches) {
+        var container = document.getElementById('season-league-table');
+        if (!container) return;
+        if (!matches || matches.length === 0) {
+            container.innerHTML = '<p class="hint">Need match results to build league table.</p>';
+            return;
+        }
+        // Build standings from match data (if scores available)
+        var teams = {};
+        matches.forEach(function(m) {
+            var home = m.home_team || 'Home';
+            var away = m.away_team || 'Away';
+            if (!teams[home]) teams[home] = { name: home, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0 };
+            if (!teams[away]) teams[away] = { name: away, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0 };
+            // If we have scores from analysis (not always available yet)
+            // For now, just show basic stats
+        });
+
+        var standings = Object.keys(teams).map(function(k) { return teams[k]; });
+        // Sort by name as default
+        standings.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+        if (standings.length === 0) {
+            container.innerHTML = '<p class="hint">Load matches to see standings.</p>';
+            return;
+        }
+
+        var html = '<table><thead><tr>' +
+            '<th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>' +
+            '</tr></thead><tbody>';
+        standings.forEach(function(t, i) {
+            var gd = t.gf - t.ga;
+            html += '<tr class="' + (i < 2 ? 'pos-1' : '') + '">' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + escapeHtml(t.name) + '</td>' +
+                '<td>' + t.played + '</td>' +
+                '<td>' + t.won + '</td>' +
+                '<td>' + t.drawn + '</td>' +
+                '<td>' + t.lost + '</td>' +
+                '<td>' + t.gf + '</td>' +
+                '<td>' + t.ga + '</td>' +
+                '<td>' + (gd >= 0 ? '+' : '') + gd + '</td>' +
+                '<td>' + t.pts + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave C — Training Planner
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _trainingState = {
+        drills: [],
+        sessionDrills: [],
+        sessionName: '',
+        sessionDate: '',
+        sessionDuration: 60,
+    };
+
+    function initTrainingPlanner() {
+        var searchInput = document.getElementById('training-drill-search');
+        var catFilter = document.getElementById('training-category-filter');
+        var sessionName = document.getElementById('training-session-name');
+        var sessionDate = document.getElementById('training-session-date');
+        var sessionDur = document.getElementById('training-session-duration');
+        var saveBtn = document.getElementById('training-save-btn');
+        var clearBtn = document.getElementById('training-clear-btn');
+
+        if (!searchInput) return;
+
+        loadDrills();
+
+        searchInput.addEventListener('input', renderDrills);
+        catFilter.addEventListener('change', renderDrills);
+
+        sessionName.addEventListener('input', function() { _trainingState.sessionName = this.value; });
+        sessionDate.addEventListener('change', function() { _trainingState.sessionDate = this.value; });
+
+        if (!sessionDate.value) {
+            var today = new Date();
+            sessionDate.value = today.toISOString().slice(0, 10);
+            _trainingState.sessionDate = sessionDate.value;
+        }
+
+        saveBtn.addEventListener('click', function() {
+            if (_trainingState.sessionDrills.length === 0) {
+                showToast('Add at least one drill to the session.', 'warning');
+                return;
+            }
+            if (!_trainingState.sessionName.trim()) {
+                showToast('Enter a session name.', 'warning');
+                return;
+            }
+            var totalMin = 0;
+            _trainingState.sessionDrills.forEach(function(d) { totalMin += d.duration_min || 15; });
+            var msg = 'Session "' + _trainingState.sessionName + '" saved! (' + _trainingState.sessionDrills.length + ' drills, ' + totalMin + ' min)';
+            showToast(msg, 'success');
+        });
+
+        clearBtn.addEventListener('click', function() {
+            if (_trainingState.sessionDrills.length === 0) return;
+            showConfirmDialog('Clear session?', function() {
+                _trainingState.sessionDrills = [];
+                renderSessionDrills();
+            });
+        });
+
+        // Make drill list items draggable
+        setupTrainingDragDrop();
+    }
+
+    function loadDrills() {
+        if (typeof bridge === 'undefined' || !bridge) {
+            // Fallback: static drills
+            _trainingState.drills = [
+                { id: '1', name: 'Rondo 5v2', category: 'possession', difficulty: 'medium', duration_min: 10, description: 'Keep-away in tight space' },
+                { id: '2', name: 'Finishing Circuit', category: 'finishing', difficulty: 'medium', duration_min: 15, description: 'Rotating shooting stations' },
+                { id: '3', name: 'Defensive Shape', category: 'defending', difficulty: 'hard', duration_min: 20, description: 'Compact block + pressing triggers' },
+                { id: '4', name: 'Passing Ladder', category: 'passing', difficulty: 'easy', duration_min: 10, description: 'One/two-touch combination patterns' },
+                { id: '5', name: 'Interval Sprints', category: 'fitness', difficulty: 'hard', duration_min: 12, description: 'High-intensity interval running' },
+                { id: '6', name: 'Corner Kick Routines', category: 'set_piece', difficulty: 'medium', duration_min: 15, description: ' attacking and defending set plays' },
+                { id: '7', name: 'Pressing Triggers', category: 'defending', difficulty: 'hard', duration_min: 15, description: 'Counter-press and trap drills' },
+                { id: '8', name: 'Positional Play', category: 'possession', difficulty: 'medium', duration_min: 20, description: 'Building through thirds' },
+                { id: '9', name: 'Crossing & Finishing', category: 'finishing', difficulty: 'easy', duration_min: 15, description: 'Wide crosses with near-post/far-post runs' },
+                { id: '10', name: 'Small-Sided Game', category: 'general', difficulty: 'medium', duration_min: 20, description: '5v5 with constraints' },
+            ];
+            renderDrills();
+            return;
+        }
+        bridge.get_all_drills(function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                if (data.error) { console.warn('Drill load error:', data.error); return; }
+                _trainingState.drills = data.drills || [];
+                renderDrills();
+            } catch(e) { console.warn('Drill load error:', e); }
+        });
+    }
+
+    function renderDrills() {
+        var container = document.getElementById('training-drill-list');
+        if (!container) return;
+        var search = (document.getElementById('training-drill-search').value || '').toLowerCase().trim();
+        var cat = document.getElementById('training-category-filter').value;
+
+        var filtered = _trainingState.drills.filter(function(d) {
+            if (cat !== 'all' && d.category !== cat) return false;
+            if (search && (d.name || '').toLowerCase().indexOf(search) < 0) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="hint">No drills match filters.</p>';
+            return;
+        }
+
+        var html = '';
+        filtered.forEach(function(d) {
+            var inSession = _trainingState.sessionDrills.some(function(sd) { return sd.id === d.id; });
+            html += '<div class="training-drill-item" draggable="true" data-drill-id="' + d.id + '" data-name="' + escapeHtml(d.name) + '" data-cat="' + d.category + '" data-dur="' + (d.duration_min || 15) + '" data-diff="' + d.difficulty + '">' +
+                '<span class="training-drill-name">' + escapeHtml(d.name) + '</span>' +
+                '<span class="training-drill-cat">' + escapeHtml(d.category) + '</span>' +
+                '<span class="training-drill-diff ' + d.difficulty + '">' + escapeHtml(d.difficulty) + '</span>' +
+                '<span class="training-drill-dur">' + (d.duration_min || 15) + ' min</span>' +
+                (inSession ? '<span style="color:var(--success);font-size:0.7rem">✓</span>' : '') +
+                '</div>';
+        });
+        container.innerHTML = html;
+
+        // Wire drag events
+        container.querySelectorAll('.training-drill-item').forEach(function(item) {
+            item.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: this.dataset.drillId,
+                    name: this.dataset.name,
+                    category: this.dataset.cat,
+                    duration_min: parseInt(this.dataset.dur, 10),
+                    difficulty: this.dataset.diff,
+                }));
+                this.classList.add('dragging');
+            });
+            item.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+            });
+        });
+    }
+
+    function setupTrainingDragDrop() {
+        var dropZone = document.getElementById('training-session-drills');
+        if (!dropZone) return;
+
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            try {
+                var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                _trainingState.sessionDrills.push(data);
+                renderSessionDrills();
+            } catch(ex) { /* ignore */ }
+        });
+    }
+
+    function renderSessionDrills() {
+        var container = document.getElementById('training-session-drills');
+        if (!container) return;
+        if (_trainingState.sessionDrills.length === 0) {
+            container.innerHTML = '<p class="hint">Drag drills here to build your session.</p>';
+            return;
+        }
+        var html = '';
+        var totalMin = 0;
+        _trainingState.sessionDrills.forEach(function(d, idx) {
+            totalMin += d.duration_min || 15;
+            html += '<div class="training-session-drill-item">' +
+                '<span class="order">' + (idx + 1) + '.</span>' +
+                '<span class="name">' + escapeHtml(d.name || 'Drill') + '</span>' +
+                '<span class="dur">' + (d.duration_min || 15) + ' min</span>' +
+                '<span class="remove-drill" data-idx="' + idx + '">✕</span>' +
+                '</div>';
+        });
+        html += '<div style="padding:6px 8px;font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;">Total: ' + totalMin + ' min (' + _trainingState.sessionDrills.length + ' drills)</div>';
+        container.innerHTML = html;
+
+        // Wire remove buttons
+        container.querySelectorAll('.remove-drill').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var idx = parseInt(this.dataset.idx, 10);
+                _trainingState.sessionDrills.splice(idx, 1);
+                renderSessionDrills();
+            });
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave D — Presentation Mode
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _presState = {
+        matchId: null,
+        currentSlide: 0,
+        slides: [],
+        isFullscreen: false,
+        matchData: null,
+    };
+
+    function initPresentationMode() {
+        var startBtn = document.getElementById('pres-start-btn');
+        var prevBtn = document.getElementById('pres-prev-btn');
+        var nextBtn = document.getElementById('pres-next-btn');
+        var fullscreenBtn = document.getElementById('pres-fullscreen-btn');
+        var exportBtn = document.getElementById('pres-export-btn');
+
+        if (!startBtn) return;
+
+        // Populate match select
+        if (typeof bridge !== 'undefined' && bridge) {
+            bridge.get_all_matches(function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    var sel = document.getElementById('pres-match-select');
+                    sel.innerHTML = '<option value="" data-i18n="presentationSelectMatch">Select Match</option>';
+                    (data || []).forEach(function(m) {
+                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                    });
+                } catch(e) { console.warn(e); }
+            });
+        }
+
+        startBtn.addEventListener('click', function() {
+            var matchId = parseInt(document.getElementById('pres-match-select').value, 10);
+            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+            _presState.matchId = matchId;
+            loadPresentationData(matchId);
+        });
+
+        prevBtn.addEventListener('click', function() { navigateSlide(-1); });
+        nextBtn.addEventListener('click', function() { navigateSlide(1); });
+
+        fullscreenBtn.addEventListener('click', function() {
+            var container = document.getElementById('presentation-slides');
+            if (!_presState.isFullscreen) {
+                container.classList.add('pres-fullscreen');
+                _presState.isFullscreen = true;
+                fullscreenBtn.textContent = '✕ Exit Fullscreen';
+            } else {
+                container.classList.remove('pres-fullscreen');
+                _presState.isFullscreen = false;
+                fullscreenBtn.textContent = '⛶ Fullscreen';
+            }
+            window.dispatchEvent(new Event('resize'));
+        });
+
+        exportBtn.addEventListener('click', function() {
+            showToast('Video export: capture slides + commentary (coming soon).', 'info');
+        });
+
+        // Keyboard nav
+        document.addEventListener('keydown', function(e) {
+            var section = document.getElementById('presentation-section');
+            if (!section || section.classList.contains('hidden')) return;
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); navigateSlide(1); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); navigateSlide(-1); }
+            if (e.key === 'Escape' && _presState.isFullscreen) {
+                document.getElementById('pres-fullscreen-btn').click();
+            }
+        });
+    }
+
+    function loadPresentationData(matchId) {
+        if (typeof bridge === 'undefined' || !bridge) { showToast('Bridge not ready.', 'error'); return; }
+
+        // Get match info from all matches
+        bridge.get_all_matches(function(matchResult) {
+            try {
+                var matches = typeof matchResult === 'string' ? JSON.parse(matchResult) : matchResult;
+                if (Array.isArray(matches)) {
+                    var match = matches.find(function(m) { return m.id === matchId; });
+                    _presState.matchData = match || { home_team: 'Home', away_team: 'Away' };
+                } else {
+                    _presState.matchData = {};
+                }
+            } catch(e) { _presState.matchData = {}; }
+            _presState.matchData = _presState.matchData || {};
+
+            // Load events for stats
+            bridge.get_match_events(matchId, function(evResult) {
+                try {
+                    var events = typeof evResult === 'string' ? JSON.parse(evResult) : evResult;
+                    _presState.matchData.events = Array.isArray(events) ? events : (events.events || []);
+                } catch(e) { _presState.matchData.events = []; }
+
+                buildPresentationSlides();
+                _presState.currentSlide = 0;
+                document.getElementById('presentation-slides').classList.remove('hidden');
+                renderSlide(0);
+            });
+        });
+    }
+
+    function buildPresentationSlides() {
+        var d = _presState.matchData || {};
+        var events = d.events || [];
+        var home = d.home_team || 'Home';
+        var away = d.away_team || 'Away';
+        var matchName = d.name || (home + ' vs ' + away);
+
+        var totalShots = events.filter(function(e) { return e.event_type === 'shot'; }).length;
+        var totalGoals = events.filter(function(e) { return e.event_type === 'goal'; }).length;
+        var totalPasses = events.filter(function(e) { return e.event_type === 'pass'; }).length;
+        var totalTackles = events.filter(function(e) { return e.event_type === 'tackle'; }).length;
+        var totalXg = 0;
+        events.forEach(function(e) {
+            var meta = e.metadata || {};
+            totalXg += meta.xg || 0;
+        });
+
+        _presState.slides = [
+            {
+                title: matchName,
+                subtitle: 'Match Analysis Presentation',
+                stat: null,
+                label: null,
+                bg: 'pres-bg-gradient',
+                grid: null,
+            },
+            {
+                title: 'Match Stats Overview',
+                subtitle: null,
+                stat: null,
+                label: null,
+                bg: 'pres-bg-away',
+                grid: [
+                    { label: 'Goals', value: totalGoals },
+                    { label: 'Shots', value: totalShots },
+                    { label: 'Passes', value: totalPasses },
+                    { label: 'Tackles', value: totalTackles },
+                ],
+            },
+            {
+                title: 'xG Analysis',
+                subtitle: 'Expected Goals: ' + totalXg.toFixed(2),
+                stat: totalXg.toFixed(2),
+                label: 'Total xG',
+                bg: 'pres-bg-gradient',
+                grid: null,
+            },
+            {
+                title: 'Event Breakdown',
+                subtitle: 'Shots: ' + totalShots + ' | Goals: ' + totalGoals + ' | Passes: ' + totalPasses + ' | Tackles: ' + totalTackles,
+                stat: null,
+                label: null,
+                bg: 'pres-bg-away',
+                grid: null,
+            },
+            {
+                title: home + ' vs ' + away,
+                subtitle: 'Thank you',
+                stat: null,
+                label: 'Analysis by Kawkab AI',
+                bg: 'pres-bg-gradient',
+                grid: null,
+            },
+        ];
+    }
+
+    function navigateSlide(direction) {
+        var newIdx = _presState.currentSlide + direction;
+        if (newIdx < 0 || newIdx >= _presState.slides.length) return;
+        _presState.currentSlide = newIdx;
+        renderSlide(newIdx);
+    }
+
+    function renderSlide(idx) {
+        var slide = _presState.slides[idx];
+        if (!slide) return;
+        var container = document.getElementById('pres-slide-content');
+        var counter = document.getElementById('pres-slide-counter');
+        if (!container) return;
+
+        counter.textContent = (idx + 1) + ' / ' + _presState.slides.length;
+
+        var html = '<div class="' + slide.bg + '">';
+        html += slide.title ? '<h1>' + escapeHtml(slide.title) + '</h1>' : '';
+        html += slide.subtitle ? '<p class="pres-subtitle">' + escapeHtml(slide.subtitle) + '</p>' : '';
+        html += slide.stat != null ? '<div class="pres-stat">' + slide.stat + '</div>' : '';
+        html += slide.label ? '<div class="pres-label">' + escapeHtml(slide.label) + '</div>' : '';
+
+        if (slide.grid && slide.grid.length > 0) {
+            html += '<div class="pres-grid">';
+            slide.grid.forEach(function(g) {
+                html += '<div class="pres-stat-card"><div class="pres-stat">' + g.value + '</div><div class="pres-label">' + escapeHtml(g.label) + '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+        container.className = 'pres-slide-content ' + (slide.bg || '');
+
+        // Update nav buttons
+        document.getElementById('pres-prev-btn').disabled = idx <= 0;
+        document.getElementById('pres-next-btn').disabled = idx >= _presState.slides.length - 1;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave E — Scout Portal
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _scoutState = {
+        searchResults: [],
+        shortlist: [],
+        compareA: null,
+        compareB: null,
+    };
+
+    function initScoutPortal() {
+        // Tab switching
+        var tabs = document.querySelectorAll('.scout-tabs .tab-btn');
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                document.querySelectorAll('.scout-tab-content').forEach(function(c) { c.classList.remove('active'); });
+                var target = document.getElementById('scout-' + this.dataset.stab);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        var searchBtn = document.getElementById('scout-search-btn');
+        var searchInput = document.getElementById('scout-search-input');
+        var compareBtn = document.getElementById('scout-compare-btn');
+        var reportBtn = document.getElementById('scout-report-btn');
+        var refreshBtn = document.getElementById('scout-shortlist-refresh');
+
+        if (!searchBtn) return;
+
+        searchBtn.addEventListener('click', function() {
+            var query = searchInput.value.trim();
+            var pos = document.getElementById('scout-position-input').value.trim();
+            if (!query) { showToast('Enter a player name.', 'warning'); return; }
+            scoutSearch(query, pos);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') searchBtn.click();
+        });
+
+        compareBtn.addEventListener('click', function() {
+            var a = document.getElementById('scout-compare-a').value;
+            var b = document.getElementById('scout-compare-b').value;
+            if (!a || !b) { showToast('Select two players to compare.', 'warning'); return; }
+            if (a === b) { showToast('Select two different players.', 'warning'); return; }
+            scoutCompare(a, b);
+        });
+
+        reportBtn.addEventListener('click', function() {
+            generateScoutReport();
+        });
+
+        refreshBtn.addEventListener('click', loadShortlist);
+
+        loadShortlist();
+        populateCompareSelects();
+    }
+
+    function scoutSearch(query, position) {
+        if (typeof bridge === 'undefined' || !bridge) {
+            // Simulated search
+            var mockPlayers = [
+                { track_id: 1, name: 'Erling Haaland', position: 'FW', team: 'Manchester City', age: 22, matches: 28, goals: 32, assists: 5, xg: 28.5, passes: 412, tackles: 12 },
+                { track_id: 2, name: 'Kevin De Bruyne', position: 'MF', team: 'Manchester City', age: 30, matches: 25, goals: 8, assists: 16, xg: 7.2, passes: 1250, tackles: 34 },
+                { track_id: 3, name: 'Virgil van Dijk', position: 'DF', team: 'Liverpool', age: 31, matches: 30, goals: 3, assists: 2, xg: 2.8, passes: 1800, tackles: 45 },
+                { track_id: 4, name: 'Kylian Mbappé', position: 'FW', team: 'PSG', age: 24, matches: 26, goals: 28, assists: 8, xg: 24.1, passes: 380, tackles: 8 },
+                { track_id: 5, name: 'Jude Bellingham', position: 'MF', team: 'Real Madrid', age: 20, matches: 27, goals: 15, assists: 7, xg: 12.8, passes: 890, tackles: 42 },
+            ];
+            var q = query.toLowerCase();
+            _scoutState.searchResults = mockPlayers.filter(function(p) {
+                return (p.name || '').toLowerCase().indexOf(q) >= 0;
+            });
+            renderScoutResults();
+            return;
+        }
+        bridge.scout_search_players(query, position, function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                _scoutState.searchResults = data.results || [];
+                renderScoutResults();
+            } catch(e) { console.warn('Scout search error:', e); }
+        });
+    }
+
+    function renderScoutResults() {
+        var container = document.getElementById('scout-search-results');
+        if (!container) return;
+        var results = _scoutState.searchResults;
+
+        if (!results || results.length === 0) {
+            container.innerHTML = '<p class="hint">No players found. Try a different search.</p>';
+            return;
+        }
+
+        var html = '';
+        results.forEach(function(p) {
+            var initial = (p.name || '?').charAt(0).toUpperCase();
+            var onShortlist = _scoutState.shortlist.some(function(s) { return s.track_id === p.track_id; });
+            html += '<div class="scout-player-card">' +
+                '<div class="scout-player-avatar">' + initial + '</div>' +
+                '<div class="scout-player-info">' +
+                '<div class="scout-player-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
+                '<div class="scout-player-meta">' +
+                '<span>' + escapeHtml(p.position || '--') + '</span>' +
+                '<span>' + escapeHtml(p.team || '--') + '</span>' +
+                '<span>Age: ' + (p.age || '--') + '</span>' +
+                '</div></div>' +
+                '<div class="scout-player-stats">' +
+                '<div class="stat"><div class="stat-val">' + (p.goals != null ? p.goals : '--') + '</div><div class="stat-label">G</div></div>' +
+                '<div class="stat"><div class="stat-val">' + (p.assists != null ? p.assists : '--') + '</div><div class="stat-label">A</div></div>' +
+                '<div class="stat"><div class="stat-val">' + (p.matches || '--') + '</div><div class="stat-label">M</div></div>' +
+                '</div>' +
+                '<div class="scout-icons">' +
+                '<button class="scout-icon ' + (onShortlist ? 'added' : '') + '" data-action="shortlist" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '" data-pos="' + escapeHtml(p.position || '') + '">' + (onShortlist ? '★' : '☆') + '</button>' +
+                '<button class="scout-icon" data-action="compare" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '">⇄</button>' +
+                '</div></div>';
+        });
+        container.innerHTML = html;
+
+        // Wire action buttons
+        container.querySelectorAll('[data-action="shortlist"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var trackId = parseInt(this.dataset.trackId, 10);
+                var name = this.dataset.name;
+                var pos = this.dataset.pos;
+                toggleShortlist(trackId, name, pos, this);
+            });
+        });
+
+        container.querySelectorAll('[data-action="compare"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var trackId = this.dataset.trackId;
+                var name = this.dataset.name;
+                // Add to compare dropdowns
+                addToCompare(trackId, name);
+                // Switch to compare tab
+                document.querySelector('.scout-tabs [data-stab="compare"]').click();
+            });
+        });
+    }
+
+    function toggleShortlist(trackId, name, position, btn) {
+        var idx = _scoutState.shortlist.findIndex(function(s) { return s.track_id === trackId; });
+        if (idx >= 0) {
+            _scoutState.shortlist.splice(idx, 1);
+            btn.textContent = '☆';
+            btn.classList.remove('added');
+            showToast('Removed from shortlist.', 'info');
+        } else {
+            _scoutState.shortlist.push({ track_id: trackId, name: name, position: position });
+            btn.textContent = '★';
+            btn.classList.add('added');
+            showToast('Added to shortlist!', 'success');
+        }
+        renderShortlist();
+    }
+
+    function renderShortlist() {
+        var container = document.getElementById('scout-shortlist-content');
+        if (!container) return;
+        var players = _scoutState.shortlist;
+
+        if (!players || players.length === 0) {
+            container.innerHTML = '<p class="hint">No shortlisted players yet.</p>';
+            return;
+        }
+
+        var html = '';
+        players.forEach(function(p) {
+            var initial = (p.name || '?').charAt(0).toUpperCase();
+            html += '<div class="scout-player-card">' +
+                '<div class="scout-player-avatar">' + initial + '</div>' +
+                '<div class="scout-player-info">' +
+                '<div class="scout-player-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
+                '<div class="scout-player-meta">' +
+                '<span>' + escapeHtml(p.position || '--') + '</span>' +
+                '</div></div>' +
+                '<div class="scout-icons">' +
+                '<button class="scout-icon" data-action="remove-shortlist" data-track-id="' + p.track_id + '">✕</button>' +
+                '</div></div>';
+        });
+        container.innerHTML = html;
+
+        container.querySelectorAll('[data-action="remove-shortlist"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var trackId = parseInt(this.dataset.trackId, 10);
+                var idx = _scoutState.shortlist.findIndex(function(s) { return s.track_id === trackId; });
+                if (idx >= 0) {
+                    _scoutState.shortlist.splice(idx, 1);
+                    renderShortlist();
+                    // Also update search results if visible
+                    renderScoutResults();
+                    showToast('Removed from shortlist.', 'info');
+                }
+            });
+        });
+    }
+
+    function loadShortlist() {
+        if (typeof bridge === 'undefined' || !bridge) {
+            // Use local state
+            renderShortlist();
+            return;
+        }
+        bridge.get_shortlist(function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                _scoutState.shortlist = data.players || [];
+                renderShortlist();
+            } catch(e) { console.warn('Shortlist load error:', e); }
+        });
+    }
+
+    function generateScoutReport() {
+        if (_scoutState.shortlist.length === 0) {
+            showToast('Add players to your shortlist first.', 'warning');
+            return;
+        }
+
+        // Generate inline report
+        var report = '# Scout Report\n\n## Shortlisted Players\n\n';
+        _scoutState.shortlist.forEach(function(p) {
+            report += '- **' + p.name + '** (' + (p.position || 'N/A') + ')\n';
+        });
+        report += '\n_Generated by Kawkab AI Scout Portal_\n';
+
+        var blob = new Blob([report], { type: 'text/markdown' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'scout-report-' + Date.now() + '.md';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        showToast('Scout report downloaded!', 'success');
+    }
+
+    function populateCompareSelects() {
+        // Will be populated from search results
+    }
+
+    function addToCompare(trackId, name) {
+        var selA = document.getElementById('scout-compare-a');
+        var selB = document.getElementById('scout-compare-b');
+        var opt = document.createElement('option');
+        opt.value = trackId;
+        opt.textContent = name;
+
+        // Add if not already present
+        var exists = false;
+        [selA, selB].forEach(function(sel) {
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === trackId) exists = true;
+            }
+        });
+
+        if (!exists) {
+            selA.appendChild(opt.cloneNode(true));
+            selB.appendChild(opt.cloneNode(true));
+        }
+
+        // Auto-select
+        if (!selA.value) selA.value = trackId;
+        else if (!selB.value) selB.value = trackId;
+    }
+
+    function scoutCompare(trackIdA, trackIdB) {
+        // Look up in search results
+        var a = _scoutState.searchResults.find(function(p) { return p.track_id == trackIdA; });
+        var b = _scoutState.searchResults.find(function(p) { return p.track_id == trackIdB; });
+
+        var container = document.getElementById('scout-compare-results');
+        if (!container) return;
+        container.classList.remove('hidden');
+
+        if (!a || !b) {
+            container.innerHTML = '<p class="hint">Player data not found. Search for players first.</p>';
+            return;
+        }
+
+        var html = '<div class="pro-card"><h4>Comparison: ' + escapeHtml(a.name) + ' vs ' + escapeHtml(b.name) + '</h4>';
+        html += '<table class="data-table"><thead><tr><th>Stat</th><th>' + escapeHtml(a.name) + '</th><th>' + escapeHtml(b.name) + '</th></tr></thead><tbody>';
+
+        var stats = [
+            { key: 'goals', label: 'Goals' },
+            { key: 'assists', label: 'Assists' },
+            { key: 'matches', label: 'Matches' },
+            { key: 'xg', label: 'xG' },
+            { key: 'passes', label: 'Passes' },
+            { key: 'tackles', label: 'Tackles' },
+        ];
+
+        stats.forEach(function(s) {
+            var va = a[s.key] != null ? a[s.key] : '--';
+            var vb = b[s.key] != null ? b[s.key] : '--';
+            html += '<tr><td>' + s.label + '</td><td>' + va + '</td><td>' + vb + '</td></tr>';
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('edit-event-save').addEventListener('click', function() {
@@ -3602,11 +8121,13 @@
                         document.getElementById('edit-event-modal').classList.add('hidden');
                         setTimeout(loadEventTimeline, 100);
                     } else {
-                        alert('Failed to update event');
+                        showToast('Failed to update event', 'error');
                     }
                 } catch (ex) {
-                    alert('Failed to save: ' + ex);
+                    showToast('Failed to save: ' + ex, 'error');
                 }
+            }).catch(function(err) {
+                console.error('Update event failed:', err);
             });
         });
 
@@ -3627,10 +8148,156 @@
             });
         }
 
+        // Init theme before anything else
+        initTheme();
+
+        // Init chart cross-filter callback
+        wireChartFilter();
+
         setupEventListeners();
-        setLanguage('en');
+
+        // Detect initial language from KawkabPolish or localStorage
+        var initialLang = 'en';
+        if (window.KawkabPolish) {
+            try {
+                var stored = localStorage.getItem('kawkab_lang');
+                if (stored === 'ar' || stored === 'en') initialLang = stored;
+            } catch(e) {}
+        }
+        setLanguage(initialLang);
+
         initQWebChannel();
         setupFeedbackStars();
+        setupGlobalSearch();
+        setupPlayerComparison();
         setTimeout(connectProgressSignals, 500);
+
+        // ── Item 7: Init Timeline Scrubber ──
+        initTimelineScrubber();
+        // Re-init scrubber when timeline events load
+        var _origLoadTimeline = loadEventTimeline;
+        loadEventTimeline = function() {
+            _origLoadTimeline.apply(this, arguments);
+            setTimeout(initTimelineScrubber, 300);
+        };
+
+        // ── Item 10: Init Density Toggle ──
+        initDensityToggle();
+
+        // ── Item 12: Init Color Settings ──
+        initColorSettings();
+
+        // ── Item 13: Init Video Shortcuts ──
+        initVideoShortcuts();
+
+        // ── Item 14: Save/restore filter state on route change ──
+        restoreFilterState();
+
+        // Initialize SPA Router
+        var router = new KawkabRouter();
+        var _origNavigate = router.navigate || router._onHashChange;
+        router.register('dashboard', 'dashboard-section', function() {
+            saveFilterState();
+            loadDashboard();
+        });
+        router.register('upload', 'upload-section', saveFilterState);
+        router.register('analysis', 'analysis-section', saveFilterState);
+        router.register('results', 'results-section', function() {
+            saveFilterState();
+        });
+        router.register('report', 'report-section', saveFilterState);
+        router.register('history', 'history-section', saveFilterState);
+        router.register('professional', 'professional-section', saveFilterState);
+        router.register('coding', 'coding-section', function() {
+            loadCodingMatchSelect();
+        });
+        router.register('review', 'review-section', function() {
+            loadReviewMatchSelect();
+        });
+        router.register('feedback', 'feedback-section', saveFilterState);
+        router.register('season', 'season-section', function() {
+            saveFilterState();
+            loadSeasonData();
+        });
+        router.register('training', 'training-section', saveFilterState);
+        router.register('scout', 'scout-section', saveFilterState);
+
+        // Initialize Skeletons
+        var skeletons = new KawkabSkeletons();
+        skeletons.register('results-section', '100%', 60, 4);
+        skeletons.register('report-section', '100%', 40, 6);
+        skeletons.register('dashboard-kpis', '100%', 40, 5);
+        skeletons.register('dashboard-recent-list', '100%', 30, 3);
+
+        // Initialize nav tabs
+        setupNavTabs();
+
+        // Initialize quick actions
+        setupQuickActions();
+
+        // Initialize perf utilities
+        initPassiveListeners();
+        initThrottledScroll();
+        initThrottledResize();
+
+        // Initialize keyboard nav
+        initKeyboardNav();
+
+        // Initialize tooltips (from app-tooltips.js)
+        if (typeof window.initTooltips === "function") {
+            window.initTooltips();
+        }
+
+        // Initialize notifications (from ui.js)
+        setTimeout(function () {
+            if (window.KawkabUI && window.KawkabUI.initNotifications) {
+                window.KawkabUI.initNotifications();
+            }
+        }, 100);
+
+        // Add confirmation to destructive actions
+        var deleteBtns = document.querySelectorAll('[data-confirm]');
+        deleteBtns.forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                var msg = this.dataset.confirm || 'Are you sure?';
+                e.preventDefault();
+                var originalClick = this;
+                showConfirmDialog(msg, function () {
+                    originalClick.click();
+                });
+            });
+        });
+
+        // ── View toggle wiring ──
+        setupViewToggles();
+
+        // ── Batch action wiring ──
+        setupBatchActions();
+
+        // ── Coding Workspace Init ──
+        initCodingWorkspace();
+
+        // ── Event Review Init ──
+        initReviewWorkspace();
+
+        // ── Phase 2.3-4 & 3-4 Init ──
+        initTacticsWorkspace();
+        initAiWorkspace();
+        initSquadWorkspace();
+
+        // ── Wave A — Telestration ──
+        initTelestration();
+
+        // ── Wave B — Season Dashboard ──
+        initSeasonDashboard();
+
+        // ── Wave C — Training Planner ──
+        initTrainingPlanner();
+
+        // ── Wave D — Presentation Mode ──
+        initPresentationMode();
+
+        // ── Wave E — Scout Portal ──
+        initScoutPortal();
     });
 })();

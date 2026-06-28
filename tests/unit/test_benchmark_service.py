@@ -8,6 +8,10 @@ import time
 from pathlib import Path
 import tempfile
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.benchmark_service import BenchmarkService, BenchmarkResult
 from kawkab.services.storage_service import StorageService
 

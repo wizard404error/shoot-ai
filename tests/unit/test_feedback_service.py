@@ -6,6 +6,10 @@ import pytest
 import tempfile
 from pathlib import Path
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.feedback_service import (
     FeedbackService,
     CoachFeedback,

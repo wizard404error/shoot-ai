@@ -8,6 +8,10 @@ from pathlib import Path
 import tempfile
 import json
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.validation_service import (
     ValidationService, EventGroundTruth, ValidationResult, ValidationReport
 )

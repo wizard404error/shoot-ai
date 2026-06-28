@@ -14,6 +14,7 @@ from typing import Any
 import json
 
 from kawkab.core.logging import get_logger
+from kawkab.core.coordinate_validator import CoordinateValidator
 
 logger = get_logger(__name__)
 
@@ -142,6 +143,39 @@ class ValidationService:
         logger.info(f"Loaded {len(events)} ground truth events from {path}")
         return events
 
+    def _validate_spatial(self, computed_events: list[dict]) -> ValidationResult:
+        """Run CoordinateValidator on all events and return a spatial accuracy result."""
+        total = len(computed_events)
+        if total == 0:
+            return ValidationResult(
+                category="spatial",
+                metric_name="spatial_valid_pct",
+                computed_value=1.0,
+                ground_truth_value=1.0,
+                absolute_error=0.0,
+                relative_error_pct=0.0,
+                accuracy_score=1.0,
+                sample_count=0,
+            )
+        valid = 0
+        for event in computed_events:
+            vr = CoordinateValidator.validate_event_spatial(event)
+            if vr.valid:
+                valid += 1
+            elif vr.errors:
+                logger.warning(f"Spatial validation error: {vr.errors}")
+        pct = valid / total
+        return ValidationResult(
+            category="spatial",
+            metric_name="spatial_valid_pct",
+            computed_value=pct,
+            ground_truth_value=1.0,
+            absolute_error=1.0 - pct,
+            relative_error_pct=(1.0 - pct) * 100,
+            accuracy_score=pct,
+            sample_count=total,
+        )
+
     def validate_events(
         self,
         computed_events: list[dict],
@@ -153,8 +187,13 @@ class ValidationService:
         Computes precision, recall, and F1 for each event type.
         A computed event is a "match" if it's within tolerance_seconds
         of a ground truth event of the same type.
+
+        Also runs spatial validation via CoordinateValidator.
         """
         results = []
+
+        # Spatial validation step
+        results.append(self._validate_spatial(computed_events))
 
         # Group by event type
         gt_by_type: dict[str, list[EventGroundTruth]] = {}

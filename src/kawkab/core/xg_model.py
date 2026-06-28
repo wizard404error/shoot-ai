@@ -1,0 +1,468 @@
+"""Expected Goals (xG) model using logistic regression with enhanced features.
+
+Features:
+  - Distance and distance² (non-linear distance decay)
+  - Angle sin (visible goal fraction)
+  - Body part (head, foot)
+  - Assist type (through ball, cross, standard)
+  - Shot type (open play, volley, free kick, penalty)
+  - One-on-one flag
+  - Pressure flag
+  - Goalkeeper distance (how far GK is from shot)
+  - Shot placement (angle to goal center)
+  - Rebound flag (shot following a save)
+  - Big chance flag (clear-cut opportunity)
+
+Legacy coefficients and the original compute_xg() function are preserved
+for backward compatibility. The EnhancedXgModel provides the improved model.
+"""
+
+from __future__ import annotations
+
+import functools
+import math
+from dataclasses import dataclass, field, fields
+from typing import Any
+
+import numpy as np
+
+from kawkab.core.events import (
+    AssistType,
+    BodyPart,
+    EventType,
+    ShotEvent,
+    ShotType,
+    event_from_dict,
+)
+
+# ── Named constants for magic numbers ────────────────────────────────────────
+
+# Shot angle thresholds (degrees)
+ANGLE_CENTRAL_DEG = 30.0
+ANGLE_SIDE_THRESHOLD_DEG = 35.0
+
+# Penalty kick fixed xG
+PENALTY_XG = 0.76
+
+# Logit clipping to prevent exp overflow
+LOGIT_CLIP_MIN = -20.0
+LOGIT_CLIP_MAX = 20.0
+
+# Distance clamping minimum
+MIN_DISTANCE = 0.5
+
+# Default values when event fields are missing
+DEFAULT_DISTANCE_M = 18.0
+
+# ── Legacy coefficients (unchanged for backward compat) ─────────────────────
+
+XG_COEFFICIENTS: dict[str, float] = {
+    "intercept": -0.5,
+    "distance_m": -0.09,
+    "distance_m_sq": -0.0005,
+    "angle_deg_sin": -0.8,
+    "is_header": -0.9,
+    "is_through_ball_assist": 0.35,
+    "is_cross_assist": -0.35,
+    "is_one_on_one": 0.55,
+    "is_pressed": -0.25,
+    "is_volley": 0.15,
+    "is_free_kick": 0.08,
+    "is_far_side": -0.10,
+    "is_penalty": 2.0,
+}
+
+# ── Enhanced model coefficients (calibrated to StatsBomb-like distribution) ─
+
+ENHANCED_COEFFICIENTS: dict[str, float] = {
+    "intercept": -1.2,
+    "distance_m": -0.12,
+    "distance_m_sq": -0.0003,
+    "angle_sin": 1.4,
+    "is_header": -0.7,
+    "is_through_ball_assist": 0.4,
+    "is_cross_assist": -0.2,
+    "is_one_on_one": 0.6,
+    "is_pressed": -0.3,
+    "is_volley": 0.2,
+    "is_free_kick": 0.15,
+    "is_penalty": 2.0,
+    "gk_distance_m": -0.08,
+    "gk_distance_m_sq": -0.0004,
+    "is_rebound": 0.5,
+    "is_big_chance": 0.7,
+    "angle_deg_sq_sin": -0.3,
+}
+
+
+# ── Legacy functions (backward compatible) ──────────────────────────────────
+
+@functools.lru_cache(maxsize=64)
+def compute_xg(
+    distance_m: float,
+    angle_deg: float,
+    *,
+    body_part: str = "right_foot",
+    assist_type: str = "standard",
+    is_one_on_one: bool = False,
+    is_pressed: bool = False,
+    shot_type: str = "open_play",
+    from_side: bool = False,
+) -> float:
+    """Compute expected goals using the legacy model."""
+    if shot_type == "penalty":
+        return PENALTY_XG
+
+    coef = XG_COEFFICIENTS
+    logit = coef["intercept"]
+    d = max(distance_m, MIN_DISTANCE)
+    logit += coef["distance_m"] * d
+    logit += coef["distance_m_sq"] * (d * d)
+    angle_rad = math.radians(max(angle_deg, 0.0))
+    goal_fraction = math.cos(angle_rad) if angle_rad < math.pi / 2 else 0.0
+    logit += coef["angle_deg_sin"] * (1.0 - goal_fraction)
+
+    if body_part == "head":
+        logit += coef["is_header"]
+    if assist_type == "through_ball":
+        logit += coef["is_through_ball_assist"]
+    elif assist_type == "cross":
+        logit += coef["is_cross_assist"]
+    if is_one_on_one:
+        logit += coef["is_one_on_one"]
+    if is_pressed:
+        logit += coef["is_pressed"]
+    if shot_type in ("volley", "half_volley"):
+        logit += coef["is_volley"]
+    if shot_type == "free_kick":
+        logit += coef["is_free_kick"]
+    if from_side:
+        logit += coef["is_far_side"]
+
+    return 1.0 / (1.0 + math.exp(-logit))
+
+
+def compute_xg_from_shot_event(event: ShotEvent) -> float:
+    """Compute xG from a ShotEvent object using the legacy model."""
+    angle_deg = event.angle_deg or ANGLE_CENTRAL_DEG
+    distance_m = event.distance_m or DEFAULT_DISTANCE_M
+    body_part = event.body_part.value if event.body_part else "right_foot"
+    shot_type = event.shot_type.value if event.shot_type else "open_play"
+    from_side = angle_deg > ANGLE_SIDE_THRESHOLD_DEG
+
+    return compute_xg(
+        distance_m=distance_m,
+        angle_deg=angle_deg,
+        body_part=body_part,
+        is_one_on_one=event.is_one_on_one,
+        is_pressed=event.was_pressed,
+        shot_type=shot_type,
+        from_side=from_side,
+    )
+
+
+def compute_xg_from_dict(event_dict: dict[str, Any]) -> float:
+    """Compute xG from a raw event dict (legacy)."""
+    event = ShotEvent.from_dict(event_dict)
+    return compute_xg_from_shot_event(event)
+
+
+def batch_compute_xg(
+    events: list[ShotEvent | dict[str, Any]],
+) -> list[float]:
+    """Compute xG for multiple events using vectorized numpy (legacy)."""
+    results: list[float] = []
+    shot_events: list[ShotEvent] = []
+    for ev in events:
+        if isinstance(ev, ShotEvent):
+            shot_events.append(ev)
+        elif isinstance(ev, dict):
+            if ev.get("type") == "shot":
+                try:
+                    shot_events.append(event_from_dict(ev))
+                except Exception:
+                    results.append(0.0)
+                    continue
+        else:
+            results.append(0.0)
+    if not shot_events:
+        return results + [0.0] * (len(events) - len(results))
+
+    n_shots = len(shot_events)
+    distances = np.fromiter((max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events), dtype=np.float64, count=n_shots)
+    angles = np.fromiter((s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n_shots)
+    is_header = np.fromiter(((s.body_part is not None and s.body_part.value == "head") for s in shot_events), dtype=np.float64, count=n_shots)
+    is_one_on_one = np.fromiter((getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n_shots)
+    was_pressed = np.fromiter((getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n_shots)
+
+    shot_types = [s.shot_type.value if s.shot_type else "open_play" for s in shot_events]
+    is_volley = np.fromiter((t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n_shots)
+    is_free_kick = np.fromiter((t == "free_kick" for t in shot_types), dtype=np.float64, count=n_shots)
+    is_penalty = np.fromiter((t == "penalty" for t in shot_types), dtype=np.float64, count=n_shots)
+
+    penalty_mask = is_penalty.astype(bool)
+    batch_size = len(distances)
+    xg_values = np.zeros(batch_size, dtype=np.float64)
+
+    non_penalty = ~penalty_mask
+    if np.any(non_penalty):
+        coef = XG_COEFFICIENTS
+        d = distances[non_penalty]
+        a = angles[non_penalty]
+        logit = np.full(np.sum(non_penalty), coef["intercept"], dtype=np.float64)
+        logit += coef["distance_m"] * d
+        logit += coef["distance_m_sq"] * (d * d)
+        angle_rad = np.radians(np.maximum(a, 0.0))
+        goal_fraction = np.where(angle_rad < np.pi / 2, np.cos(angle_rad), 0.0)
+        logit += coef["angle_deg_sin"] * (1.0 - goal_fraction)
+        logit += coef["is_header"] * is_header[non_penalty]
+        logit += coef["is_one_on_one"] * is_one_on_one[non_penalty]
+        logit += coef["is_pressed"] * was_pressed[non_penalty]
+        logit += coef["is_volley"] * is_volley[non_penalty]
+        logit += coef["is_free_kick"] * is_free_kick[non_penalty]
+        logit = np.clip(logit, LOGIT_CLIP_MIN, LOGIT_CLIP_MAX)
+        logit = np.where(np.isfinite(logit), logit, 0.0)
+        xg_values[non_penalty] = 1.0 / (1.0 + np.exp(-logit))
+
+    xg_values[penalty_mask] = PENALTY_XG
+
+    return results + xg_values.tolist()
+
+
+# ── Enhanced Model ──────────────────────────────────────────────────────────
+
+
+@dataclass
+class EnhancedXgFeatures:
+    """Feature vector for the enhanced xG model."""
+    distance_m: float = DEFAULT_DISTANCE_M
+    angle_deg: float = ANGLE_CENTRAL_DEG
+    is_header: bool = False
+    is_through_ball_assist: bool = False
+    is_cross_assist: bool = False
+    is_one_on_one: bool = False
+    is_pressed: bool = False
+    is_volley: bool = False
+    is_free_kick: bool = False
+    is_penalty: bool = False
+    gk_distance_m: float = 0.0
+    is_rebound: bool = False
+    is_big_chance: bool = False
+
+    def __hash__(self):
+        return hash(tuple(getattr(self, f.name) for f in fields(self)))
+
+    def __eq__(self, other):
+        if not isinstance(other, EnhancedXgFeatures):
+            return NotImplemented
+        return all(getattr(self, f.name) == getattr(other, f.name) for f in fields(self))
+
+
+class EnhancedXgModel:
+    """Enhanced xG model with additional features.
+
+    Uses logistic regression with more sophisticated feature engineering:
+    goalkeeper distance, rebound detection, big chance flag, angle².
+
+    Args:
+        coefficients: Dict of coefficient values. Defaults to ENHANCED_COEFFICIENTS.
+        coeffs_source: Label for coefficient provenance ("heuristic" or path).
+    """
+
+    def __init__(self, coefficients: dict[str, float] | None = None,
+                 coeffs_source: str = "heuristic"):
+        self.coef = coefficients or ENHANCED_COEFFICIENTS
+        self.coeffs_source = coeffs_source
+
+    @classmethod
+    def load_trained(cls, path: str) -> EnhancedXgModel:
+        from kawkab.core.xg_trainer import load_coefficients
+        coeffs = load_coefficients(path)
+        return cls(coefficients=coeffs, coeffs_source=path)
+
+    def extract_features(self, event: ShotEvent | dict[str, Any]) -> EnhancedXgFeatures:
+        """Extract feature vector from a shot event."""
+        if isinstance(event, dict):
+            event = ShotEvent.from_dict(event)
+
+        angle_deg = event.angle_deg or ANGLE_CENTRAL_DEG
+        distance_m = event.distance_m or DEFAULT_DISTANCE_M
+        body_part = event.body_part.value if event.body_part else "right_foot"
+        shot_type = event.shot_type.value if event.shot_type else "open_play"
+
+        features = EnhancedXgFeatures(
+            distance_m=distance_m,
+            angle_deg=angle_deg,
+            is_header=(body_part == "head"),
+            is_one_on_one=event.is_one_on_one,
+            is_pressed=event.was_pressed,
+            is_volley=(shot_type in ("volley", "half_volley")),
+            is_free_kick=(shot_type == "free_kick"),
+            is_penalty=(shot_type == "penalty"),
+            gk_distance_m=getattr(event, "gk_distance_m", 0.0),
+        )
+
+        # Extract rebound: shot following a goalie save within 3s
+        # This is set externally via the event dict
+        if isinstance(event, dict):
+            features.is_rebound = event.get("is_rebound", False)
+            features.is_big_chance = event.get("is_big_chance", False)
+        else:
+            features.is_rebound = getattr(event, "is_rebound", False)
+            features.is_big_chance = getattr(event, "is_big_chance", False)
+
+        return features
+
+    @functools.lru_cache(maxsize=128)
+    def compute_single(self, features: EnhancedXgFeatures) -> float:
+        """Compute xG for a single feature vector."""
+        if features.is_penalty:
+            return PENALTY_XG
+
+        c = self.coef
+        logit = c["intercept"]
+        d = max(features.distance_m, MIN_DISTANCE)
+
+        logit += c["distance_m"] * d
+        logit += c["distance_m_sq"] * (d * d)
+
+        angle_rad = math.radians(max(features.angle_deg, 0.0))
+        goal_fraction = math.cos(angle_rad) if angle_rad < math.pi / 2 else 0.0
+        logit += c["angle_sin"] * (1.0 - goal_fraction)
+        logit += c["angle_deg_sq_sin"] * ((1.0 - goal_fraction) ** 2)
+
+        if features.is_header:
+            logit += c["is_header"]
+        if features.is_through_ball_assist:
+            logit += c["is_through_ball_assist"]
+        if features.is_cross_assist:
+            logit += c["is_cross_assist"]
+        if features.is_one_on_one:
+            logit += c["is_one_on_one"]
+        if features.is_pressed:
+            logit += c["is_pressed"]
+        if features.is_volley:
+            logit += c["is_volley"]
+        if features.is_free_kick:
+            logit += c["is_free_kick"]
+
+        if features.gk_distance_m > 0:
+            logit += c["gk_distance_m"] * features.gk_distance_m
+            logit += c["gk_distance_m_sq"] * (features.gk_distance_m ** 2)
+
+        if features.is_rebound:
+            logit += c["is_rebound"]
+        if features.is_big_chance:
+            logit += c["is_big_chance"]
+
+        if not math.isfinite(logit):
+            return 0.0
+        return 1.0 / (1.0 + math.exp(-min(logit, LOGIT_CLIP_MAX)))
+
+    def compute(self, event: ShotEvent | dict[str, Any]) -> float:
+        """Compute xG for a single shot event (enhanced model)."""
+        features = self.extract_features(event)
+        return self.compute_single(features)
+
+    def batch_compute(self, events: list[ShotEvent | dict[str, Any]]) -> list[float]:
+        """Compute xG for multiple events using numpy vectorization."""
+        results: list[float] = []
+        shot_events: list[ShotEvent] = []
+
+        for ev in events:
+            if isinstance(ev, ShotEvent):
+                shot_events.append(ev)
+            elif isinstance(ev, dict):
+                if ev.get("type") == "shot":
+                    try:
+                        shot_events.append(ShotEvent.from_dict(ev))
+                    except Exception:
+                        results.append(0.0)
+                        continue
+            else:
+                results.append(0.0)
+
+        if not shot_events:
+            return results + [0.0] * (len(events) - len(results))
+
+        n = len(shot_events)
+        distances = np.fromiter((max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events), dtype=np.float64, count=n)
+        angles = np.fromiter((s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n)
+        is_header = np.fromiter(((s.body_part is not None and s.body_part.value == "head") for s in shot_events), dtype=np.float64, count=n)
+        is_one_on_one = np.fromiter((getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n)
+        was_pressed = np.fromiter((getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n)
+        shot_types = [s.shot_type.value if s.shot_type else "open_play" for s in shot_events]
+        is_volley = np.fromiter((t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n)
+        is_free_kick = np.fromiter((t == "free_kick" for t in shot_types), dtype=np.float64, count=n)
+        is_penalty = np.fromiter((t == "penalty" for t in shot_types), dtype=np.float64, count=n)
+
+        gk_dist = np.fromiter((getattr(s, "gk_distance_m", 0.0) for s in shot_events), dtype=np.float64, count=n)
+        is_rebound = np.fromiter((getattr(s, "is_rebound", False) for s in shot_events), dtype=np.float64, count=n)
+        is_big_chance = np.fromiter((getattr(s, "is_big_chance", False) for s in shot_events), dtype=np.float64, count=n)
+
+        c = self.coef
+        xg_values = np.zeros(n, dtype=np.float64)
+        penalty_mask = is_penalty.astype(bool)
+        non_penalty = ~penalty_mask
+
+        if np.any(non_penalty):
+            d = distances[non_penalty]
+            a = angles[non_penalty]
+            logit = np.full(np.sum(non_penalty), c["intercept"], dtype=np.float64)
+            logit += c["distance_m"] * d
+            logit += c["distance_m_sq"] * (d * d)
+            angle_rad = np.radians(np.maximum(a, 0.0))
+            gf = np.where(angle_rad < np.pi / 2, np.cos(angle_rad), 0.0)
+            logit += c["angle_sin"] * (1.0 - gf)
+            logit += c["angle_deg_sq_sin"] * ((1.0 - gf) ** 2)
+            logit += c["is_header"] * is_header[non_penalty]
+            logit += c["is_one_on_one"] * is_one_on_one[non_penalty]
+            logit += c["is_pressed"] * was_pressed[non_penalty]
+            logit += c["is_volley"] * is_volley[non_penalty]
+            logit += c["is_free_kick"] * is_free_kick[non_penalty]
+
+            gkd = gk_dist[non_penalty]
+            gk_mask = gkd > 0
+            if np.any(gk_mask):
+                logit[gk_mask] += c["gk_distance_m"] * gkd[gk_mask]
+                logit[gk_mask] += c["gk_distance_m_sq"] * (gkd[gk_mask] ** 2)
+
+            logit += c["is_rebound"] * is_rebound[non_penalty]
+            logit += c["is_big_chance"] * is_big_chance[non_penalty]
+
+            logit = np.clip(logit, LOGIT_CLIP_MIN, LOGIT_CLIP_MAX)
+            logit = np.where(np.isfinite(logit), logit, 0.0)
+            xg_values[non_penalty] = 1.0 / (1.0 + np.exp(-logit))
+
+        xg_values[penalty_mask] = PENALTY_XG
+
+        return results + xg_values.tolist()
+
+
+def compute_xg_enhanced(
+    distance_m: float,
+    angle_deg: float,
+    *,
+    gk_distance_m: float = 0.0,
+    is_header: bool = False,
+    is_one_on_one: bool = False,
+    is_pressed: bool = False,
+    is_rebound: bool = False,
+    is_big_chance: bool = False,
+    shot_type: str = "open_play",
+) -> float:
+    """Convenience function for enhanced xG computation."""
+    features = EnhancedXgFeatures(
+        distance_m=distance_m,
+        angle_deg=angle_deg,
+        is_header=is_header,
+        is_one_on_one=is_one_on_one,
+        is_pressed=is_pressed,
+        is_rebound=is_rebound,
+        is_big_chance=is_big_chance,
+        is_volley=(shot_type in ("volley", "half_volley")),
+        is_free_kick=(shot_type == "free_kick"),
+        is_penalty=(shot_type == "penalty"),
+        gk_distance_m=gk_distance_m,
+    )
+    return EnhancedXgModel().compute_single(features)

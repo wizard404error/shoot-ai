@@ -15,6 +15,10 @@ import pytest
 import tempfile
 from pathlib import Path
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.clip_extraction_service import (
     ClipLibraryService,
     VideoClip,

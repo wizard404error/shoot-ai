@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from kawkab.core.game_constants import GAME
+
 logger = logging.getLogger(__name__)
 
 
@@ -79,8 +81,8 @@ class PositioningService:
         sprint_threshold_mps: Speed above which a run is a sprint.
     """
 
-    PITCH_LENGTH_M = 105.0
-    PITCH_WIDTH_M = 68.0
+    PITCH_LENGTH_M = GAME.PITCH_LENGTH_M
+    PITCH_WIDTH_M = GAME.PITCH_WIDTH_M
 
     def __init__(
         self,

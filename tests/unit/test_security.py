@@ -1,8 +1,11 @@
 """Tests for security validation utilities."""
 
+import time as _real_time
 from pathlib import Path
+from unittest.mock import patch
+
 import pytest
-from kawkab.core.security import SecurityValidator, ErrorSanitizer, RateLimiter
+from kawkab.core.security import SecurityValidator, ErrorSanitizer, RateLimiter, _global_rate_limiter
 
 
 class TestSecurityValidator:
@@ -89,29 +92,69 @@ class TestErrorSanitizer:
         assert len(sanitized) <= 503  # 500 + "..."
 
 
-class TestRateLimiter:
-    """Test rate limiting."""
+class TestTokenBucketRateLimiter:
+    """Token bucket RateLimiter tests."""
 
-    def test_rate_limiter_allows_requests(self):
-        limiter = RateLimiter(max_requests=3, window_seconds=60.0)
-        assert limiter.can_proceed() is True
-        limiter.record_request()
-        assert limiter.can_proceed() is True
-        limiter.record_request()
-        assert limiter.can_proceed() is True
-        limiter.record_request()
-        assert limiter.can_proceed() is False
+    def test_token_bucket_starts_full(self):
+        limiter = RateLimiter(tokens_per_minute=60)
+        assert limiter.acquire("test:1") is True
 
-    def test_rate_limiter_time_until_available(self):
-        limiter = RateLimiter(max_requests=1, window_seconds=1.0)
-        limiter.record_request()
-        assert limiter.can_proceed() is False
-        assert limiter.time_until_available() > 0.0
+    def test_requests_within_limit_succeed(self):
+        limiter = RateLimiter(tokens_per_minute=60)
+        for _ in range(5):
+            assert limiter.acquire("test:1") is True
 
-    def test_rate_limiter_resets_after_window(self):
+    def test_requests_exceeding_limit_denied(self):
+        limiter = RateLimiter(tokens_per_minute=3)
+        assert limiter.acquire("heavy:1") is True
+        assert limiter.acquire("heavy:1") is True
+        assert limiter.acquire("heavy:1") is True
+        assert limiter.acquire("heavy:1") is False
+
+    def test_tokens_replenish_over_time(self):
+        fake_now = [1000.0]
+        with patch("time.time", side_effect=lambda: fake_now[0]):
+            limiter = RateLimiter(tokens_per_minute=60)
+            assert limiter.acquire("refill:1") is True
+            assert limiter.acquire("refill:1") is True
+            assert limiter.acquire("refill:1") is True
+            fake_now[0] += 5.0
+            assert limiter.acquire("refill:1") is True
+            fake_now[0] += 100.0
+            for _ in range(60):
+                assert limiter.acquire("refill:1") is True
+            assert limiter.acquire("refill:1") is False
+
+    def test_different_keys_have_independent_buckets(self):
+        limiter = RateLimiter(tokens_per_minute=2)
+        assert limiter.acquire("key_a:1") is True
+        assert limiter.acquire("key_a:1") is True
+        assert limiter.acquire("key_a:1") is False
+        assert limiter.acquire("key_b:1") is True
+        assert limiter.acquire("key_b:1") is True
+        assert limiter.acquire("key_b:1") is False
+
+    def test_configure_overrides_default_rate(self):
+        limiter = RateLimiter(tokens_per_minute=60)
+        limiter.configure("slow", 2)
+        assert limiter.acquire("slow:1") is True
+        assert limiter.acquire("slow:1") is True
+        assert limiter.acquire("slow:1") is False
+
+    def test_configure_other_prefix_still_uses_default(self):
+        limiter = RateLimiter(tokens_per_minute=60)
+        limiter.configure("slow", 2)
+        assert limiter.acquire("fast:1") is True
+        for _ in range(59):
+            assert limiter.acquire("fast:1") is True
+
+    def test_security_validator_check_rate_limit(self):
+        assert SecurityValidator.check_rate_limit("analysis", "test") is True
+
+    def test_security_validator_check_rate_limit_exhausted(self):
         import time
-        limiter = RateLimiter(max_requests=1, window_seconds=0.1)
-        limiter.record_request()
-        assert limiter.can_proceed() is False
-        time.sleep(0.15)
-        assert limiter.can_proceed() is True
+        now = time.time()
+        _global_rate_limiter._buckets.clear()
+        key = "analysis:test_exhaust"
+        _global_rate_limiter._buckets[key] = (now, 0.0)
+        assert SecurityValidator.check_rate_limit("analysis", "test_exhaust") is False

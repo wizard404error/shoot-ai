@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import pytest
 
+from conftest import install_kawkab_stubs
+
+install_kawkab_stubs()
+
 from kawkab.services.player_profile_service import PlayerProfileService, PlayerProfile
 from kawkab.services.multi_match_analysis_service import MultiMatchAnalysisService
 from kawkab.services.data_export_service import DataExportService

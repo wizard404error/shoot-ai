@@ -109,5 +109,5 @@
         },
     };
 
-    console.log('Kawkab animations module loaded');
+
 })();
