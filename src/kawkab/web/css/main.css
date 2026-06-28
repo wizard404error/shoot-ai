@@ -3906,6 +3906,41 @@ body {
 .scout-icon.added { background: var(--primary); color: #fff; border-color: var(--primary); }
 .scout-actions { display: flex; gap: 8px; margin-bottom: 12px; }
 
+/* ── multi-angle workspace ── */
+.ma-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.ma-status { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
+.ma-workspace { display: flex; gap: 16px; min-height: 400px; }
+.ma-left { width: 240px; flex-shrink: 0; }
+.ma-center { flex: 1; }
+.ma-source-list { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; max-height: 500px; overflow-y: auto; }
+.ma-source-item { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.82rem; }
+.ma-source-item:last-child { border-bottom: none; }
+.ma-source-item:hover { background: var(--bg-hover); }
+.ma-source-item .ma-source-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-source-item .ma-source-remove { cursor: pointer; color: var(--danger); font-size: 1rem; padding: 2px 6px; border-radius: 4px; }
+.ma-source-item .ma-source-remove:hover { background: rgba(255,0,0,0.1); }
+.ma-video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ma-video-cell { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; }
+.ma-video { width: 100%; max-height: 260px; display: block; }
+.ma-video-label { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.78rem; position: absolute; bottom: 0; left: 0; right: 0; }
+.ma-video-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-badge-master { background: var(--primary); color: #fff; padding: 1px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+.ma-offset-control { display: flex; align-items: center; gap: 4px; }
+.ma-offset-btn { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; }
+.ma-offset-btn:hover { background: rgba(255,255,255,0.3); }
+.ma-offset-value { font-size: 0.78rem; font-weight: 700; min-width: 40px; text-align: center; }
+.ma-sync-bar { display: flex; gap: 8px; align-items: center; padding: 8px 0; flex-wrap: wrap; }
+.ma-trim-bar { display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 8px; flex-wrap: wrap; }
+.ma-trim-bar h4 { margin: 0; font-size: 0.85rem; min-width: 40px; }
+.ma-trim-label { font-size: 0.78rem; color: var(--text-muted); }
+.ma-trim-value { font-size: 0.85rem; font-weight: 700; font-family: monospace; min-width: 50px; }
+.ma-trim-input { width: 150px; font-size: 0.78rem; }
+.ma-reel-bar { display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 8px; flex-wrap: wrap; }
+.ma-reel-bar h4 { margin: 0; font-size: 0.85rem; min-width: 40px; }
+.ma-reel-input { width: 180px; font-size: 0.78rem; }
+.ma-reel-status { font-size: 0.78rem; color: var(--text-muted); }
+.ma-result { margin-top: 12px; padding: 12px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
+
 /* ── presentation fullscreen ── */
 .pres-fullscreen { position: fixed; inset: 0; z-index: 9999; background: #000; }
 .pres-fullscreen .pres-slide-nav { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); border-color: rgba(255,255,255,0.15); }

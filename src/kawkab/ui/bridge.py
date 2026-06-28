@@ -757,6 +757,42 @@ class Bridge(QObject):
         return await self._video.realtime_subscribe_console()
 
     # ================================================================
+    # Sprint 1 — Multi-Angle Sync, Trimming, Highlight Reel
+    # ================================================================
+
+    @Slot(str, result=str)
+    async def sync_load(self, videos_json: str) -> str:
+        return self._video.sync_load(videos_json)
+
+    @Slot(int, float, result=str)
+    async def sync_set_offset(self, source_index: int, offset_seconds: float) -> str:
+        return self._video.sync_set_offset(source_index, offset_seconds)
+
+    @Slot(float, result=str)
+    async def sync_positions(self, master_time: float) -> str:
+        return self._video.sync_positions(master_time)
+
+    @Slot(result=str)
+    async def sync_state(self) -> str:
+        return self._video.sync_state()
+
+    @Slot(result=str)
+    async def sync_clear(self) -> str:
+        return self._video.sync_clear()
+
+    @Slot(str, float, float, str, result=str)
+    async def trim_video(self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = "") -> str:
+        return self._video.trim_video(video_path, start_seconds, end_seconds, output_name)
+
+    @Slot(str, str, result=str)
+    async def reel_compose(self, clips_json: str, output_filename: str) -> str:
+        return self._video.reel_compose(clips_json, output_filename)
+
+    @Slot(int, str, str, result=str)
+    async def reel_from_events(self, match_id: int, events_json: str, video_path: str) -> str:
+        return self._video.reel_from_events(match_id, events_json, video_path)
+
+    # ================================================================
     # Profiler / metrics (lifecycle)
     # ================================================================
 

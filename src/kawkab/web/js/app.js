@@ -6941,6 +6941,231 @@
         textInput: null,
     };
 
+    // ── Sprint 1: Multi-Angle Video, Trimming, Highlight Reel ──
+    var _maInitialized = false;
+    var _maSources = [];
+    var _maTrimIn = null;
+    var _maTrimOut = null;
+    var _maVideoSync = {};
+
+    function initMultiAngle() {
+        if (_maInitialized) return;
+        _maInitialized = true;
+
+        var addBtn = document.getElementById('ma-add-source-btn');
+        var loadBtn = document.getElementById('ma-load-btn');
+        var clearBtn = document.getElementById('ma-clear-btn');
+        var syncMasterBtn = document.getElementById('ma-sync-master-btn');
+        var playAllBtn = document.getElementById('ma-play-all-btn');
+        var pauseAllBtn = document.getElementById('ma-pause-all-btn');
+        var setInBtn = document.getElementById('ma-set-in-btn');
+        var setOutBtn = document.getElementById('ma-set-out-btn');
+        var trimExportBtn = document.getElementById('ma-trim-export-btn');
+        var reelGenBtn = document.getElementById('ma-reel-generate-btn');
+        var fileInput = document.getElementById('ma-source-file-input');
+        var sourceList = document.getElementById('ma-source-list');
+
+        addBtn.addEventListener('click', function () { fileInput.click(); });
+        fileInput.addEventListener('change', function (e) {
+            Array.from(e.target.files).forEach(function (f) {
+                var path = f.name;
+                var url = URL.createObjectURL(f);
+                _maSources.push({ label: f.name, path: path, url: url });
+                renderSourceList();
+            });
+            fileInput.value = '';
+        });
+
+        clearBtn.addEventListener('click', function () {
+            _maSources = [];
+            _maTrimIn = null;
+            _maTrimOut = null;
+            renderSourceList();
+            document.getElementById('ma-workspace').classList.add('hidden');
+            document.getElementById('ma-status').textContent = '';
+        });
+
+        loadBtn.addEventListener('click', function () {
+            var paths = _maSources.map(function (s) { return { path: s.path, label: s.label }; });
+            if (paths.length === 0) { showToast('Add at least one video source', 'warning'); return; }
+            bridge.sync_load(JSON.stringify(paths), function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    loadSyncWorkspace(data);
+                } catch (e) { showToast('Failed to parse sync response', 'error'); }
+            });
+        });
+
+        syncMasterBtn.addEventListener('click', syncAllToMaster);
+        playAllBtn.addEventListener('click', function () { playAllVideos(true); });
+        pauseAllBtn.addEventListener('click', function () { playAllVideos(false); });
+
+        setInBtn.addEventListener('click', function () {
+            var master = document.getElementById('ma-video-0');
+            if (master) { _maTrimIn = master.currentTime; updateTrimDisplay(); }
+        });
+        setOutBtn.addEventListener('click', function () {
+            var master = document.getElementById('ma-video-0');
+            if (master) { _maTrimOut = master.currentTime; updateTrimDisplay(); }
+        });
+        trimExportBtn.addEventListener('click', function () {
+            if (_maTrimIn === null || _maTrimOut === null) { showToast('Set in and out points first', 'warning'); return; }
+            if (_maTrimIn >= _maTrimOut) { showToast('In point must be before out point', 'warning'); return; }
+            var masterPath = _maSources.length > 0 ? _maSources[0].path : '';
+            if (!masterPath) { showToast('No source loaded', 'warning'); return; }
+            var outName = document.getElementById('ma-trim-output').value || ('trim_' + Math.round(_maTrimIn) + '_' + Math.round(_maTrimOut) + '.mp4');
+            bridge.trim_video(masterPath, _maTrimIn, _maTrimOut, outName, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    showToast('Trim exported: ' + (data.output || ''), 'success');
+                } catch (e) { showToast('Trim export failed', 'error'); }
+            });
+        });
+        reelGenBtn.addEventListener('click', function () {
+            if (_maSources.length === 0) { showToast('Load a video first', 'warning'); return; }
+            var clip = [{
+                video_path: _maSources[0].path,
+                start_s: _maTrimIn || 0,
+                end_s: _maTrimOut || 60,
+                label: 'clip_1'
+            }];
+            var outName = document.getElementById('ma-reel-output').value || 'highlight_reel.mp4';
+            bridge.reel_compose(JSON.stringify(clip), outName, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    document.getElementById('ma-reel-status').textContent = data.output_path ? 'Reel saved: ' + data.output_path : data.clip_count + ' clips, ' + data.total_duration_s + 's';
+                    showToast('Reel generated: ' + data.clip_count + ' clips', 'success');
+                } catch (e) { showToast('Reel generation failed', 'error'); }
+            });
+        });
+
+        document.querySelectorAll('.ma-offset-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = parseInt(this.dataset.target);
+                var delta = parseFloat(this.dataset.delta);
+                if (isNaN(target) || isNaN(delta)) return;
+                bridge.sync_set_offset(target, 0, function (cur) {
+                    bridge.sync_set_offset(target, delta, function (r) {
+                        try {
+                            var d = JSON.parse(r);
+                            if (d.ok) { document.getElementById('ma-offset-' + target).textContent = (d.offset_s || 0).toFixed(1) + 's'; }
+                        } catch (e) {}
+                    });
+                });
+            });
+        });
+    }
+
+    function renderSourceList() {
+        var list = document.getElementById('ma-source-list');
+        if (!list) return;
+        if (_maSources.length === 0) {
+            list.innerHTML = '<p class="hint" data-i18n="maSourceHint">Add video sources and click "Load Videos".</p>';
+            return;
+        }
+        var html = '';
+        _maSources.forEach(function (s, i) {
+            html += '<div class="ma-source-item">';
+            html += '<span class="ma-source-label" title="' + escapeHtml(s.label) + '">' + escapeHtml(s.label) + '</span>';
+            html += '<span class="ma-source-remove" data-index="' + i + '">✕</span>';
+            html += '</div>';
+        });
+        list.innerHTML = html;
+        list.querySelectorAll('.ma-source-remove').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var idx = parseInt(this.dataset.index);
+                if (!isNaN(idx) && idx >= 0 && idx < _maSources.length) {
+                    if (_maSources[idx].url) URL.revokeObjectURL(_maSources[idx].url);
+                    _maSources.splice(idx, 1);
+                    renderSourceList();
+                }
+            });
+        });
+    }
+
+    function loadSyncWorkspace(data) {
+        var ws = document.getElementById('ma-workspace');
+        ws.classList.remove('hidden');
+        document.getElementById('ma-status').textContent = data.sources.length + ' sources loaded';
+        var sources = data.sources || [];
+        for (var i = 0; i < 3; i++) {
+            var video = document.getElementById('ma-video-' + i);
+            var nameEl = document.getElementById('ma-name-' + i);
+            if (i < sources.length) {
+                var src = sources[i];
+                if (_maSources[i] && _maSources[i].url) {
+                    video.src = _maSources[i].url;
+                }
+                nameEl.textContent = src.label || 'Angle ' + (i + 1);
+                var cell = video.closest('.ma-video-cell');
+                if (cell) cell.style.display = '';
+            } else {
+                var cell = video.closest('.ma-video-cell');
+                if (cell) cell.style.display = 'none';
+            }
+        }
+        // Wire master video timeupdate to sync slaves
+        var masterVideo = document.getElementById('ma-video-0');
+        if (masterVideo) {
+            masterVideo.removeEventListener('timeupdate', _maSyncHandler);
+            _maSyncHandler = function () {
+                var t = masterVideo.currentTime;
+                bridge.sync_positions(t, function (result) {
+                    try {
+                        var pos = JSON.parse(result);
+                        if (pos.error) return;
+                        (pos.positions || []).forEach(function (p) {
+                            if (p.index === 0) return;
+                            var slave = document.getElementById('ma-video-' + p.index);
+                            if (slave && Math.abs(slave.currentTime - p.time_s) > 0.3) {
+                                slave.currentTime = p.time_s;
+                            }
+                            var offEl = document.getElementById('ma-offset-' + p.index);
+                            if (offEl) offEl.textContent = (p.time_s - t).toFixed(1) + 's';
+                        });
+                    } catch (e) {}
+                });
+            };
+            masterVideo.addEventListener('timeupdate', _maSyncHandler);
+        }
+    }
+    var _maSyncHandler = null;
+
+    function syncAllToMaster() {
+        var master = document.getElementById('ma-video-0');
+        if (!master) return;
+        var t = master.currentTime;
+        bridge.sync_positions(t, function (result) {
+            try {
+                var pos = JSON.parse(result);
+                if (pos.error) return;
+                (pos.positions || []).forEach(function (p) {
+                    var slave = document.getElementById('ma-video-' + p.index);
+                    if (slave) { slave.currentTime = p.time_s; }
+                });
+            } catch (e) {}
+        });
+    }
+
+    function playAllVideos(play) {
+        for (var i = 0; i < 3; i++) {
+            var v = document.getElementById('ma-video-' + i);
+            if (v) {
+                if (play) { v.play().catch(function () {}); }
+                else { v.pause(); }
+            }
+        }
+    }
+
+    function updateTrimDisplay() {
+        function fmt(t) { if (t === null) return '--:--'; var m = Math.floor(t / 60); var s = Math.floor(t % 60); return m + ':' + (s < 10 ? '0' : '') + s; }
+        document.getElementById('ma-trim-in').textContent = fmt(_maTrimIn);
+        document.getElementById('ma-trim-out').textContent = fmt(_maTrimOut);
+    }
+
     function initTelestration() {
         var toggleBtn = document.getElementById('telestrate-toggle-btn');
         var toolbar = document.getElementById('telestrate-toolbar');
@@ -8221,6 +8446,10 @@
         });
         router.register('training', 'training-section', saveFilterState);
         router.register('scout', 'scout-section', saveFilterState);
+        router.register('multiangle', 'multiangle-section', function() {
+            saveFilterState();
+            initMultiAngle();
+        });
 
         // Initialize Skeletons
         var skeletons = new KawkabSkeletons();

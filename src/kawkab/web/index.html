@@ -112,6 +112,7 @@
             <button class="nav-tab" data-route="training" data-i18n="tab_training">🏋️ Training</button>
             <button class="nav-tab" data-route="scout" data-i18n="tab_scout">🔎 Scout</button>
             <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
+            <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1523,6 +1524,88 @@
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <!-- ============================================================
+                 Sprint 1 — Multi-Angle Video, Trimming, Highlight Reel
+                 ============================================================ -->
+            <section id="multiangle-section" class="section hidden">
+                <h2 data-i18n="multiangleTitle">🎬 Multi-Angle Video Editor</h2>
+                <!-- Toolbar -->
+                <div class="ma-toolbar">
+                    <button id="ma-add-source-btn" class="btn btn-secondary" data-i18n="maAddSource">➕ Add Source</button>
+                    <button id="ma-load-btn" class="btn btn-primary" data-i18n="maLoad">📂 Load Videos</button>
+                    <button id="ma-clear-btn" class="btn btn-secondary" data-i18n="maClear">🗑️ Clear</button>
+                    <span id="ma-status" class="ma-status"></span>
+                </div>
+                <!-- Main layout -->
+                <div id="ma-workspace" class="ma-workspace hidden">
+                    <div class="ma-left">
+                        <div class="ma-source-list" id="ma-source-list">
+                            <p class="hint" data-i18n="maSourceHint">Add video sources and click "Load Videos".</p>
+                        </div>
+                    </div>
+                    <div class="ma-center">
+                        <div class="ma-video-grid" id="ma-video-grid">
+                            <div class="ma-video-cell" data-source-index="0">
+                                <video id="ma-video-0" class="ma-video" controls></video>
+                                <div class="ma-video-label">
+                                    <span class="ma-video-name" id="ma-name-0">Master</span>
+                                    <span class="ma-badge-master" data-i18n="maBadgeMaster">MASTER</span>
+                                </div>
+                            </div>
+                            <div class="ma-video-cell" data-source-index="1">
+                                <video id="ma-video-1" class="ma-video" controls></video>
+                                <div class="ma-video-label">
+                                    <span class="ma-video-name" id="ma-name-1">Angle 2</span>
+                                    <span class="ma-offset-control">
+                                        <button class="ma-offset-btn" data-target="1" data-delta="-0.5">-0.5s</button>
+                                        <span id="ma-offset-1" class="ma-offset-value">0.0s</span>
+                                        <button class="ma-offset-btn" data-target="1" data-delta="0.5">+0.5s</button>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="ma-video-cell" data-source-index="2">
+                                <video id="ma-video-2" class="ma-video" controls></video>
+                                <div class="ma-video-label">
+                                    <span class="ma-video-name" id="ma-name-2">Angle 3</span>
+                                    <span class="ma-offset-control">
+                                        <button class="ma-offset-btn" data-target="2" data-delta="-0.5">-0.5s</button>
+                                        <span id="ma-offset-2" class="ma-offset-value">0.0s</span>
+                                        <button class="ma-offset-btn" data-target="2" data-delta="0.5">+0.5s</button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ma-sync-bar">
+                            <button id="ma-sync-master-btn" class="btn btn-sm btn-primary" data-i18n="maSyncMaster">▶ Sync to Master</button>
+                            <button id="ma-play-all-btn" class="btn btn-sm btn-secondary" data-i18n="maPlayAll">▶ Play All</button>
+                            <button id="ma-pause-all-btn" class="btn btn-sm btn-secondary" data-i18n="maPauseAll">⏸ Pause All</button>
+                        </div>
+                        <!-- Trim controls -->
+                        <div class="ma-trim-bar">
+                            <h4 data-i18n="maTrimTitle">✂️ Trim</h4>
+                            <span class="ma-trim-label" data-i18n="maInPoint">In:</span>
+                            <span id="ma-trim-in" class="ma-trim-value">--:--</span>
+                            <button id="ma-set-in-btn" class="btn btn-sm btn-secondary" data-i18n="maSetIn">Set In</button>
+                            <span class="ma-trim-label" data-i18n="maOutPoint">Out:</span>
+                            <span id="ma-trim-out" class="ma-trim-value">--:--</span>
+                            <button id="ma-set-out-btn" class="btn btn-sm btn-secondary" data-i18n="maSetOut">Set Out</button>
+                            <input type="text" id="ma-trim-output" class="input ma-trim-input" placeholder="trim_clip.mp4" data-i18n-placeholder="maTrimOutputPlaceholder">
+                            <button id="ma-trim-export-btn" class="btn btn-sm btn-primary" data-i18n="maTrimExport">✂️ Export Trim</button>
+                        </div>
+                        <!-- Highlight reel controls -->
+                        <div class="ma-reel-bar">
+                            <h4 data-i18n="maReelTitle">🎬 Highlight Reel</h4>
+                            <input type="text" id="ma-reel-output" class="input ma-reel-input" placeholder="highlight_reel.mp4" data-i18n-placeholder="maReelOutputPlaceholder">
+                            <button id="ma-reel-generate-btn" class="btn btn-sm btn-primary" data-i18n="maReelGenerate">🎬 Generate Reel</button>
+                            <span id="ma-reel-status" class="ma-reel-status"></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Hidden file input for adding sources -->
+                <input type="file" id="ma-source-file-input" accept="video/*" multiple class="hidden">
+                <div id="ma-result" class="ma-result hidden"></div>
             </section>
         </main>
 
