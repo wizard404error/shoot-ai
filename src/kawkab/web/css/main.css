@@ -4006,3 +4006,170 @@ body {
   .squad-grid { grid-template-columns: 1fr; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Sprint 5 — Mobile Scout App (Responsive / PWA / Touch)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Mobile camera scout ── */
+.scout-camera-workspace {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px;
+}
+#scout-camera-video {
+  width: 100%; max-width: 640px; border-radius: var(--radius);
+  background: #000; display: block;
+}
+.scout-camera-toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+}
+.scout-camera-captures {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr));
+  gap: 6px; width: 100%; max-width: 640px;
+}
+.scout-capture-item {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; cursor: pointer; position: relative;
+}
+.scout-capture-item img { width: 100%; display: block; }
+.scout-capture-item .capture-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.7); color: #fff; font-size: 0.65rem;
+  padding: 4px 6px; text-align: center;
+}
+
+/* ── Responsive: tablet (≤1024px) ── */
+@media (max-width: 1024px) {
+  .prematch-grid { grid-template-columns: 1fr; }
+  .postmatch-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .phys-grid { grid-template-columns: 1fr; }
+  .ma-video-grid { grid-template-columns: 1fr; }
+  .ma-workspace { flex-direction: column; }
+  .ma-left { width: 100%; }
+  .live-grid { grid-template-columns: 1fr; }
+  .tactics-grid { grid-template-columns: 1fr; }
+  .review-workspace { grid-template-columns: 1fr; height: auto; }
+  .filter-group { flex-direction: column; align-items: stretch; }
+}
+
+/* ── Responsive: mobile (≤768px) ── */
+@media (max-width: 768px) {
+  .app-header { padding: 6px 10px; flex-wrap: wrap; }
+  .app-title { font-size: 1rem; }
+  .app-subtitle { display: none; }
+  .header-center { display: none; }
+  .nav-tabs { padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+  .nav-tab { font-size: 0.72rem; padding: 8px 10px; }
+  .section { padding: 10px; }
+  .section h2 { font-size: 1rem; }
+  .pro-card { padding: 10px; }
+  .pro-card h3 { font-size: 0.85rem; }
+  .input { font-size: 0.78rem; padding: 6px 8px; }
+  .btn { font-size: 0.78rem; padding: 6px 12px; }
+  .form-row { flex-direction: column; align-items: stretch; }
+  .results-layout { flex-direction: column; }
+  .search-input { width: 100%; }
+  .search-input:focus { width: 100%; }
+  .data-table { font-size: 0.7rem; }
+  .data-table th, .data-table td { padding: 4px 6px; }
+  .timeline-controls { flex-direction: column; align-items: stretch; }
+  .timeline-filter { flex-direction: column; align-items: stretch; }
+  .timeline-scrubber { padding: 6px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .kpi-card { padding: 10px; }
+  .kpi-value { font-size: 1.2rem; }
+  .phys-metrics-grid { grid-template-columns: 1fr; }
+  .quick-actions { grid-template-columns: 1fr; }
+  .batch-action-bar { flex-direction: column; gap: 4px; }
+  .dashboard-card { padding: 10px; }
+  .dashboard-card h3 { font-size: 0.8rem; }
+  .season-splits { grid-template-columns: 1fr; }
+  .match-summary { flex-direction: column; gap: 8px; }
+  .match-details { flex-direction: column; }
+  .stats-list { columns: 1; }
+  .stat-item { padding: 4px 6px; }
+  .tabs-row { flex-wrap: wrap; }
+  .tab-btn { font-size: 0.72rem; padding: 4px 10px; }
+  .filter-row { flex-direction: column; align-items: stretch; }
+  .squad-player-row { flex-wrap: wrap; }
+  .scout-player-card { flex-direction: column; text-align: center; }
+  .scout-player-stats { justify-content: center; }
+  .scout-tabs { flex-wrap: wrap; }
+  .pc-radar-grid { grid-template-columns: 1fr; }
+  .theme-toggle-btn { width: 32px; height: 32px; font-size: 0.85rem; }
+  #scrubber-canvas { height: 30px; }
+  .scrubber-handle { height: 30px; top: -7px; }
+  .scout-camera-workspace { padding: 6px; }
+  .pres-slide-content { padding: 20px; }
+  .pres-slide-content h1 { font-size: 1.5rem; }
+  .pres-slide-content .pres-stat { font-size: 1.8rem; }
+  .pres-slide-content .pres-grid { grid-template-columns: 1fr; }
+  .pres-fullscreen .pres-slide-content { padding: 20px; }
+  .pres-fullscreen .pres-slide-content h1 { font-size: 2rem; }
+  .pres-fullscreen .pres-slide-content .pres-stat { font-size: 3rem; }
+  .live-hotkeys { grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); }
+  .live-hotkey-btn { padding: 6px 4px; font-size: 0.72rem; }
+}
+
+/* ── Small phones (≤480px) ── */
+@media (max-width: 480px) {
+  .app-header { padding: 4px 6px; }
+  .nav-tab { font-size: 0.65rem; padding: 6px 6px; }
+  .section h2 { font-size: 0.9rem; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
+  .kpi-value { font-size: 1rem; }
+  .kpi-label { font-size: 0.62rem; }
+  .live-hotkeys { grid-template-columns: repeat(3, 1fr); }
+  .badge { font-size: 0.65rem; padding: 1px 6px; }
+}
+
+/* ── Touch optimizations ── */
+@media (hover: none) and (pointer: coarse) {
+  .nav-tab { padding: 10px 12px; }
+  .btn { padding: 10px 16px; min-height: 44px; }
+  .btn-sm { padding: 8px 12px; min-height: 36px; font-size: 0.82rem; }
+  .input { min-height: 44px; font-size: 16px; }
+  select.input { min-height: 44px; }
+  .tab-btn { padding: 8px 14px; min-height: 40px; }
+  .live-hotkey-btn { padding: 12px 8px; min-height: 48px; }
+  .quick-action-btn { min-height: 60px; }
+  .data-table th, .data-table td { padding: 8px 8px; }
+  .kpi-card { padding: 12px; }
+  .timeline-item { padding: 8px 10px; }
+  .coding-matrix-btn { padding: 12px 8px; min-height: 44px; }
+  .stat-item { padding: 6px 8px; }
+  .scout-player-card { padding: 12px; }
+  .search-dropdown { max-height: 60vh; }
+  .toggle-switch { width: 48px; height: 28px; }
+  .toggle-slider { border-radius: 28px; }
+  .toggle-slider:before { height: 22px; width: 22px; left: 3px; bottom: 3px; }
+  input[type="checkbox"] { width: 20px; height: 20px; }
+  input[type="radio"] { width: 20px; height: 20px; }
+}
+
+/* ── PWA splash / loading ── */
+.pwa-install-banner {
+  display: none; align-items: center; gap: 10px;
+  padding: 10px 16px; background: var(--primary); color: #fff;
+  border-radius: var(--radius); margin-bottom: 12px;
+  font-size: 0.82rem; position: relative;
+}
+.pwa-install-banner.visible { display: flex; }
+.pwa-install-banner .pwa-close {
+  background: none; border: none; color: rgba(255,255,255,0.8);
+  font-size: 1.2rem; cursor: pointer; margin-left: auto;
+}
+.pwa-install-btn {
+  background: #fff; color: var(--primary); border: none;
+  padding: 6px 16px; border-radius: 20px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; font-size: 0.78rem;
+}
+
+/* ── Offline indicator ── */
+.offline-indicator {
+  display: none; align-items: center; gap: 6px;
+  padding: 6px 12px; background: var(--warning); color: #1e293b;
+  border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600;
+}
+.offline-indicator.visible { display: flex; }
+

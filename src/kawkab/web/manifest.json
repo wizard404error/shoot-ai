@@ -1,8 +1,8 @@
 {
-  "name": "Kawkab AI - Football Coach",
+  "name": "Kawkab AI - Football Coach Analytics",
   "short_name": "Kawkab AI",
-  "description": "Offline Arabic/English AI football coach for amateur teams",
-  "start_url": "index.html",
+  "description": "Offline Arabic/English AI football coach — analytics, video, live tagging, scouting, and team collaboration for amateur clubs.",
+  "start_url": "index.html?source=pwa",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#1e7e34",
@@ -10,20 +10,23 @@
   "scope": "/",
   "lang": "en",
   "dir": "ltr",
+  "id": "/",
+  "launch_handler": { "client_mode": "focus-existing" },
+  "categories": ["sports", "utilities", "productivity"],
+  "screenshots": [],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/icon-192.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["sports", "utilities"],
-  "screenshots": []
+  ]
 }

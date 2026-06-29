@@ -7501,6 +7501,147 @@
         return m + ':' + (s < 10 ? '0' : '') + s;
     }
 
+    // ── Sprint 5: Scout Camera (Mobile/Tablet) ──
+    var _scoutCamInitialized = false;
+    var _scoutCamStream = null;
+    var _scoutCaptures = [];
+
+    function initScoutCamera() {
+        if (_scoutCamInitialized) return;
+        _scoutCamInitialized = true;
+
+        var video = document.getElementById('scout-camera-video');
+        var startBtn = document.getElementById('scout-cam-start-btn');
+        var stopBtn = document.getElementById('scout-cam-stop-btn');
+        var captureBtn = document.getElementById('scout-cam-capture-btn');
+        var clearBtn = document.getElementById('scout-cam-clear-btn');
+        var capturesDiv = document.getElementById('scout-camera-captures');
+
+        startBtn.onclick = function() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('Camera not available on this device', 'error');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
+                .then(function(stream) {
+                    _scoutCamStream = stream;
+                    video.srcObject = stream;
+                    video.play();
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    captureBtn.classList.remove('hidden');
+                    showToast('Camera started', 'info');
+                })
+                .catch(function(err) {
+                    showToast('Camera error: ' + err.message, 'error');
+                });
+        };
+
+        stopBtn.onclick = function() {
+            if (_scoutCamStream) {
+                _scoutCamStream.getTracks().forEach(function(t) { t.stop(); });
+                _scoutCamStream = null;
+            }
+            video.srcObject = null;
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            captureBtn.classList.add('hidden');
+        };
+
+        captureBtn.onclick = function() {
+            if (!_scoutCamStream) return;
+            var canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            _scoutCaptures.push(dataUrl);
+            renderScoutCaptures();
+            showToast('Snapshot captured', 'info');
+        };
+
+        clearBtn.onclick = function() {
+            _scoutCaptures = [];
+            renderScoutCaptures();
+        };
+
+        function renderScoutCaptures() {
+            if (_scoutCaptures.length === 0) {
+                capturesDiv.innerHTML = '<p class="hint">Captured snapshots will appear here.</p>';
+                return;
+            }
+            capturesDiv.innerHTML = '';
+            _scoutCaptures.forEach(function(url, i) {
+                var item = document.createElement('div');
+                item.className = 'scout-capture-item';
+                item.innerHTML = '<img src="' + url + '" alt="Capture ' + (i+1) + '"><div class="capture-label">#' + (i+1) + '</div>';
+                item.onclick = function() {
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'scout-capture-' + (i+1) + '.jpg';
+                    a.click();
+                };
+                capturesDiv.appendChild(item);
+            });
+        }
+    }
+
+    // ── PWA install prompt handler ──
+    var _deferredPrompt = null;
+    var _pwaInitialized = false;
+
+    function initPWA() {
+        if (_pwaInitialized) return;
+        _pwaInitialized = true;
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            _deferredPrompt = e;
+            var banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.classList.add('visible');
+        });
+
+        window.addEventListener('appinstalled', function() {
+            _deferredPrompt = null;
+            var banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.classList.remove('visible');
+            showToast('App installed!', 'info');
+        });
+
+        // Offline/online detection
+        function updateOnlineStatus() {
+            var indicator = document.getElementById('offline-indicator');
+            if (!indicator) return;
+            if (navigator.onLine) {
+                indicator.classList.remove('visible');
+            } else {
+                indicator.classList.add('visible');
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    }
+
+    // ── Install button handler ──
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.matches('#pwa-install-btn')) {
+            if (_deferredPrompt) {
+                _deferredPrompt.prompt();
+                _deferredPrompt.userChoice.then(function() {
+                    _deferredPrompt = null;
+                    var banner = document.getElementById('pwa-install-banner');
+                    if (banner) banner.classList.remove('visible');
+                });
+            }
+        }
+        if (e.target && e.target.matches('#pwa-install-close, #pwa-install-close *')) {
+            var banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.classList.remove('visible');
+        }
+    });
+
     // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
@@ -8973,6 +9114,13 @@
             saveFilterState();
             initLiveTagging();
         });
+        router.register('scoutcamera', 'scoutcamera-section', function() {
+            saveFilterState();
+            initScoutCamera();
+        });
+
+        // Initialize PWA on load
+        initPWA();
 
         // Initialize Skeletons
         var skeletons = new KawkabSkeletons();

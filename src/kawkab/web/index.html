@@ -116,9 +116,20 @@
             <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
             <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
             <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
+            <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
+            <!-- PWA install banner -->
+            <div id="pwa-install-banner" class="pwa-install-banner hidden">
+                <span data-i18n="pwaInstallText">📲 Install Kawkab AI for offline access</span>
+                <button id="pwa-install-btn" class="pwa-install-btn" data-i18n="pwaInstallBtn">Install</button>
+                <button id="pwa-install-close" class="pwa-close">&times;</button>
+            </div>
+            <!-- Offline indicator -->
+            <div id="offline-indicator" class="offline-indicator" data-i18n="offlineIndicator">
+                📡 Offline mode — changes will be saved locally
+            </div>
             <section id="dashboard-section" class="section">
                 <div class="dashboard-header">
                     <h2 data-i18n="dashboardTitle">📊 Dashboard</h2>
@@ -1525,6 +1536,25 @@
                                 <p class="hint">Player ratings will appear here.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Sprint 5 — Mobile Scout Camera
+                 ============================================================ -->
+            <section id="scoutcamera-section" class="section hidden">
+                <h2 data-i18n="scoutCameraTitle">📱 Scout Camera</h2>
+                <div class="scout-camera-workspace">
+                    <video id="scout-camera-video" autoplay playsinline></video>
+                    <div class="scout-camera-toolbar">
+                        <button id="scout-cam-start-btn" class="btn btn-primary" data-i18n="scoutCamStart">📷 Start Camera</button>
+                        <button id="scout-cam-stop-btn" class="btn btn-danger hidden" data-i18n="scoutCamStop">⏹ Stop Camera</button>
+                        <button id="scout-cam-capture-btn" class="btn btn-secondary hidden" data-i18n="scoutCamCapture">📸 Capture Snapshot</button>
+                        <button id="scout-cam-clear-btn" class="btn btn-secondary" data-i18n="scoutCamClear">🗑 Clear Captures</button>
+                    </div>
+                    <div class="scout-camera-captures" id="scout-camera-captures">
+                        <p class="hint" data-i18n="scoutCamHint">Captured snapshots will appear here.</p>
                     </div>
                 </div>
             </section>
