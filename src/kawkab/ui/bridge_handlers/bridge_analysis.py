@@ -2630,7 +2630,177 @@ class AnalysisHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def ai_v2_list_convs(self, match_id):
+    # ================================================================
+    # Phase 13 — Opponent Database + Scouting Network + Transfermarkt
+    # ================================================================
+
+    def _get_opponent_db(self):
+        svc = self._services.get("opponent_database_service")
+        if svc is None:
+            from kawkab.services.opponent_database_service import OpponentDatabaseService
+            svc = OpponentDatabaseService()
+            self._services["opponent_database_service"] = svc
+        return svc
+
+    def _get_scouting_network(self):
+        svc = self._services.get("scouting_network_service")
+        if svc is None:
+            from kawkab.services.scouting_network_service import ScoutingNetworkService
+            svc = ScoutingNetworkService()
+            self._services["scouting_network_service"] = svc
+        return svc
+
+    def _get_transfermarkt(self):
+        svc = self._services.get("transfermarkt_integration_service")
+        if svc is None:
+            from kawkab.services.transfermarkt_integration_service import TransfermarktIntegrationService
+            svc = TransfermarktIntegrationService()
+            self._services["transfermarkt_integration_service"] = svc
+        return svc
+
+    async def opponent_list(self):
+        try:
+            svc = self._get_opponent_db()
+            return json.dumps({"success": True, "profiles": svc.list_profiles()})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_get(self, profile_id):
+        try:
+            svc = self._get_opponent_db()
+            profile = svc.get_profile(str(profile_id))
+            if profile:
+                matchups = svc.get_matchups(str(profile_id))
+                return json.dumps({"success": True, "profile": profile, "matchups": matchups})
+            return json.dumps({"success": False, "error": "Not found"})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_create(self, team_name, league, country):
+        try:
+            svc = self._get_opponent_db()
+            result = svc.create_profile(str(team_name), str(league or ""), str(country or ""))
+            return json.dumps({"success": True, "profile": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_update(self, profile_id, updates_json):
+        try:
+            svc = self._get_opponent_db()
+            updates = json.loads(updates_json)
+            ok = svc.update_profile(str(profile_id), updates)
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_delete(self, profile_id):
+        try:
+            svc = self._get_opponent_db()
+            ok = svc.delete_profile(str(profile_id))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_add_matchup(self, profile_id, our_team, date, competition, home_away, our_score, their_score, our_xg, their_xg, notes):
+        try:
+            svc = self._get_opponent_db()
+            result = svc.add_matchup(
+                opponent_id=str(profile_id), our_team=str(our_team), date=str(date),
+                competition=str(competition or ""), home_away=str(home_away or "home"),
+                our_score=int(our_score or 0), their_score=int(their_score or 0),
+                our_xg=float(our_xg or 0.0), their_xg=float(their_xg or 0.0),
+                notes=str(notes or ""),
+            )
+            return json.dumps({"success": True, "matchup": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def opponent_scouting_report(self, profile_id):
+        try:
+            svc = self._get_opponent_db()
+            report = svc.generate_scouting_report(str(profile_id))
+            return json.dumps({"success": True, "report": report})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def scout_network_search(self, query, position, min_age, max_age, league, min_rating):
+        try:
+            svc = self._get_scouting_network()
+            results = svc.search_players(
+                query=str(query or ""), position=str(position or ""),
+                min_age=int(min_age or 0), max_age=int(max_age or 99),
+                league=str(league or ""), min_rating=float(min_rating or 0.0),
+            )
+            return json.dumps({"success": True, "players": results})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def scout_network_add(self, name, position, club, league, rating, strengths_json, weaknesses_json, scout_notes, submitted_by, tags_json):
+        try:
+            svc = self._get_scouting_network()
+            strengths = json.loads(strengths_json) if strengths_json else []
+            weaknesses = json.loads(weaknesses_json) if weaknesses_json else []
+            tags = json.loads(tags_json) if tags_json else []
+            result = svc.add_player(
+                name=str(name), position=str(position or ""), club=str(club or ""),
+                league=str(league or ""), rating=float(rating or 0.0),
+                strengths=strengths, weaknesses=weaknesses,
+                scout_notes=str(scout_notes or ""), submitted_by=str(submitted_by or ""),
+                tags=tags,
+            )
+            return json.dumps({"success": True, "player": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def scout_network_get(self, player_id):
+        try:
+            svc = self._get_scouting_network()
+            player = svc.get_player(str(player_id))
+            if player:
+                return json.dumps({"success": True, "player": player})
+            return json.dumps({"success": False, "error": "Not found"})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def scout_network_delete(self, player_id):
+        try:
+            svc = self._get_scouting_network()
+            ok = svc.delete_player(str(player_id))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def scout_network_stats(self):
+        try:
+            svc = self._get_scouting_network()
+            stats = svc.get_stats()
+            return json.dumps({"success": True, "stats": stats})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def transfermarkt_search(self, name):
+        try:
+            svc = self._get_transfermarkt()
+            results = svc.search_player(str(name))
+            return json.dumps({"success": True, "results": results})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def transfermarkt_get(self, player_id):
+        try:
+            svc = self._get_transfermarkt()
+            details = svc.get_player_details(int(player_id))
+            return json.dumps({"success": True, "details": details})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def transfermarkt_squad(self, club_name):
+        try:
+            svc = self._get_transfermarkt()
+            squad = svc.get_club_squad(str(club_name))
+            return json.dumps({"success": True, "squad": squad})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
         try:
             svc = self._get_ai_v2()
             convs = svc.list_conversations(

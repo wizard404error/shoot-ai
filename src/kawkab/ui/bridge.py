@@ -1141,6 +1141,70 @@ class Bridge(QObject):
         return await self._analysis.ai_v2_auto_report(match_id, language)
 
     # ================================================================
+    # Phase 13 — Opponent Database + Scouting Network + Transfermarkt
+    # ================================================================
+
+    @Slot(result=str)
+    async def opponent_list(self) -> str:
+        return await self._analysis.opponent_list()
+
+    @Slot(str, result=str)
+    async def opponent_get(self, profile_id: str) -> str:
+        return await self._analysis.opponent_get(profile_id)
+
+    @Slot(str, str, str, result=str)
+    async def opponent_create(self, team_name: str, league: str = "", country: str = "") -> str:
+        return await self._analysis.opponent_create(team_name, league, country)
+
+    @Slot(str, str, result=str)
+    async def opponent_update(self, profile_id: str, updates_json: str) -> str:
+        return await self._analysis.opponent_update(profile_id, updates_json)
+
+    @Slot(str, result=str)
+    async def opponent_delete(self, profile_id: str) -> str:
+        return await self._analysis.opponent_delete(profile_id)
+
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    async def opponent_add_matchup(self, profile_id: str, our_team: str, date: str, competition: str = "", home_away: str = "home", our_score: str = "0", their_score: str = "0", our_xg: str = "0.0", their_xg: str = "0.0", notes: str = "") -> str:
+        return await self._analysis.opponent_add_matchup(profile_id, our_team, date, competition, home_away, our_score, their_score, our_xg, their_xg, notes)
+
+    @Slot(str, result=str)
+    async def opponent_scouting_report(self, profile_id: str) -> str:
+        return await self._analysis.opponent_scouting_report(profile_id)
+
+    @Slot(str, str, str, str, str, str, result=str)
+    async def scout_network_search(self, query: str = "", position: str = "", min_age: str = "0", max_age: str = "99", league: str = "", min_rating: str = "0.0") -> str:
+        return await self._analysis.scout_network_search(query, position, min_age, max_age, league, min_rating)
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, result=str)
+    async def scout_network_add(self, name: str, position: str = "", club: str = "", league: str = "", rating: str = "0.0", strengths_json: str = "[]", weaknesses_json: str = "[]", scout_notes: str = "", submitted_by: str = "", tags_json: str = "[]") -> str:
+        return await self._analysis.scout_network_add(name, position, club, league, rating, strengths_json, weaknesses_json, scout_notes, submitted_by, tags_json)
+
+    @Slot(str, result=str)
+    async def scout_network_get(self, player_id: str) -> str:
+        return await self._analysis.scout_network_get(player_id)
+
+    @Slot(str, result=str)
+    async def scout_network_delete(self, player_id: str) -> str:
+        return await self._analysis.scout_network_delete(player_id)
+
+    @Slot(result=str)
+    async def scout_network_stats(self) -> str:
+        return await self._analysis.scout_network_stats()
+
+    @Slot(str, result=str)
+    async def transfermarkt_search(self, name: str) -> str:
+        return await self._analysis.transfermarkt_search(name)
+
+    @Slot(str, result=str)
+    async def transfermarkt_get(self, player_id: str) -> str:
+        return await self._analysis.transfermarkt_get(player_id)
+
+    @Slot(str, result=str)
+    async def transfermarkt_squad(self, club_name: str) -> str:
+        return await self._analysis.transfermarkt_squad(club_name)
+
+    # ================================================================
     # Phase 8 — Cloud Sync
     # ================================================================
 

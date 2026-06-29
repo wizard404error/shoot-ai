@@ -120,6 +120,7 @@
             <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
             <button class="nav-tab" data-route="livestream" data-i18n="tab_livestream">📡 Live</button>
             <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
+            <button class="nav-tab" data-route="opponent" data-i18n="tab_opponent">📋 Opponents</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1626,6 +1627,86 @@
                     </div>
                     <div class="scout-camera-captures" id="scout-camera-captures">
                         <p class="hint" data-i18n="scoutCamHint">Captured snapshots will appear here.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 13 — Opponent Database + Scouting Network + Transfermarkt
+                 ============================================================ -->
+            <section id="opponent-section" class="section hidden">
+                <h2>📋 Opponent Database & Scouting</h2>
+
+                <!-- Tabs -->
+                <div class="tabs" id="opponent-tabs">
+                    <button class="tab active" data-tab="opp-profiles">🏟 Opponents</button>
+                    <button class="tab" data-tab="opp-scouting">🔎 Scouting Network</button>
+                    <button class="tab" data-tab="opp-transfermarkt">💰 Transfermarkt</button>
+                </div>
+
+                <!-- Opponent Profiles -->
+                <div id="opp-profiles" class="tab-content">
+                    <div class="toolbar">
+                        <input type="text" id="opp-search-input" class="input" placeholder="Search opponents..." style="max-width:250px">
+                        <button id="opp-refresh-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
+                        <button id="opp-create-btn" class="btn btn-sm btn-primary">➕ New Opponent</button>
+                    </div>
+                    <div class="opp-grid" id="opp-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:8px">
+                        <p class="hint">No opponents yet. Create your first opponent profile.</p>
+                    </div>
+                    <!-- Opponent detail panel -->
+                    <div id="opp-detail" class="hidden" style="margin-top:12px">
+                        <h3 id="opp-detail-name"></h3>
+                        <div class="opp-detail-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                            <div class="pro-card">
+                                <h4>Tactical Profile</h4>
+                                <div id="opp-detail-tactical"></div>
+                                <button id="opp-generate-report-btn" class="btn btn-sm btn-primary" style="margin-top:8px">📄 Generate Scouting Report</button>
+                                <div id="opp-scouting-report" style="margin-top:8px;background:var(--bg-card);padding:8px;border-radius:6px;font-size:0.8rem;white-space:pre-wrap"></div>
+                            </div>
+                            <div class="pro-card">
+                                <h4>Match History</h4>
+                                <div id="opp-matchups"></div>
+                                <button id="opp-edit-btn" class="btn btn-sm btn-secondary" style="margin-top:8px">✏ Edit Profile</button>
+                                <button id="opp-delete-btn" class="btn btn-sm btn-danger">🗑 Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scouting Network -->
+                <div id="opp-scouting" class="tab-content hidden">
+                    <div class="toolbar">
+                        <input type="text" id="scout-net-search" class="input" placeholder="Search players..." style="max-width:200px">
+                        <select id="scout-net-position" class="input" style="max-width:130px">
+                            <option value="">All positions</option>
+                            <option>GK</option><option>CB</option><option>LB</option><option>RB</option>
+                            <option>CDM</option><option>CM</option><option>CAM</option>
+                            <option>LW</option><option>RW</option><option>CF</option><option>ST</option>
+                        </select>
+                        <button id="scout-net-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
+                        <button id="scout-net-add-btn" class="btn btn-sm btn-primary">➕ Add Player</button>
+                        <span id="scout-net-stats" style="font-size:0.75rem;color:var(--text-muted)"></span>
+                    </div>
+                    <div id="scout-net-results" style="margin-top:8px">
+                        <p class="hint">Search for players in the shared scouting network or add new ones.</p>
+                    </div>
+                </div>
+
+                <!-- Transfermarkt -->
+                <div id="opp-transfermarkt" class="tab-content hidden">
+                    <div class="toolbar">
+                        <input type="text" id="tm-search-input" class="input" placeholder="Search Transfermarkt..." style="max-width:250px">
+                        <button id="tm-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
+                    </div>
+                    <div id="tm-results" style="margin-top:8px">
+                        <p class="hint">Search for players on Transfermarkt to see market values and stats.</p>
+                    </div>
+                    <div id="tm-detail" class="hidden" style="margin-top:12px">
+                        <div class="pro-card">
+                            <h3 id="tm-player-name"></h3>
+                            <div id="tm-player-details" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.85rem"></div>
+                        </div>
                     </div>
                 </div>
             </section>
