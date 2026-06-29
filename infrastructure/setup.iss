@@ -1,10 +1,8 @@
-; Inno Setup Script for Kawkab AI
-; Creates a professional Windows installer
-
+; Kawkab AI — Windows Installer (Inno Setup)
 #define MyAppName "Kawkab AI"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.13.0"
 #define MyAppPublisher "Kawkab AI"
-#define MyAppURL "https://github.com/yourusername/kawkab-ai"
+#define MyAppURL "https://github.com/wizard404error/shoot-ai"
 #define MyAppExeName "KawkabAI.exe"
 
 [Setup]
@@ -20,8 +18,6 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=LICENSE
-InfoBeforeFile=
-InfoAfterFile=
 OutputDir=dist\installer
 OutputBaseFilename=KawkabAI-Setup-{#MyAppVersion}
 SetupIconFile=assets\icon.ico
@@ -77,5 +73,6 @@ Type: filesandordirs; Name: "{userdocs}\KawkabAI"
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  MsgBox(ExpandConstant('{cm:OllamaRequired}'), mbInformation, MB_OK);
+  if MsgBox(ExpandConstant('{cm:OllamaRequired}') + #13#13 + 'Do you want to continue with the installation?', mbConfirmation, MB_YESNO) = IDNO then
+    Result := False;
 end;

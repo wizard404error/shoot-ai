@@ -2094,6 +2094,52 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Sprint 6 — Auto-Updater
+    # ================================================================
+
+    async def updater_check(self):
+        try:
+            svc = self._services.get("auto_updater_service")
+            if svc is None:
+                from kawkab.services.auto_updater_service import AutoUpdaterService
+                svc = AutoUpdaterService()
+                self._services["auto_updater_service"] = svc
+            return svc.check_for_update()
+        except Exception as e:
+            logger.error(f"updater_check failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def updater_download(self, url):
+        try:
+            svc = self._services.get("auto_updater_service")
+            if svc is None:
+                return json.dumps({"error": "No updater service"})
+            return svc.download_update(url)
+        except Exception as e:
+            logger.error(f"updater_download failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def updater_apply(self, path):
+        try:
+            svc = self._services.get("auto_updater_service")
+            if svc is None:
+                return json.dumps({"error": "No updater service"})
+            return svc.apply_update(path)
+        except Exception as e:
+            logger.error(f"updater_apply failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def updater_version(self):
+        try:
+            svc = self._services.get("auto_updater_service")
+            if svc is None:
+                return json.dumps({"version": "0.13.0"})
+            return svc.get_current_version()
+        except Exception as e:
+            logger.error(f"updater_version failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
     # Sprint 3 — Collaboration Service
     # ================================================================
 

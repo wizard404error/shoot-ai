@@ -1005,6 +1005,26 @@ class Bridge(QObject):
         return await self._analysis.live_export()
 
     # ================================================================
+    # Sprint 6 — Auto-Updater
+    # ================================================================
+
+    @Slot(result=str)
+    async def updater_check(self) -> str:
+        return await self._analysis.updater_check()
+
+    @Slot(str, result=str)
+    async def updater_download(self, url: str) -> str:
+        return await self._analysis.updater_download(url)
+
+    @Slot(str, result=str)
+    async def updater_apply(self, path: str) -> str:
+        return await self._analysis.updater_apply(path)
+
+    @Slot(result=str)
+    async def updater_version(self) -> str:
+        return await self._analysis.updater_version()
+
+    # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
     # ================================================================
 

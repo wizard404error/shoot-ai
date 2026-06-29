@@ -1795,9 +1795,32 @@
         </main>
 
         <footer class="app-footer">
-            <p data-i18n="footerTitle">Kawkab AI v0.8.0 - 100% Private & Offline</p>
+            <p data-i18n="footerTitle">Kawkab AI v0.13.0 - 100% Private & Offline</p>
             <p id="kb-stats" data-i18n="kbLoading">Knowledge Base: Loading...</p>
         </footer>
+    </div>
+
+    <!-- First-run wizard modal -->
+    <div id="first-run-modal" class="modal hidden">
+        <div class="modal-content" style="max-width:500px">
+            <div class="modal-header">
+                <h2 data-i18n="firstRunTitle">🚀 Welcome to Kawkab AI!</h2>
+            </div>
+            <div class="modal-body">
+                <p data-i18n="firstRunIntro">Your private, offline AI football coach. Here's how to get started:</p>
+                <ol style="line-height:2;font-size:0.9rem">
+                    <li data-i18n="firstRunStep1"><strong>Import a match</strong> — Load your video and event data</li>
+                    <li data-i18n="firstRunStep2"><strong>Analyze automatically</strong> — xG, pass networks, formations, and more</li>
+                    <li data-i18n="firstRunStep3"><strong>Tag key moments</strong> — Use the Live Tagging or Coding workspace</li>
+                    <li data-i18n="firstRunStep4"><strong>Share with your team</strong> — Export projects and collaborate</li>
+                </ol>
+                <p style="margin-top:12px;font-size:0.82rem;color:var(--text-muted)" data-i18n="firstRunTip">💡 All processing happens offline on your machine. No data ever leaves your computer.</p>
+            </div>
+            <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
+                <button id="first-run-dismiss" class="btn btn-secondary" data-i18n="firstRunDismiss">Dismiss</button>
+                <button id="first-run-start" class="btn btn-primary" data-i18n="firstRunStart">Let's Go!</button>
+            </div>
+        </div>
     </div>
 
     <script src="js/qwebchannel.js"></script>
