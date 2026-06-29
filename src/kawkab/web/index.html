@@ -113,6 +113,7 @@
             <button class="nav-tab" data-route="scout" data-i18n="tab_scout">🔎 Scout</button>
             <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
             <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
+            <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1521,6 +1522,45 @@
                             <div id="squad-ratings-content" class="squad-ratings-content">
                                 <p class="hint">Player ratings will appear here.</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Sprint 2 — Physiology Dashboard
+                 ============================================================ -->
+            <section id="physiology-section" class="section hidden">
+                <h2 data-i18n="physiologyTitle">❤️ Physiology & Wearables</h2>
+                <div class="phys-toolbar">
+                    <input type="file" id="phys-wearable-input" accept=".csv,.gpx" class="hidden">
+                    <button id="phys-import-btn" class="btn btn-secondary" data-i18n="physImport">📥 Import Wearable File</button>
+                    <select id="phys-player-select" class="input" style="width:auto">
+                        <option value="" data-i18n="physSelectPlayer">Select Player</option>
+                    </select>
+                    <button id="phys-merge-btn" class="btn btn-primary" data-i18n="physMerge">🔄 Merge & Analyze</button>
+                    <button id="phys-correlate-btn" class="btn btn-secondary" data-i18n="physCorrelate">📊 Physio-Tactical</button>
+                    <span id="phys-status" class="phys-status"></span>
+                </div>
+                <div id="phys-workspace" class="phys-workspace hidden">
+                    <div class="phys-grid">
+                        <div class="pro-card">
+                            <h3 data-i18n="physMergeTitle">📈 Merged Physiology</h3>
+                            <div id="phys-merge-content" class="phys-metrics-grid">
+                                <p class="hint" data-i18n="physMergeHint">Import wearable data and select a player to merge.</p>
+                            </div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="physWearableSummary">📱 Wearable Summary</h3>
+                            <div id="phys-wearable-content"><p class="hint" data-i18n="physWearableHint">Import a wearable file to see summary.</p></div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="physCorrelationTitle">📊 Tactical Correlation</h3>
+                            <div id="phys-correlation-content"><p class="hint" data-i18n="physCorrelationHint">Click "Physio-Tactical" to analyze.</p></div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="physHRTitle">💓 Heart Rate Zones</h3>
+                            <div id="phys-hr-content"><p class="hint" data-i18n="physHRHint">Heart rate zone distribution.</p></div>
                         </div>
                     </div>
                 </div>

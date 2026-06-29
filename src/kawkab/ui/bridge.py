@@ -923,3 +923,19 @@ class Bridge(QObject):
     @Slot(int, result=str)
     async def get_squad_summary(self, match_id: int) -> str:
         return await self._analysis.get_squad_summary(match_id)
+
+    # ================================================================
+    # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
+    # ================================================================
+
+    @Slot(str, result=str)
+    async def import_wearable(self, file_path: str) -> str:
+        return await self._analysis.import_wearable(file_path)
+
+    @Slot(int, str, str, float, result=str)
+    async def merge_player_physiology(self, player_id: int, trajectory_json: str, wearable_json: str, body_mass_kg: float = 75.0) -> str:
+        return await self._analysis.merge_player_physiology(player_id, trajectory_json, wearable_json, body_mass_kg)
+
+    @Slot(str, str, str, float, result=str)
+    async def analyze_physio_tactical(self, events_json: str, speed_timeline_json: str, hr_timeline_json: str = "", window_s: float = 5.0) -> str:
+        return await self._analysis.analyze_physio_tactical(events_json, speed_timeline_json, hr_timeline_json if hr_timeline_json else None, window_s)

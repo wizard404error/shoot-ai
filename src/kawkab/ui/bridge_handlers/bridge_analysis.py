@@ -1997,6 +1997,56 @@ class AnalysisHandler:
             "has_view_transformer": self.roboflow_sports_service.has_view_transformer,
         })
 
+    # ================================================================
+    # Sprint 2 — Wearable Import + Physiological Merge + Correlation
+    # ================================================================
+
+    async def import_wearable(self, file_path):
+        try:
+            from kawkab.services.wearable_import_service import WearableImportService
+            svc = WearableImportService()
+            return svc.import_auto(file_path)
+        except Exception as e:
+            logger.error(f"import_wearable failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def merge_player_physiology(self, player_id, trajectory_json, wearable_json, body_mass_kg=75.0):
+        try:
+            from kawkab.services.physiological_merge_service import PhysiologicalMergeService
+            from kawkab.services.wearable_import_service import WearableDataPoint
+            traj = json.loads(trajectory_json) if isinstance(trajectory_json, str) else trajectory_json
+            w_data = json.loads(wearable_json) if isinstance(wearable_json, str) else wearable_json
+            trajectory = [(t["t"], t.get("x", t.get("v", 0)), t.get("y", 0)) for t in traj]
+            wearables = []
+            for w in w_data:
+                dp = WearableDataPoint(
+                    timestamp_s=w.get("t", 0),
+                    heart_rate_bpm=w.get("hr"),
+                    speed_ms=w.get("spd", w.get("speed")),
+                    distance_m=w.get("dist"),
+                    acceleration_ms2=w.get("acc"),
+                )
+                wearables.append(dp)
+            svc = PhysiologicalMergeService()
+            return svc.merge(player_id, trajectory, wearables, body_mass_kg)
+        except Exception as e:
+            logger.error(f"merge_player_physiology failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def analyze_physio_tactical(self, events_json, speed_timeline_json, hr_timeline_json=None, window_s=5.0):
+        try:
+            from kawkab.services.physio_tactical_correlation import PhysioTacticalCorrelationService
+            events = json.loads(events_json) if isinstance(events_json, str) else events_json
+            speed_tl = json.loads(speed_timeline_json) if isinstance(speed_timeline_json, str) else speed_timeline_json
+            hr_tl = None
+            if hr_timeline_json:
+                hr_tl = json.loads(hr_timeline_json) if isinstance(hr_timeline_json, str) else hr_timeline_json
+            svc = PhysioTacticalCorrelationService()
+            return svc.analyze(events, speed_tl, hr_tl, window_s)
+        except Exception as e:
+            logger.error(f"analyze_physio_tactical failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
     async def rf_draw_pitch(self, scale):
         import base64
         if self.roboflow_sports_service is None or not self.roboflow_sports_service.available:

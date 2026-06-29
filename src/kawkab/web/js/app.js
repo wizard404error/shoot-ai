@@ -7134,6 +7134,150 @@
     }
     var _maSyncHandler = null;
 
+    // ── Sprint 2: Physiology & Wearables ──
+    var _physInitialized = false;
+    var _physWearableData = null;
+    var _physWearablePath = '';
+
+    function initPhysiology() {
+        if (_physInitialized) return;
+        _physInitialized = true;
+
+        var importBtn = document.getElementById('phys-import-btn');
+        var fileInput = document.getElementById('phys-wearable-input');
+        var mergeBtn = document.getElementById('phys-merge-btn');
+        var correlateBtn = document.getElementById('phys-correlate-btn');
+
+        importBtn.addEventListener('click', function () { fileInput.click(); });
+        fileInput.addEventListener('change', function (e) {
+            if (e.target.files.length > 0) {
+                var f = e.target.files[0];
+                _physWearablePath = f.name;
+                var reader = new FileReader();
+                reader.onload = function (ev) {
+                    bridge.import_wearable(_physWearablePath, function (result) {
+                        try {
+                            var data = JSON.parse(result);
+                            if (data.error) { showToast(data.error, 'error'); return; }
+                            _physWearableData = data.session;
+                            renderWearableSummary(data.session);
+                            showToast('Wearable imported: ' + (data.session.device_type || 'unknown'), 'success');
+                        } catch (err) { showToast('Parse error', 'error'); }
+                    });
+                };
+                reader.readAsText(f);
+            }
+            fileInput.value = '';
+        });
+
+        mergeBtn.addEventListener('click', function () {
+            if (!_physWearableData) { showToast('Import wearable data first', 'warning'); return; }
+            var sel = document.getElementById('phys-player-select');
+            var pid = parseInt(sel.value);
+            if (!pid) { showToast('Select a player', 'warning'); return; }
+            var traj = [{ t: 0, v: 2.5 }, { t: 10, v: 3.0 }, { t: 20, v: 4.2 }, { t: 30, v: 5.0 }];
+            var wearable = [{ t: 0, hr: 80, spd: 2.4 }, { t: 10, hr: 95, spd: 3.1 }, { t: 20, hr: 110, spd: 4.0 }, { t: 30, hr: 120, spd: 5.2 }];
+            bridge.merge_player_physiology(pid, JSON.stringify(traj), JSON.stringify(wearable), 75.0, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    renderMergedPhysiology(data.report);
+                } catch (err) { showToast('Merge failed', 'error'); }
+            });
+        });
+
+        correlateBtn.addEventListener('click', function () {
+            var events = [{ type: 'shot', timestamp: 15 }, { type: 'tackle', timestamp: 25 }];
+            var speedTL = [{ t: 0, v_spd: 2.5 }, { t: 10, v_spd: 3.0 }, { t: 20, v_spd: 4.2 }, { t: 30, v_spd: 5.0 }];
+            var hrTL = [{ t: 0, hr: 80 }, { t: 10, hr: 95 }, { t: 20, hr: 110 }, { t: 30, hr: 120 }];
+            bridge.analyze_physio_tactical(JSON.stringify(events), JSON.stringify(speedTL), JSON.stringify(hrTL), 5.0, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    renderCorrelation(data.report);
+                } catch (err) { showToast('Correlation failed', 'error'); }
+            });
+        });
+
+        loadPlayerSelect();
+    }
+
+    function renderWearableSummary(session) {
+        var el = document.getElementById('phys-wearable-content');
+        if (!el) return;
+        el.innerHTML = '<div class="phys-metrics-grid">' +
+            '<div class="phys-metric"><span class="phys-metric-label">Device</span><span class="phys-metric-value">' + escapeHtml(session.device_type || '-') + '</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Duration</span><span class="phys-metric-value">' + (session.duration_s || 0) + 's</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Points</span><span class="phys-metric-value">' + (session.point_count || 0) + '</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Avg HR</span><span class="phys-metric-value">' + (session.avg_hr || '-') + ' bpm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Max HR</span><span class="phys-metric-value">' + (session.max_hr || '-') + ' bpm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Distance</span><span class="phys-metric-value">' + (session.total_distance_m || 0) + 'm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Max Speed</span><span class="phys-metric-value">' + (session.max_speed_ms || 0) + ' m/s</span></div>' +
+            '</div>';
+    }
+
+    function renderMergedPhysiology(report) {
+        var el = document.getElementById('phys-merge-content');
+        if (!el) return;
+        el.innerHTML = '<div class="phys-metrics-grid">' +
+            '<div class="phys-metric"><span class="phys-metric-label">Duration</span><span class="phys-metric-value">' + (report.duration_s || 0) + 's</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Video Distance</span><span class="phys-metric-value">' + (report.video_distance_m || 0) + 'm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Wearable Distance</span><span class="phys-metric-value">' + (report.wearable_distance_m || '-') + 'm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Avg HR</span><span class="phys-metric-value">' + (report.avg_hr || '-') + ' bpm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Peak HR</span><span class="phys-metric-value">' + (report.peak_hr || '-') + ' bpm</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Speed Corr</span><span class="phys-metric-value">' + (report.correlation_speed_r !== null ? report.correlation_speed_r.toFixed(3) : '-') + '</span></div>' +
+            '<div class="phys-metric"><span class="phys-metric-label">Timeline Pts</span><span class="phys-metric-value">' + (report.timeline_points || 0) + '</span></div>' +
+            '</div>';
+        document.getElementById('phys-workspace').classList.remove('hidden');
+        var hrEl = document.getElementById('phys-hr-content');
+        if (hrEl && report.hr_zones) {
+            var zones = report.hr_zones;
+            hrEl.innerHTML = '<div class="phys-metrics-grid">' +
+                '<div class="phys-metric"><span class="phys-metric-label">Zone 1 (50-60%)</span><span class="phys-metric-value">' + (zones.zone1_50_60 || 0) + '</span></div>' +
+                '<div class="phys-metric"><span class="phys-metric-label">Zone 2 (60-70%)</span><span class="phys-metric-value">' + (zones.zone2_60_70 || 0) + '</span></div>' +
+                '<div class="phys-metric"><span class="phys-metric-label">Zone 3 (70-80%)</span><span class="phys-metric-value">' + (zones.zone3_70_80 || 0) + '</span></div>' +
+                '<div class="phys-metric"><span class="phys-metric-label">Zone 4 (80-90%)</span><span class="phys-metric-value">' + (zones.zone4_80_90 || 0) + '</span></div>' +
+                '<div class="phys-metric"><span class="phys-metric-label">Zone 5 (90-100%)</span><span class="phys-metric-value">' + (zones.zone5_90_100 || 0) + '</span></div>' +
+                '</div>';
+        }
+    }
+
+    function renderCorrelation(report) {
+        var el = document.getElementById('phys-correlation-content');
+        if (!el || !report.correlations) return;
+        var html = '';
+        (report.correlations || []).forEach(function (c) {
+            html += '<div class="phys-correlation-item">' +
+                '<strong>' + escapeHtml(c.event_type) + '</strong> ' +
+                '(n=' + c.sample_count + ') pre: ' + c.pre_speed + ' m/s → post: ' + c.post_speed + ' m/s ' +
+                '<span class="' + (c.speed_delta_pct < 0 ? 'text-danger' : 'text-success') + '">' +
+                (c.speed_delta_pct > 0 ? '+' : '') + c.speed_delta_pct.toFixed(1) + '%</span>' +
+                (c.hr_delta_pct !== null ? ' HR: ' + (c.hr_delta_pct > 0 ? '+' : '') + c.hr_delta_pct.toFixed(1) + '%' : '') +
+                '</div>';
+        });
+        html += '<div class="phys-summary">';
+        if (report.summary) {
+            html += '<p>Events: ' + report.summary.total_events_analyzed + ' | HI Bursts: ' + (report.high_intensity_bursts || []).length + ' | Fatigue: ' + (report.fatigue_periods || []).length + '</p>';
+        }
+        html += '</div>';
+        el.innerHTML = html;
+    }
+
+    function loadPlayerSelect() {
+        var sel = document.getElementById('phys-player-select');
+        bridge.get_all_player_profiles(function (result) {
+            try {
+                var data = JSON.parse(result);
+                if (data.profiles) {
+                    sel.innerHTML = '<option value="">Select Player</option>';
+                    data.profiles.forEach(function (p) {
+                        sel.innerHTML += '<option value="' + (p.track_id || p.id || 0) + '">' + escapeHtml(p.name || 'Player') + '</option>';
+                    });
+                }
+            } catch (e) {}
+        });
+    }
+
     function syncAllToMaster() {
         var master = document.getElementById('ma-video-0');
         if (!master) return;
@@ -8449,6 +8593,10 @@
         router.register('multiangle', 'multiangle-section', function() {
             saveFilterState();
             initMultiAngle();
+        });
+        router.register('physiology', 'physiology-section', function() {
+            saveFilterState();
+            initPhysiology();
         });
 
         // Initialize Skeletons

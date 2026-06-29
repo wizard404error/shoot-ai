@@ -3906,6 +3906,18 @@ body {
 .scout-icon.added { background: var(--primary); color: #fff; border-color: var(--primary); }
 .scout-actions { display: flex; gap: 8px; margin-bottom: 12px; }
 
+/* ── physiology dashboard ── */
+.phys-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.phys-status { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
+.phys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.phys-metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.phys-metric { background: var(--bg-secondary); border-radius: var(--radius); padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+.phys-metric-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.phys-metric-value { font-size: 1.1rem; font-weight: 700; }
+.phys-correlation-item { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.phys-correlation-item:last-child { border-bottom: none; }
+.phys-summary { padding: 8px 12px; font-size: 0.78rem; color: var(--text-muted); }
+
 /* ── multi-angle workspace ── */
 .ma-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .ma-status { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
