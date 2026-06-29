@@ -2343,6 +2343,88 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Phase 10 — Telestration v2
+    # ================================================================
+
+    async def tel_layer_add(self, layer_id, name=""):
+        try:
+            svc = self._get_telestration()
+            return svc.add_layer(layer_id, name)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_layer_remove(self, layer_id):
+        try:
+            svc = self._get_telestration()
+            return svc.remove_layer(layer_id)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_layer_toggle(self, layer_id):
+        try:
+            svc = self._get_telestration()
+            return svc.toggle_layer_visibility(layer_id)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_layer_opacity(self, layer_id, opacity):
+        try:
+            svc = self._get_telestration()
+            return svc.set_layer_opacity(layer_id, opacity)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_get_layers(self):
+        try:
+            svc = self._get_telestration()
+            return svc.get_layers()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_save_preset(self, name, layers_json):
+        try:
+            svc = self._get_telestration()
+            return svc.save_preset(name, layers_json)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_load_preset(self, name):
+        try:
+            svc = self._get_telestration()
+            return svc.load_preset(name)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_list_presets(self):
+        try:
+            svc = self._get_telestration()
+            return svc.list_presets()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_delete_preset(self, name):
+        try:
+            svc = self._get_telestration()
+            return svc.delete_preset(name)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def tel_export_video(self, video_path, layers_json, output_path=""):
+        try:
+            svc = self._get_telestration()
+            return svc.export_annotated_video(video_path, layers_json, output_path)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    def _get_telestration(self):
+        svc = self._services.get("telestration_service")
+        if svc is None:
+            from kawkab.services.telestration_service import TelestrationService
+            svc = TelestrationService()
+            self._services["telestration_service"] = svc
+        return svc
+
+    # ================================================================
     # Phase 9 — Live Stream Capture
     # ================================================================
 

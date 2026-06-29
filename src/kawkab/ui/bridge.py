@@ -1037,6 +1037,50 @@ class Bridge(QObject):
         return await self._analysis.get_app_info()
 
     # ================================================================
+    # Phase 10 — Telestration v2
+    # ================================================================
+
+    @Slot(str, str, result=str)
+    async def tel_layer_add(self, layer_id: str, name: str = "") -> str:
+        return await self._analysis.tel_layer_add(layer_id, name)
+
+    @Slot(str, result=str)
+    async def tel_layer_remove(self, layer_id: str) -> str:
+        return await self._analysis.tel_layer_remove(layer_id)
+
+    @Slot(str, result=str)
+    async def tel_layer_toggle(self, layer_id: str) -> str:
+        return await self._analysis.tel_layer_toggle(layer_id)
+
+    @Slot(str, float, result=str)
+    async def tel_layer_opacity(self, layer_id: str, opacity: float) -> str:
+        return await self._analysis.tel_layer_opacity(layer_id, opacity)
+
+    @Slot(result=str)
+    async def tel_get_layers(self) -> str:
+        return await self._analysis.tel_get_layers()
+
+    @Slot(str, str, result=str)
+    async def tel_save_preset(self, name: str, layers_json: str) -> str:
+        return await self._analysis.tel_save_preset(name, layers_json)
+
+    @Slot(str, result=str)
+    async def tel_load_preset(self, name: str) -> str:
+        return await self._analysis.tel_load_preset(name)
+
+    @Slot(result=str)
+    async def tel_list_presets(self) -> str:
+        return await self._analysis.tel_list_presets()
+
+    @Slot(str, result=str)
+    async def tel_delete_preset(self, name: str) -> str:
+        return await self._analysis.tel_delete_preset(name)
+
+    @Slot(str, str, str, result=str)
+    async def tel_export_video(self, video_path: str, layers_json: str, output_path: str = "") -> str:
+        return await self._analysis.tel_export_video(video_path, layers_json, output_path)
+
+    # ================================================================
     # Phase 9 — Live Stream Capture
     # ================================================================
 

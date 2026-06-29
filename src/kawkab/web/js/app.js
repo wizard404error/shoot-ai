@@ -8417,6 +8417,203 @@
         });
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Phase 10 — Telestration v2 Enhancements
+    // ═══════════════════════════════════════════════════════════════
+
+    var _telV2Initialized = false;
+    var _telLayers = {};
+    var _telAnimFrames = [];
+    var _telAnimPlaying = false;
+    var _telAnimCurrent = 0;
+
+    function initTelestrationV2() {
+        if (_telV2Initialized) return;
+        _telV2Initialized = true;
+
+        // Layer controls
+        wireTelLayerButtons();
+        wireTelAnimTimeline();
+        wireTelPresets();
+        wireTelNewTools();
+    }
+
+    function wireTelNewTools() {
+        // Add new tools to toolbar: bezier, spotlight, magnifier, laser
+        var toolbar = document.getElementById('telestrate-toolbar');
+        if (!toolbar) return;
+        var extras = [
+            { tool: 'bezier', label: '🔄', title: 'Bezier Curve' },
+            { tool: 'spotlight', label: '🔦', title: 'Spotlight' },
+            { tool: 'magnifier', label: '🔍', title: 'Magnifying Glass' },
+            { tool: 'laser', label: '🔴', title: 'Laser Pointer (trail)' },
+        ];
+        var ref = toolbar.querySelector('.telestrate-color') || toolbar.lastElementChild;
+        extras.forEach(function(e) {
+            var btn = document.createElement('button');
+            btn.className = 'telestrate-tool';
+            btn.dataset.tool = e.tool;
+            btn.title = e.title;
+            btn.textContent = e.label;
+            btn.onclick = function() {
+                toolbar.querySelectorAll('.telestrate-tool').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                _telestrateState.tool = this.dataset.tool;
+            };
+            toolbar.insertBefore(btn, ref);
+        });
+
+        // Add layer panel to telestration area
+        var container = document.querySelector('.video-container') || document.querySelector('#telestrate-toolbar')?.parentElement;
+        if (container && !document.getElementById('tel-layer-panel')) {
+            var panel = document.createElement('div');
+            panel.id = 'tel-layer-panel';
+            panel.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:6px;flex-wrap:wrap';
+            panel.innerHTML = '<span style="font-size:0.78rem;font-weight:600">Layers:</span>'
+                + '<button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">➕</button>'
+                + '<button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary" title="Toggle Layer Visibility">👁️</button>'
+                + '<span id="tel-layer-indicator" style="font-size:0.75rem;color:var(--text-muted)">Layer 1</span>'
+                + '<input type="range" id="tel-layer-opacity" min="0" max="100" value="100" style="width:60px" title="Opacity">'
+                + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Anim:</span>'
+                + '<button id="tel-anim-prev" class="btn btn-sm btn-secondary" title="Previous Frame">◀</button>'
+                + '<span id="tel-anim-counter" style="font-size:0.75rem;color:var(--text-muted)">0/0</span>'
+                + '<button id="tel-anim-next" class="btn btn-sm btn-secondary" title="Next Frame">▶</button>'
+                + '<button id="tel-anim-play" class="btn btn-sm btn-secondary" title="Play Animation">▶▶</button>'
+                + '<button id="tel-anim-record" class="btn btn-sm btn-secondary" title="Record Frame">⏺️</button>'
+                + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Export:</span>'
+                + '<button id="tel-export-video-btn" class="btn btn-sm btn-secondary" title="Export Annotated Video">🎬 Export</button>'
+                + '<button id="tel-save-preset-btn" class="btn btn-sm btn-secondary" title="Save Preset">💾 Save</button>'
+                + '<button id="tel-load-preset-btn" class="btn btn-sm btn-secondary" title="Load Preset">📂 Load</button>';
+            container.appendChild(panel);
+        }
+    }
+
+    function wireTelLayerButtons() {
+        document.getElementById('tel-add-layer-btn')?.addEventListener('click', function() {
+            var layerId = 'layer_' + Date.now();
+            var name = prompt('Layer name:', 'Layer ' + (Object.keys(_telLayers).length + 1));
+            bridge.tel_layer_add(layerId, name || layerId).then(function() {
+                _telLayers[layerId] = { name: name || layerId, visible: true, opacity: 1 };
+                document.getElementById('tel-layer-indicator').textContent = name || layerId;
+            });
+        });
+        document.getElementById('tel-toggle-layer-btn')?.addEventListener('click', function() {
+            var firstKey = Object.keys(_telLayers)[0];
+            if (!firstKey) return;
+            bridge.tel_layer_toggle(firstKey).then(function() {
+                _telLayers[firstKey].visible = !_telLayers[firstKey].visible;
+                document.getElementById('tel-layer-indicator').textContent = (_telLayers[firstKey].visible ? '' : '👁️‍🗨️ ') + _telLayers[firstKey].name;
+            });
+        });
+        document.getElementById('tel-layer-opacity')?.addEventListener('input', function() {
+            var firstKey = Object.keys(_telLayers)[0];
+            if (!firstKey) return;
+            var val = parseInt(this.value, 10) / 100;
+            bridge.tel_layer_opacity(firstKey, val);
+        });
+    }
+
+    function wireTelAnimTimeline() {
+        document.getElementById('tel-anim-prev')?.addEventListener('click', function() {
+            if (_telAnimCurrent > 0) {
+                _telAnimCurrent--;
+                applyAnimFrame(_telAnimCurrent);
+            }
+        });
+        document.getElementById('tel-anim-next')?.addEventListener('click', function() {
+            if (_telAnimCurrent < _telAnimFrames.length - 1) {
+                _telAnimCurrent++;
+                applyAnimFrame(_telAnimCurrent);
+            }
+        });
+        document.getElementById('tel-anim-play')?.addEventListener('click', function() {
+            if (_telAnimPlaying) {
+                _telAnimPlaying = false;
+                this.textContent = '▶▶';
+                return;
+            }
+            if (_telAnimFrames.length === 0) return;
+            _telAnimPlaying = true;
+            this.textContent = '⏸️';
+            playAnimLoop();
+        });
+        document.getElementById('tel-anim-record')?.addEventListener('click', function() {
+            _telAnimFrames.push(JSON.parse(JSON.stringify(_telestrateState.strokes)));
+            _telAnimCurrent = _telAnimFrames.length - 1;
+            updateAnimCounter();
+            showToast('Frame ' + _telAnimFrames.length + ' recorded', 'info');
+        });
+    }
+
+    function playAnimLoop() {
+        if (!_telAnimPlaying || _telAnimFrames.length === 0) {
+            document.getElementById('tel-anim-play').textContent = '▶▶';
+            return;
+        }
+        applyAnimFrame(_telAnimCurrent);
+        _telAnimCurrent = (_telAnimCurrent + 1) % _telAnimFrames.length;
+        updateAnimCounter();
+        setTimeout(playAnimLoop, 500);
+    }
+
+    function applyAnimFrame(idx) {
+        if (idx < 0 || idx >= _telAnimFrames.length) return;
+        _telestrateState.strokes = JSON.parse(JSON.stringify(_telAnimFrames[idx]));
+        redrawTelestration();
+        updateAnimCounter();
+    }
+
+    function updateAnimCounter() {
+        var el = document.getElementById('tel-anim-counter');
+        if (el) el.textContent = (_telAnimCurrent + 1) + '/' + _telAnimFrames.length;
+    }
+
+    function wireTelPresets() {
+        document.getElementById('tel-save-preset-btn')?.addEventListener('click', function() {
+            var name = prompt('Preset name:', 'Tactical Board ' + new Date().toLocaleDateString());
+            if (!name) return;
+            bridge.tel_save_preset(name, JSON.stringify([{
+                id: 'canvas', name: 'Canvas', visible: true, locked: false, opacity: 1,
+                elements: _telestrateState.strokes.map(function(s, i) {
+                    return { index: i, tool: s.tool || 'freehand', color: s.color, width: s.width, points: s.points || [] };
+                })
+            }])).then(function(raw) {
+                var r = JSON.parse(raw);
+                showToast(r.ok ? 'Preset saved!' : 'Error: ' + r.error, r.ok ? 'info' : 'error');
+            });
+        });
+        document.getElementById('tel-load-preset-btn')?.addEventListener('click', function() {
+            bridge.tel_list_presets().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error || !r.presets || r.presets.length === 0) {
+                    showToast('No presets found', 'warning');
+                    return;
+                }
+                var names = r.presets.map(function(p) { return p.name; });
+                var name = prompt('Preset name:\n' + names.join('\n'), names[0]);
+                if (!name) return;
+                bridge.tel_load_preset(name).then(function(raw2) {
+                    var r2 = JSON.parse(raw2);
+                    if (r2.ok) showToast('Preset loaded: ' + name, 'info');
+                    else showToast('Error: ' + r2.error, 'error');
+                });
+            });
+        });
+        document.getElementById('tel-export-video-btn')?.addEventListener('click', function() {
+            var video = document.getElementById('match-video');
+            if (!video || !video.src) { showToast('No video loaded', 'warning'); return; }
+            var src = video.src;
+            if (src.startsWith('blob:')) { showToast('Cannot export from blob URL', 'warning'); return; }
+            bridge.tel_export_video(src, JSON.stringify([{
+                id: 'export', name: 'Export', elements: _telestrateState.strokes
+            }]), '').then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.ok) showToast('Exported: ' + r.output, 'info');
+                else showToast('Error: ' + r.error, 'error');
+            });
+        });
+    }
+
     /* ═══════════════════════════════════════════════════════════════
        Wave B — Season Dashboard
        ═══════════════════════════════════════════════════════════════ */
@@ -9452,6 +9649,7 @@
 
         // ── Wave A — Telestration ──
         initTelestration();
+        initTelestrationV2();
 
         // ── Wave B — Season Dashboard ──
         initSeasonDashboard();
