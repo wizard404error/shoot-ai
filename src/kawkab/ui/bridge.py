@@ -925,6 +925,46 @@ class Bridge(QObject):
         return await self._analysis.get_squad_summary(match_id)
 
     # ================================================================
+    # Sprint 3 — Collaboration
+    # ================================================================
+
+    @Slot(str, str, str, result=str)
+    async def create_collab_user(self, username: str, display_name: str, role: str = "analyst") -> str:
+        return await self._analysis.create_collab_user(username, display_name, role)
+
+    @Slot(result=str)
+    async def get_collab_users(self) -> str:
+        return await self._analysis.get_collab_users()
+
+    @Slot(int, result=str)
+    async def delete_collab_user(self, user_id: int) -> str:
+        return await self._analysis.delete_collab_user(user_id)
+
+    @Slot(int, int, int, str, result=str)
+    async def add_comment(self, match_id: int, event_id: int, user_id: int, text: str) -> str:
+        return await self._analysis.add_comment(match_id, event_id, user_id, text)
+
+    @Slot(int, int, result=str)
+    async def get_comments(self, match_id: int, event_id: int = 0) -> str:
+        return await self._analysis.get_comments(match_id, event_id)
+
+    @Slot(int, result=str)
+    async def delete_comment(self, comment_id: int) -> str:
+        return await self._analysis.delete_comment(comment_id)
+
+    @Slot(int, result=str)
+    async def export_project(self, match_id: int) -> str:
+        return await self._analysis.export_project(match_id)
+
+    @Slot(str, result=str)
+    async def import_project(self, project_json: str) -> str:
+        return await self._analysis.import_project(project_json)
+
+    @Slot(int, result=str)
+    async def get_activity_feed(self, limit: int = 50) -> str:
+        return await self._analysis.get_activity_feed(limit)
+
+    # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
     # ================================================================
 

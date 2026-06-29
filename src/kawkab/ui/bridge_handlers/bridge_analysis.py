@@ -1998,6 +1998,116 @@ class AnalysisHandler:
         })
 
     # ================================================================
+    # Sprint 3 — Collaboration Service
+    # ================================================================
+
+    async def create_collab_user(self, username, display_name, role="analyst"):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                from kawkab.services.collaboration_service import CollaborationService
+                svc = CollaborationService()
+                self._services["collaboration_service"] = svc
+            return svc.create_user(username, display_name, role)
+        except Exception as e:
+            logger.error(f"create_collab_user failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_collab_users(self):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"users": [], "total": 0})
+            return svc.get_users()
+        except Exception as e:
+            logger.error(f"get_collab_users failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def delete_collab_user(self, user_id):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"error": "Service not initialized"})
+            return svc.delete_user(user_id)
+        except Exception as e:
+            logger.error(f"delete_collab_user failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def add_comment(self, match_id, event_id, user_id, text):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                from kawkab.services.collaboration_service import CollaborationService
+                svc = CollaborationService()
+                self._services["collaboration_service"] = svc
+            return svc.add_comment(match_id, event_id, user_id, text)
+        except Exception as e:
+            logger.error(f"add_comment failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_comments(self, match_id, event_id=0):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"comments": [], "total": 0})
+            return svc.get_comments(match_id, event_id)
+        except Exception as e:
+            logger.error(f"get_comments failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def delete_comment(self, comment_id):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"error": "Service not initialized"})
+            return svc.delete_comment(comment_id)
+        except Exception as e:
+            logger.error(f"delete_comment failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def export_project(self, match_id):
+        try:
+            storage = self.storage_service
+            if storage is None:
+                return json.dumps({"error": "Storage not available"})
+            match = await storage.get_match(match_id)
+            if not match:
+                return json.dumps({"error": "Match not found"})
+            events = await storage.get_match_events(match_id)
+            match["events"] = events
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                from kawkab.services.collaboration_service import CollaborationService
+                svc = CollaborationService()
+                self._services["collaboration_service"] = svc
+            return svc.export_project(match)
+        except Exception as e:
+            logger.error(f"export_project failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def import_project(self, project_json):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                from kawkab.services.collaboration_service import CollaborationService
+                svc = CollaborationService()
+                self._services["collaboration_service"] = svc
+            return svc.import_project(project_json)
+        except Exception as e:
+            logger.error(f"import_project failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_activity_feed(self, limit=50):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"activities": [], "total": 0})
+            return svc.get_activity_feed(limit)
+        except Exception as e:
+            logger.error(f"get_activity_feed failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
     # Sprint 2 — Wearable Import + Physiological Merge + Correlation
     # ================================================================
 

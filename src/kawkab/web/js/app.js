@@ -7134,6 +7134,178 @@
     }
     var _maSyncHandler = null;
 
+    // ── Sprint 3: Team Collaboration ──
+    var _collabInitialized = false;
+
+    function initCollaboration() {
+        if (_collabInitialized) return;
+        _collabInitialized = true;
+
+        // User tabs
+        document.querySelectorAll('[data-ctab]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('[data-ctab]').forEach(function (b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                document.querySelectorAll('.collab-tab-content').forEach(function (tc) { tc.classList.add('hidden'); });
+                var tab = document.getElementById('collab-' + this.dataset.ctab);
+                if (tab) tab.classList.remove('hidden');
+            });
+        });
+
+        // Users
+        document.getElementById('collab-add-user-btn').addEventListener('click', function () {
+            var uname = document.getElementById('collab-username').value.trim();
+            var dname = document.getElementById('collab-display-name').value.trim();
+            var role = document.getElementById('collab-role').value;
+            if (!uname) { showToast('Username required', 'warning'); return; }
+            bridge.create_collab_user(uname, dname || uname, role, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    showToast('User added: ' + data.user.username, 'success');
+                    loadCollabUsers();
+                } catch (e) { showToast('Failed', 'error'); }
+            });
+        });
+
+        // Comments
+        document.getElementById('collab-add-comment-btn').addEventListener('click', function () {
+            var mid = parseInt(document.getElementById('collab-comment-match').value);
+            var eid = parseInt(document.getElementById('collab-comment-event').value) || 0;
+            var text = document.getElementById('collab-comment-text').value.trim();
+            if (!mid || !text) { showToast('Match ID and comment text required', 'warning'); return; }
+            bridge.add_comment(mid, eid, 0, text, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    showToast('Comment added', 'success');
+                    document.getElementById('collab-comment-text').value = '';
+                } catch (e) { showToast('Failed', 'error'); }
+            });
+        });
+        document.getElementById('collab-load-comments-btn').addEventListener('click', function () {
+            var mid = parseInt(document.getElementById('collab-comment-match').value);
+            if (!mid) { showToast('Match ID required', 'warning'); return; }
+            bridge.get_comments(mid, 0, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    renderCollabComments(data.comments || []);
+                } catch (e) { showToast('Failed', 'error'); }
+            });
+        });
+
+        // Projects
+        document.getElementById('collab-export-btn').addEventListener('click', function () {
+            var mid = parseInt(document.getElementById('collab-export-match').value);
+            if (!mid) { showToast('Match ID required', 'warning'); return; }
+            bridge.export_project(mid, function (result) {
+                try {
+                    var data = JSON.parse(result);
+                    if (data.error) { showToast(data.error, 'error'); return; }
+                    var blob = new Blob([JSON.stringify(data.project, null, 2)], { type: 'application/json' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'match_' + mid + '.kawkab';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('Project exported', 'success');
+                } catch (e) { showToast('Export failed', 'error'); }
+            });
+        });
+
+        var importFileInput = document.getElementById('collab-import-file');
+        document.getElementById('collab-import-btn').addEventListener('click', function () { importFileInput.click(); });
+        importFileInput.addEventListener('change', function (e) {
+            if (e.target.files.length === 0) return;
+            var reader = new FileReader();
+            reader.onload = function (ev) {
+                bridge.import_project(ev.target.result, function (result) {
+                    try {
+                        var data = JSON.parse(result);
+                        if (data.error) { showToast(data.error, 'error'); return; }
+                        showToast('Project imported: ' + (data.comments_imported || 0) + ' comments', 'success');
+                        document.getElementById('collab-project-result').textContent = 'Match ID: ' + (data.match.id || '?') + ' imported successfully';
+                    } catch (err) { showToast('Import failed', 'error'); }
+                });
+            };
+            reader.readAsText(e.target.files[0]);
+            importFileInput.value = '';
+        });
+
+        // Activity
+        document.getElementById('collab-refresh-activity-btn').addEventListener('click', loadCollabActivity);
+
+        // Load initial data
+        loadCollabUsers();
+        loadCollabActivity();
+    }
+
+    function loadCollabUsers() {
+        bridge.get_collab_users(function (result) {
+            try {
+                var data = JSON.parse(result);
+                var el = document.getElementById('collab-user-list');
+                if (!el) return;
+                if (!data.users || data.users.length === 0) {
+                    el.innerHTML = '<p class="hint">No team members.</p>';
+                    return;
+                }
+                var html = '';
+                data.users.forEach(function (u) {
+                    html += '<div class="collab-user-item">' +
+                        '<span class="collab-user-name">' + escapeHtml(u.display_name || u.username) + '</span>' +
+                        '<span class="collab-user-role">' + escapeHtml(u.role) + '</span>' +
+                        '<span class="collab-user-uname">@' + escapeHtml(u.username) + '</span>' +
+                        '</div>';
+                });
+                el.innerHTML = html;
+            } catch (e) {}
+        });
+    }
+
+    function renderCollabComments(comments) {
+        var el = document.getElementById('collab-comment-list');
+        if (!el) return;
+        if (!comments || comments.length === 0) {
+            el.innerHTML = '<p class="hint">No comments found.</p>';
+            return;
+        }
+        var html = '';
+        comments.forEach(function (c) {
+            html += '<div class="collab-comment-item">' +
+                '<strong>' + escapeHtml(c.username) + '</strong> ' +
+                '<span class="collab-comment-text">' + escapeHtml(c.text) + '</span>' +
+                '<span class="collab-comment-meta">Match ' + c.match_id + ' | ' + (c.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
+                '</div>';
+        });
+        el.innerHTML = html;
+    }
+
+    function loadCollabActivity() {
+        bridge.get_activity_feed(50, function (result) {
+            try {
+                var data = JSON.parse(result);
+                var el = document.getElementById('collab-activity-list');
+                if (!el) return;
+                if (!data.activities || data.activities.length === 0) {
+                    el.innerHTML = '<p class="hint">No activity yet.</p>';
+                    return;
+                }
+                var html = '';
+                data.activities.forEach(function (a) {
+                    html += '<div class="collab-activity-item">' +
+                        '<span class="collab-activity-user">' + escapeHtml(a.username) + '</span> ' +
+                        '<span class="collab-activity-action">' + escapeHtml(a.action) + '</span> ' +
+                        '<span class="collab-activity-desc">' + escapeHtml(a.description) + '</span>' +
+                        '<span class="collab-activity-time">' + (a.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
+                        '</div>';
+                });
+                el.innerHTML = html;
+            } catch (e) {}
+        });
+    }
+
     // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
@@ -8597,6 +8769,10 @@
         router.register('physiology', 'physiology-section', function() {
             saveFilterState();
             initPhysiology();
+        });
+        router.register('collaboration', 'collaboration-section', function() {
+            saveFilterState();
+            initCollaboration();
         });
 
         // Initialize Skeletons

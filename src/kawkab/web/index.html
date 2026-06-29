@@ -114,6 +114,7 @@
             <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
             <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
             <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
+            <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1523,6 +1524,73 @@
                                 <p class="hint">Player ratings will appear here.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Sprint 3 — Team Collaboration
+                 ============================================================ -->
+            <section id="collaboration-section" class="section hidden">
+                <h2 data-i18n="collabTitle">👥 Team Collaboration</h2>
+                <div class="collab-tabs">
+                    <button class="tab-btn active" data-ctab="users" data-i18n="collabTabUsers">Users</button>
+                    <button class="tab-btn" data-ctab="comments" data-i18n="collabTabComments">Comments</button>
+                    <button class="tab-btn" data-ctab="projects" data-i18n="collabTabProjects">Projects</button>
+                    <button class="tab-btn" data-ctab="activity" data-i18n="collabTabActivity">Activity</button>
+                </div>
+                <div class="collab-tab-content active" id="collab-users">
+                    <div class="pro-card">
+                        <h3 data-i18n="collabAddUser">➕ Add Team Member</h3>
+                        <div class="form-row">
+                            <input type="text" id="collab-username" class="input" placeholder="Username" data-i18n-placeholder="collabUsername">
+                            <input type="text" id="collab-display-name" class="input" placeholder="Display Name" data-i18n-placeholder="collabDisplayName">
+                            <select id="collab-role" class="input">
+                                <option value="analyst">Analyst</option>
+                                <option value="coach">Coach</option>
+                                <option value="scout">Scout</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <button id="collab-add-user-btn" class="btn btn-primary" data-i18n="collabAddBtn">Add</button>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3 data-i18n="collabTeamMembers">👥 Team Members</h3>
+                        <div id="collab-user-list"><p class="hint" data-i18n="collabUserHint">No team members loaded.</p></div>
+                    </div>
+                </div>
+                <div class="collab-tab-content hidden" id="collab-comments">
+                    <div class="pro-card">
+                        <h3 data-i18n="collabCommentsTitle">💬 Comments</h3>
+                        <div class="form-row">
+                            <input type="number" id="collab-comment-match" class="input" placeholder="Match ID" data-i18n-placeholder="collabMatchId">
+                            <input type="number" id="collab-comment-event" class="input" placeholder="Event ID (optional)" data-i18n-placeholder="collabEventId">
+                            <input type="text" id="collab-comment-text" class="input" placeholder="Comment..." data-i18n-placeholder="collabCommentText" style="flex:2">
+                            <button id="collab-add-comment-btn" class="btn btn-primary" data-i18n="collabAddComment">💬 Add</button>
+                            <button id="collab-load-comments-btn" class="btn btn-secondary" data-i18n="collabLoadComments">📋 Load</button>
+                        </div>
+                        <div id="collab-comment-list"><p class="hint" data-i18n="collabCommentHint">Comments will appear here.</p></div>
+                    </div>
+                </div>
+                <div class="collab-tab-content hidden" id="collab-projects">
+                    <div class="pro-card">
+                        <h3 data-i18n="collabExportTitle">📤 Export / 📥 Import</h3>
+                        <div class="form-row">
+                            <input type="number" id="collab-export-match" class="input" placeholder="Match ID" data-i18n-placeholder="collabMatchId">
+                            <button id="collab-export-btn" class="btn btn-primary" data-i18n="collabExportBtn">📤 Export Project</button>
+                        </div>
+                        <div class="form-row" style="margin-top:8px">
+                            <input type="file" id="collab-import-file" accept=".kawkab,.json" class="hidden">
+                            <button id="collab-import-btn" class="btn btn-secondary" data-i18n="collabImportBtn">📥 Import Project</button>
+                        </div>
+                        <div id="collab-project-result"></div>
+                    </div>
+                </div>
+                <div class="collab-tab-content hidden" id="collab-activity">
+                    <div class="pro-card">
+                        <h3 data-i18n="collabActivityTitle">📋 Activity Feed</h3>
+                        <button id="collab-refresh-activity-btn" class="btn btn-sm btn-secondary" data-i18n="collabRefresh">🔄 Refresh</button>
+                        <div id="collab-activity-list"><p class="hint" data-i18n="collabActivityHint">Recent activity will appear here.</p></div>
                     </div>
                 </div>
             </section>
