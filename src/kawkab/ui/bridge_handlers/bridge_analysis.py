@@ -2341,3 +2341,118 @@ class AnalysisHandler:
         except Exception as e:
             logger.error(f"rf_draw_pitch failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Phase 8 — Cloud Sync
+    # ================================================================
+
+    async def cloud_check_health(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.check_health()
+        except Exception as e:
+            return json.dumps({"error": str(e), "status": "offline"})
+
+    async def cloud_register(self, username, email, password, display_name=""):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.register(username, email, password, display_name)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_login(self, email, password):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.login(email, password)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_logout(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.logout()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_get_me(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.get_me()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_is_logged_in(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.is_logged_in()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_create_team(self, name, description=""):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.create_team(name, description)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_list_teams(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.list_teams()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_invite_member(self, team_id, email):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.invite_member(team_id, email)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_accept_invite(self, token):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.accept_invite(token)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_sync_push(self, device_id, operations_json):
+        try:
+            svc = self._get_cloud_sync()
+            ops = json.loads(operations_json)
+            return svc.sync_push(device_id, ops)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_sync_pull(self, device_id):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.sync_pull(device_id)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_start_server(self, port=8741):
+        try:
+            import threading
+            from kawkab.cloud.server import start
+            t = threading.Thread(target=start, args=("0.0.0.0", port), daemon=True)
+            t.start()
+            return json.dumps({"ok": True, "port": port, "message": f"Cloud server started on port {port}"})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_server_status(self):
+        try:
+            import httpx
+            resp = httpx.get(f"http://localhost:8741/health", timeout=3.0)
+            return json.dumps({"running": resp.status_code == 200, "details": resp.json()})
+        except Exception:
+            return json.dumps({"running": False})
+
+    def _get_cloud_sync(self):
+        svc = self._services.get("cloud_sync_service")
+        if svc is None:
+            from kawkab.services.cloud_sync_service import CloudSyncService
+            svc = CloudSyncService()
+            self._services["cloud_sync_service"] = svc
+        return svc

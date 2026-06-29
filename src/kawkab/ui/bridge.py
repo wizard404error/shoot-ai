@@ -1037,6 +1037,66 @@ class Bridge(QObject):
         return await self._analysis.get_app_info()
 
     # ================================================================
+    # Phase 8 — Cloud Sync
+    # ================================================================
+
+    @Slot(result=str)
+    async def cloud_check_health(self) -> str:
+        return await self._analysis.cloud_check_health()
+
+    @Slot(str, str, str, result=str)
+    async def cloud_register(self, username: str, email: str, password: str, display_name: str = "") -> str:
+        return await self._analysis.cloud_register(username, email, password, display_name)
+
+    @Slot(str, str, result=str)
+    async def cloud_login(self, email: str, password: str) -> str:
+        return await self._analysis.cloud_login(email, password)
+
+    @Slot(result=str)
+    async def cloud_logout(self) -> str:
+        return await self._analysis.cloud_logout()
+
+    @Slot(result=str)
+    async def cloud_get_me(self) -> str:
+        return await self._analysis.cloud_get_me()
+
+    @Slot(result=str)
+    async def cloud_is_logged_in(self) -> str:
+        return await self._analysis.cloud_is_logged_in()
+
+    @Slot(str, str, result=str)
+    async def cloud_create_team(self, name: str, description: str = "") -> str:
+        return await self._analysis.cloud_create_team(name, description)
+
+    @Slot(result=str)
+    async def cloud_list_teams(self) -> str:
+        return await self._analysis.cloud_list_teams()
+
+    @Slot(int, str, result=str)
+    async def cloud_invite_member(self, team_id: int, email: str) -> str:
+        return await self._analysis.cloud_invite_member(team_id, email)
+
+    @Slot(str, result=str)
+    async def cloud_accept_invite(self, token: str) -> str:
+        return await self._analysis.cloud_accept_invite(token)
+
+    @Slot(str, str, result=str)
+    async def cloud_sync_push(self, device_id: str, operations_json: str) -> str:
+        return await self._analysis.cloud_sync_push(device_id, operations_json)
+
+    @Slot(str, result=str)
+    async def cloud_sync_pull(self, device_id: str) -> str:
+        return await self._analysis.cloud_sync_pull(device_id)
+
+    @Slot(int, result=str)
+    async def cloud_start_server(self, port: int = 8741) -> str:
+        return await self._analysis.cloud_start_server(port)
+
+    @Slot(result=str)
+    async def cloud_server_status(self) -> str:
+        return await self._analysis.cloud_server_status()
+
+    # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
     # ================================================================
 

@@ -4112,6 +4112,10 @@ body {
 }
 
 /* ── Small phones (≤480px) ── */
+/* ── Phase 8: Cloud Sync ── */
+.cloud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 768px) { .cloud-grid { grid-template-columns: 1fr; } }
+
 @media (max-width: 480px) {
   .app-header { padding: 4px 6px; }
   .nav-tab { font-size: 0.65rem; padding: 6px 6px; }

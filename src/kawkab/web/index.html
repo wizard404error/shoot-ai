@@ -118,6 +118,7 @@
             <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
             <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
             <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
+            <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1560,6 +1561,58 @@
                     </div>
                     <div class="scout-camera-captures" id="scout-camera-captures">
                         <p class="hint" data-i18n="scoutCamHint">Captured snapshots will appear here.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 8 — Cloud Sync
+                 ============================================================ -->
+            <section id="cloud-section" class="section hidden">
+                <h2 data-i18n="cloudTitle">☁️ Cloud Sync</h2>
+                <div id="cloud-status-bar" style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                    <span id="cloud-connection" class="badge" style="background:var(--text-muted)">Offline</span>
+                    <button id="cloud-start-server-btn" class="btn btn-sm btn-secondary">Start Local Server</button>
+                    <button id="cloud-refresh-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
+                </div>
+                <div class="cloud-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="pro-card" id="cloud-auth-card">
+                        <h3 data-i18n="cloudAuthTitle">🔑 Account</h3>
+                        <div id="cloud-logged-out">
+                            <div class="form-row"><input type="email" id="cloud-email" class="input" placeholder="Email" style="flex:1"></div>
+                            <div class="form-row"><input type="password" id="cloud-password" class="input" placeholder="Password" style="flex:1"></div>
+                            <div class="form-row" style="gap:8px">
+                                <button id="cloud-login-btn" class="btn btn-primary">Log In</button>
+                                <button id="cloud-register-btn" class="btn btn-secondary">Register</button>
+                            </div>
+                            <div id="cloud-auth-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
+                        </div>
+                        <div id="cloud-logged-in" class="hidden">
+                            <p>Logged in as <strong id="cloud-user-display"></strong> (<span id="cloud-user-email"></span>)</p>
+                            <button id="cloud-logout-btn" class="btn btn-sm btn-danger">Log Out</button>
+                        </div>
+                    </div>
+                    <div class="pro-card">
+                        <h3 data-i18n="cloudTeamsTitle">👥 Teams</h3>
+                        <div class="form-row"><input type="text" id="cloud-team-name" class="input" placeholder="Team name" style="flex:1"><button id="cloud-create-team-btn" class="btn btn-sm btn-primary">Create</button></div>
+                        <div id="cloud-team-list" style="margin-top:8px;font-size:0.82rem"><p class="hint">Log in to manage teams.</p></div>
+                    </div>
+                    <div class="pro-card">
+                        <h3 data-i18n="cloudSyncTitle">🔄 Sync</h3>
+                        <div class="form-row">
+                            <button id="cloud-sync-push-btn" class="btn btn-sm btn-primary">Push to Cloud</button>
+                            <button id="cloud-sync-pull-btn" class="btn btn-sm btn-secondary">Pull from Cloud</button>
+                        </div>
+                        <div id="cloud-sync-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
+                    </div>
+                    <div class="pro-card">
+                        <h3 data-i18n="cloudInviteTitle">📨 Invite Member</h3>
+                        <div class="form-row">
+                            <select id="cloud-invite-team" class="input" style="flex:1"><option value="">Select team</option></select>
+                            <input type="email" id="cloud-invite-email" class="input" placeholder="Email" style="flex:1">
+                            <button id="cloud-invite-btn" class="btn btn-sm btn-primary">Invite</button>
+                        </div>
+                        <div id="cloud-invite-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
                     </div>
                 </div>
             </section>

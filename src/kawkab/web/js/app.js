@@ -7642,6 +7642,168 @@
         }
     });
 
+    // ── Phase 8: Cloud Sync ──
+    var _cloudInitialized = false;
+
+    function initCloud() {
+        if (_cloudInitialized) return;
+        _cloudInitialized = true;
+
+        var statusEl = document.getElementById('cloud-connection');
+        var authResult = document.getElementById('cloud-auth-result');
+        var syncResult = document.getElementById('cloud-sync-result');
+        var inviteResult = document.getElementById('cloud-invite-result');
+
+        function updateCloudUI() {
+            bridge.cloud_is_logged_in().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) return;
+                if (r.logged_in) {
+                    document.getElementById('cloud-logged-out').classList.add('hidden');
+                    document.getElementById('cloud-logged-in').classList.remove('hidden');
+                    if (r.user) {
+                        document.getElementById('cloud-user-display').textContent = r.user.display_name || r.user.username;
+                        document.getElementById('cloud-user-email').textContent = r.user.email;
+                    }
+                    if (statusEl) statusEl.textContent = 'Online';
+                    if (statusEl) statusEl.style.background = 'var(--success)';
+                } else {
+                    document.getElementById('cloud-logged-out').classList.remove('hidden');
+                    document.getElementById('cloud-logged-in').classList.add('hidden');
+                    if (statusEl) statusEl.textContent = 'Offline';
+                    if (statusEl) statusEl.style.background = 'var(--text-muted)';
+                }
+            });
+            loadCloudTeams();
+        }
+
+        // Cloud server control
+        document.getElementById('cloud-start-server-btn').onclick = function() {
+            bridge.cloud_start_server(8741).then(function(raw) {
+                var r = JSON.parse(raw);
+                showToast(r.message || 'Server started', r.error ? 'error' : 'info');
+                checkCloudHealth();
+            });
+        };
+
+        document.getElementById('cloud-refresh-btn').onclick = function() {
+            checkCloudHealth();
+            updateCloudUI();
+        };
+
+        // Auth
+        document.getElementById('cloud-login-btn').onclick = function() {
+            var email = document.getElementById('cloud-email').value.trim();
+            var pw = document.getElementById('cloud-password').value;
+            if (!email || !pw) { showToast('Enter email and password', 'warning'); return; }
+            bridge.cloud_login(email, pw).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
+                authResult.textContent = 'Logged in as ' + (r.user?.display_name || r.user?.username);
+                updateCloudUI();
+            });
+        };
+
+        document.getElementById('cloud-register-btn').onclick = function() {
+            var email = document.getElementById('cloud-email').value.trim();
+            var pw = document.getElementById('cloud-password').value;
+            var username = email.split('@')[0];
+            if (!email || !pw || pw.length < 8) { showToast('Email + password (min 8 chars)', 'warning'); return; }
+            bridge.cloud_register(username, email, pw, username).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
+                authResult.textContent = 'Registered! Logged in as ' + (r.user?.display_name || r.user?.username);
+                updateCloudUI();
+            });
+        };
+
+        document.getElementById('cloud-logout-btn').onclick = function() {
+            bridge.cloud_logout().then(function() {
+                updateCloudUI();
+            });
+        };
+
+        // Teams
+        document.getElementById('cloud-create-team-btn').onclick = function() {
+            var name = document.getElementById('cloud-team-name').value.trim();
+            if (!name) { showToast('Enter a team name', 'warning'); return; }
+            bridge.cloud_create_team(name, '').then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                showToast('Team created!', 'info');
+                loadCloudTeams();
+            });
+        };
+
+        // Invite
+        document.getElementById('cloud-invite-btn').onclick = function() {
+            var teamId = parseInt(document.getElementById('cloud-invite-team').value, 10);
+            var email = document.getElementById('cloud-invite-email').value.trim();
+            if (!teamId || !email) { showToast('Select team and enter email', 'warning'); return; }
+            bridge.cloud_invite_member(teamId, email).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { inviteResult.textContent = 'Error: ' + r.error; return; }
+                inviteResult.textContent = 'Invite sent! Token: ' + (r.invite_token || '');
+            });
+        };
+
+        // Sync
+        document.getElementById('cloud-sync-push-btn').onclick = function() {
+            bridge.cloud_sync_push('desktop-001', '[]').then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
+                syncResult.textContent = 'Pushed: ' + (r.operations?.length || 0) + ' ops, ' + (r.conflicts?.length || 0) + ' conflicts';
+            });
+        };
+
+        document.getElementById('cloud-sync-pull-btn').onclick = function() {
+            bridge.cloud_sync_pull('desktop-001').then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
+                syncResult.textContent = 'Pulled: ' + (r.operations?.length || 0) + ' items';
+            });
+        };
+
+        function loadCloudTeams() {
+            var list = document.getElementById('cloud-team-list');
+            var select = document.getElementById('cloud-invite-team');
+            if (!list || !select) return;
+            bridge.cloud_list_teams().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error || !Array.isArray(r)) {
+                    list.innerHTML = '<p class="hint">Log in to manage teams.</p>';
+                    return;
+                }
+                if (r.length === 0) {
+                    list.innerHTML = '<p class="hint">No teams yet. Create one above.</p>';
+                    select.innerHTML = '<option value="">Select team</option>';
+                    return;
+                }
+                list.innerHTML = r.map(function(t) {
+                    return '<div class="collab-user-item" style="padding:6px 8px"><span class="collab-user-name">' + t.name + '</span><span class="collab-user-role">' + (t.role || 'member') + '</span></div>';
+                }).join('');
+                select.innerHTML = '<option value="">Select team</option>' + r.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
+            });
+        }
+
+        function checkCloudHealth() {
+            bridge.cloud_check_health().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (statusEl) {
+                    if (r.status === 'ok') {
+                        statusEl.textContent = 'Server Online';
+                        statusEl.style.background = 'var(--success)';
+                    } else {
+                        statusEl.textContent = 'Server Offline';
+                        statusEl.style.background = 'var(--danger)';
+                    }
+                }
+            });
+        }
+
+        checkCloudHealth();
+    }
+
     // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
@@ -9117,6 +9279,10 @@
         router.register('scoutcamera', 'scoutcamera-section', function() {
             saveFilterState();
             initScoutCamera();
+        });
+        router.register('cloud', 'cloud-section', function() {
+            saveFilterState();
+            initCloud();
         });
 
         // Initialize PWA on load
