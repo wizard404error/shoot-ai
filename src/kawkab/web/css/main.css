@@ -4112,6 +4112,9 @@ body {
 }
 
 /* ── Small phones (≤480px) ── */
+/* ── Phase 9: Live Stream ── */
+.stream-rec-entry:hover { background: var(--bg-hover); }
+
 /* ── Phase 8: Cloud Sync ── */
 .cloud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 768px) { .cloud-grid { grid-template-columns: 1fr; } }

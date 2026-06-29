@@ -118,6 +118,7 @@
             <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
             <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
             <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
+            <button class="nav-tab" data-route="livestream" data-i18n="tab_livestream">📡 Live</button>
             <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
         </nav>
 
@@ -1543,6 +1544,33 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 9 — Live Stream Capture
+                 ============================================================ -->
+            <section id="livestream-section" class="section hidden">
+                <h2 data-i18n="liveStreamTitle">📡 Live Stream Capture</h2>
+                <div class="form-row" style="margin-bottom:8px">
+                    <input type="text" id="stream-url-input" class="input" placeholder="Stream URL (m3u8, RTMP, YouTube, Twitch...)" style="flex:1">
+                    <button id="stream-detect-btn" class="btn btn-sm btn-secondary">🔍 Detect</button>
+                    <button id="stream-start-btn" class="btn btn-primary">▶ Start Capture</button>
+                    <button id="stream-stop-btn" class="btn btn-danger hidden">⏹ Stop</button>
+                </div>
+                <div id="stream-status" class="hint" style="margin-bottom:8px">Enter a stream URL to begin.</div>
+                <div class="pro-card" style="margin-bottom:8px">
+                    <h3>📺 Preview & Markers</h3>
+                    <div class="form-row">
+                        <input type="text" id="stream-marker-label" class="input" placeholder="Marker label (e.g. Goal!)" style="flex:1">
+                        <button id="stream-add-marker-btn" class="btn btn-sm btn-secondary">🏷 Add Marker</button>
+                    </div>
+                    <div id="stream-marker-list" style="margin-top:6px;font-size:0.82rem"><p class="hint">Markers will appear here during capture.</p></div>
+                </div>
+                <div class="pro-card">
+                    <h3>💾 Recordings</h3>
+                    <button id="stream-refresh-recordings-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
+                    <div id="stream-recordings" style="margin-top:6px;font-size:0.82rem"><p class="hint">No recordings yet.</p></div>
                 </div>
             </section>
 

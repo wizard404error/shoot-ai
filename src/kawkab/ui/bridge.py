@@ -1037,6 +1037,38 @@ class Bridge(QObject):
         return await self._analysis.get_app_info()
 
     # ================================================================
+    # Phase 9 — Live Stream Capture
+    # ================================================================
+
+    @Slot(str, str, str, result=str)
+    async def stream_start_capture(self, url: str, stream_id: str = "", output_filename: str = "") -> str:
+        return await self._analysis.stream_start_capture(url, stream_id, output_filename)
+
+    @Slot(str, result=str)
+    async def stream_stop_capture(self, stream_id: str) -> str:
+        return await self._analysis.stream_stop_capture(stream_id)
+
+    @Slot(str, result=str)
+    async def stream_get_status(self, stream_id: str) -> str:
+        return await self._analysis.stream_get_status(stream_id)
+
+    @Slot(result=str)
+    async def stream_list(self) -> str:
+        return await self._analysis.stream_list()
+
+    @Slot(str, str, result=str)
+    async def stream_add_marker(self, stream_id: str, label: str = "") -> str:
+        return await self._analysis.stream_add_marker(stream_id, label)
+
+    @Slot(result=str)
+    async def stream_list_recordings(self) -> str:
+        return await self._analysis.stream_list_recordings()
+
+    @Slot(str, result=str)
+    async def stream_detect_source(self, url: str) -> str:
+        return await self._analysis.stream_detect_source(url)
+
+    # ================================================================
     # Phase 8 — Cloud Sync
     # ================================================================
 

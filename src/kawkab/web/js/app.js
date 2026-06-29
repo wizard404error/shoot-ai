@@ -7642,6 +7642,101 @@
         }
     });
 
+    // ── Phase 9: Live Stream Capture ──
+    var _streamInitialized = false;
+    var _currentStreamId = null;
+
+    function initStreamCapture() {
+        if (_streamInitialized) return;
+        _streamInitialized = true;
+
+        var statusEl = document.getElementById('stream-status');
+        var markerList = document.getElementById('stream-marker-list');
+        var recordingsDiv = document.getElementById('stream-recordings');
+
+        document.getElementById('stream-detect-btn').onclick = function() {
+            var url = document.getElementById('stream-url-input').value.trim();
+            if (!url) { showToast('Enter a URL first', 'warning'); return; }
+            bridge.stream_detect_source(url).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { statusEl.textContent = 'Error: ' + r.error; return; }
+                statusEl.textContent = 'Detected: ' + r.source_type;
+                showToast('Source: ' + r.source_type, 'info');
+            });
+        };
+
+        document.getElementById('stream-start-btn').onclick = function() {
+            var url = document.getElementById('stream-url-input').value.trim();
+            if (!url) { showToast('Enter a stream URL', 'warning'); return; }
+            bridge.stream_start_capture(url, '', '').then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { statusEl.textContent = 'Error: ' + r.error; return; }
+                _currentStreamId = r.stream_id;
+                statusEl.textContent = 'Capturing: ' + r.stream_id + ' (' + r.source_type + ') -> ' + r.output;
+                document.getElementById('stream-start-btn').classList.add('hidden');
+                document.getElementById('stream-stop-btn').classList.remove('hidden');
+                showToast('Stream capture started', 'info');
+            });
+        };
+
+        document.getElementById('stream-stop-btn').onclick = function() {
+            if (!_currentStreamId) return;
+            bridge.stream_stop_capture(_currentStreamId).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                statusEl.textContent = 'Capture stopped. Chapters: ' + (r.chapters || 0);
+                document.getElementById('stream-start-btn').classList.remove('hidden');
+                document.getElementById('stream-stop-btn').classList.add('hidden');
+                _currentStreamId = null;
+                showToast('Capture stopped', 'info');
+                loadStreamRecordings();
+            });
+        };
+
+        document.getElementById('stream-add-marker-btn').onclick = function() {
+            if (!_currentStreamId) { showToast('Start a capture first', 'warning'); return; }
+            var label = document.getElementById('stream-marker-label').value.trim() || '';
+            bridge.stream_add_marker(_currentStreamId, label).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                loadStreamMarkers();
+                document.getElementById('stream-marker-label').value = '';
+            });
+        };
+
+        document.getElementById('stream-refresh-recordings-btn').onclick = function() {
+            loadStreamRecordings();
+        };
+
+        function loadStreamMarkers() {
+            if (!_currentStreamId) return;
+            bridge.stream_get_status(_currentStreamId).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) return;
+                // We re-fetch by just showing chapter count
+                if (markerList) markerList.innerHTML = 'Markers: ' + r.chapters;
+            });
+        }
+
+        function loadStreamRecordings() {
+            if (!recordingsDiv) return;
+            bridge.stream_list_recordings().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error || !r.recordings || r.recordings.length === 0) {
+                    recordingsDiv.innerHTML = '<p class="hint">No recordings yet.</p>';
+                    return;
+                }
+                recordingsDiv.innerHTML = r.recordings.slice(0, 20).map(function(f) {
+                    var size = (f.size / 1024 / 1024).toFixed(1) + ' MB';
+                    return '<div class="stream-rec-entry" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.8rem">'
+                        + '<span>' + f.name + '</span><span>' + size + '</span></div>';
+                }).join('');
+            });
+        }
+
+        loadStreamRecordings();
+    }
+
     // ── Phase 8: Cloud Sync ──
     var _cloudInitialized = false;
 
@@ -9275,6 +9370,10 @@
         router.register('livetagging', 'livetagging-section', function() {
             saveFilterState();
             initLiveTagging();
+        });
+        router.register('livestream', 'livestream-section', function() {
+            saveFilterState();
+            initStreamCapture();
         });
         router.register('scoutcamera', 'scoutcamera-section', function() {
             saveFilterState();

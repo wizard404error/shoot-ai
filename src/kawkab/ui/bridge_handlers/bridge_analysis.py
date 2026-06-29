@@ -2343,6 +2343,74 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Phase 9 — Live Stream Capture
+    # ================================================================
+
+    async def stream_start_capture(self, url, stream_id="", output_filename=""):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                from kawkab.services.live_stream_service import LiveStreamCaptureService
+                svc = LiveStreamCaptureService()
+                self._services["live_stream_service"] = svc
+            return svc.start_capture(url, stream_id, output_filename)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_stop_capture(self, stream_id):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                return json.dumps({"error": "No stream service"})
+            return svc.stop_capture(stream_id)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_get_status(self, stream_id):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                return json.dumps({"error": "No stream service"})
+            return svc.get_stream_status(stream_id)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_list(self):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                return json.dumps({"streams": []})
+            return svc.list_streams()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_add_marker(self, stream_id, label=""):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                return json.dumps({"error": "No stream service"})
+            return svc.add_chapter_marker(stream_id, label)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_list_recordings(self):
+        try:
+            svc = self._services.get("live_stream_service")
+            if svc is None:
+                return json.dumps({"recordings": []})
+            return svc.list_recordings()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def stream_detect_source(self, url):
+        try:
+            from kawkab.services.live_stream_service import LiveStreamCaptureService
+            svc = LiveStreamCaptureService()
+            return json.dumps({"source_type": svc.detect_source_type(url)})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    # ================================================================
     # Phase 8 — Cloud Sync
     # ================================================================
 
