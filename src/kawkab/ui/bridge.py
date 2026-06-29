@@ -1205,6 +1205,38 @@ class Bridge(QObject):
         return await self._analysis.transfermarkt_squad(club_name)
 
     # ================================================================
+    # Phase 15 — Community Marketplace
+    # ================================================================
+
+    @Slot(str, str, str, str, result=str)
+    async def marketplace_list(self, item_type: str = "", category: str = "", query: str = "", source: str = "") -> str:
+        return await self._analysis.marketplace_list(item_type, category, query, source)
+
+    @Slot(str, result=str)
+    async def marketplace_get(self, item_id: str) -> str:
+        return await self._analysis.marketplace_get(item_id)
+
+    @Slot(str, str, str, str, str, str, str, str, result=str)
+    async def marketplace_add(self, item_type: str, name: str, description: str = "", author: str = "", category: str = "", tags_json: str = "[]", data: str = "", source: str = "local") -> str:
+        return await self._analysis.marketplace_add(item_type, name, description, author, category, tags_json, data, source)
+
+    @Slot(str, str, result=str)
+    async def marketplace_rate(self, item_id: str, rating: str) -> str:
+        return await self._analysis.marketplace_rate(item_id, rating)
+
+    @Slot(str, result=str)
+    async def marketplace_delete(self, item_id: str) -> str:
+        return await self._analysis.marketplace_delete(item_id)
+
+    @Slot(result=str)
+    async def marketplace_stats(self) -> str:
+        return await self._analysis.marketplace_stats()
+
+    @Slot(str, result=str)
+    async def marketplace_categories(self, item_type: str = "") -> str:
+        return await self._analysis.marketplace_categories(item_type)
+
+    # ================================================================
     # Phase 8 — Cloud Sync
     # ================================================================
 

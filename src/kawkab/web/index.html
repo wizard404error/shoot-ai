@@ -121,6 +121,7 @@
             <button class="nav-tab" data-route="livestream" data-i18n="tab_livestream">📡 Live</button>
             <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
             <button class="nav-tab" data-route="opponent" data-i18n="tab_opponent">📋 Opponents</button>
+            <button class="nav-tab" data-route="marketplace" data-i18n="tab_marketplace">🏪 Market</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1706,6 +1707,52 @@
                         <div class="pro-card">
                             <h3 id="tm-player-name"></h3>
                             <div id="tm-player-details" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.85rem"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Phase 15 — Community Marketplace
+                 ============================================================ -->
+            <section id="marketplace-section" class="section hidden">
+                <h2>🏪 Community Marketplace</h2>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
+                    Share and discover training drills, tactical templates, and plugins.
+                    <span id="marketplace-stats" style="margin-left:8px"></span>
+                </div>
+
+                <div class="tabs" id="marketplace-tabs">
+                    <button class="tab active" data-mp-tab="mp-drills">🏃 Drills</button>
+                    <button class="tab" data-mp-tab="mp-templates">📐 Templates</button>
+                    <button class="tab" data-mp-tab="mp-plugins">🔌 Plugins</button>
+                </div>
+
+                <div class="toolbar" style="margin-top:8px">
+                    <input type="text" id="mp-search-input" class="input" placeholder="Search..." style="max-width:250px">
+                    <select id="mp-category-select" class="input" style="max-width:160px">
+                        <option value="">All categories</option>
+                    </select>
+                    <button id="mp-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
+                    <button id="mp-add-btn" class="btn btn-sm btn-primary">➕ Submit Item</button>
+                </div>
+
+                <div id="mp-items-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:8px">
+                    <p class="hint">Loading marketplace items...</p>
+                </div>
+
+                <!-- Item detail modal -->
+                <div id="mp-detail-modal" class="modal hidden">
+                    <div class="modal-content" style="max-width:600px">
+                        <span class="modal-close" id="mp-detail-close">&times;</span>
+                        <h3 id="mp-detail-name"></h3>
+                        <div id="mp-detail-type" class="badge" style="margin:4px 0"></div>
+                        <div id="mp-detail-body" style="font-size:0.85rem;margin:8px 0;white-space:pre-wrap"></div>
+                        <div id="mp-detail-data" style="font-size:0.8rem;background:var(--bg-card);padding:8px;border-radius:4px;max-height:300px;overflow-y:auto;margin:8px 0"></div>
+                        <div class="toolbar" style="margin-top:8px">
+                            <span id="mp-detail-rating" style="font-size:0.85rem"></span>
+                            <button id="mp-download-btn" class="btn btn-sm btn-primary">⬇ Download / Use</button>
+                            <button id="mp-detail-delete-btn" class="btn btn-sm btn-danger hidden">🗑 Delete</button>
                         </div>
                     </div>
                 </div>

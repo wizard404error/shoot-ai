@@ -2865,3 +2865,88 @@ class AnalysisHandler:
             return json.dumps({"success": True, "report": report})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Phase 15 — Community Marketplace
+    # ================================================================
+
+    def _get_marketplace(self):
+        svc = self._services.get("marketplace_service")
+        if svc is None:
+            from kawkab.services.marketplace_service import MarketplaceService
+            svc = MarketplaceService()
+            self._services["marketplace_service"] = svc
+        return svc
+
+    async def marketplace_list(self, item_type, category, query, source):
+        try:
+            svc = self._get_marketplace()
+            items = svc.list_items(
+                item_type=str(item_type or ""),
+                category=str(category or ""),
+                query=str(query or ""),
+                source=str(source or ""),
+            )
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_get(self, item_id):
+        try:
+            svc = self._get_marketplace()
+            item = svc.get_item(str(item_id))
+            if item:
+                return json.dumps({"success": True, "item": item})
+            return json.dumps({"success": False, "error": "Not found"})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_add(self, item_type, name, description, author, category, tags_json, data, source):
+        try:
+            svc = self._get_marketplace()
+            tags = json.loads(tags_json) if tags_json else []
+            result = svc.add_item(
+                item_type=str(item_type),
+                name=str(name),
+                description=str(description or ""),
+                author=str(author or ""),
+                category=str(category or ""),
+                tags=tags,
+                data=str(data or ""),
+                source=str(source or "local"),
+            )
+            return json.dumps({"success": True, "item": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_rate(self, item_id, rating):
+        try:
+            svc = self._get_marketplace()
+            ok = svc.rate_item(str(item_id), float(rating))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_delete(self, item_id):
+        try:
+            svc = self._get_marketplace()
+            ok = svc.delete_item(str(item_id))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_stats(self):
+        try:
+            svc = self._get_marketplace()
+            stats = svc.get_stats()
+            return json.dumps({"success": True, "stats": stats})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def marketplace_categories(self, item_type):
+        try:
+            svc = self._get_marketplace()
+            cats = svc.get_categories(str(item_type or ""))
+            return json.dumps({"success": True, "categories": cats})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
