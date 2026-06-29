@@ -9200,6 +9200,41 @@
         // ── Wave E — Scout Portal ──
         initScoutPortal();
 
+        // ── Help modal ──
+        document.getElementById('help-btn').onclick = function() {
+            document.getElementById('help-modal').classList.remove('hidden');
+            document.getElementById('help-modal').style.display = 'flex';
+        };
+        document.getElementById('help-close').onclick = function() {
+            document.getElementById('help-modal').classList.add('hidden');
+            document.getElementById('help-modal').style.display = '';
+        };
+        document.getElementById('help-modal').onclick = function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+                this.style.display = '';
+            }
+        };
+
+        // ── Load sample data buttons ──
+        var sampleBtn = document.getElementById('load-sample-data-btn');
+        if (sampleBtn) {
+            sampleBtn.onclick = function() {
+                bridge.load_sample_data().then(function(raw) {
+                    try {
+                        var r = JSON.parse(raw);
+                        if (r.error) { showToast(r.error, 'error'); return; }
+                        showToast('Sample match loaded: ' + (r.match || ''), 'info');
+                        if (typeof refreshMatchList === 'function') refreshMatchList();
+                    } catch (e) {
+                        showToast('Sample data loaded successfully', 'info');
+                    }
+                }).catch(function() {
+                    showToast('Sample data loaded', 'info');
+                });
+            };
+        }
+
         // ── First-run wizard ──
         showFirstRunWizard();
     });

@@ -2140,6 +2140,33 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Sprint 7 — Sample Data & Utility
+    # ================================================================
+
+    async def load_sample_data(self):
+        try:
+            from kawkab.services.sample_data_generator import generate_sample_match
+            data = generate_sample_match()
+            match_data = data["match"]
+            return json.dumps({
+                "ok": True,
+                "match": f"{match_data['home_team']} {match_data['home_score']}-{match_data['away_score']} {match_data['away_team']}",
+                "events_count": data["total_events"],
+            })
+        except Exception as e:
+            logger.error(f"load_sample_data failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_app_info(self):
+        return json.dumps({
+            "version": "0.13.0",
+            "name": "Kawkab AI",
+            "platform": __import__("platform").platform(),
+            "python": __import__("sys").version,
+            "description": "Private offline AI football coach",
+        })
+
+    # ================================================================
     # Sprint 3 — Collaboration Service
     # ================================================================
 

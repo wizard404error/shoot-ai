@@ -1025,6 +1025,18 @@ class Bridge(QObject):
         return await self._analysis.updater_version()
 
     # ================================================================
+    # Sprint 7 — Sample Data & App Info
+    # ================================================================
+
+    @Slot(result=str)
+    async def load_sample_data(self) -> str:
+        return await self._analysis.load_sample_data()
+
+    @Slot(result=str)
+    async def get_app_info(self) -> str:
+        return await self._analysis.get_app_info()
+
+    # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
     # ================================================================
 

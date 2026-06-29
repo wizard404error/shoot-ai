@@ -64,7 +64,8 @@
               <button class="density-btn" data-density="spacious" title="Spacious">⊡</button>
             </div>
             <div class="color-palette-wrapper">
-              <button id="color-palette-btn" class="header-btn" title="Team Colors">🎨</button>
+                    <button id="color-palette-btn" class="header-btn" title="Team Colors">🎨</button>
+                    <button id="help-btn" class="header-btn" title="Help & About">❓</button>
               <div id="color-settings" class="color-settings hidden">
                 <div class="color-setting-row">
                   <label data-i18n="homeTeamColor">Home Team</label>
@@ -195,6 +196,10 @@
                             <button class="quick-action-btn" data-action="report" data-i18n="generateReport">
                                 <span class="quick-action-icon">📋</span>
                                 <span data-i18n="generateReport">Generate Report</span>
+                            </button>
+                            <button class="quick-action-btn" id="load-sample-data-btn">
+                                <span class="quick-action-icon">🎲</span>
+                                <span data-i18n="loadSampleData">Load Sample Data</span>
                             </button>
                         </div>
                     </div>
@@ -1798,6 +1803,40 @@
             <p data-i18n="footerTitle">Kawkab AI v0.13.0 - 100% Private & Offline</p>
             <p id="kb-stats" data-i18n="kbLoading">Knowledge Base: Loading...</p>
         </footer>
+    </div>
+
+    <!-- Help/About modal -->
+    <div id="help-modal" class="modal hidden">
+        <div class="modal-content" style="max-width:550px">
+            <div class="modal-header">
+                <h2 data-i18n="helpTitle">❓ Help & About</h2>
+                <button id="help-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size:0.85rem;line-height:1.6">
+                <h3 data-i18n="helpGettingStarted">🚀 Getting Started</h3>
+                <ol>
+                    <li data-i18n="helpStep1">Import a match — click <strong>Import</strong> on the Dashboard</li>
+                    <li data-i18n="helpStep2">Analyze — use the <strong>Analysis</strong> tab for xG, passes, formations</li>
+                    <li data-i18n="helpStep3">Tag moments — use <strong>Coding</strong> or <strong>Live</strong> tab</li>
+                    <li data-i18n="helpStep4">Review — check the <strong>Review</strong> tab for auto-detected events</li>
+                </ol>
+                <hr style="border-color:var(--border);margin:12px 0">
+                <h3 data-i18n="helpKeyboard">⌨️ Keyboard Shortcuts</h3>
+                <ul style="columns:2">
+                    <li><kbd>/</kbd> — Search</li>
+                    <li><kbd>Space</kbd> — Play/Pause video</li>
+                    <li><kbd>J</kbd>/<kbd>L</kbd> — ±10s seek</li>
+                    <li><kbd>←</kbd>/<kbd>→</kbd> — ±5s seek</li>
+                    <li><kbd>F</kbd> — Fullscreen</li>
+                    <li><kbd>1-9</kbd> — Live tag events</li>
+                </ul>
+                <hr style="border-color:var(--border);margin:12px 0">
+                <h3 data-i18n="helpAbout">ℹ️ About</h3>
+                <p><strong>Kawkab AI</strong> v<span id="help-version">0.13.0</span></p>
+                <p data-i18n="helpAboutDesc">Private, offline AI football coach. All processing happens locally on your machine. No data ever leaves your computer.</p>
+                <p data-i18n="helpTech">Built with Python (PySide6) + JavaScript + PyTorch</p>
+            </div>
+        </div>
     </div>
 
     <!-- First-run wizard modal -->
