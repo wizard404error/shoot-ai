@@ -5945,13 +5945,26 @@
         container.innerHTML = html;
     }
 
-    // ── AI Chat (Phase 3) ──────────────────────────────────────────
+    // ── AI Coach Assistant v2 (Phase 12) ─────────────────────────
 
     function initAiWorkspace() {
         var askBtn = document.getElementById('ai-ask-btn');
         var input = document.getElementById('ai-question-input');
         var matchSelect = document.getElementById('ai-match-select');
+        var convSelect = document.getElementById('ai-conv-select');
+        var voiceBtn = document.getElementById('ai-voice-btn');
+        var langSelect = document.getElementById('ai-lang-select');
+        var autoReportBtn = document.getElementById('ai-auto-report-btn');
+        var exportChatBtn = document.getElementById('ai-export-chat-btn');
+        var newConvBtn = document.getElementById('ai-new-conv-btn');
+        var delConvBtn = document.getElementById('ai-del-conv-btn');
         if (!askBtn) return;
+
+        var currentConvId = '';
+        var convCache = {};
+
+        function getMatchId() { return parseInt(matchSelect.value, 10); }
+        function getLang() { return (langSelect ? langSelect.value : 'en') || 'en'; }
 
         window.loadAiMatchSelect = function() {
             if (typeof bridge === 'undefined' || !bridge) return;
@@ -5959,74 +5972,218 @@
                 try {
                     var data = typeof result === 'string' ? JSON.parse(result) : result;
                     if (data.error) data = [];
-                    var sel = document.getElementById('ai-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
+                    matchSelect.innerHTML = '<option value="">-- Select Match --</option>';
                     (data || []).forEach(function(m) {
                         var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                        matchSelect.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
                     });
                 } catch(e) { console.warn(e); }
             });
         };
 
-        function askQuestion() {
-            var matchId = parseInt(matchSelect.value, 10);
-            var question = input.value.trim();
-            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
-            if (!question) { showToast('Enter a question.', 'warning'); return; }
-
-            var messages = document.getElementById('ai-chat-messages');
-            messages.innerHTML += '<div class="ai-message user">' + escapeHtml(question) + '</div>';
-            messages.innerHTML += '<div class="ai-message assistant ai-typing" id="ai-typing-msg">Thinking</div>';
-            messages.scrollTop = messages.scrollHeight;
-            input.value = '';
-
-            bridge.ask_llm(matchId, question, function(result) {
+        function loadConversations() {
+            var mid = getMatchId();
+            if (typeof bridge === 'undefined' || !bridge) return;
+            bridge.ai_v2_list_convs(String(mid || ''), function(result) {
                 try {
                     var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    var typing = document.getElementById('ai-typing-msg');
-                    if (typing) typing.remove();
-
-                    if (data.success) {
-                        messages.innerHTML += '<div class="ai-message assistant">' + escapeHtml(data.answer) + '</div>';
-                    } else {
-                        messages.innerHTML += '<div class="ai-message assistant" style="color:var(--danger)">Error: ' + escapeHtml(data.error || 'Unknown') + '</div>';
-                    }
-                    messages.scrollTop = messages.scrollHeight;
-                } catch(e) {
-                    var typing2 = document.getElementById('ai-typing-msg');
-                    if (typing2) typing2.remove();
-                    messages.innerHTML += '<div class="ai-message assistant" style="color:var(--danger)">Failed to get answer.</div>';
-                }
+                    if (!data.success) return;
+                    convSelect.innerHTML = '<option value="">-- New Chat --</option>';
+                    (data.conversations || []).forEach(function(c) {
+                        var opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.title + ' (' + c.message_count + ' msgs)';
+                        convSelect.appendChild(opt);
+                    });
+                    convCache = {};
+                    (data.conversations || []).forEach(function(c) { convCache[c.id] = c; });
+                } catch(e) {}
             });
-
-            // Update LLM status
-            var status = document.getElementById('ai-llm-status');
-            if (status) {
-                bridge.check_llm_availability(function(r) {
-                    try {
-                        var d = JSON.parse(r);
-                        status.textContent = d.ollama ? '🟢 LLM: ' + d.model : '🔴 LLM: Unavailable';
-                    } catch(e) { status.textContent = '🔴 LLM: Unavailable'; }
-                });
-            }
         }
 
-        askBtn.addEventListener('click', askQuestion);
+        function ensureConv(callback) {
+            if (currentConvId) { callback(currentConvId); return; }
+            var title = 'Chat ' + new Date().toLocaleTimeString();
+            bridge.ai_v2_create_conv(String(getMatchId() || ''), title, function(result) {
+                try {
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (data.success) {
+                        currentConvId = data.conv_id;
+                        loadConversations();
+                        callback(data.conv_id);
+                    } else {
+                        callback('');
+                    }
+                } catch(e) { callback(''); }
+            });
+        }
+
+        function addMessage(role, content) {
+            var messages = document.getElementById('ai-chat-messages');
+            var clean = escapeHtml(content);
+            messages.innerHTML += '<div class="ai-message ' + role + '">' + clean + '</div>';
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function showTyping() {
+            var messages = document.getElementById('ai-chat-messages');
+            messages.innerHTML += '<div class="ai-message assistant ai-typing" id="ai-typing-msg">Thinking</div>';
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function removeTyping() {
+            var t = document.getElementById('ai-typing-msg');
+            if (t) t.remove();
+        }
+
+        function askQuestion(questionText) {
+            var mid = getMatchId();
+            if (!mid) { showToast('Select a match first.', 'warning'); return; }
+            var question = questionText || input.value.trim();
+            if (!question) { showToast('Enter a question.', 'warning'); return; }
+
+            addMessage('user', question);
+            showTyping();
+            if (input) input.value = '';
+
+            ensureConv(function(convId) {
+                if (!convId) { removeTyping(); addMessage('assistant', 'Failed to create conversation.'); return; }
+                currentConvId = convId;
+
+                bridge.ai_v2_ask(convId, question, '', getLang(), function(result) {
+                    removeTyping();
+                    try {
+                        var data = typeof result === 'string' ? JSON.parse(result) : result;
+                        if (data.success) {
+                            addMessage('assistant', data.answer);
+                        } else {
+                            // fallback to old method
+                            bridge.ask_llm(mid, question, function(r2) {
+                                try {
+                                    var d2 = typeof r2 === 'string' ? JSON.parse(r2) : r2;
+                                    if (d2.success) {
+                                        addMessage('assistant', d2.answer);
+                                    } else {
+                                        addMessage('assistant', 'Error: ' + escapeHtml(d2.error || 'Unknown'));
+                                    }
+                                } catch(e) {
+                                    addMessage('assistant', 'Failed to get answer.');
+                                }
+                            });
+                        }
+                        loadConversations();
+                    } catch(e) { removeTyping(); addMessage('assistant', 'Parse error.'); }
+                });
+            });
+        }
+
+        askBtn.addEventListener('click', function() { askQuestion(); });
         input.addEventListener('keydown', function(e) { if (e.key === 'Enter') askQuestion(); });
 
-        loadAiMatchSelect();
+        // Voice input
+        if (voiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            var recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            voiceBtn.addEventListener('click', function() {
+                voiceBtn.textContent = '🎤 Listening...';
+                recognition.start();
+            });
+            recognition.onresult = function(e) {
+                var transcript = e.results[0][0].transcript;
+                input.value = transcript;
+                voiceBtn.textContent = '🎤';
+                askQuestion(transcript);
+            };
+            recognition.onerror = function() { voiceBtn.textContent = '🎤'; };
+            recognition.onend = function() { voiceBtn.textContent = '🎤'; };
+        } else if (voiceBtn) {
+            voiceBtn.title = 'Voice not supported in this browser';
+            voiceBtn.style.opacity = '0.4';
+        }
 
-        // Check LLM status on init
-        var status = document.getElementById('ai-llm-status');
-        if (status && typeof bridge !== 'undefined' && bridge) {
-            bridge.check_llm_availability(function(r) {
-                try {
-                    var d = JSON.parse(r);
-                    status.textContent = d.ollama ? '🟢 LLM: ' + d.model : '🔴 LLM: Unavailable (install Ollama)';
-                } catch(e) { status.textContent = '🔴 LLM: Unavailable'; }
+        // Suggestion chips
+        document.querySelectorAll('#ai-suggestion-chips .chip').forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                var topic = this.getAttribute('data-topic');
+                if (!topic) return;
+                askQuestion('Analyze ' + topic.replace('_', ' ') + ' for this match in detail.');
+            });
+        });
+
+        // Auto report
+        if (autoReportBtn) {
+            autoReportBtn.addEventListener('click', function() {
+                var mid = getMatchId();
+                if (!mid) { showToast('Select a match first.', 'warning'); return; }
+                showTyping();
+                bridge.ai_v2_auto_report(String(mid), getLang(), function(result) {
+                    removeTyping();
+                    try {
+                        var data = typeof result === 'string' ? JSON.parse(result) : result;
+                        if (data.success) {
+                            addMessage('assistant', data.report);
+                        } else {
+                            addMessage('assistant', 'Auto report failed: ' + escapeHtml(data.error || 'Unknown'));
+                        }
+                    } catch(e) { removeTyping(); addMessage('assistant', 'Report generation error.'); }
+                });
             });
         }
+
+        // Export chat
+        if (exportChatBtn) {
+            exportChatBtn.addEventListener('click', function() {
+                var msgs = document.querySelectorAll('#ai-chat-messages .ai-message');
+                var text = '';
+                msgs.forEach(function(m) {
+                    var role = m.classList.contains('user') ? 'Coach' : m.classList.contains('assistant') ? 'Analyst' : 'System';
+                    text += '### ' + role + '\n' + m.textContent + '\n\n';
+                });
+                var blob = new Blob([text], { type: 'text/markdown' });
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'ai-chat-' + new Date().toISOString().slice(0, 10) + '.md';
+                a.click();
+                showToast('Chat exported as Markdown', 'success');
+            });
+        }
+
+        // Conversation management
+        if (convSelect) {
+            convSelect.addEventListener('change', function() {
+                currentConvId = this.value;
+                if (!currentConvId) {
+                    document.getElementById('ai-chat-messages').innerHTML =
+                        '<div class="ai-message system">New conversation. Ask a question to start.</div>';
+                    return;
+                }
+                showToast('Switched conversation', 'info');
+            });
+            newConvBtn.addEventListener('click', function() {
+                currentConvId = '';
+                convSelect.value = '';
+                document.getElementById('ai-chat-messages').innerHTML =
+                    '<div class="ai-message system">New conversation. Ask a question to start.</div>';
+            });
+            delConvBtn.addEventListener('click', function() {
+                var cid = currentConvId || convSelect.value;
+                if (!cid) { showToast('No conversation selected.', 'warning'); return; }
+                if (!confirm('Delete this conversation?')) return;
+                bridge.ai_v2_delete_conv(cid, function() {
+                    currentConvId = '';
+                    convSelect.value = '';
+                    loadConversations();
+                    document.getElementById('ai-chat-messages').innerHTML =
+                        '<div class="ai-message system">Conversation deleted.</div>';
+                    showToast('Deleted', 'info');
+                });
+            });
+        }
+
+        loadAiMatchSelect();
+        loadConversations();
     }
 
     // ── Squad + Player Ratings (Phase 4) ───────────────────────────

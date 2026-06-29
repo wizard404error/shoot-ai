@@ -1113,6 +1113,34 @@ class Bridge(QObject):
         return await self._analysis.stream_detect_source(url)
 
     # ================================================================
+    # Phase 12 — AI Coach Assistant v2
+    # ================================================================
+
+    @Slot(str, str, result=str)
+    async def ai_v2_create_conv(self, match_id: str = "", title: str = "New Chat") -> str:
+        return await self._analysis.ai_v2_create_conv(match_id, title)
+
+    @Slot(str, result=str)
+    async def ai_v2_list_convs(self, match_id: str = "") -> str:
+        return await self._analysis.ai_v2_list_convs(match_id)
+
+    @Slot(str, result=str)
+    async def ai_v2_delete_conv(self, conv_id: str) -> str:
+        return await self._analysis.ai_v2_delete_conv(conv_id)
+
+    @Slot(str, str, str, str, result=str)
+    async def ai_v2_ask(self, conv_id: str, question: str, match_context: str = "", language: str = "en") -> str:
+        return await self._analysis.ai_v2_ask(conv_id, question, match_context, language)
+
+    @Slot(str, str, str, result=str)
+    async def ai_v2_tactical_suggestion(self, topic: str, match_context: str = "", language: str = "en") -> str:
+        return await self._analysis.ai_v2_tactical_suggestion(topic, match_context, language)
+
+    @Slot(str, str, result=str)
+    async def ai_v2_auto_report(self, match_id: str, language: str = "en") -> str:
+        return await self._analysis.ai_v2_auto_report(match_id, language)
+
+    # ================================================================
     # Phase 8 — Cloud Sync
     # ================================================================
 

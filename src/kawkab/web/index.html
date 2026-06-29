@@ -1370,23 +1370,60 @@
                  Phase 3 — AI Coach Chat
                  ============================================================ -->
             <section id="ai-section" class="section hidden">
-                <h2 data-i18n="aiTitle">🤖 AI Coach Intelligence</h2>
-                <div class="ai-chat-container">
-                    <div class="ai-chat-select">
-                        <select id="ai-match-select" class="input">
-                            <option value="">-- Select Match --</option>
-                        </select>
+                <h2 data-i18n="aiTitle">🤖 AI Coach Intelligence v2</h2>
+
+                <!-- Conversation selector -->
+                <div class="ai-toolbar">
+                    <select id="ai-conv-select" class="input ai-conv-select">
+                        <option value="">-- New Chat --</option>
+                    </select>
+                    <button id="ai-new-conv-btn" class="btn btn-sm btn-secondary" data-i18n="aiNewChat">➕ New</button>
+                    <button id="ai-del-conv-btn" class="btn btn-sm btn-danger" data-i18n="aiDelChat">🗑 Delete</button>
+                </div>
+
+                <!-- Match + language selectors -->
+                <div class="ai-toolbar">
+                    <select id="ai-match-select" class="input">
+                        <option value="">-- Select Match --</option>
+                    </select>
+                    <select id="ai-lang-select" class="input ai-lang-select">
+                        <option value="en">🇬🇧 English</option>
+                        <option value="ar">🇸🇦 العربية</option>
+                    </select>
+                </div>
+
+                <!-- Tactical suggestion chips -->
+                <div class="ai-suggestion-chips" id="ai-suggestion-chips">
+                    <button class="chip" data-topic="formation">📐 Formation</button>
+                    <button class="chip" data-topic="pressing">⚡ Pressing</button>
+                    <button class="chip" data-topic="transitions">🔄 Transitions</button>
+                    <button class="chip" data-topic="set_pieces">🎯 Set Pieces</button>
+                    <button class="chip" data-topic="defense">🛡 Defense</button>
+                    <button class="chip" data-topic="attack">⚔ Attack</button>
+                    <button class="chip" data-topic="possession">📊 Possession</button>
+                    <button class="chip" data-topic="key_moments">🔑 Key Moments</button>
+                    <button class="chip" data-topic="overall">📋 Full Analysis</button>
+                </div>
+
+                <!-- Auto report button -->
+                <div class="ai-toolbar">
+                    <button id="ai-auto-report-btn" class="btn btn-primary" data-i18n="aiAutoReport">📄 Generate Match Report</button>
+                    <button id="ai-export-chat-btn" class="btn btn-sm btn-secondary" data-i18n="aiExportChat">📥 Export Chat</button>
+                    <span id="ai-llm-status" class="ai-llm-status"></span>
+                </div>
+
+                <!-- Chat messages -->
+                <div class="ai-chat-messages" id="ai-chat-messages">
+                    <div class="ai-message system">
+                        <span data-i18n="aiWelcome">Welcome! Select a match and ask a tactical question, or click a suggestion chip above.</span>
                     </div>
-                    <div class="ai-chat-messages" id="ai-chat-messages">
-                        <div class="ai-message system">
-                            <span data-i18n="aiWelcome">Welcome! Select a match and ask a tactical question.</span>
-                        </div>
-                    </div>
-                    <div class="ai-chat-input-row">
-                        <input type="text" id="ai-question-input" class="input ai-input" placeholder="Ask about tactics, formations, player performance..." data-i18n-placeholder="aiPlaceholder" />
-                        <button id="ai-ask-btn" class="btn btn-primary" data-i18n="aiAskBtn">Ask</button>
-                    </div>
-                    <div class="ai-llm-status" id="ai-llm-status"></div>
+                </div>
+
+                <!-- Input row with voice -->
+                <div class="ai-chat-input-row">
+                    <input type="text" id="ai-question-input" class="input ai-input" placeholder="Ask about tactics, formations, player performance..." data-i18n-placeholder="aiPlaceholder" />
+                    <button id="ai-voice-btn" class="btn btn-sm btn-secondary" data-i18n="aiVoiceBtn" title="Voice input">🎤</button>
+                    <button id="ai-ask-btn" class="btn btn-primary" data-i18n="aiAskBtn">Ask</button>
                 </div>
             </section>
 

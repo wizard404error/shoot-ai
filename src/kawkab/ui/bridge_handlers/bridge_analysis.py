@@ -2606,3 +2606,92 @@ class AnalysisHandler:
             svc = CloudSyncService()
             self._services["cloud_sync_service"] = svc
         return svc
+
+    # ================================================================
+    # Phase 12 — AI Coach Assistant v2
+    # ================================================================
+
+    def _get_ai_v2(self):
+        svc = self._services.get("ai_assistant_v2_service")
+        if svc is None:
+            from kawkab.services.ai_assistant_v2_service import AIAssistantV2Service
+            svc = AIAssistantV2Service(llm_service=self._services.get("llm_service"))
+            self._services["ai_assistant_v2_service"] = svc
+        return svc
+
+    async def ai_v2_create_conv(self, match_id, title):
+        try:
+            svc = self._get_ai_v2()
+            conv = svc.create_conversation(
+                match_id=int(match_id) if match_id else None,
+                title=str(title or "New Chat"),
+            )
+            return json.dumps({"success": True, "conv_id": conv.id, "title": conv.title})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def ai_v2_list_convs(self, match_id):
+        try:
+            svc = self._get_ai_v2()
+            convs = svc.list_conversations(
+                match_id=int(match_id) if match_id else None
+            )
+            return json.dumps({"success": True, "conversations": convs})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def ai_v2_delete_conv(self, conv_id):
+        try:
+            svc = self._get_ai_v2()
+            ok = svc.delete_conversation(str(conv_id))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def ai_v2_ask(self, conv_id, question, match_context, language):
+        try:
+            svc = self._get_ai_v2()
+            answer = await svc.ask(
+                conv_id=str(conv_id),
+                question=str(question),
+                match_context=str(match_context or ""),
+                language=str(language or "en"),
+            )
+            return json.dumps({"success": True, "answer": answer})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def ai_v2_tactical_suggestion(self, topic, match_context, language):
+        try:
+            svc = self._get_ai_v2()
+            answer = await svc.get_tactical_suggestion(
+                topic=str(topic),
+                match_context=str(match_context or ""),
+                language=str(language or "en"),
+            )
+            return json.dumps({"success": True, "answer": answer})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def ai_v2_auto_report(self, match_id, language):
+        try:
+            svc = self._get_ai_v2()
+            mid = int(match_id)
+            events = await self.storage_service.get_match_events(mid)
+            match_data = await self.storage_service.get_match(mid) or {}
+            match_data["event_count"] = len(events)
+
+            event_summary = {}
+            for ev in events:
+                et = ev.get("event_type", "unknown")
+                event_summary[et] = event_summary.get(et, 0) + 1
+            match_data["event_breakdown"] = event_summary
+
+            report = await svc.generate_automated_report(
+                match_id=mid,
+                match_data=match_data,
+                language=str(language or "en"),
+            )
+            return json.dumps({"success": True, "report": report})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
