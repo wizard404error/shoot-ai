@@ -1998,6 +1998,102 @@ class AnalysisHandler:
         })
 
     # ================================================================
+    # Sprint 4 — Live Tagging Service
+    # ================================================================
+
+    async def live_start_session(self, home_team="Home", away_team="Away"):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                from kawkab.services.live_tagging_service import LiveTaggingService
+                svc = LiveTaggingService()
+                self._services["live_tagging_service"] = svc
+            return svc.start_session(home_team, away_team)
+        except Exception as e:
+            logger.error(f"live_start_session failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_stop_session(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            return svc.stop_session()
+        except Exception as e:
+            logger.error(f"live_stop_session failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_tag_event(self, event_type, team="", player_id=0, notes="", x=None, y=None):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            return svc.tag_event(event_type, team, player_id, notes, x, y)
+        except Exception as e:
+            logger.error(f"live_tag_event failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_set_period(self, period):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            return svc.set_period(period)
+        except Exception as e:
+            logger.error(f"live_set_period failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_get_stats(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"stats": {"tags_count": 0}})
+            return svc.get_stats()
+        except Exception as e:
+            logger.error(f"live_get_stats failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_get_tags(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"tags": [], "total": 0})
+            return svc.get_all_tags()
+        except Exception as e:
+            logger.error(f"live_get_tags failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_clear_tags(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            return svc.clear_tags()
+        except Exception as e:
+            logger.error(f"live_clear_tags failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_get_hotkeys(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"hotkeys": {}})
+            return svc.get_hotkeys()
+        except Exception as e:
+            logger.error(f"live_get_hotkeys failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def live_export(self):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            return svc.export_tags()
+        except Exception as e:
+            logger.error(f"live_export failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
     # Sprint 3 — Collaboration Service
     # ================================================================
 

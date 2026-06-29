@@ -7306,6 +7306,201 @@
         });
     }
 
+    // ── Sprint 4: Live Tagging ──
+    var _liveInitialized = false;
+    var _liveSessionActive = false;
+    var _liveHotkeys = {};
+
+    function initLiveTagging() {
+        if (_liveInitialized) return;
+        _liveInitialized = true;
+
+        var startBtn = document.getElementById('live-start-btn');
+        var stopBtn = document.getElementById('live-stop-btn');
+        var clearBtn = document.getElementById('live-clear-btn');
+        var exportBtn = document.getElementById('live-export-btn');
+        var homeInput = document.getElementById('live-home-team');
+        var awayInput = document.getElementById('live-away-team');
+        var status = document.getElementById('live-status');
+
+        startBtn.onclick = function() {
+            if (_liveSessionActive) return;
+            var home = homeInput.value.trim() || 'Home';
+            var away = awayInput.value.trim() || 'Away';
+            bridge.live_start_session(home, away).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                _liveSessionActive = true;
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                status.textContent = r.message || 'Session active';
+                loadLiveHotkeys();
+                updateLiveStats();
+            });
+        };
+
+        stopBtn.onclick = function() {
+            if (!_liveSessionActive) return;
+            bridge.live_stop_session().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                _liveSessionActive = false;
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                status.textContent = r.message || 'Session stopped';
+                loadLiveTags();
+            });
+        };
+
+        clearBtn.onclick = function() {
+            bridge.live_clear_tags().then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) { showToast(r.error, 'error'); return; }
+                updateLiveStats();
+                loadLiveTags();
+                showToast('Tags cleared', 'info');
+            });
+        };
+
+        exportBtn.onclick = function() {
+            bridge.live_export().then(function(raw) {
+                var d = JSON.parse(raw);
+                if (d.error) { showToast(d.error, 'error'); return; }
+                var blob = new Blob([JSON.stringify(d, null, 2)], {type:'application/json'});
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'live-tags.json';
+                a.click();
+                URL.revokeObjectURL(a.href);
+                showToast('Exported ' + d.total + ' tags', 'info');
+            });
+        };
+
+        // Period buttons
+        document.querySelectorAll('.live-period-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                if (!_liveSessionActive) return;
+                var period = parseInt(this.getAttribute('data-period'), 10);
+                bridge.live_set_period(period);
+                document.querySelectorAll('.live-period-btn').forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-sm'); });
+                this.classList.add('btn-primary');
+                this.classList.remove('btn-sm');
+            };
+        });
+
+        // Keyboard listener
+        document.addEventListener('keydown', function liveKeyHandler(e) {
+            if (!_liveSessionActive) return;
+            var section = document.getElementById('livetagging-section');
+            if (!section || section.classList.contains('hidden')) return;
+            var key = e.key.toLowerCase();
+            if (key === ' ' || key === 'enter' || key === 'tab') return;
+            if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+            var eventType = _liveHotkeys[key];
+            if (!eventType) return;
+            e.preventDefault();
+            bridge.live_tag_event(eventType, '', 0, '', null, null).then(function(raw) {
+                var r = JSON.parse(raw);
+                if (r.error) return;
+                // Flash button
+                var btn = document.querySelector('.live-hotkey-btn[data-type="' + eventType + '"]');
+                if (btn) { btn.classList.add('active'); setTimeout(function(){ btn.classList.remove('active'); }, 200); }
+                updateLiveStats();
+                loadLiveTags();
+            });
+        });
+
+        updateLiveStats();
+    }
+
+    function loadLiveHotkeys() {
+        bridge.live_get_hotkeys().then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error) return;
+            _liveHotkeys = r.hotkeys || {};
+            var grid = document.getElementById('live-hotkeys-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            Object.keys(_liveHotkeys).forEach(function(key) {
+                var label = _liveHotkeys[key].replace(/_/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+                var btn = document.createElement('div');
+                btn.className = 'live-hotkey-btn';
+                btn.setAttribute('data-type', _liveHotkeys[key]);
+                btn.innerHTML = '<span class="hk-key">' + key + '</span><span class="hk-label">' + label + '</span>';
+                btn.onclick = function() {
+                    if (!_liveSessionActive) { showToast('Start a session first', 'warning'); return; }
+                    bridge.live_tag_event(_liveHotkeys[key], '', 0, '', null, null).then(function(raw2) {
+                        var r2 = JSON.parse(raw2);
+                        if (r2.error) { showToast(r2.error, 'error'); return; }
+                        btn.classList.add('active');
+                        setTimeout(function(){ btn.classList.remove('active'); }, 200);
+                        updateLiveStats();
+                        loadLiveTags();
+                    });
+                };
+                grid.appendChild(btn);
+            });
+        });
+    }
+
+    function updateLiveStats() {
+        var container = document.getElementById('live-stats-content');
+        if (!container) return;
+        bridge.live_get_stats().then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error || !r.stats) return;
+            var s = r.stats;
+            container.innerHTML = '';
+            var items = [
+                { label: 'Tags', value: s.tags_count },
+                { label: 'Home Goals', value: s.home_goals },
+                { label: 'Away Goals', value: s.away_goals },
+                { label: 'Home Shots', value: s.home_shots },
+                { label: 'Away Shots', value: s.away_shots },
+                { label: 'Possession (Home)', value: s.home_possession_pct + '%' },
+                { label: 'Elapsed', value: formatLiveTime(s.elapsed_s) },
+            ];
+            items.forEach(function(it) {
+                var d = document.createElement('div');
+                d.style.cssText = 'display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)';
+                d.innerHTML = '<span>' + it.label + '</span><strong>' + it.value + '</strong>';
+                container.appendChild(d);
+            });
+        });
+    }
+
+    function loadLiveTags() {
+        var container = document.getElementById('live-tag-list');
+        var counter = document.getElementById('live-tag-count');
+        if (!container) return;
+        bridge.live_get_tags().then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error || !r.tags) return;
+            if (counter) counter.textContent = r.total;
+            container.innerHTML = '';
+            if (!r.tags.length) {
+                container.innerHTML = '<p class="hint">No tags yet. Use hotkeys or click buttons.</p>';
+                return;
+            }
+            r.tags.slice().reverse().forEach(function(tag) {
+                var div = document.createElement('div');
+                div.className = 'live-tag-entry';
+                div.innerHTML = '<span class="live-tag-type">' + tag.type.replace(/_/g, ' ') + '</span>'
+                    + '<span class="live-tag-team">' + (tag.team || '') + '</span>'
+                    + '<span class="live-tag-time">' + formatLiveTime(tag.t) + '</span>'
+                    + '<span class="live-tag-notes" style="flex:1;font-size:0.75rem;color:var(--text-muted)">' + (tag.notes || '') + '</span>';
+                container.appendChild(div);
+            });
+        });
+    }
+
+    function formatLiveTime(seconds) {
+        if (!seconds && seconds !== 0) return '0:00';
+        var m = Math.floor(seconds / 60);
+        var s = Math.floor(seconds % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
     // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
@@ -8773,6 +8968,10 @@
         router.register('collaboration', 'collaboration-section', function() {
             saveFilterState();
             initCollaboration();
+        });
+        router.register('livetagging', 'livetagging-section', function() {
+            saveFilterState();
+            initLiveTagging();
         });
 
         // Initialize Skeletons

@@ -115,6 +115,7 @@
             <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
             <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
             <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
+            <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -1591,6 +1592,52 @@
                         <h3 data-i18n="collabActivityTitle">📋 Activity Feed</h3>
                         <button id="collab-refresh-activity-btn" class="btn btn-sm btn-secondary" data-i18n="collabRefresh">🔄 Refresh</button>
                         <div id="collab-activity-list"><p class="hint" data-i18n="collabActivityHint">Recent activity will appear here.</p></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Sprint 4 — Live Tagging
+                 ============================================================ -->
+            <section id="livetagging-section" class="section hidden">
+                <h2 data-i18n="liveTitle">⚡ Live Match Tagging</h2>
+                <div class="live-toolbar">
+                    <div class="form-row">
+                        <input type="text" id="live-home-team" class="input" value="Home" data-i18n-placeholder="liveHomeTeam" style="width:140px">
+                        <span data-i18n="liveVs" style="padding:0 8px">vs</span>
+                        <input type="text" id="live-away-team" class="input" value="Away" data-i18n-placeholder="liveAwayTeam" style="width:140px">
+                        <button id="live-start-btn" class="btn btn-primary" data-i18n="liveStart">▶ Start Session</button>
+                        <button id="live-stop-btn" class="btn btn-danger hidden" data-i18n="liveStop">⏹ Stop</button>
+                        <button id="live-clear-btn" class="btn btn-secondary" data-i18n="liveClear">🗑 Clear Tags</button>
+                        <button id="live-export-btn" class="btn btn-secondary" data-i18n="liveExport">📥 Export</button>
+                    </div>
+                    <div class="form-row" style="margin-top:6px">
+                        <span data-i18n="livePeriod">Period:</span>
+                        <button class="btn btn-sm live-period-btn" data-period="1">1</button>
+                        <button class="btn btn-sm live-period-btn" data-period="2">2</button>
+                        <button class="btn btn-sm live-period-btn" data-period="3">ET 1</button>
+                        <button class="btn btn-sm live-period-btn" data-period="4">ET 2</button>
+                        <span id="live-status" class="live-status" style="margin-left:12px"></span>
+                    </div>
+                </div>
+
+                <div class="live-grid">
+                    <div class="pro-card" style="grid-column:span 2">
+                        <h3 data-i18n="liveHotkeysTitle">⌨️ Quick Tag (Keyboard Hotkeys)</h3>
+                        <div id="live-hotkeys-grid" class="live-hotkeys"></div>
+                    </div>
+                    <div class="pro-card">
+                        <h3 data-i18n="liveStatsTitle">📊 Live Stats</h3>
+                        <div id="live-stats-content">
+                            <p class="hint" data-i18n="liveStatsHint">Start a session to track stats.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pro-card" style="margin-top:8px">
+                    <h3 data-i18n="liveTagHistory">📋 Tag History <span id="live-tag-count" class="badge">0</span></h3>
+                    <div id="live-tag-list" style="max-height:300px;overflow-y:auto">
+                        <p class="hint" data-i18n="liveTagHint">Tags will appear here.</p>
                     </div>
                 </div>
             </section>

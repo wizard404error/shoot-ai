@@ -965,6 +965,46 @@ class Bridge(QObject):
         return await self._analysis.get_activity_feed(limit)
 
     # ================================================================
+    # Sprint 4 — Live Tagging
+    # ================================================================
+
+    @Slot(str, str, result=str)
+    async def live_start_session(self, home_team: str = "Home", away_team: str = "Away") -> str:
+        return await self._analysis.live_start_session(home_team, away_team)
+
+    @Slot(result=str)
+    async def live_stop_session(self) -> str:
+        return await self._analysis.live_stop_session()
+
+    @Slot(str, str, int, str, float, float, result=str)
+    async def live_tag_event(self, event_type: str, team: str = "", player_id: int = 0, notes: str = "", x: float = None, y: float = None) -> str:
+        return await self._analysis.live_tag_event(event_type, team, player_id, notes, x, y)
+
+    @Slot(int, result=str)
+    async def live_set_period(self, period: int) -> str:
+        return await self._analysis.live_set_period(period)
+
+    @Slot(result=str)
+    async def live_get_stats(self) -> str:
+        return await self._analysis.live_get_stats()
+
+    @Slot(result=str)
+    async def live_get_tags(self) -> str:
+        return await self._analysis.live_get_tags()
+
+    @Slot(result=str)
+    async def live_clear_tags(self) -> str:
+        return await self._analysis.live_clear_tags()
+
+    @Slot(result=str)
+    async def live_get_hotkeys(self) -> str:
+        return await self._analysis.live_get_hotkeys()
+
+    @Slot(result=str)
+    async def live_export(self) -> str:
+        return await self._analysis.live_export()
+
+    # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation
     # ================================================================
 

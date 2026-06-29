@@ -3906,6 +3906,24 @@ body {
 .scout-icon.added { background: var(--primary); color: #fff; border-color: var(--primary); }
 .scout-actions { display: flex; gap: 8px; margin-bottom: 12px; }
 
+/* ── live tagging ── */
+.live-toolbar { background: var(--bg-secondary); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px; }
+.live-hotkeys { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 6px; }
+.live-hotkey-btn { padding: 8px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; text-align: center; font-size: 0.78rem; background: var(--bg-primary); transition: background 0.15s; }
+.live-hotkey-btn:hover { background: var(--primary); color: #fff; }
+.live-hotkey-btn .hk-key { display: block; font-weight: 800; font-size: 0.85rem; }
+.live-hotkey-btn .hk-label { display: block; font-size: 0.68rem; color: var(--text-muted); }
+.live-hotkey-btn:hover .hk-label { color: rgba(255,255,255,0.8); }
+.live-hotkey-btn.active { background: var(--success); color: #fff; }
+.live-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.live-status { font-size: 0.82rem; color: var(--text-muted); }
+.live-tag-entry { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.live-tag-entry:last-child { border-bottom: none; }
+.live-tag-type { font-weight: 700; min-width: 70px; }
+.live-tag-team { color: var(--text-muted); min-width: 50px; font-size: 0.75rem; }
+.live-tag-time { color: var(--text-muted); min-width: 50px; font-size: 0.75rem; }
+.badge { background: var(--primary); color: #fff; border-radius: 10px; padding: 2px 10px; font-size: 0.75rem; margin-left: 6px; }
+
 /* ── collaboration ── */
 .collab-user-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .collab-user-item:last-child { border-bottom: none; }
