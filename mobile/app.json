@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Kawkab AI Scout",
+    "slug": "kawkab-ai-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kawkabai.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.kawkabai.mobile"
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-sqlite",
+      "expo-notifications"
+    ],
+    "extra": {
+      "cloudUrl": "http://localhost:8741"
+    }
+  }
+}
