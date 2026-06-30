@@ -1,4 +1,4 @@
-// Kawkab AI - Frontend JavaScript
+﻿// Kawkab AI - Frontend JavaScript
 // Communicates with Python backend via QWebChannel
 
 (function() {
@@ -142,7 +142,7 @@
             html.setAttribute('data-theme', 'dark');
         }
         var btn = document.getElementById('theme-toggle');
-        if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+        if (btn) btn.textContent = theme === 'light' ? 'â˜€ï¸' : 'ðŸŒ™';
     }
 
     function toggleTheme() {
@@ -249,7 +249,7 @@
             }
 
             statusEl.classList.remove('hidden');
-            statusEl.textContent = `🎮 GPU: ${info.gpu_name} (${info.tier})`;
+            statusEl.textContent = `ðŸŽ® GPU: ${info.gpu_name} (${info.tier})`;
             statusEl.title = 'Click for details';
 
             document.getElementById('gpu-name').textContent = info.gpu_name;
@@ -296,16 +296,16 @@
         try {
             const status = JSON.parse(await bridge.check_football_data_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (' + status.competitions_count + ' competitions available)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (' + status.competitions_count + ' competitions available)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🔴 Offline - ' + (status.error || 'No API key configured');
+                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🔴 Offline';
+            statusEl.textContent = 'ðŸ”´ Offline';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -337,7 +337,7 @@
                             ${t.crest ? '<img src="' + escapeHtml(t.crest) + '" alt="" onerror="this.style.display=\'none\'">' : ''}
                             <span>
                                 <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.area_name || '')}${t.competition_name ? ' · ' + escapeHtml(t.competition_name) : ''}</span>
+                                <span class="fd-result-area">${escapeHtml(t.area_name || '')}${t.competition_name ? ' Â· ' + escapeHtml(t.competition_name) : ''}</span>
                             </span>
                         </div>
                     `).join('');
@@ -374,13 +374,13 @@
         try {
             const result = JSON.parse(await bridge.import_football_team_squad(validateInt(matchId), validateInt(apiTeamId), sanitizeString(side)));
             if (result.success) {
-                btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
+                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
                 loadPlayerProfiles();
             } else {
-                btn.textContent = '❌ ' + (result.error || 'Import failed');
+                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
             }
         } catch (e) {
-            btn.textContent = '❌ Error';
+            btn.textContent = 'âŒ Error';
         }
         setTimeout(() => { btn.disabled = false; }, 3000);
     }
@@ -400,23 +400,23 @@
         try {
             const data = JSON.parse(await bridge.verify_match_with_api(validateInt(currentMatchId), validateInt(apiMatchId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
             if (data.verified) {
-                resultEl.innerHTML = '✅ Score verified! API: ' + data.api_score.home + '-' + data.api_score.away +
+                resultEl.innerHTML = 'âœ… Score verified! API: ' + data.api_score.home + '-' + data.api_score.away +
                     ' | Status: ' + data.status + (data.competition ? ' | ' + data.competition : '');
                 resultEl.className = 'feedback-result success';
             } else {
-                resultEl.innerHTML = '⚠️ Score mismatch — Detected: ' + data.detected_score.home + '-' + data.detected_score.away +
+                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score.home + '-' + data.detected_score.away +
                     ' | API: ' + (data.api_score ? data.api_score.home + '-' + data.api_score.away : 'N/A') +
                     ' | Status: ' + data.status + (data.reason ? ' (' + data.reason + ')' : '');
                 resultEl.className = 'feedback-result';
             }
             loadMatchHistory();
         } catch (e) {
-            resultEl.textContent = '❌ Verification failed';
+            resultEl.textContent = 'âŒ Verification failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -462,7 +462,7 @@
                 <div class="roster-item">
                     <span style="font-weight:700;width:24px">${t.position}</span>
                     <span style="flex:1">${escapeHtml(t.team.name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${t.playedGames} · ${t.points}pts</span>
+                    <span style="color:var(--text-muted);font-size:0.85rem">P${t.playedGames} Â· ${t.points}pts</span>
                 </div>
             `).join('');
             section.classList.remove('hidden');
@@ -480,18 +480,18 @@
         try {
             const status = JSON.parse(await bridge.check_bzzoiro_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (' + (status.live_matches || 0) + ' live)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.live_matches || 0) + ' live)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
                 bzLoadLeagues();
                 bzLoadLive();
             } else {
-                statusEl.textContent = '🔴 Offline - ' + (status.error || 'No API key configured');
+                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🔴 Offline';
+            statusEl.textContent = 'ðŸ”´ Offline';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -558,12 +558,12 @@
         try {
             const result = JSON.parse(await bridge.import_bzzoiro_team_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
             if (result.success) {
-                btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
+                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
             } else {
-                btn.textContent = '❌ ' + (result.error || 'Import failed');
+                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
             }
         } catch (e) {
-            btn.textContent = '❌ Error';
+            btn.textContent = 'âŒ Error';
         }
         setTimeout(() => { btn.disabled = false; }, 3000);
     }
@@ -583,19 +583,19 @@
         try {
             const data = JSON.parse(await bridge.verify_match_bzzoiro(validateInt(currentMatchId), validateInt(eventId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
             if (data.match_ok) {
-                resultEl.innerHTML = '✅ Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
+                resultEl.innerHTML = 'âœ… Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
                 resultEl.className = 'feedback-result success';
             } else {
-                resultEl.innerHTML = '⚠️ Score mismatch — Detected: ' + data.detected_score + ' | API: ' + data.api_score;
+                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score + ' | API: ' + data.api_score;
                 resultEl.className = 'feedback-result';
             }
         } catch (e) {
-            resultEl.textContent = '❌ Verification failed';
+            resultEl.textContent = 'âŒ Verification failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -612,13 +612,13 @@
         try {
             const data = JSON.parse(await bridge.get_bzzoiro_predictions(validateInt(eventId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             const p = data.predictions || {};
             resultEl.innerHTML = '<pre style="font-size:0.8rem;white-space:pre-wrap">' + JSON.stringify(p, null, 2) + '</pre>';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load predictions';
+            resultEl.textContent = 'âŒ Failed to load predictions';
         }
     }
 
@@ -642,7 +642,7 @@
                 <div class="roster-item">
                     <span style="font-weight:700;width:24px">${s.position}</span>
                     <span style="flex:1">${escapeHtml(s.team_name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} · ${s.points}pts</span>
+                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} Â· ${s.points}pts</span>
                 </div>
             `).join('');
         } catch (e) {
@@ -698,18 +698,18 @@
         try {
             const status = JSON.parse(await bridge.check_apifootball_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (' + (status.requests_left || 0) + '/' + status.daily_limit + ' req left)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.requests_left || 0) + '/' + status.daily_limit + ' req left)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
                 afLoadStandings();
                 afLoadLive();
             } else {
-                statusEl.textContent = '🔴 Offline - ' + (status.error || 'No API key configured');
+                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🔴 Offline';
+            statusEl.textContent = 'ðŸ”´ Offline';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -741,7 +741,7 @@
                             ${t.logo ? '<img src="' + escapeHtml(t.logo) + '" alt="" onerror="this.style.display=\'none\'">' : ''}
                             <span>
                                 <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.country || '')}${t.venue_name ? ' · ' + escapeHtml(t.venue_name) : ''}</span>
+                                <span class="fd-result-area">${escapeHtml(t.country || '')}${t.venue_name ? ' Â· ' + escapeHtml(t.venue_name) : ''}</span>
                             </span>
                         </div>
                     `).join('');
@@ -777,12 +777,12 @@
         try {
             const result = JSON.parse(await bridge.import_apifootball_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
             if (result.success) {
-                btn.textContent = '✅ ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
+                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
             } else {
-                btn.textContent = '❌ ' + (result.error || 'Import failed');
+                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
             }
         } catch (e) {
-            btn.textContent = '❌ Error';
+            btn.textContent = 'âŒ Error';
         }
         setTimeout(() => { btn.disabled = false; }, 3000);
     }
@@ -802,19 +802,19 @@
         try {
             const data = JSON.parse(await bridge.verify_match_apifootball(validateInt(currentMatchId), validateInt(fixtureId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
             if (data.match_ok) {
-                resultEl.innerHTML = '✅ Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
+                resultEl.innerHTML = 'âœ… Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
                 resultEl.className = 'feedback-result success';
             } else {
-                resultEl.innerHTML = '⚠️ Score mismatch — Detected: ' + data.detected_score + ' | API: ' + data.api_score;
+                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score + ' | API: ' + data.api_score;
                 resultEl.className = 'feedback-result';
             }
         } catch (e) {
-            resultEl.textContent = '❌ Verification failed';
+            resultEl.textContent = 'âŒ Verification failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -831,7 +831,7 @@
         try {
             const data = JSON.parse(await bridge.get_apifootball_predictions(validateInt(fixtureId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             const p = data.predictions || {};
@@ -847,7 +847,7 @@
             if (p.winner) html += '<div style="margin-top:4px;font-size:0.85rem">Predicted winner: ' + escapeHtml(p.winner.name || p.winner) + '</div>';
             resultEl.innerHTML = html || '<pre style="font-size:0.8rem">' + JSON.stringify(p, null, 2) + '</pre>';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load predictions';
+            resultEl.textContent = 'âŒ Failed to load predictions';
         }
     }
 
@@ -868,7 +868,7 @@
                 <div class="roster-item">
                     <span style="font-weight:700;width:24px">${s.rank}</span>
                     <span style="flex:1">${escapeHtml(s.team_name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} · ${s.points}pts</span>
+                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} Â· ${s.points}pts</span>
                 </div>
             `).join('');
         } catch (e) {
@@ -906,17 +906,17 @@
         try {
             const status = JSON.parse(await bridge.check_easy_soccer_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected';
+                statusEl.textContent = 'ðŸŸ¢ Connected';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
                 esLoadLive();
             } else {
-                statusEl.textContent = '🟡 Not available (pip install EasySoccerData)';
+                statusEl.textContent = 'ðŸŸ¡ Not available (pip install EasySoccerData)';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -931,13 +931,13 @@
         resultEl.textContent = 'Loading...';
         try {
             const data = JSON.parse(await bridge.get_easy_soccer_event(validateInt(eventId)));
-            if (data.error) { resultEl.textContent = '❌ ' + data.error; return; }
+            if (data.error) { resultEl.textContent = 'âŒ ' + data.error; return; }
             const e = data.event;
             resultEl.innerHTML = '<div style="font-size:0.85rem"><strong>' + escapeHtml(e.home_team) + '</strong> vs <strong>' + escapeHtml(e.away_team) + '</strong><br>Score: ' +
                 (e.home_score !== null ? e.home_score : '-') + '-' + (e.away_score !== null ? e.away_score : '-') +
                 ' | Status: ' + e.status + '</div>';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load event';
+            resultEl.textContent = 'âŒ Failed to load event';
         }
     }
 
@@ -950,7 +950,7 @@
         resultEl.textContent = 'Loading incidents...';
         try {
             const data = JSON.parse(await bridge.get_easy_soccer_incidents(validateInt(eventId)));
-            if (data.error) { resultEl.textContent = '❌ ' + data.error; return; }
+            if (data.error) { resultEl.textContent = 'âŒ ' + data.error; return; }
             const incidents = data.incidents || [];
             if (incidents.length === 0) { resultEl.textContent = 'No incidents found'; return; }
             resultEl.innerHTML = incidents.slice(0, 15).map(i =>
@@ -958,7 +958,7 @@
                 (i.type || '') + ' - ' + escapeHtml(i.player || '') + ' (' + escapeHtml(i.team || '') + ')</div>'
             ).join('');
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load incidents';
+            resultEl.textContent = 'âŒ Failed to load incidents';
         }
     }
 
@@ -991,16 +991,16 @@
         try {
             const status = JSON.parse(await bridge.check_thesportsdb_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (public free tier)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (public free tier)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1031,7 +1031,7 @@
                         <div class="fd-result-item" data-team-id="${t.id}" data-team-name="${escapeHtml(t.name)}" data-league="${escapeHtml(t.league || '')}" data-league-id="${t.league_id || ''}" data-badge="${escapeHtml(t.badge || '')}">
                             <span>
                                 <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.league || '')}${t.location ? ' · ' + escapeHtml(t.location) : ''}</span>
+                                <span class="fd-result-area">${escapeHtml(t.league || '')}${t.location ? ' Â· ' + escapeHtml(t.location) : ''}</span>
                             </span>
                         </div>
                     `).join('');
@@ -1073,7 +1073,7 @@
         try {
             const data = JSON.parse(await bridge.get_thesportsdb_team_info(sanitizeString(teamId)));
             if (data.error || !data.team) {
-                infoEl.textContent = '❌ ' + (data.error || 'Team not found');
+                infoEl.textContent = 'âŒ ' + (data.error || 'Team not found');
                 return;
             }
             const t = data.team;
@@ -1090,7 +1090,7 @@
                 '</div>';
             infoEl.className = 'feedback-result';
         } catch (e) {
-            infoEl.textContent = '❌ Failed to load team info';
+            infoEl.textContent = 'âŒ Failed to load team info';
         }
     }
 
@@ -1158,16 +1158,16 @@
         try {
             const status = JSON.parse(await bridge.check_statsbomb_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (' + (status.competitions || 0) + ' competitions)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.competitions || 0) + ' competitions)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not available (network error)';
+                statusEl.textContent = 'ðŸŸ¡ Not available (network error)';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1188,28 +1188,28 @@
         try {
             const data = JSON.parse(await bridge.get_statsbomb_events(validateInt(matchId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
             const s = data.summary;
             const shotsHtml = (data.shots || []).map(sh =>
                 '<div style="font-size:0.78rem;padding:2px 0">' + sh.minute + "' " +
-                escapeHtml(sh.team) + ' · ' + escapeHtml(sh.player) +
+                escapeHtml(sh.team) + ' Â· ' + escapeHtml(sh.player) +
                 (sh.xg !== null ? ' (xG: ' + sh.xg.toFixed(3) + ')' : '') +
-                ' · ' + sh.outcome + '</div>'
+                ' Â· ' + sh.outcome + '</div>'
             ).join('');
             resultEl.innerHTML =
                 '<div style="font-size:0.85rem">' +
-                '<strong>' + s.total_events + '</strong> events · ' +
-                '<strong>' + s.shots + '</strong> shots · ' +
-                '<strong>' + s.passes + '</strong> passes · ' +
+                '<strong>' + s.total_events + '</strong> events Â· ' +
+                '<strong>' + s.shots + '</strong> shots Â· ' +
+                '<strong>' + s.passes + '</strong> passes Â· ' +
                 'xG: <strong>' + s.total_xg + '</strong><br>' +
                 'Teams: ' + escapeHtml(s.teams.join(' vs ')) +
                 '</div>' + shotsHtml;
             resultEl.className = 'feedback-result';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load events';
+            resultEl.textContent = 'âŒ Failed to load events';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1229,14 +1229,14 @@
         try {
             const data = JSON.parse(await bridge.import_statsbomb_match(matchId));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
-            resultEl.textContent = '✅ Imported ' + data.imported + ' events from match ' + data.match_id;
+            resultEl.textContent = 'âœ… Imported ' + data.imported + ' events from match ' + data.match_id;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Import failed';
+            resultEl.textContent = 'âŒ Import failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1256,19 +1256,19 @@
         try {
             const data = JSON.parse(await bridge.get_statsbomb_lineups(validateInt(matchId)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
             resultEl.innerHTML = (data.lineups || []).map(team =>
                 '<div style="font-size:0.85rem;margin-top:6px"><strong>' + escapeHtml(team.team) + '</strong> (' + team.players.length + ' players)' +
                 '<div style="font-size:0.75rem;color:var(--text-muted)">' +
-                team.players.slice(0, 11).map(p => '#' + p.jersey_number + ' ' + escapeHtml(p.name)).join(' · ') +
+                team.players.slice(0, 11).map(p => '#' + p.jersey_number + ' ' + escapeHtml(p.name)).join(' Â· ') +
                 '</div></div>'
             ).join('');
             resultEl.className = 'feedback-result';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load lineups';
+            resultEl.textContent = 'âŒ Failed to load lineups';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1294,7 +1294,7 @@
                 '<div class="fd-result-item" data-match-id="' + m.match_id + '">' +
                 '<span style="font-size:0.8rem">' +
                 escapeHtml(m.home) + ' ' + (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-') + ' ' + escapeHtml(m.away) +
-                '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' · ' + escapeHtml(m.season) + ' · ' + m.date + '</span>' +
+                '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' Â· ' + escapeHtml(m.season) + ' Â· ' + m.date + '</span>' +
                 '</span></div>'
             ).join('');
             resultsDiv.classList.remove('hidden');
@@ -1318,17 +1318,17 @@
         try {
             const status = JSON.parse(await bridge.check_openfootball_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Connected (CC0 public domain data)';
+                statusEl.textContent = 'ðŸŸ¢ Connected (CC0 public domain data)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
                 ofbPopulateCompetitions();
             } else {
-                statusEl.textContent = '🟡 Not available (network error)';
+                statusEl.textContent = 'ðŸŸ¡ Not available (network error)';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1369,7 +1369,7 @@
         list.innerHTML = '<div class="roster-item">Loading...</div>';
         try {
             const data = JSON.parse(await bridge.get_openfootball_matches(comp, season));
-            if (data.error) { list.innerHTML = '<div class="roster-item">❌ ' + data.error + '</div>'; return; }
+            if (data.error) { list.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>'; return; }
             const matches = data.matches || [];
             if (matches.length === 0) { list.innerHTML = '<div class="roster-item">No matches</div>'; return; }
             list.innerHTML = matches.map(m => {
@@ -1405,7 +1405,7 @@
                     '<div class="fd-result-item">' +
                     '<span style="font-size:0.8rem">' +
                     escapeHtml(m.home) + ' ' + (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-') + ' ' + escapeHtml(m.away) +
-                    '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' · ' + escapeHtml(m.season) + ' · ' + m.date + '</span>' +
+                    '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' Â· ' + escapeHtml(m.season) + ' Â· ' + m.date + '</span>' +
                     '</span></div>'
                 ).join('');
                 resultsDiv.classList.remove('hidden');
@@ -1424,7 +1424,7 @@
         list.innerHTML = '<div class="roster-item">Loading WC ' + year + '...</div>';
         try {
             const data = JSON.parse(await bridge.get_openfootball_worldcup(year));
-            if (data.error) { list.innerHTML = '<div class="roster-item">❌ ' + data.error + '</div>'; return; }
+            if (data.error) { list.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>'; return; }
             const matches = data.matches || [];
             if (matches.length === 0) { list.innerHTML = '<div class="roster-item">No WC matches for ' + year + '</div>'; return; }
             list.innerHTML = matches.map(m => {
@@ -1449,16 +1449,16 @@
         try {
             const status = JSON.parse(await bridge.check_pose_status());
             if (status.available) {
-                statusEl.textContent = '🟢 YOLO26-pose model loaded';
+                statusEl.textContent = 'ðŸŸ¢ YOLO26-pose model loaded';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Pose model not available (ultralytics not installed)';
+                statusEl.textContent = 'ðŸŸ¡ Pose model not available (ultralytics not installed)';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1478,7 +1478,7 @@
         try {
             const data = JSON.parse(await bridge.get_activity_summary(trackId));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
@@ -1495,7 +1495,7 @@
             resultEl.innerHTML = '<div style="font-size:0.85rem">Activity for track #' + trackId + ': ' + html + '</div>';
             resultEl.className = 'feedback-result';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load activity';
+            resultEl.textContent = 'âŒ Failed to load activity';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1514,7 +1514,7 @@
         try {
             const data = JSON.parse(await bridge.get_activity_segments(trackId));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
@@ -1526,13 +1526,13 @@
             }
             resultEl.innerHTML = segs.slice(0, 20).map(s =>
                 '<div style="font-size:0.78rem;padding:2px 0">' +
-                s.start_time.toFixed(1) + 's → ' + s.end_time.toFixed(1) + 's: ' +
+                s.start_time.toFixed(1) + 's â†’ ' + s.end_time.toFixed(1) + 's: ' +
                 '<strong>' + s.activity + '</strong> (' + s.duration_s.toFixed(1) + 's)' +
                 '</div>'
             ).join('');
             resultEl.className = 'feedback-result';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to load segments';
+            resultEl.textContent = 'âŒ Failed to load segments';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1546,7 +1546,7 @@
         try {
             const status = JSON.parse(await bridge.check_mujoco_status());
             if (status.available) {
-                let info = '🟢 Trajectory simulation available';
+                let info = 'ðŸŸ¢ Trajectory simulation available';
                 if (status.uses_mujoco) info += ' (using MuJoCo)';
                 else info += ' (analytical fallback)';
                 statusEl.textContent = info;
@@ -1554,12 +1554,12 @@
                 controls.classList.remove('hidden');
                 mujocoLoadPresets();
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1615,7 +1615,7 @@
                 2.5
             ));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
@@ -1629,7 +1629,7 @@
                 '</div>';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Simulation failed';
+            resultEl.textContent = 'âŒ Simulation failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -1643,17 +1643,17 @@
         try {
             const status = JSON.parse(await bridge.check_weather_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Available' +
+                statusEl.textContent = 'ðŸŸ¢ Available' +
                     (status.has_video_classifier ? ' (video classifier ready)' : ' (Open-Meteo + manual)');
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1677,7 +1677,7 @@
                 sanitizeString(conditions)
             ));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             const c = data.conditions, i = data.impact;
@@ -1685,10 +1685,10 @@
                 '<strong>Conditions:</strong> ' + c.conditions + ' (' + c.pitch_state + ' pitch)<br>' +
                 '<strong>Impact:</strong> ' + i.goals_delta + ' goals, ' + i.passing_delta_pct + '% passing, ' +
                 i.sprint_delta_pct + '% sprint<br>' +
-                i.notes.map(n => '• ' + escapeHtml(n)).join('<br>') + '</div>';
+                i.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>') + '</div>';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to analyze';
+            resultEl.textContent = 'âŒ Failed to analyze';
         }
     }
 
@@ -1711,7 +1711,7 @@
                 false
             ));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             document.getElementById('wx-temp').value = data.temperature_c.toFixed(1);
@@ -1719,11 +1719,11 @@
             document.getElementById('wx-wind').value = data.wind_speed_kmh.toFixed(1);
             document.getElementById('wx-humidity').value = data.humidity_pct.toFixed(0);
             document.getElementById('wx-conditions').value = data.conditions;
-            resultEl.textContent = '✅ Fetched: ' + data.temperature_c.toFixed(1) + '°C, ' +
+            resultEl.textContent = 'âœ… Fetched: ' + data.temperature_c.toFixed(1) + 'Â°C, ' +
                 data.conditions + ', pitch=' + data.pitch_state + ' (source: ' + data.source + ')';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Fetch failed';
+            resultEl.textContent = 'âŒ Fetch failed';
         }
     }
 
@@ -1740,7 +1740,7 @@
         try {
             const data = JSON.parse(await bridge.classify_video_weather(sanitizeString(videoPath)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             const rd = data.raindrop_detection;
@@ -1756,7 +1756,7 @@
                 const probs = Object.entries(wc.class_probabilities).sort((a, b) => b[1] - a[1]);
                 html += probs.map(([c, p]) => c + ':' + (p * 100).toFixed(0) + '%').join(', ') + '</small><br>';
             }
-            html += '<strong>Final: </strong>' + (data.is_rainy ? '🌧️ Rainy' : '☀️ Not rainy');
+            html += '<strong>Final: </strong>' + (data.is_rainy ? 'ðŸŒ§ï¸ Rainy' : 'â˜€ï¸ Not rainy');
             if (data.conditions) {
                 html += ' (' + data.conditions.conditions + ', ' + data.conditions.pitch_state + ' pitch)';
             }
@@ -1764,7 +1764,7 @@
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Video analysis failed';
+            resultEl.textContent = 'âŒ Video analysis failed';
         }
     }
 
@@ -1777,16 +1777,16 @@
         try {
             const status = JSON.parse(await bridge.check_psychology_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Available (momentum, score-state, late-game)';
+                statusEl.textContent = 'ðŸŸ¢ Available (momentum, score-state, late-game)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1805,7 +1805,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_match_psychology(matchId, home, away, events));
             if (data.error) {
-                summaryEl.textContent = '❌ ' + data.error;
+                summaryEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             summaryEl.innerHTML = '<div style="font-size:0.85rem">' +
@@ -1814,7 +1814,7 @@
                 '<strong>Comebacks:</strong> ' + data.comeback_count + '<br>' +
                 '<strong>Capitulations:</strong> ' + data.capitulation_count + '<br>' +
                 '<strong>Avg late-game passing drop:</strong> ' + (data.avg_late_game_passing_drop * 100).toFixed(1) + '%<br>' +
-                data.notes.map(n => '• ' + escapeHtml(n)).join('<br>') + '</div>';
+                data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>') + '</div>';
             summaryEl.className = 'feedback-result success';
             if (data.momentum_timeline && data.momentum_timeline.length > 0) {
                 const last10 = data.momentum_timeline.slice(-10);
@@ -1826,14 +1826,14 @@
             if (data.psychology_events && data.psychology_events.length > 0) {
                 eventsEl.innerHTML = data.psychology_events.slice(0, 10).map(e =>
                     '<div style="font-size:0.78rem;padding:2px 0">' +
-                    e.minute + "' " + escapeHtml(e.team) + ': <strong>' + e.type + '</strong> — ' +
+                    e.minute + "' " + escapeHtml(e.team) + ': <strong>' + e.type + '</strong> â€” ' +
                     escapeHtml(e.description) + '</div>'
                 ).join('');
             } else {
                 eventsEl.textContent = 'No psychology events (provide events JSON for full analysis)';
             }
         } catch (e) {
-            summaryEl.textContent = '❌ Analysis failed';
+            summaryEl.textContent = 'âŒ Analysis failed';
         }
     }
 
@@ -1846,17 +1846,17 @@
         try {
             const status = JSON.parse(await bridge.check_rules_status());
             if (status.available) {
-                statusEl.textContent = '🟢 IFAB Laws loaded (' + status.laws_count + ' laws)';
+                statusEl.textContent = 'ðŸŸ¢ IFAB Laws loaded (' + status.laws_count + ' laws)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
                 rulesLoadLaws();
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -1887,7 +1887,7 @@
         try {
             const law = JSON.parse(await bridge.get_law_summary(num));
             if (law.error) {
-                contentEl.textContent = '❌ ' + law.error;
+                contentEl.textContent = 'âŒ ' + law.error;
                 return;
             }
             contentEl.innerHTML = '<div style="font-size:0.85rem">' +
@@ -1898,7 +1898,7 @@
                 '</div>';
             contentEl.className = 'feedback-result';
         } catch (e) {
-            contentEl.textContent = '❌ Failed to load law';
+            contentEl.textContent = 'âŒ Failed to load law';
         }
     }
 
@@ -1913,7 +1913,7 @@
         try {
             const data = JSON.parse(await bridge.classify_event_rule(sanitizeString(event), isFinite(x) ? x : 0, isFinite(y) ? y : 0, sanitizeString(side)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             resultEl.innerHTML = '<div style="font-size:0.85rem">' +
@@ -1923,7 +1923,7 @@
                 'Card likely: ' + (data.card_likely || 'none') + '</div>';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Classification failed';
+            resultEl.textContent = 'âŒ Classification failed';
         }
     }
 
@@ -1937,15 +1937,15 @@
         try {
             const data = JSON.parse(await bridge.check_offside(isFinite(ax) ? ax : 0, isFinite(dx) ? dx : 0, isFinite(bx) ? bx : 0, 'right'));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                (data.is_offside ? '🚩 <strong>OFFSIDE</strong>' : '✅ <strong>Onside</strong>') + '<br>' +
+                (data.is_offside ? 'ðŸš© <strong>OFFSIDE</strong>' : 'âœ… <strong>Onside</strong>') + '<br>' +
                 escapeHtml(data.explanation) + '</div>';
             resultEl.className = data.is_offside ? 'feedback-result error' : 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Check failed';
+            resultEl.textContent = 'âŒ Check failed';
         }
     }
 
@@ -1966,7 +1966,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_setpieces(JSON.stringify(sampleEvents), 'home'));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Set-Piece Analysis</strong><br>';
@@ -1976,12 +1976,12 @@
             html += '<strong>Away:</strong> ' + data.away.total_corners + ' corners, ';
             html += data.away.shots_per_corner * 100 + '% shot rate<br>';
             html += '<strong>Differential:</strong> ' + data.set_piece_differential.toFixed(2) + '<br>';
-            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Set-piece analysis failed';
+            resultEl.textContent = 'âŒ Set-piece analysis failed';
         }
     }
 
@@ -2005,7 +2005,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_goalkeeper('home', JSON.stringify(actions), JSON.stringify(shots), false));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Goalkeeper Report</strong><br>';
@@ -2014,12 +2014,12 @@
             html += 'Short distribution: ' + data.short_distribution_successful + '/' + data.short_distribution_attempts + '<br>';
             html += 'Long distribution: ' + data.long_distribution_successful + '/' + data.long_distribution_attempts + '<br>';
             html += 'Sweeps: ' + data.sweep_actions + '<br>';
-            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ GK analysis failed';
+            resultEl.textContent = 'âŒ GK analysis failed';
         }
     }
 
@@ -2042,14 +2042,14 @@
         try {
             const data = JSON.parse(await bridge.analyze_substitutions('home', JSON.stringify(subs), JSON.stringify(events)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Substitution Impact</strong><br>';
             html += 'Total impact: ' + data.total_impact.toFixed(2) + ' | Avg: ' + data.avg_impact.toFixed(2) + '<br>';
             html += 'Tactical changes: ' + data.tactical_changes + ' | Formation: ' + data.formation_changes + '<br><br>';
             for (const i of data.impacts) {
-                html += '<strong>' + i.minute + '\':</strong> ' + (i.player_off || '?') + ' → ' + (i.player_on || '?') + ' | ';
+                html += '<strong>' + i.minute + '\':</strong> ' + (i.player_off || '?') + ' â†’ ' + (i.player_on || '?') + ' | ';
                 html += 'rating: ' + i.rating.toFixed(2) + ' [' + i.verdict + ']';
                 html += '<br>';
             }
@@ -2060,7 +2060,7 @@
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Substitution analysis failed';
+            resultEl.textContent = 'âŒ Substitution analysis failed';
         }
     }
 
@@ -2082,7 +2082,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_possession('home', 'away', JSON.stringify(events)));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Detailed Possession</strong><br>';
@@ -2090,12 +2090,12 @@
             html += 'Chains: ' + data.home_chains_count + ' (home) | ' + data.away_chains_count + ' (away)<br>';
             html += 'Avg chain: ' + data.avg_chain_duration_s + 's | Longest: ' + data.longest_chain_s + 's<br>';
             html += 'Counter-presses: ' + data.counter_presses + '<br>';
-            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Possession analysis failed';
+            resultEl.textContent = 'âŒ Possession analysis failed';
         }
     }
 
@@ -2107,13 +2107,13 @@
         try {
             const data = JSON.parse(await bridge.compute_xgot(isFinite(shotX) ? shotX : 0, isFinite(shotY) ? shotY : 0, 'foot', false));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             resultEl.innerHTML = '<div style="font-size:0.85rem"><strong>xGOT for shot at (' + shotX + ', ' + shotY + ')</strong><br>xGOT: ' + data.xgot.toFixed(3) + '</div>';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ xGOT compute failed';
+            resultEl.textContent = 'âŒ xGOT compute failed';
         }
     }
 
@@ -2126,7 +2126,7 @@
         try {
             const data = JSON.parse(await bridge.realtime_status());
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
             const html = '<div style="font-size:0.85rem"><strong>Real-Time Service</strong><br>' +
@@ -2139,7 +2139,7 @@
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Status check failed';
+            resultEl.textContent = 'âŒ Status check failed';
         }
     }
 
@@ -2149,13 +2149,13 @@
         try {
             const data = JSON.parse(await bridge.realtime_subscribe_console());
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
-            resultEl.textContent = '✅ Console subscriber added (events will print to log)';
+            resultEl.textContent = 'âœ… Console subscriber added (events will print to log)';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Subscribe failed';
+            resultEl.textContent = 'âŒ Subscribe failed';
         }
     }
 
@@ -2165,13 +2165,13 @@
         try {
             const data = JSON.parse(await bridge.realtime_cancel());
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 return;
             }
-            resultEl.textContent = '✅ Stream cancelled';
+            resultEl.textContent = 'âœ… Stream cancelled';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = '❌ Cancel failed';
+            resultEl.textContent = 'âŒ Cancel failed';
         }
     }
 
@@ -2184,16 +2184,16 @@
         try {
             const status = JSON.parse(await bridge.check_cards_status());
             if (status.available) {
-                statusEl.textContent = '🟢 Available (visual + audio + tactical + external)';
+                statusEl.textContent = 'ðŸŸ¢ Available (visual + audio + tactical + external)';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not available';
+                statusEl.textContent = 'ðŸŸ¡ Not available';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -2211,7 +2211,7 @@
         try {
             const data = JSON.parse(await bridge.infer_cards_tactically(JSON.stringify(events)));
             if (data.error) {
-                listEl.innerHTML = '<div class="roster-item">❌ ' + data.error + '</div>';
+                listEl.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>';
                 return;
             }
             const cards = data.cards || [];
@@ -2222,13 +2222,13 @@
             listEl.innerHTML = cards.map(c =>
                 '<div class="roster-item" style="font-size:0.85rem">' +
                 '<strong style="color:' + (c.card_type === 'red' ? '#dc2626' : '#eab308') + '">[' + c.card_type.toUpperCase() + ']</strong> ' +
-                c.minute + "' " + escapeHtml(c.team) + ' — ' + escapeHtml(c.player_name) +
+                c.minute + "' " + escapeHtml(c.team) + ' â€” ' + escapeHtml(c.player_name) +
                 ' <span style="color:var(--text-muted);font-size:0.75rem">(' + c.source + ', ' + (c.confidence * 100).toFixed(0) + '%)</span>' +
                 '<div style="font-size:0.75rem;color:var(--text-muted)">' + escapeHtml(c.description) + '</div>' +
                 '</div>'
             ).join('');
         } catch (e) {
-            listEl.innerHTML = '<div class="roster-item">❌ Failed</div>';
+            listEl.innerHTML = '<div class="roster-item">âŒ Failed</div>';
         }
     }
 
@@ -2245,7 +2245,7 @@
         try {
             const data = JSON.parse(await bridge.fetch_external_cards(matchId));
             if (data.error) {
-                listEl.innerHTML = '<div class="roster-item">❌ ' + data.error + '</div>';
+                listEl.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>';
                 return;
             }
             const cards = data.cards || [];
@@ -2256,11 +2256,11 @@
             listEl.innerHTML = cards.map(c =>
                 '<div class="roster-item" style="font-size:0.85rem">' +
                 '<strong style="color:' + (c.card_type === 'red' ? '#dc2626' : '#eab308') + '">[' + c.card_type.toUpperCase() + ']</strong> ' +
-                c.minute + "' " + escapeHtml(c.team) + ' — ' + escapeHtml(c.player_name) +
+                c.minute + "' " + escapeHtml(c.team) + ' â€” ' + escapeHtml(c.player_name) +
                 ' <span style="color:var(--text-muted);font-size:0.75rem">(verified)</span></div>'
             ).join('');
         } catch (e) {
-            listEl.innerHTML = '<div class="roster-item">❌ Failed</div>';
+            listEl.innerHTML = '<div class="roster-item">âŒ Failed</div>';
         }
     }
 
@@ -2273,17 +2273,17 @@
         try {
             const status = JSON.parse(await bridge.check_fluidx3d_status());
             if (status.available) {
-                statusEl.textContent = '🟢 FluidX3D binary configured';
+                statusEl.textContent = 'ðŸŸ¢ FluidX3D binary configured';
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.innerHTML = '🟡 Binary not configured<br><small style="color:var(--text-muted)">' +
+                statusEl.innerHTML = 'ðŸŸ¡ Binary not configured<br><small style="color:var(--text-muted)">' +
                     escapeHtml(status.license_notice || '') + '</small>';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -2304,12 +2304,12 @@
                 isFinite(radius) ? radius : 0
             ));
             resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                (data.success ? '✅ ' : '❌ ') + escapeHtml(data.notes || '') +
+                (data.success ? 'âœ… ' : 'âŒ ') + escapeHtml(data.notes || '') +
                 (data.error ? '<br><small style="color:var(--text-muted)">' + escapeHtml(data.error) + '</small>' : '') +
                 '</div>';
             resultEl.className = data.success ? 'feedback-result success' : 'feedback-result error';
         } catch (e) {
-            resultEl.textContent = '❌ CFD failed';
+            resultEl.textContent = 'âŒ CFD failed';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -2323,19 +2323,19 @@
         try {
             const status = JSON.parse(await bridge.check_roboflow_sports_status());
             if (status.available) {
-                let info = '🟢 Available';
-                if (status.has_team_classifier) info += ' (team classifier ✅)';
-                if (status.has_view_transformer) info += ' (view transformer ✅)';
+                let info = 'ðŸŸ¢ Available';
+                if (status.has_team_classifier) info += ' (team classifier âœ…)';
+                if (status.has_view_transformer) info += ' (view transformer âœ…)';
                 statusEl.textContent = info;
                 statusEl.className = 'feedback-result success';
                 controls.classList.remove('hidden');
             } else {
-                statusEl.textContent = '🟡 Not installed (pip install git+https://github.com/roboflow/sports.git)';
+                statusEl.textContent = 'ðŸŸ¡ Not installed (pip install git+https://github.com/roboflow/sports.git)';
                 statusEl.className = 'feedback-result';
                 controls.classList.add('hidden');
             }
         } catch (e) {
-            statusEl.textContent = '🟡 Not available';
+            statusEl.textContent = 'ðŸŸ¡ Not available';
             statusEl.className = 'feedback-result';
             controls.classList.add('hidden');
         }
@@ -2353,15 +2353,15 @@
         try {
             const data = JSON.parse(await bridge.rf_draw_pitch(isFinite(scale) ? scale : 1));
             if (data.error) {
-                resultEl.textContent = '❌ ' + data.error;
+                resultEl.textContent = 'âŒ ' + data.error;
                 resultEl.className = 'feedback-result error';
                 return;
             }
-            resultEl.textContent = '✅ Pitch drawn (' + data.shape[0] + 'x' + data.shape[1] + ')';
+            resultEl.textContent = 'âœ… Pitch drawn (' + data.shape[0] + 'x' + data.shape[1] + ')';
             resultEl.className = 'feedback-result success';
             imgEl.innerHTML = '<img src="data:image/png;base64,' + data.image_b64 + '" style="max-width:100%;border:1px solid #ccc;border-radius:6px">';
         } catch (e) {
-            resultEl.textContent = '❌ Failed to draw pitch';
+            resultEl.textContent = 'âŒ Failed to draw pitch';
             resultEl.className = 'feedback-result error';
         }
     }
@@ -2515,7 +2515,7 @@
             document.getElementById('kpi-winrate').textContent = formatNumber(winRate, 1) + '%';
             document.getElementById('kpi-ppda').textContent = formatNumber(ppdaCount > 0 ? totalPpdaHome / ppdaCount : 0, 1);
 
-            // ── Item 8: Sparklines on KPI cards ──
+            // â”€â”€ Item 8: Sparklines on KPI cards â”€â”€
             if (window.KawkabSparklines) {
                 var ks = window.KawkabSparklines;
                 var primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
@@ -3646,7 +3646,7 @@
             if (matchedMatches.length > 0) {
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchMatches') + '</div>';
                 matchedMatches.forEach(function(m, i) {
-                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">⚽ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
+                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">âš½ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
                 });
                 if (totalMatches > 5) html += '<div class="search-view-all" data-type="match">' + t('viewAllResults').replace('{n}', totalMatches) + '</div>';
                 html += '</div>';
@@ -3654,7 +3654,7 @@
             if (matchedPlayers.length > 0) {
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchPlayers') + '</div>';
                 matchedPlayers.forEach(function(p, i) {
-                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">👤 ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
+                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">ðŸ‘¤ ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
                 });
                 if (totalPlayers > 5) html += '<div class="search-view-all" data-type="player">' + t('viewAllResults').replace('{n}', totalPlayers) + '</div>';
                 html += '</div>';
@@ -3663,7 +3663,7 @@
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchEvents') + '</div>';
                 matchedEvents.forEach(function(e, i) {
                     var label = (e.event_type || '').replace(/_/g, ' ') + (e.player_name ? ' - ' + e.player_name : '');
-                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">🔹 ' + highlightMatch(escapeHtml(label), query) + '</div>';
+                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">ðŸ”¹ ' + highlightMatch(escapeHtml(label), query) + '</div>';
                 });
                 if (totalEvents > 5) html += '<div class="search-view-all" data-type="event">' + t('viewAllResults').replace('{n}', totalEvents) + '</div>';
                 html += '</div>';
@@ -4131,7 +4131,7 @@
             document.getElementById('clip-result').className = 'feedback-result error';
         } finally {
             btn.disabled = false;
-            btn.textContent = '🎬 Extract Clips';
+            btn.textContent = 'ðŸŽ¬ Extract Clips';
         }
     }
 
@@ -4206,7 +4206,7 @@
         });
     }
 
-    // ── Multi-selection helpers ──────────────────────────────
+    // â”€â”€ Multi-selection helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function _toggleEventSelection(eventId, ctrlKey) {
         if (!ctrlKey) {
@@ -4275,7 +4275,7 @@
         });
     }
 
-    // ── Sort / Filter / Pagination helpers ──────────────────
+    // â”€â”€ Sort / Filter / Pagination helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function _getEventField(e, key) {
         switch (key) {
@@ -4359,7 +4359,7 @@
         return labels[key] || key;
     }
 
-    // ── Timeline rendering ──────────────────────────────────
+    // â”€â”€ Timeline rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function renderTimeline(events) {
         wireChartFilter();
@@ -4572,7 +4572,7 @@
     }
 
     document.addEventListener('click', function(e) {
-        // ── Timeline item checkbox (multi-select) ──
+        // â”€â”€ Timeline item checkbox (multi-select) â”€â”€
         if (e.target.closest('.timeline-checkbox')) {
             var cb = e.target;
             var eventId = parseInt(cb.dataset.eventId, 10);
@@ -4599,7 +4599,7 @@
             return;
         }
 
-        // ── Timeline item body (seek + selection) ──
+        // â”€â”€ Timeline item body (seek + selection) â”€â”€
         var item = e.target.closest('.timeline-item');
         if (item && !e.target.closest('.timeline-item-actions') && !e.target.closest('.timeline-checkbox')) {
             var eventId = parseInt(item.dataset.eventId, 10);
@@ -4620,7 +4620,7 @@
             return;
         }
 
-        // ── Timeline edit button (div view) ──
+        // â”€â”€ Timeline edit button (div view) â”€â”€
         if (e.target.closest('.edit-btn')) {
             var item = e.target.closest('.timeline-item');
             var eventId = parseInt(item.dataset.eventId, 10);
@@ -4631,7 +4631,7 @@
             return;
         }
 
-        // ── Timeline delete button (div view) ──
+        // â”€â”€ Timeline delete button (div view) â”€â”€
         if (e.target.closest('.delete-btn')) {
             var item = e.target.closest('.timeline-item');
             showConfirmDialog('Delete this event?', function() {
@@ -4651,7 +4651,7 @@
             return;
         }
 
-        // ── Table checkbox ──
+        // â”€â”€ Table checkbox â”€â”€
         if (e.target.closest('.table-checkbox')) {
             var cb = e.target;
             var eventId = parseInt(cb.dataset.eventId, 10);
@@ -4689,7 +4689,7 @@
             return;
         }
 
-        // ── Table edit button ──
+        // â”€â”€ Table edit button â”€â”€
         if (e.target.closest('.table-edit-btn')) {
             var btn = e.target.closest('.table-edit-btn');
             var eid = parseInt(btn.dataset.eventId, 10);
@@ -4698,7 +4698,7 @@
             return;
         }
 
-        // ── Table delete button ──
+        // â”€â”€ Table delete button â”€â”€
         if (e.target.closest('.table-delete-btn')) {
             var btn = e.target.closest('.table-delete-btn');
             var eid = parseInt(btn.dataset.eventId, 10);
@@ -4718,7 +4718,7 @@
             return;
         }
 
-        // ── Table column header sort ──
+        // â”€â”€ Table column header sort â”€â”€
         if (e.target.closest('.data-table th.sortable')) {
             var th = e.target.closest('.data-table th.sortable');
             if (e.target.closest('.col-filter-input')) return; // Ignore clicks on filter inputs
@@ -4733,13 +4733,13 @@
             return;
         }
 
-        // ── Table column filter input (delegated) ──
+        // â”€â”€ Table column filter input (delegated) â”€â”€
         if (e.target.closest('.col-filter-input')) {
             // Handled by input event listener below
             return;
         }
 
-        // ── Table pagination ──
+        // â”€â”€ Table pagination â”€â”€
         if (e.target.closest('.pagination-btn')) {
             var btn = e.target.closest('.pagination-btn');
             var page = btn.dataset.page;
@@ -4756,14 +4756,14 @@
             return;
         }
 
-        // ── Table per-page select (delegated) ──
+        // â”€â”€ Table per-page select (delegated) â”€â”€
         if (e.target.closest('.per-page-select')) {
             // Handled by change event
             return;
         }
     });
 
-    // ── Chart cross-filter ──────────────────────────────────
+    // â”€â”€ Chart cross-filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     var _chartFilterCanvasId = null;
 
@@ -4823,7 +4823,7 @@
 
     document.getElementById('filter-banner-clear')?.addEventListener('click', clearTimelineFilter);
 
-    // ── Item 7: Timeline Scrub/Zoom Widget ────────────────
+    // â”€â”€ Item 7: Timeline Scrub/Zoom Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     var _scrubState = { dragging: null, startMin: 0, endMin: 90 };
 
@@ -4969,7 +4969,7 @@
         renderTimeline(window._timelineEvents || []);
     }
 
-    // ── Item 10: Data Density Toggle ──────────────────────
+    // â”€â”€ Item 10: Data Density Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function initDensityToggle() {
         var stored = null;
@@ -4991,7 +4991,7 @@
         });
     }
 
-    // ── Item 12: Color Customization ──────────────────────
+    // â”€â”€ Item 12: Color Customization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function initColorSettings() {
         var stored = null;
@@ -5048,7 +5048,7 @@
         }
     }
 
-    // ── Item 13: Video Keyboard Shortcuts ─────────────────
+    // â”€â”€ Item 13: Video Keyboard Shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function initVideoShortcuts() {
         document.addEventListener('keydown', function(e) {
@@ -5093,7 +5093,7 @@
         });
     }
 
-    // ── Item 14: Persistent Filter State ──────────────────
+    // â”€â”€ Item 14: Persistent Filter State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function saveFilterState() {
         try {
@@ -5133,7 +5133,7 @@
         } catch(e) {}
     }
 
-    // ── Coding Workspace (Phase 1 — Video Tagging Engine) ──────
+    // â”€â”€ Coding Workspace (Phase 1 â€” Video Tagging Engine) â”€â”€â”€â”€â”€â”€
 
     var _codingState = {
         matchId: null,
@@ -5556,13 +5556,13 @@
             html += '  <span class="tag-color-dot" style="background:' + color + '"></span>';
             html += '  <div class="tag-info">';
             html += '    <div class="tag-type">' + escapeHtml(typeLabel) + '</div>';
-            html += '    <div class="tag-sub">' + escapeHtml(timeStr) + (playerLabel ? ' · ' + escapeHtml(playerLabel) : '') + '</div>';
+            html += '    <div class="tag-sub">' + escapeHtml(timeStr) + (playerLabel ? ' Â· ' + escapeHtml(playerLabel) : '') + '</div>';
             html += '  </div>';
             html += '  <div class="tag-time">' + timeStr + '</div>';
             html += '  <div class="tag-actions">';
-            html += '    <button class="tag-action-btn tag-seek-btn" title="Seek to time">⏩</button>';
-            html += '    <button class="tag-action-btn tag-clip-btn" title="Extract clip">✂️</button>';
-            html += '    <button class="tag-action-btn tag-delete-btn" title="Delete tag">✕</button>';
+            html += '    <button class="tag-action-btn tag-seek-btn" title="Seek to time">â©</button>';
+            html += '    <button class="tag-action-btn tag-clip-btn" title="Extract clip">âœ‚ï¸</button>';
+            html += '    <button class="tag-action-btn tag-delete-btn" title="Delete tag">âœ•</button>';
             html += '  </div>';
             html += '</div>';
         });
@@ -5828,7 +5828,7 @@
         URL.revokeObjectURL(url);
     }
 
-    // ── Tactical Periods + Formation (Phase 2.3-2.4) ────────────────
+    // â”€â”€ Tactical Periods + Formation (Phase 2.3-2.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function initTacticsWorkspace() {
         var loadBtn = document.getElementById('tactics-load-btn');
@@ -5934,7 +5934,7 @@
             html += '<div class="formation-card">' +
                 '<div class="label">' + side.charAt(0).toUpperCase() + side.slice(1) + '</div>' +
                 '<div class="value" style="font-size:1.3rem">' + escapeHtml(f.in_possession_formation) +
-                (f.out_possession_formation && f.out_possession_formation !== f.in_possession_formation ? ' → ' + escapeHtml(f.out_possession_formation) : '') +
+                (f.out_possession_formation && f.out_possession_formation !== f.in_possession_formation ? ' â†’ ' + escapeHtml(f.out_possession_formation) : '') +
                 '</div>' +
                 '<div style="display:flex;gap:12px;margin-top:4px;font-size:0.72rem;color:var(--text-muted)">' +
                 '<span>Width: ' + (f.avg_width_in || 0).toFixed(1) + 'm</span>' +
@@ -5945,2476 +5945,8 @@
         container.innerHTML = html;
     }
 
-    // ── AI Coach Assistant v2 (Phase 12) ─────────────────────────
 
-    function initAiWorkspace() {
-        var askBtn = document.getElementById('ai-ask-btn');
-        var input = document.getElementById('ai-question-input');
-        var matchSelect = document.getElementById('ai-match-select');
-        var convSelect = document.getElementById('ai-conv-select');
-        var voiceBtn = document.getElementById('ai-voice-btn');
-        var langSelect = document.getElementById('ai-lang-select');
-        var autoReportBtn = document.getElementById('ai-auto-report-btn');
-        var exportChatBtn = document.getElementById('ai-export-chat-btn');
-        var newConvBtn = document.getElementById('ai-new-conv-btn');
-        var delConvBtn = document.getElementById('ai-del-conv-btn');
-        if (!askBtn) return;
-
-        var currentConvId = '';
-        var convCache = {};
-
-        function getMatchId() { return parseInt(matchSelect.value, 10); }
-        function getLang() { return (langSelect ? langSelect.value : 'en') || 'en'; }
-
-        window.loadAiMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.error) data = [];
-                    matchSelect.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        matchSelect.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) { console.warn(e); }
-            });
-        };
-
-        function loadConversations() {
-            var mid = getMatchId();
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.ai_v2_list_convs(String(mid || ''), function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (!data.success) return;
-                    convSelect.innerHTML = '<option value="">-- New Chat --</option>';
-                    (data.conversations || []).forEach(function(c) {
-                        var opt = document.createElement('option');
-                        opt.value = c.id;
-                        opt.textContent = c.title + ' (' + c.message_count + ' msgs)';
-                        convSelect.appendChild(opt);
-                    });
-                    convCache = {};
-                    (data.conversations || []).forEach(function(c) { convCache[c.id] = c; });
-                } catch(e) {}
-            });
-        }
-
-        function ensureConv(callback) {
-            if (currentConvId) { callback(currentConvId); return; }
-            var title = 'Chat ' + new Date().toLocaleTimeString();
-            bridge.ai_v2_create_conv(String(getMatchId() || ''), title, function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.success) {
-                        currentConvId = data.conv_id;
-                        loadConversations();
-                        callback(data.conv_id);
-                    } else {
-                        callback('');
-                    }
-                } catch(e) { callback(''); }
-            });
-        }
-
-        function addMessage(role, content) {
-            var messages = document.getElementById('ai-chat-messages');
-            var clean = escapeHtml(content);
-            messages.innerHTML += '<div class="ai-message ' + role + '">' + clean + '</div>';
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        function showTyping() {
-            var messages = document.getElementById('ai-chat-messages');
-            messages.innerHTML += '<div class="ai-message assistant ai-typing" id="ai-typing-msg">Thinking</div>';
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        function removeTyping() {
-            var t = document.getElementById('ai-typing-msg');
-            if (t) t.remove();
-        }
-
-        function askQuestion(questionText) {
-            var mid = getMatchId();
-            if (!mid) { showToast('Select a match first.', 'warning'); return; }
-            var question = questionText || input.value.trim();
-            if (!question) { showToast('Enter a question.', 'warning'); return; }
-
-            addMessage('user', question);
-            showTyping();
-            if (input) input.value = '';
-
-            ensureConv(function(convId) {
-                if (!convId) { removeTyping(); addMessage('assistant', 'Failed to create conversation.'); return; }
-                currentConvId = convId;
-
-                bridge.ai_v2_ask(convId, question, '', getLang(), function(result) {
-                    removeTyping();
-                    try {
-                        var data = typeof result === 'string' ? JSON.parse(result) : result;
-                        if (data.success) {
-                            addMessage('assistant', data.answer);
-                        } else {
-                            // fallback to old method
-                            bridge.ask_llm(mid, question, function(r2) {
-                                try {
-                                    var d2 = typeof r2 === 'string' ? JSON.parse(r2) : r2;
-                                    if (d2.success) {
-                                        addMessage('assistant', d2.answer);
-                                    } else {
-                                        addMessage('assistant', 'Error: ' + escapeHtml(d2.error || 'Unknown'));
-                                    }
-                                } catch(e) {
-                                    addMessage('assistant', 'Failed to get answer.');
-                                }
-                            });
-                        }
-                        loadConversations();
-                    } catch(e) { removeTyping(); addMessage('assistant', 'Parse error.'); }
-                });
-            });
-        }
-
-        askBtn.addEventListener('click', function() { askQuestion(); });
-        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') askQuestion(); });
-
-        // Voice input
-        if (voiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            var recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            voiceBtn.addEventListener('click', function() {
-                voiceBtn.textContent = '🎤 Listening...';
-                recognition.start();
-            });
-            recognition.onresult = function(e) {
-                var transcript = e.results[0][0].transcript;
-                input.value = transcript;
-                voiceBtn.textContent = '🎤';
-                askQuestion(transcript);
-            };
-            recognition.onerror = function() { voiceBtn.textContent = '🎤'; };
-            recognition.onend = function() { voiceBtn.textContent = '🎤'; };
-        } else if (voiceBtn) {
-            voiceBtn.title = 'Voice not supported in this browser';
-            voiceBtn.style.opacity = '0.4';
-        }
-
-        // Suggestion chips
-        document.querySelectorAll('#ai-suggestion-chips .chip').forEach(function(chip) {
-            chip.addEventListener('click', function() {
-                var topic = this.getAttribute('data-topic');
-                if (!topic) return;
-                askQuestion('Analyze ' + topic.replace('_', ' ') + ' for this match in detail.');
-            });
-        });
-
-        // Auto report
-        if (autoReportBtn) {
-            autoReportBtn.addEventListener('click', function() {
-                var mid = getMatchId();
-                if (!mid) { showToast('Select a match first.', 'warning'); return; }
-                showTyping();
-                bridge.ai_v2_auto_report(String(mid), getLang(), function(result) {
-                    removeTyping();
-                    try {
-                        var data = typeof result === 'string' ? JSON.parse(result) : result;
-                        if (data.success) {
-                            addMessage('assistant', data.report);
-                        } else {
-                            addMessage('assistant', 'Auto report failed: ' + escapeHtml(data.error || 'Unknown'));
-                        }
-                    } catch(e) { removeTyping(); addMessage('assistant', 'Report generation error.'); }
-                });
-            });
-        }
-
-        // Export chat
-        if (exportChatBtn) {
-            exportChatBtn.addEventListener('click', function() {
-                var msgs = document.querySelectorAll('#ai-chat-messages .ai-message');
-                var text = '';
-                msgs.forEach(function(m) {
-                    var role = m.classList.contains('user') ? 'Coach' : m.classList.contains('assistant') ? 'Analyst' : 'System';
-                    text += '### ' + role + '\n' + m.textContent + '\n\n';
-                });
-                var blob = new Blob([text], { type: 'text/markdown' });
-                var a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'ai-chat-' + new Date().toISOString().slice(0, 10) + '.md';
-                a.click();
-                showToast('Chat exported as Markdown', 'success');
-            });
-        }
-
-        // Conversation management
-        if (convSelect) {
-            convSelect.addEventListener('change', function() {
-                currentConvId = this.value;
-                if (!currentConvId) {
-                    document.getElementById('ai-chat-messages').innerHTML =
-                        '<div class="ai-message system">New conversation. Ask a question to start.</div>';
-                    return;
-                }
-                showToast('Switched conversation', 'info');
-            });
-            newConvBtn.addEventListener('click', function() {
-                currentConvId = '';
-                convSelect.value = '';
-                document.getElementById('ai-chat-messages').innerHTML =
-                    '<div class="ai-message system">New conversation. Ask a question to start.</div>';
-            });
-            delConvBtn.addEventListener('click', function() {
-                var cid = currentConvId || convSelect.value;
-                if (!cid) { showToast('No conversation selected.', 'warning'); return; }
-                if (!confirm('Delete this conversation?')) return;
-                bridge.ai_v2_delete_conv(cid, function() {
-                    currentConvId = '';
-                    convSelect.value = '';
-                    loadConversations();
-                    document.getElementById('ai-chat-messages').innerHTML =
-                        '<div class="ai-message system">Conversation deleted.</div>';
-                    showToast('Deleted', 'info');
-                });
-            });
-        }
-
-        loadAiMatchSelect();
-        loadConversations();
-    }
-
-    // ── Squad + Player Ratings (Phase 4) ───────────────────────────
-
-    function initSquadWorkspace() {
-        var loadBtn = document.getElementById('squad-load-btn');
-        var matchSelect = document.getElementById('squad-match-select');
-        if (!loadBtn) return;
-
-        window.loadSquadMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.error) data = [];
-                    var sel = document.getElementById('squad-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) { console.warn(e); }
-            });
-        };
-
-        loadBtn.addEventListener('click', function() {
-            var matchId = parseInt(matchSelect.value, 10);
-            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
-            loadSquadData(matchId);
-        });
-
-        loadSquadMatchSelect();
-    }
-
-    function loadSquadData(matchId) {
-        var status = document.getElementById('squad-status');
-        status.textContent = 'Loading...';
-
-        document.getElementById('squad-workspace').classList.remove('hidden');
-
-        bridge.get_squad_summary(matchId, function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                renderSquadRoster(data);
-                if (data.squad) {
-                    loadPlayerRatings(matchId, data.squad);
-                }
-            } catch(e) { status.textContent = 'Error loading squad.'; console.warn(e); return; }
-            status.textContent = 'Done';
-        });
-    }
-
-    function renderSquadRoster(data) {
-        var container = document.getElementById('squad-roster-content');
-        if (!container) return;
-        if (!data.squad || Object.keys(data.squad).length === 0) {
-            container.innerHTML = '<p class="hint">No squad data available.</p>';
-            return;
-        }
-
-        var html = '';
-        Object.keys(data.squad).forEach(function(team) {
-            var players = data.squad[team] || [];
-            html += '<div class="squad-team-header">' + escapeHtml(team.charAt(0).toUpperCase() + team.slice(1)) + ' (' + players.length + ')</div>';
-            players.forEach(function(p) {
-                html += '<div class="squad-player-row" data-track-id="' + p.track_id + '">' +
-                    '<span class="jersey">' + escapeHtml(String(p.jersey || '')) + '</span>' +
-                    '<span class="name">' + escapeHtml(p.name || 'Player #' + p.track_id) + '</span>' +
-                    '<span class="pos">' + escapeHtml(p.position || '') + '</span>' +
-                    '<span class="stat">P' + (p.passes || 0) + '</span>' +
-                    '<span class="stat">S' + (p.shots || 0) + '</span>' +
-                    '<span class="stat">T' + (p.tackles || 0) + '</span>' +
-                    '<span class="rating-badge" id="rating-' + p.track_id + '">--</span>' +
-                    '</div>';
-            });
-        });
-        container.innerHTML = html;
-    }
-
-    function loadPlayerRatings(matchId, squad) {
-        Object.keys(squad).forEach(function(team) {
-            (squad[team] || []).forEach(function(p) {
-                bridge.get_player_rating(matchId, p.track_id, function(result) {
-                    try {
-                        var data = typeof result === 'string' ? JSON.parse(result) : result;
-                        var badge = document.getElementById('rating-' + p.track_id);
-                        if (badge) {
-                            var r = data.rating || 0;
-                            var cls = r >= 70 ? 'rating-high' : (r >= 40 ? 'rating-mid' : 'rating-low');
-                            badge.textContent = r.toFixed(0);
-                            badge.className = 'rating-badge ' + cls;
-                        }
-                    } catch(e) { /* ignore */ }
-                });
-            });
-        });
-    }
-
-    // ── Event Review Workspace (Phase 2) ─────────────────────────
-
-    var _reviewState = {
-        matchId: null,
-        events: [],
-        queue: [],
-        currentIndex: -1,
-        video: null,
-        autoAdvance: true,
-        isLoading: false,
-    };
-
-    function initReviewWorkspace() {
-        var loadBtn = document.getElementById('review-load-btn');
-        var matchSelect = document.getElementById('review-match-select');
-        var autoAdvBtn = document.getElementById('review-auto-advance-btn');
-        var typeFilter = document.getElementById('review-type-filter');
-        var confirmBtn = document.getElementById('review-confirm-btn');
-        var editBtn = document.getElementById('review-edit-btn');
-        var rejectBtn = document.getElementById('review-reject-btn');
-        var seekBtn = document.getElementById('review-seek-btn');
-        var prevBtn = document.getElementById('review-prev-btn');
-        var nextBtn = document.getElementById('review-next-btn');
-        var saveEditBtn = document.getElementById('review-save-edit-btn');
-
-        if (!loadBtn) return;
-
-        window.loadReviewMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.error) data = [];
-                    var sel = document.getElementById('review-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) { console.warn('loadReviewMatchSelect:', e); }
-            });
-        };
-
-        loadBtn.addEventListener('click', function() {
-            var matchId = parseInt(matchSelect.value, 10);
-            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
-            loadReviewWorkspace(matchId);
-        });
-
-        autoAdvBtn.addEventListener('click', function() {
-            _reviewState.autoAdvance = !_reviewState.autoAdvance;
-            this.classList.toggle('btn-primary');
-            this.classList.toggle('btn-secondary');
-            this.innerHTML = _reviewState.autoAdvance ? '⏩ Auto-Advance: ON' : '⏩ Auto-Advance: OFF';
-        });
-
-        typeFilter.addEventListener('change', function() {
-            renderReviewQueue();
-        });
-
-        confirmBtn.addEventListener('click', function() {
-            if (_reviewState.currentIndex < 0) return;
-            var item = _reviewState.queue[_reviewState.currentIndex];
-            submitReviewAction(item.id, 'confirm', '', function() {
-                removeFromQueue(_reviewState.currentIndex);
-            });
-        });
-
-        editBtn.addEventListener('click', function() {
-            var fields = document.getElementById('review-edit-fields');
-            fields.classList.toggle('hidden');
-            if (!fields.classList.contains('hidden')) {
-                populateEditFields();
-            }
-        });
-
-        saveEditBtn.addEventListener('click', function() {
-            var item = _reviewState.queue[_reviewState.currentIndex];
-            if (!item) return;
-            var corrections = {
-                event_type: document.getElementById('review-edit-type').value,
-                team: document.getElementById('review-edit-team').value,
-                completed: document.getElementById('review-edit-completed').checked,
-            };
-            submitReviewAction(item.id, 'edit', JSON.stringify(corrections), function() {
-                document.getElementById('review-edit-fields').classList.add('hidden');
-                removeFromQueue(_reviewState.currentIndex);
-            });
-        });
-
-        rejectBtn.addEventListener('click', function() {
-            if (_reviewState.currentIndex < 0) return;
-            var item = _reviewState.queue[_reviewState.currentIndex];
-            showConfirmDialog('Reject this auto-detected event? It will be deleted.', function() {
-                submitReviewAction(item.id, 'reject', '', function() {
-                    removeFromQueue(_reviewState.currentIndex);
-                });
-            });
-        });
-
-        seekBtn.addEventListener('click', function() {
-            if (_reviewState.currentIndex < 0) return;
-            var item = _reviewState.queue[_reviewState.currentIndex];
-            var video = document.getElementById('review-video');
-            if (video && item.video_time != null) {
-                video.currentTime = item.video_time;
-            }
-        });
-
-        prevBtn.addEventListener('click', function() {
-            navigateReview(-1);
-        });
-        nextBtn.addEventListener('click', function() {
-            navigateReview(1);
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
-            if (e.ctrlKey || e.metaKey || e.altKey) return;
-            var section = document.getElementById('review-section');
-            if (!section || section.classList.contains('hidden')) return;
-
-            switch (e.key) {
-                case 'Enter':
-                    e.preventDefault();
-                    confirmBtn.click();
-                    break;
-                case 'Delete':
-                case 'd':
-                    e.preventDefault();
-                    rejectBtn.click();
-                    break;
-                case 'e':
-                    e.preventDefault();
-                    editBtn.click();
-                    break;
-                case 'ArrowLeft':
-                    prevBtn.click();
-                    break;
-                case 'ArrowRight':
-                    nextBtn.click();
-                    break;
-                case ' ':
-                case 'k':
-                    e.preventDefault();
-                    var vid = document.getElementById('review-video');
-                    if (vid && vid.src) { if (vid.paused) vid.play(); else vid.pause(); }
-                    break;
-            }
-        });
-
-        // Video timeupdate to highlight current event
-        var video = document.getElementById('review-video');
-        if (video) {
-            video.addEventListener('timeupdate', function() {
-                highlightReviewEventAtTime(this.currentTime);
-            });
-        }
-
-        loadReviewMatchSelect();
-    }
-
-    function loadReviewWorkspace(matchId) {
-        _reviewState.matchId = matchId;
-        _reviewState.isLoading = true;
-
-        var status = document.getElementById('review-match-status');
-        status.textContent = 'Loading...';
-
-        // Load video
-        bridge.get_video_path(matchId, function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data && data.video_path) {
-                    var video = document.getElementById('review-video');
-                    video.src = data.video_path;
-                    video.load();
-                    _reviewState.video = video;
-                    status.textContent = 'Ready';
-                } else {
-                    status.textContent = 'No video';
-                }
-            } catch(e) {
-                status.textContent = 'Error';
-                console.warn(e);
-            }
-        });
-
-        // Load events + detection summary
-        loadReviewEvents(matchId);
-    }
-
-    function loadReviewEvents(matchId) {
-        bridge.get_match_events(matchId, function(result) {
-            try {
-                var data = JSON.parse(result);
-                _reviewState.events = Array.isArray(data) ? data : (data.events || []);
-            } catch(e) { _reviewState.events = []; }
-
-            // Separate unreviewed (low confidence, not user_corrected)
-            _reviewState.queue = _reviewState.events.filter(function(ev) {
-                return !ev.user_corrected && (ev.confidence == null || ev.confidence < 0.7);
-            });
-            _reviewState.queue.sort(function(a, b) {
-                return (a.confidence || 0) - (b.confidence || 0);
-            });
-
-            _reviewState.currentIndex = _reviewState.queue.length > 0 ? 0 : -1;
-
-            // Show workspace
-            document.getElementById('review-workspace').classList.remove('hidden');
-            document.getElementById('review-empty-state').classList.add('hidden');
-
-            renderReviewSummary();
-            renderReviewQueue();
-            renderReviewEventDetail();
-            updateReviewNavButtons();
-
-            _reviewState.isLoading = false;
-            status.textContent = _reviewState.queue.length + ' events need review';
-        });
-    }
-
-    function renderReviewSummary() {
-        var container = document.getElementById('review-summary-content');
-        if (!container) return;
-
-        var total = _reviewState.events.length;
-        var unreviewed = _reviewState.queue.length;
-        var corrected = total - unreviewed;
-        var pct = total > 0 ? Math.round(corrected / total * 100) : 0;
-
-        // Count by type
-        var byType = {};
-        _reviewState.events.forEach(function(ev) {
-            var t = ev.event_type || 'unknown';
-            if (!byType[t]) byType[t] = { total: 0, unreviewed: 0 };
-            byType[t].total++;
-            if (!ev.user_corrected && (ev.confidence == null || ev.confidence < 0.7)) {
-                byType[t].unreviewed++;
-            }
-        });
-
-        var typeNames = Object.keys(byType).sort();
-        var breakdownHtml = '';
-        typeNames.forEach(function(t) {
-            var stats = byType[t];
-            var barW = stats.total > 0 ? Math.round((stats.total - stats.unreviewed) / stats.total * 100) : 0;
-            breakdownHtml += '<div class="review-breakdown-row">' +
-                '<span>' + escapeHtml(t) + '</span>' +
-                '<span>' + stats.unreviewed + '/' + stats.total + '</span>' +
-                '</div>';
-        });
-
-        container.innerHTML =
-            '<div class="review-summary-stats">' +
-                '<div class="review-summary-stat"><div class="stat-value">' + total + '</div><div class="stat-label">Total</div></div>' +
-                '<div class="review-summary-stat"><div class="stat-value ' + (unreviewed > 0 ? 'danger' : 'success') + '">' + unreviewed + '</div><div class="stat-label">To Review</div></div>' +
-                '<div class="review-summary-stat"><div class="stat-value success">' + corrected + '</div><div class="stat-label">Reviewed</div></div>' +
-                '<div class="review-summary-stat"><div class="stat-value">' + pct + '%</div><div class="stat-label">Progress</div></div>' +
-            '</div>' +
-            '<div class="review-summary-breakdown">' + breakdownHtml + '</div>';
-    }
-
-    function renderReviewQueue() {
-        var list = document.getElementById('review-queue-list');
-        var count = document.getElementById('review-queue-count');
-        if (!list) return;
-
-        var filter = document.getElementById('review-type-filter').value;
-        var queue = _reviewState.queue;
-        if (filter) {
-            queue = queue.filter(function(ev) { return ev.event_type === filter; });
-        }
-
-        count.textContent = queue.length;
-
-        if (queue.length === 0) {
-            list.innerHTML = '<div class="review-queue-empty">All events reviewed! 🎉</div>';
-            return;
-        }
-
-        // Populate type filter options if not done
-        var typeFilter = document.getElementById('review-type-filter');
-        if (typeFilter.options.length <= 1) {
-            var types = {};
-            _reviewState.queue.forEach(function(ev) {
-                var t = ev.event_type || 'unknown';
-                types[t] = true;
-            });
-            Object.keys(types).sort().forEach(function(t) {
-                typeFilter.innerHTML += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>';
-            });
-        }
-
-        var html = '';
-        queue.forEach(function(ev, idx) {
-            var globalIdx = _reviewState.queue.indexOf(ev);
-            var isActive = globalIdx === _reviewState.currentIndex;
-            var conf = ev.confidence || 0;
-            var confClass = conf < 0.3 ? 'q-conf-low' : (conf < 0.5 ? 'q-conf-mid' : 'q-conf-high');
-            var timeStr = formatCodingTime(ev.timestamp || 0);
-            var typeLabel = ev.event_type || 'unknown';
-            var teamLabel = ev.team || '';
-
-            html += '<div class="review-queue-item' + (isActive ? ' active' : '') + '" data-event-id="' + ev.id + '" data-idx="' + globalIdx + '">' +
-                '<div class="q-type">' + escapeHtml(typeLabel) + '</div>' +
-                '<div class="q-time">' + timeStr + (teamLabel ? ' · ' + escapeHtml(teamLabel) : '') + '</div>' +
-                '<div class="q-conf ' + confClass + '">' + conf.toFixed(2) + '</div>' +
-                '</div>';
-        });
-        list.innerHTML = html;
-
-        // Click to select
-        list.querySelectorAll('.review-queue-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                var idx = parseInt(this.dataset.idx, 10);
-                if (!isNaN(idx)) {
-                    _reviewState.currentIndex = idx;
-                    renderReviewQueue();
-                    renderReviewEventDetail();
-                    updateReviewNavButtons();
-                    seekToReviewEvent();
-                }
-            });
-        });
-    }
-
-    function renderReviewEventDetail() {
-        var detailContainer = document.getElementById('review-event-detail');
-        var infoContainer = document.getElementById('review-event-details');
-        var badge = document.getElementById('review-confidence-badge');
-        var confirmBtn = document.getElementById('review-confirm-btn');
-        var editBtn = document.getElementById('review-edit-btn');
-        var rejectBtn = document.getElementById('review-reject-btn');
-        var seekBtn = document.getElementById('review-seek-btn');
-
-        var idx = _reviewState.currentIndex;
-        if (idx < 0 || idx >= _reviewState.queue.length) {
-            detailContainer.innerHTML = '<div class="review-detail-empty">All events reviewed! 🎉</div>';
-            infoContainer.innerHTML = '<p class="review-detail-placeholder">No event selected.</p>';
-            badge.textContent = '--';
-            badge.className = 'review-confidence-badge';
-            confirmBtn.disabled = true;
-            editBtn.disabled = true;
-            rejectBtn.disabled = true;
-            seekBtn.disabled = true;
-            return;
-        }
-
-        confirmBtn.disabled = false;
-        editBtn.disabled = false;
-        rejectBtn.disabled = false;
-        seekBtn.disabled = false;
-
-        var ev = _reviewState.queue[idx];
-        var conf = ev.confidence || 0;
-        var confClass = conf < 0.3 ? 'low' : (conf < 0.5 ? 'mid' : 'high');
-        badge.textContent = 'Conf: ' + conf.toFixed(3);
-        badge.className = 'review-confidence-badge ' + confClass;
-
-        // Detail in center panel
-        var meta = ev._meta || {};
-        var metaHtml = '';
-        if (meta && typeof meta === 'object') {
-            Object.keys(meta).slice(0, 8).forEach(function(k) {
-                var v = typeof meta[k] === 'object' ? JSON.stringify(meta[k]) : meta[k];
-                metaHtml += '<div class="detail-row"><span class="detail-label">' + escapeHtml(k) + '</span><span class="detail-value">' + escapeHtml(String(v)) + '</span></div>';
-            });
-        }
-
-        detailContainer.innerHTML = '<div class="review-detail-content">' +
-            '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + escapeHtml(ev.event_type || 'unknown') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Time</span><span class="detail-value">' + formatCodingTime(ev.timestamp || 0) + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Team</span><span class="detail-value">' + escapeHtml(ev.team || '--') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Completed</span><span class="detail-value">' + (ev.completed ? 'Yes' : 'No') + '</span></div>' +
-            (ev.from_track_id ? '<div class="detail-row"><span class="detail-label">Player</span><span class="detail-value">#' + ev.from_track_id + '</span></div>' : '') +
-            (conf < 0.35 ? '<div class="detail-row" style="color:var(--warning);font-size:0.75rem">⚠ Low confidence — likely needs review</div>' : '') +
-            '</div>';
-
-        // Info in right panel
-        infoContainer.innerHTML =
-            '<div class="detail-row"><span class="detail-label">Event ID</span><span class="detail-value">#' + ev.id + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + escapeHtml(ev.event_type || 'unknown') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Timestamp</span><span class="detail-value">' + (ev.timestamp ? ev.timestamp.toFixed(2) + 's' : '--') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Team</span><span class="detail-value">' + escapeHtml(ev.team || '--') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Player</span><span class="detail-value">' + (ev.from_track_id ? '#' + ev.from_track_id : '--') + '</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Confidence</span><span class="detail-value">' + (conf * 100).toFixed(1) + '%</span></div>' +
-            '<div class="detail-row"><span class="detail-label">Completed</span><span class="detail-value">' + (ev.completed ? 'Yes' : 'No') + '</span></div>' +
-            (metaHtml ? '<hr style="margin:6px 0;border-color:var(--border)">' + metaHtml : '');
-    }
-
-    function updateReviewNavButtons() {
-        var prevBtn = document.getElementById('review-prev-btn');
-        var nextBtn = document.getElementById('review-next-btn');
-        var pos = document.getElementById('review-position');
-        var idx = _reviewState.currentIndex;
-        var total = _reviewState.queue.length;
-
-        prevBtn.disabled = idx <= 0;
-        nextBtn.disabled = idx >= total - 1 || total === 0;
-        pos.textContent = total > 0 ? (idx + 1) + ' / ' + total : '0 / 0';
-    }
-
-    function navigateReview(direction) {
-        var newIdx = _reviewState.currentIndex + direction;
-        if (newIdx < 0 || newIdx >= _reviewState.queue.length) return;
-        _reviewState.currentIndex = newIdx;
-        renderReviewQueue();
-        renderReviewEventDetail();
-        updateReviewNavButtons();
-        seekToReviewEvent();
-    }
-
-    function seekToReviewEvent() {
-        var idx = _reviewState.currentIndex;
-        if (idx < 0) return;
-        var ev = _reviewState.queue[idx];
-        var video = document.getElementById('review-video');
-        if (video && ev.timestamp != null) {
-            time = Math.max(0, (ev.timestamp || 0) - 2);
-            video.currentTime = time;
-        }
-    }
-
-    function highlightReviewEventAtTime(time) {
-        // Highlight nearest unreviewed event within 3 seconds
-        var closest = -1;
-        var closestDist = 3;
-        _reviewState.queue.forEach(function(ev, idx) {
-            var dist = Math.abs((ev.timestamp || 0) - time);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = idx;
-            }
-        });
-        if (closest >= 0 && closest !== _reviewState.currentIndex) {
-            _reviewState.currentIndex = closest;
-            renderReviewQueue();
-            renderReviewEventDetail();
-            updateReviewNavButtons();
-        }
-    }
-
-    function submitReviewAction(eventId, action, correctionsJson, callback) {
-        var mid = _reviewState.matchId;
-        bridge.submit_event_correction(mid, eventId, action, correctionsJson, function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data.success) {
-                    showToast('Event ' + data.action + '!', 'success');
-                    if (callback) callback();
-                } else {
-                    showToast('Failed: ' + (data.error || 'Unknown'), 'error');
-                }
-            } catch(e) {
-                showToast('Error submitting correction.', 'error');
-            }
-        });
-    }
-
-    function removeFromQueue(idx) {
-        _reviewState.queue.splice(idx, 1);
-        if (_reviewState.queue.length === 0) {
-            _reviewState.currentIndex = -1;
-        } else if (idx >= _reviewState.queue.length) {
-            _reviewState.currentIndex = _reviewState.queue.length - 1;
-        }
-        renderReviewSummary();
-        renderReviewQueue();
-        renderReviewEventDetail();
-        updateReviewNavButtons();
-
-        // Auto-advance to next
-        if (_reviewState.autoAdvance && _reviewState.currentIndex >= 0) {
-            seekToReviewEvent();
-        }
-
-        // Recalculate status
-        var status = document.getElementById('review-match-status');
-        if (status) {
-            status.textContent = _reviewState.queue.length + ' events need review';
-        }
-    }
-
-    function populateEditFields() {
-        var idx = _reviewState.currentIndex;
-        if (idx < 0) return;
-        var ev = _reviewState.queue[idx];
-
-        // Populate type dropdown
-        var typeSel = document.getElementById('review-edit-type');
-        var allTypes = ['pass', 'shot', 'goal', 'tackle', 'interception', 'dribble', 'corner',
-            'free_kick', 'throw_in', 'clearance', 'cross', 'block', 'carry', 'duel',
-            'foul', 'offside', 'hand_ball', 'yellow_card', 'red_card', 'save', 'ball_out'];
-        typeSel.innerHTML = '';
-        allTypes.forEach(function(t) {
-            typeSel.innerHTML += '<option value="' + t + '"' + (t === ev.event_type ? ' selected' : '') + '>' + t + '</option>';
-        });
-
-        document.getElementById('review-edit-team').value = ev.team || 'home';
-        document.getElementById('review-edit-completed').checked = !!ev.completed;
-    }
-
-    // ── End Event Review Workspace ──────────────────────────────
-
-    document.addEventListener('change', function(e) {
-        if (e.target.id === 'timeline-filter-type') {
-            _timelinePageState.page = 1;
-            renderTimeline(window._timelineEvents || []);
-        }
-        // Per-page select
-        if (e.target.classList.contains('per-page-select')) {
-            _timelinePageState.perPage = parseInt(e.target.value, 10);
-            _timelinePageState.page = 1;
-            renderTimelineTable(window._timelineEvents || []);
-        }
-    });
-
-    document.addEventListener('input', function(e) {
-        // Column filter inputs in table header
-        if (e.target.classList.contains('col-filter-input')) {
-            var key = e.target.dataset.filterKey;
-            _timelineFilters[key] = e.target.value;
-            _timelinePageState.page = 1;
-            renderTimelineTable(window._timelineEvents || []);
-        }
-        // Timeline search input
-        if (e.target.id === 'timeline-search') {
-            _timelineSearchText = e.target.value;
-            _timelinePageState.page = 1;
-            renderTimeline(window._timelineEvents || []);
-        }
-        // Roster search input
-        if (e.target.id === 'roster-search') {
-            _rosterSearchText = e.target.value;
-            _rosterPageState.page = 1;
-            if (_currentRosterView === 'roster-table') {
-                renderRosterTable();
-            } else {
-                loadPlayerProfiles();
-            }
-        }
-    });
-
-    // ── Roster table rendering ──────────────────────────────
-
-    function renderRosterTable() {
-        var wrapper = document.getElementById('player-roster-table-wrapper');
-        var roster = document.getElementById('player-roster');
-        if (!wrapper) return;
-        if (!roster) return;
-        roster.classList.add('hidden');
-        wrapper.classList.remove('hidden');
-
-        var data = window._rosterData || [];
-        var text = (_rosterSearchText || '').toLowerCase().trim();
-        if (text) {
-            data = data.filter(function(p) {
-                return (p.name || '').toLowerCase().indexOf(text) >= 0 ||
-                       (p.position || '').toLowerCase().indexOf(text) >= 0;
-            });
-        }
-
-        var key = _rosterSortState.key;
-        var dir = _rosterSortState.dir === 'asc' ? 1 : -1;
-        data.sort(function(a, b) {
-            var va = a[key] != null ? a[key] : '';
-            var vb = b[key] != null ? b[key] : '';
-            if (typeof va === 'string') return va.localeCompare(vb) * dir;
-            return (va - vb) * dir;
-        });
-
-        var perPage = _rosterPageState.perPage || 25;
-        var total = data.length;
-        var totalPages = Math.max(1, Math.ceil(total / perPage));
-        var page = Math.min(_rosterPageState.page, totalPages);
-        var start = (page - 1) * perPage;
-        var pageData = data.slice(start, start + perPage);
-
-        var sortKey = _rosterSortState.key;
-        var sortDir = _rosterSortState.dir;
-
-        var html = '<table class="data-table" id="roster-data-table"><thead><tr>';
-        var rosterCols = [
-            { key: 'name', label: 'Name', filterable: true },
-            { key: 'position', label: 'Position', filterable: true },
-            { key: 'minutes', label: 'Minutes', filterable: false },
-            { key: 'xg', label: 'xG', filterable: false },
-            { key: 'xa', label: 'xA', filterable: false },
-            { key: 'pass_pct', label: 'Pass%', filterable: false },
-            { key: 'rating', label: 'Rating', filterable: false },
-        ];
-        rosterCols.forEach(function(col) {
-            var isSorted = sortKey === col.key;
-            var sortClass = isSorted ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
-            html += '<th class="sortable ' + sortClass + '" data-roster-sort="' + col.key + '">' +
-                '<span class="th-label">' + col.label + '</span><span class="sort-indicator"></span></th>';
-        });
-        html += '</tr></thead><tbody>';
-
-        if (pageData.length === 0) {
-            html += '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.5rem">No players match filters</td></tr>';
-        } else {
-            pageData.forEach(function(p) {
-                html += '<tr>';
-                html += '<td>' + escapeHtml(p.name || '') + '</td>';
-                html += '<td>' + escapeHtml(p.position || '') + '</td>';
-                html += '<td class="numeric">' + (p.minutes != null ? p.minutes : '--') + '</td>';
-                html += '<td class="numeric">' + (p.xg != null ? p.xg.toFixed(3) : '--') + '</td>';
-                html += '<td class="numeric">' + (p.xa != null ? p.xa.toFixed(3) : '--') + '</td>';
-                html += '<td class="numeric">' + (p.pass_pct != null ? p.pass_pct.toFixed(1) + '%' : '--') + '</td>';
-                html += '<td class="numeric">' + (p.rating != null ? p.rating.toFixed(1) : '--') + '</td>';
-                html += '</tr>';
-            });
-        }
-        html += '</tbody></table>';
-
-        // Pagination
-        html += '<div class="data-table-pagination">';
-        html += '<span class="pagination-info">Showing ' + (total > 0 ? (start + 1) + '-' + Math.min(start + perPage, total) : 0) + ' of ' + total + ' players</span>';
-        html += '<div class="pagination-controls">';
-        html += '<button class="pagination-btn" data-roster-page="prev" ' + (page <= 1 ? 'disabled' : '') + '>&#9664;</button>';
-        var maxB = 5, sP = Math.max(1, page - Math.floor(maxB / 2)), eP = Math.min(totalPages, sP + maxB - 1);
-        if (eP - sP < maxB - 1) sP = Math.max(1, eP - maxB + 1);
-        if (sP > 1) html += '<button class="pagination-btn" data-roster-page="1">1</button>' + (sP > 2 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '');
-        for (var pi = sP; pi <= eP; pi++) {
-            html += '<button class="pagination-btn ' + (pi === page ? 'active' : '') + '" data-roster-page="' + pi + '">' + pi + '</button>';
-        }
-        if (eP < totalPages) html += (eP < totalPages - 1 ? '<span style="color:var(--text-muted);padding:0 2px">...</span>' : '') + '<button class="pagination-btn" data-roster-page="' + totalPages + '">' + totalPages + '</button>';
-        html += '<button class="pagination-btn" data-roster-page="next" ' + (page >= totalPages ? 'disabled' : '') + '>&#9654;</button>';
-        html += '<select class="per-page-select">';
-        [25, 50, 100].forEach(function(pp) {
-            html += '<option value="' + pp + '" ' + (pp === perPage ? 'selected' : '') + '>' + pp + ' / page</option>';
-        });
-        html += '</select></div></div>';
-
-        wrapper.innerHTML = html;
-    }
-
-    // ── View toggle wiring ──
-
-    function setupViewToggles() {
-        // Timeline view toggle
-        document.querySelectorAll('.view-toggle-btn[data-view="timeline"], .view-toggle-btn[data-view="table"]').forEach(function(btn) {
-            if (btn.dataset.view === 'timeline' || btn.dataset.view === 'table') {
-                btn.addEventListener('click', function() {
-                    var view = this.dataset.view;
-                    var parent = this.closest('.view-toggle');
-                    parent.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-                    _currentTimelineView = view;
-                    _timelinePageState.page = 1;
-                    renderTimeline(window._timelineEvents || []);
-                });
-            }
-        });
-
-        // Roster view toggle
-        document.querySelectorAll('.view-toggle-btn[data-view="roster-cards"], .view-toggle-btn[data-view="roster-table"]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var view = this.dataset.view;
-                var parent = this.closest('.view-toggle');
-                parent.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                _currentRosterView = view;
-                if (view === 'roster-table') {
-                    renderRosterTable();
-                } else {
-                    var wrapper = document.getElementById('player-roster-table-wrapper');
-                    var roster = document.getElementById('player-roster');
-                    if (wrapper) wrapper.classList.add('hidden');
-                    if (roster) {
-                        roster.classList.remove('hidden');
-                        loadPlayerProfiles();
-                    }
-                }
-            });
-        });
-
-        // Roster table sort
-        document.addEventListener('click', function(e) {
-            var th = e.target.closest('th[data-roster-sort]');
-            if (th) {
-                var key = th.dataset.rosterSort;
-                if (_rosterSortState.key === key) {
-                    _rosterSortState.dir = _rosterSortState.dir === 'asc' ? 'desc' : 'asc';
-                } else {
-                    _rosterSortState.key = key;
-                    _rosterSortState.dir = 'asc';
-                }
-                renderRosterTable();
-                return;
-            }
-            // Roster pagination
-            if (e.target.closest('[data-roster-page]')) {
-                var btn = e.target.closest('[data-roster-page]');
-                var page = btn.dataset.rosterPage;
-                if (page === 'prev') {
-                    _rosterPageState.page = Math.max(1, _rosterPageState.page - 1);
-                } else if (page === 'next') {
-                    var total = (window._rosterData || []).length;
-                    var maxP = Math.ceil(total / _rosterPageState.perPage);
-                    _rosterPageState.page = Math.min(maxP, _rosterPageState.page + 1);
-                } else {
-                    _rosterPageState.page = parseInt(page, 10);
-                }
-                renderRosterTable();
-                return;
-            }
-        });
-
-        document.addEventListener('change', function(e) {
-            if (e.target.closest('.data-table-pagination .per-page-select') && document.getElementById('roster-data-table')) {
-                _rosterPageState.perPage = parseInt(e.target.value, 10);
-                _rosterPageState.page = 1;
-                renderRosterTable();
-            }
-        });
-    }
-
-    // ── Batch action wiring ──
-
-    function setupBatchActions() {
-        document.getElementById('batch-delete-btn')?.addEventListener('click', function() {
-            var ids = Array.from(_selectedEventIds);
-            if (ids.length === 0) return;
-            showConfirmDialog('Delete ' + ids.length + ' selected event(s)?', function() {
-                var promises = ids.map(function(eid) {
-                    return bridge.delete_event(eid).then(function(json) {
-                        try {
-                            var result = JSON.parse(json);
-                            return result.success;
-                        } catch (ex) { return false; }
-                    }).catch(function() { return false; });
-                });
-                Promise.all(promises).then(function() {
-                    _selectedEventIds.clear();
-                    _updateBatchActionBar();
-                    setTimeout(loadEventTimeline, 100);
-                    showToast('Deleted ' + ids.length + ' event(s)', 'info');
-                });
-            });
-        });
-
-        document.getElementById('batch-export-csv-btn')?.addEventListener('click', function() {
-            batchExport('csv');
-        });
-
-        document.getElementById('batch-export-json-btn')?.addEventListener('click', function() {
-            batchExport('json');
-        });
-    }
-
-    function batchExport(format) {
-        var ids = Array.from(_selectedEventIds);
-        if (ids.length === 0) return;
-        var events = (window._timelineEvents || []).filter(function(e) {
-            return ids.indexOf(e.id) >= 0;
-        });
-        if (events.length === 0) return;
-
-        if (format === 'csv') {
-            var headers = ['id', 'event_type', 'team', 'player_name', 'timestamp', 'xg', 'xa', 'xt'];
-            var rows = events.map(function(e) {
-                return [e.id, e.event_type, e.team, e.player_name || '', e.timestamp || 0, e.xg != null ? e.xg : '', e.xa != null ? e.xa : '', e.xt != null ? e.xt : ''];
-            });
-            var csv = headers.join(',') + '\n' + rows.map(function(r) {
-                return r.map(function(c) {
-                    var s = String(c != null ? c : '');
-                    return s.indexOf(',') >= 0 || s.indexOf('"') >= 0 ? '"' + s.replace(/"/g, '""') + '"' : s;
-                }).join(',');
-            }).join('\n');
-            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'selected-events.csv';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-        } else {
-            var json = JSON.stringify(events, null, 2);
-            var blob = new Blob([json], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'selected-events.json';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-        }
-    }
-
-    document.getElementById('match-video').addEventListener('timeupdate', function() {
-        highlightCurrentTimelineItem(this.currentTime);
-    });
-
-    /* ═══════════════════════════════════════════════════════════════
-       Wave A — Telestration Engine
-       ═══════════════════════════════════════════════════════════════ */
-
-    var _telestrateState = {
-        active: false,
-        tool: 'arrow',
-        color: '#ff0000',
-        width: 3,
-        strokes: [],
-        redoStack: [],
-        isDrawing: false,
-        startX: 0, startY: 0,
-        currentText: '',
-        textInput: null,
-    };
-
-    // ── Sprint 1: Multi-Angle Video, Trimming, Highlight Reel ──
-    var _maInitialized = false;
-    var _maSources = [];
-    var _maTrimIn = null;
-    var _maTrimOut = null;
-    var _maVideoSync = {};
-
-    function initMultiAngle() {
-        if (_maInitialized) return;
-        _maInitialized = true;
-
-        var addBtn = document.getElementById('ma-add-source-btn');
-        var loadBtn = document.getElementById('ma-load-btn');
-        var clearBtn = document.getElementById('ma-clear-btn');
-        var syncMasterBtn = document.getElementById('ma-sync-master-btn');
-        var playAllBtn = document.getElementById('ma-play-all-btn');
-        var pauseAllBtn = document.getElementById('ma-pause-all-btn');
-        var setInBtn = document.getElementById('ma-set-in-btn');
-        var setOutBtn = document.getElementById('ma-set-out-btn');
-        var trimExportBtn = document.getElementById('ma-trim-export-btn');
-        var reelGenBtn = document.getElementById('ma-reel-generate-btn');
-        var fileInput = document.getElementById('ma-source-file-input');
-        var sourceList = document.getElementById('ma-source-list');
-
-        addBtn.addEventListener('click', function () { fileInput.click(); });
-        fileInput.addEventListener('change', function (e) {
-            Array.from(e.target.files).forEach(function (f) {
-                var path = f.name;
-                var url = URL.createObjectURL(f);
-                _maSources.push({ label: f.name, path: path, url: url });
-                renderSourceList();
-            });
-            fileInput.value = '';
-        });
-
-        clearBtn.addEventListener('click', function () {
-            _maSources = [];
-            _maTrimIn = null;
-            _maTrimOut = null;
-            renderSourceList();
-            document.getElementById('ma-workspace').classList.add('hidden');
-            document.getElementById('ma-status').textContent = '';
-        });
-
-        loadBtn.addEventListener('click', function () {
-            var paths = _maSources.map(function (s) { return { path: s.path, label: s.label }; });
-            if (paths.length === 0) { showToast('Add at least one video source', 'warning'); return; }
-            bridge.sync_load(JSON.stringify(paths), function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    loadSyncWorkspace(data);
-                } catch (e) { showToast('Failed to parse sync response', 'error'); }
-            });
-        });
-
-        syncMasterBtn.addEventListener('click', syncAllToMaster);
-        playAllBtn.addEventListener('click', function () { playAllVideos(true); });
-        pauseAllBtn.addEventListener('click', function () { playAllVideos(false); });
-
-        setInBtn.addEventListener('click', function () {
-            var master = document.getElementById('ma-video-0');
-            if (master) { _maTrimIn = master.currentTime; updateTrimDisplay(); }
-        });
-        setOutBtn.addEventListener('click', function () {
-            var master = document.getElementById('ma-video-0');
-            if (master) { _maTrimOut = master.currentTime; updateTrimDisplay(); }
-        });
-        trimExportBtn.addEventListener('click', function () {
-            if (_maTrimIn === null || _maTrimOut === null) { showToast('Set in and out points first', 'warning'); return; }
-            if (_maTrimIn >= _maTrimOut) { showToast('In point must be before out point', 'warning'); return; }
-            var masterPath = _maSources.length > 0 ? _maSources[0].path : '';
-            if (!masterPath) { showToast('No source loaded', 'warning'); return; }
-            var outName = document.getElementById('ma-trim-output').value || ('trim_' + Math.round(_maTrimIn) + '_' + Math.round(_maTrimOut) + '.mp4');
-            bridge.trim_video(masterPath, _maTrimIn, _maTrimOut, outName, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    showToast('Trim exported: ' + (data.output || ''), 'success');
-                } catch (e) { showToast('Trim export failed', 'error'); }
-            });
-        });
-        reelGenBtn.addEventListener('click', function () {
-            if (_maSources.length === 0) { showToast('Load a video first', 'warning'); return; }
-            var clip = [{
-                video_path: _maSources[0].path,
-                start_s: _maTrimIn || 0,
-                end_s: _maTrimOut || 60,
-                label: 'clip_1'
-            }];
-            var outName = document.getElementById('ma-reel-output').value || 'highlight_reel.mp4';
-            bridge.reel_compose(JSON.stringify(clip), outName, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    document.getElementById('ma-reel-status').textContent = data.output_path ? 'Reel saved: ' + data.output_path : data.clip_count + ' clips, ' + data.total_duration_s + 's';
-                    showToast('Reel generated: ' + data.clip_count + ' clips', 'success');
-                } catch (e) { showToast('Reel generation failed', 'error'); }
-            });
-        });
-
-        document.querySelectorAll('.ma-offset-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var target = parseInt(this.dataset.target);
-                var delta = parseFloat(this.dataset.delta);
-                if (isNaN(target) || isNaN(delta)) return;
-                bridge.sync_set_offset(target, 0, function (cur) {
-                    bridge.sync_set_offset(target, delta, function (r) {
-                        try {
-                            var d = JSON.parse(r);
-                            if (d.ok) { document.getElementById('ma-offset-' + target).textContent = (d.offset_s || 0).toFixed(1) + 's'; }
-                        } catch (e) {}
-                    });
-                });
-            });
-        });
-    }
-
-    function renderSourceList() {
-        var list = document.getElementById('ma-source-list');
-        if (!list) return;
-        if (_maSources.length === 0) {
-            list.innerHTML = '<p class="hint" data-i18n="maSourceHint">Add video sources and click "Load Videos".</p>';
-            return;
-        }
-        var html = '';
-        _maSources.forEach(function (s, i) {
-            html += '<div class="ma-source-item">';
-            html += '<span class="ma-source-label" title="' + escapeHtml(s.label) + '">' + escapeHtml(s.label) + '</span>';
-            html += '<span class="ma-source-remove" data-index="' + i + '">✕</span>';
-            html += '</div>';
-        });
-        list.innerHTML = html;
-        list.querySelectorAll('.ma-source-remove').forEach(function (el) {
-            el.addEventListener('click', function () {
-                var idx = parseInt(this.dataset.index);
-                if (!isNaN(idx) && idx >= 0 && idx < _maSources.length) {
-                    if (_maSources[idx].url) URL.revokeObjectURL(_maSources[idx].url);
-                    _maSources.splice(idx, 1);
-                    renderSourceList();
-                }
-            });
-        });
-    }
-
-    function loadSyncWorkspace(data) {
-        var ws = document.getElementById('ma-workspace');
-        ws.classList.remove('hidden');
-        document.getElementById('ma-status').textContent = data.sources.length + ' sources loaded';
-        var sources = data.sources || [];
-        for (var i = 0; i < 3; i++) {
-            var video = document.getElementById('ma-video-' + i);
-            var nameEl = document.getElementById('ma-name-' + i);
-            if (i < sources.length) {
-                var src = sources[i];
-                if (_maSources[i] && _maSources[i].url) {
-                    video.src = _maSources[i].url;
-                }
-                nameEl.textContent = src.label || 'Angle ' + (i + 1);
-                var cell = video.closest('.ma-video-cell');
-                if (cell) cell.style.display = '';
-            } else {
-                var cell = video.closest('.ma-video-cell');
-                if (cell) cell.style.display = 'none';
-            }
-        }
-        // Wire master video timeupdate to sync slaves
-        var masterVideo = document.getElementById('ma-video-0');
-        if (masterVideo) {
-            masterVideo.removeEventListener('timeupdate', _maSyncHandler);
-            _maSyncHandler = function () {
-                var t = masterVideo.currentTime;
-                bridge.sync_positions(t, function (result) {
-                    try {
-                        var pos = JSON.parse(result);
-                        if (pos.error) return;
-                        (pos.positions || []).forEach(function (p) {
-                            if (p.index === 0) return;
-                            var slave = document.getElementById('ma-video-' + p.index);
-                            if (slave && Math.abs(slave.currentTime - p.time_s) > 0.3) {
-                                slave.currentTime = p.time_s;
-                            }
-                            var offEl = document.getElementById('ma-offset-' + p.index);
-                            if (offEl) offEl.textContent = (p.time_s - t).toFixed(1) + 's';
-                        });
-                    } catch (e) {}
-                });
-            };
-            masterVideo.addEventListener('timeupdate', _maSyncHandler);
-        }
-    }
-    var _maSyncHandler = null;
-
-    // ── Sprint 3: Team Collaboration ──
-    var _collabInitialized = false;
-
-    function initCollaboration() {
-        if (_collabInitialized) return;
-        _collabInitialized = true;
-
-        // User tabs
-        document.querySelectorAll('[data-ctab]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                document.querySelectorAll('[data-ctab]').forEach(function (b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                document.querySelectorAll('.collab-tab-content').forEach(function (tc) { tc.classList.add('hidden'); });
-                var tab = document.getElementById('collab-' + this.dataset.ctab);
-                if (tab) tab.classList.remove('hidden');
-            });
-        });
-
-        // Users
-        document.getElementById('collab-add-user-btn').addEventListener('click', function () {
-            var uname = document.getElementById('collab-username').value.trim();
-            var dname = document.getElementById('collab-display-name').value.trim();
-            var role = document.getElementById('collab-role').value;
-            if (!uname) { showToast('Username required', 'warning'); return; }
-            bridge.create_collab_user(uname, dname || uname, role, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    showToast('User added: ' + data.user.username, 'success');
-                    loadCollabUsers();
-                } catch (e) { showToast('Failed', 'error'); }
-            });
-        });
-
-        // Comments
-        document.getElementById('collab-add-comment-btn').addEventListener('click', function () {
-            var mid = parseInt(document.getElementById('collab-comment-match').value);
-            var eid = parseInt(document.getElementById('collab-comment-event').value) || 0;
-            var text = document.getElementById('collab-comment-text').value.trim();
-            if (!mid || !text) { showToast('Match ID and comment text required', 'warning'); return; }
-            bridge.add_comment(mid, eid, 0, text, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    showToast('Comment added', 'success');
-                    document.getElementById('collab-comment-text').value = '';
-                } catch (e) { showToast('Failed', 'error'); }
-            });
-        });
-        document.getElementById('collab-load-comments-btn').addEventListener('click', function () {
-            var mid = parseInt(document.getElementById('collab-comment-match').value);
-            if (!mid) { showToast('Match ID required', 'warning'); return; }
-            bridge.get_comments(mid, 0, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    renderCollabComments(data.comments || []);
-                } catch (e) { showToast('Failed', 'error'); }
-            });
-        });
-
-        // Projects
-        document.getElementById('collab-export-btn').addEventListener('click', function () {
-            var mid = parseInt(document.getElementById('collab-export-match').value);
-            if (!mid) { showToast('Match ID required', 'warning'); return; }
-            bridge.export_project(mid, function (result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error) { showToast(data.error, 'error'); return; }
-                    var blob = new Blob([JSON.stringify(data.project, null, 2)], { type: 'application/json' });
-                    var url = URL.createObjectURL(blob);
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'match_' + mid + '.kawkab';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    showToast('Project exported', 'success');
-                } catch (e) { showToast('Export failed', 'error'); }
-            });
-        });
-
-        var importFileInput = document.getElementById('collab-import-file');
-        document.getElementById('collab-import-btn').addEventListener('click', function () { importFileInput.click(); });
-        importFileInput.addEventListener('change', function (e) {
-            if (e.target.files.length === 0) return;
-            var reader = new FileReader();
-            reader.onload = function (ev) {
-                bridge.import_project(ev.target.result, function (result) {
-                    try {
-                        var data = JSON.parse(result);
-                        if (data.error) { showToast(data.error, 'error'); return; }
-                        showToast('Project imported: ' + (data.comments_imported || 0) + ' comments', 'success');
-                        document.getElementById('collab-project-result').textContent = 'Match ID: ' + (data.match.id || '?') + ' imported successfully';
-                    } catch (err) { showToast('Import failed', 'error'); }
-                });
-            };
-            reader.readAsText(e.target.files[0]);
-            importFileInput.value = '';
-        });
-
-        // Activity
-        document.getElementById('collab-refresh-activity-btn').addEventListener('click', loadCollabActivity);
-
-        // Load initial data
-        loadCollabUsers();
-        loadCollabActivity();
-    }
-
-    function loadCollabUsers() {
-        bridge.get_collab_users(function (result) {
-            try {
-                var data = JSON.parse(result);
-                var el = document.getElementById('collab-user-list');
-                if (!el) return;
-                if (!data.users || data.users.length === 0) {
-                    el.innerHTML = '<p class="hint">No team members.</p>';
-                    return;
-                }
-                var html = '';
-                data.users.forEach(function (u) {
-                    html += '<div class="collab-user-item">' +
-                        '<span class="collab-user-name">' + escapeHtml(u.display_name || u.username) + '</span>' +
-                        '<span class="collab-user-role">' + escapeHtml(u.role) + '</span>' +
-                        '<span class="collab-user-uname">@' + escapeHtml(u.username) + '</span>' +
-                        '</div>';
-                });
-                el.innerHTML = html;
-            } catch (e) {}
-        });
-    }
-
-    function renderCollabComments(comments) {
-        var el = document.getElementById('collab-comment-list');
-        if (!el) return;
-        if (!comments || comments.length === 0) {
-            el.innerHTML = '<p class="hint">No comments found.</p>';
-            return;
-        }
-        var html = '';
-        comments.forEach(function (c) {
-            html += '<div class="collab-comment-item">' +
-                '<strong>' + escapeHtml(c.username) + '</strong> ' +
-                '<span class="collab-comment-text">' + escapeHtml(c.text) + '</span>' +
-                '<span class="collab-comment-meta">Match ' + c.match_id + ' | ' + (c.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
-                '</div>';
-        });
-        el.innerHTML = html;
-    }
-
-    function loadCollabActivity() {
-        bridge.get_activity_feed(50, function (result) {
-            try {
-                var data = JSON.parse(result);
-                var el = document.getElementById('collab-activity-list');
-                if (!el) return;
-                if (!data.activities || data.activities.length === 0) {
-                    el.innerHTML = '<p class="hint">No activity yet.</p>';
-                    return;
-                }
-                var html = '';
-                data.activities.forEach(function (a) {
-                    html += '<div class="collab-activity-item">' +
-                        '<span class="collab-activity-user">' + escapeHtml(a.username) + '</span> ' +
-                        '<span class="collab-activity-action">' + escapeHtml(a.action) + '</span> ' +
-                        '<span class="collab-activity-desc">' + escapeHtml(a.description) + '</span>' +
-                        '<span class="collab-activity-time">' + (a.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
-                        '</div>';
-                });
-                el.innerHTML = html;
-            } catch (e) {}
-        });
-    }
-
-    // ── Sprint 4: Live Tagging ──
-    var _liveInitialized = false;
-    var _liveSessionActive = false;
-    var _liveHotkeys = {};
-
-    function initLiveTagging() {
-        if (_liveInitialized) return;
-        _liveInitialized = true;
-
-        var startBtn = document.getElementById('live-start-btn');
-        var stopBtn = document.getElementById('live-stop-btn');
-        var clearBtn = document.getElementById('live-clear-btn');
-        var exportBtn = document.getElementById('live-export-btn');
-        var homeInput = document.getElementById('live-home-team');
-        var awayInput = document.getElementById('live-away-team');
-        var status = document.getElementById('live-status');
-
-        startBtn.onclick = function() {
-            if (_liveSessionActive) return;
-            var home = homeInput.value.trim() || 'Home';
-            var away = awayInput.value.trim() || 'Away';
-            bridge.live_start_session(home, away).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                _liveSessionActive = true;
-                startBtn.classList.add('hidden');
-                stopBtn.classList.remove('hidden');
-                status.textContent = r.message || 'Session active';
-                loadLiveHotkeys();
-                updateLiveStats();
-            });
-        };
-
-        stopBtn.onclick = function() {
-            if (!_liveSessionActive) return;
-            bridge.live_stop_session().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                _liveSessionActive = false;
-                startBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                status.textContent = r.message || 'Session stopped';
-                loadLiveTags();
-            });
-        };
-
-        clearBtn.onclick = function() {
-            bridge.live_clear_tags().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                updateLiveStats();
-                loadLiveTags();
-                showToast('Tags cleared', 'info');
-            });
-        };
-
-        exportBtn.onclick = function() {
-            bridge.live_export().then(function(raw) {
-                var d = JSON.parse(raw);
-                if (d.error) { showToast(d.error, 'error'); return; }
-                var blob = new Blob([JSON.stringify(d, null, 2)], {type:'application/json'});
-                var a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'live-tags.json';
-                a.click();
-                URL.revokeObjectURL(a.href);
-                showToast('Exported ' + d.total + ' tags', 'info');
-            });
-        };
-
-        // Period buttons
-        document.querySelectorAll('.live-period-btn').forEach(function(btn) {
-            btn.onclick = function() {
-                if (!_liveSessionActive) return;
-                var period = parseInt(this.getAttribute('data-period'), 10);
-                bridge.live_set_period(period);
-                document.querySelectorAll('.live-period-btn').forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-sm'); });
-                this.classList.add('btn-primary');
-                this.classList.remove('btn-sm');
-            };
-        });
-
-        // Keyboard listener
-        document.addEventListener('keydown', function liveKeyHandler(e) {
-            if (!_liveSessionActive) return;
-            var section = document.getElementById('livetagging-section');
-            if (!section || section.classList.contains('hidden')) return;
-            var key = e.key.toLowerCase();
-            if (key === ' ' || key === 'enter' || key === 'tab') return;
-            if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-            var eventType = _liveHotkeys[key];
-            if (!eventType) return;
-            e.preventDefault();
-            bridge.live_tag_event(eventType, '', 0, '', null, null).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) return;
-                // Flash button
-                var btn = document.querySelector('.live-hotkey-btn[data-type="' + eventType + '"]');
-                if (btn) { btn.classList.add('active'); setTimeout(function(){ btn.classList.remove('active'); }, 200); }
-                updateLiveStats();
-                loadLiveTags();
-            });
-        });
-
-        updateLiveStats();
-    }
-
-    function loadLiveHotkeys() {
-        bridge.live_get_hotkeys().then(function(raw) {
-            var r = JSON.parse(raw);
-            if (r.error) return;
-            _liveHotkeys = r.hotkeys || {};
-            var grid = document.getElementById('live-hotkeys-grid');
-            if (!grid) return;
-            grid.innerHTML = '';
-            Object.keys(_liveHotkeys).forEach(function(key) {
-                var label = _liveHotkeys[key].replace(/_/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
-                var btn = document.createElement('div');
-                btn.className = 'live-hotkey-btn';
-                btn.setAttribute('data-type', _liveHotkeys[key]);
-                btn.innerHTML = '<span class="hk-key">' + key + '</span><span class="hk-label">' + label + '</span>';
-                btn.onclick = function() {
-                    if (!_liveSessionActive) { showToast('Start a session first', 'warning'); return; }
-                    bridge.live_tag_event(_liveHotkeys[key], '', 0, '', null, null).then(function(raw2) {
-                        var r2 = JSON.parse(raw2);
-                        if (r2.error) { showToast(r2.error, 'error'); return; }
-                        btn.classList.add('active');
-                        setTimeout(function(){ btn.classList.remove('active'); }, 200);
-                        updateLiveStats();
-                        loadLiveTags();
-                    });
-                };
-                grid.appendChild(btn);
-            });
-        });
-    }
-
-    function updateLiveStats() {
-        var container = document.getElementById('live-stats-content');
-        if (!container) return;
-        bridge.live_get_stats().then(function(raw) {
-            var r = JSON.parse(raw);
-            if (r.error || !r.stats) return;
-            var s = r.stats;
-            container.innerHTML = '';
-            var items = [
-                { label: 'Tags', value: s.tags_count },
-                { label: 'Home Goals', value: s.home_goals },
-                { label: 'Away Goals', value: s.away_goals },
-                { label: 'Home Shots', value: s.home_shots },
-                { label: 'Away Shots', value: s.away_shots },
-                { label: 'Possession (Home)', value: s.home_possession_pct + '%' },
-                { label: 'Elapsed', value: formatLiveTime(s.elapsed_s) },
-            ];
-            items.forEach(function(it) {
-                var d = document.createElement('div');
-                d.style.cssText = 'display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)';
-                d.innerHTML = '<span>' + it.label + '</span><strong>' + it.value + '</strong>';
-                container.appendChild(d);
-            });
-        });
-    }
-
-    function loadLiveTags() {
-        var container = document.getElementById('live-tag-list');
-        var counter = document.getElementById('live-tag-count');
-        if (!container) return;
-        bridge.live_get_tags().then(function(raw) {
-            var r = JSON.parse(raw);
-            if (r.error || !r.tags) return;
-            if (counter) counter.textContent = r.total;
-            container.innerHTML = '';
-            if (!r.tags.length) {
-                container.innerHTML = '<p class="hint">No tags yet. Use hotkeys or click buttons.</p>';
-                return;
-            }
-            r.tags.slice().reverse().forEach(function(tag) {
-                var div = document.createElement('div');
-                div.className = 'live-tag-entry';
-                div.innerHTML = '<span class="live-tag-type">' + tag.type.replace(/_/g, ' ') + '</span>'
-                    + '<span class="live-tag-team">' + (tag.team || '') + '</span>'
-                    + '<span class="live-tag-time">' + formatLiveTime(tag.t) + '</span>'
-                    + '<span class="live-tag-notes" style="flex:1;font-size:0.75rem;color:var(--text-muted)">' + (tag.notes || '') + '</span>';
-                container.appendChild(div);
-            });
-        });
-    }
-
-    function formatLiveTime(seconds) {
-        if (!seconds && seconds !== 0) return '0:00';
-        var m = Math.floor(seconds / 60);
-        var s = Math.floor(seconds % 60);
-        return m + ':' + (s < 10 ? '0' : '') + s;
-    }
-
-    // ── Sprint 5: Scout Camera (Mobile/Tablet) ──
-    var _scoutCamInitialized = false;
-    var _scoutCamStream = null;
-    var _scoutCaptures = [];
-
-    function initScoutCamera() {
-        if (_scoutCamInitialized) return;
-        _scoutCamInitialized = true;
-
-        var video = document.getElementById('scout-camera-video');
-        var startBtn = document.getElementById('scout-cam-start-btn');
-        var stopBtn = document.getElementById('scout-cam-stop-btn');
-        var captureBtn = document.getElementById('scout-cam-capture-btn');
-        var clearBtn = document.getElementById('scout-cam-clear-btn');
-        var capturesDiv = document.getElementById('scout-camera-captures');
-
-        startBtn.onclick = function() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showToast('Camera not available on this device', 'error');
-                return;
-            }
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
-                .then(function(stream) {
-                    _scoutCamStream = stream;
-                    video.srcObject = stream;
-                    video.play();
-                    startBtn.classList.add('hidden');
-                    stopBtn.classList.remove('hidden');
-                    captureBtn.classList.remove('hidden');
-                    showToast('Camera started', 'info');
-                })
-                .catch(function(err) {
-                    showToast('Camera error: ' + err.message, 'error');
-                });
-        };
-
-        stopBtn.onclick = function() {
-            if (_scoutCamStream) {
-                _scoutCamStream.getTracks().forEach(function(t) { t.stop(); });
-                _scoutCamStream = null;
-            }
-            video.srcObject = null;
-            startBtn.classList.remove('hidden');
-            stopBtn.classList.add('hidden');
-            captureBtn.classList.add('hidden');
-        };
-
-        captureBtn.onclick = function() {
-            if (!_scoutCamStream) return;
-            var canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            _scoutCaptures.push(dataUrl);
-            renderScoutCaptures();
-            showToast('Snapshot captured', 'info');
-        };
-
-        clearBtn.onclick = function() {
-            _scoutCaptures = [];
-            renderScoutCaptures();
-        };
-
-        function renderScoutCaptures() {
-            if (_scoutCaptures.length === 0) {
-                capturesDiv.innerHTML = '<p class="hint">Captured snapshots will appear here.</p>';
-                return;
-            }
-            capturesDiv.innerHTML = '';
-            _scoutCaptures.forEach(function(url, i) {
-                var item = document.createElement('div');
-                item.className = 'scout-capture-item';
-                item.innerHTML = '<img src="' + url + '" alt="Capture ' + (i+1) + '"><div class="capture-label">#' + (i+1) + '</div>';
-                item.onclick = function() {
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'scout-capture-' + (i+1) + '.jpg';
-                    a.click();
-                };
-                capturesDiv.appendChild(item);
-            });
-        }
-    }
-
-    // ── PWA install prompt handler ──
-    var _deferredPrompt = null;
-    var _pwaInitialized = false;
-
-    function initPWA() {
-        if (_pwaInitialized) return;
-        _pwaInitialized = true;
-
-        window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            _deferredPrompt = e;
-            var banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.classList.add('visible');
-        });
-
-        window.addEventListener('appinstalled', function() {
-            _deferredPrompt = null;
-            var banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.classList.remove('visible');
-            showToast('App installed!', 'info');
-        });
-
-        // Offline/online detection
-        function updateOnlineStatus() {
-            var indicator = document.getElementById('offline-indicator');
-            if (!indicator) return;
-            if (navigator.onLine) {
-                indicator.classList.remove('visible');
-            } else {
-                indicator.classList.add('visible');
-            }
-        }
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
-        updateOnlineStatus();
-    }
-
-    // ── Install button handler ──
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.matches('#pwa-install-btn')) {
-            if (_deferredPrompt) {
-                _deferredPrompt.prompt();
-                _deferredPrompt.userChoice.then(function() {
-                    _deferredPrompt = null;
-                    var banner = document.getElementById('pwa-install-banner');
-                    if (banner) banner.classList.remove('visible');
-                });
-            }
-        }
-        if (e.target && e.target.matches('#pwa-install-close, #pwa-install-close *')) {
-            var banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.classList.remove('visible');
-        }
-    });
-
-    // ── Phase 9: Live Stream Capture ──
-    var _streamInitialized = false;
-    var _currentStreamId = null;
-
-    function initStreamCapture() {
-        if (_streamInitialized) return;
-        _streamInitialized = true;
-
-        var statusEl = document.getElementById('stream-status');
-        var markerList = document.getElementById('stream-marker-list');
-        var recordingsDiv = document.getElementById('stream-recordings');
-
-        document.getElementById('stream-detect-btn').onclick = function() {
-            var url = document.getElementById('stream-url-input').value.trim();
-            if (!url) { showToast('Enter a URL first', 'warning'); return; }
-            bridge.stream_detect_source(url).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { statusEl.textContent = 'Error: ' + r.error; return; }
-                statusEl.textContent = 'Detected: ' + r.source_type;
-                showToast('Source: ' + r.source_type, 'info');
-            });
-        };
-
-        document.getElementById('stream-start-btn').onclick = function() {
-            var url = document.getElementById('stream-url-input').value.trim();
-            if (!url) { showToast('Enter a stream URL', 'warning'); return; }
-            bridge.stream_start_capture(url, '', '').then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { statusEl.textContent = 'Error: ' + r.error; return; }
-                _currentStreamId = r.stream_id;
-                statusEl.textContent = 'Capturing: ' + r.stream_id + ' (' + r.source_type + ') -> ' + r.output;
-                document.getElementById('stream-start-btn').classList.add('hidden');
-                document.getElementById('stream-stop-btn').classList.remove('hidden');
-                showToast('Stream capture started', 'info');
-            });
-        };
-
-        document.getElementById('stream-stop-btn').onclick = function() {
-            if (!_currentStreamId) return;
-            bridge.stream_stop_capture(_currentStreamId).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                statusEl.textContent = 'Capture stopped. Chapters: ' + (r.chapters || 0);
-                document.getElementById('stream-start-btn').classList.remove('hidden');
-                document.getElementById('stream-stop-btn').classList.add('hidden');
-                _currentStreamId = null;
-                showToast('Capture stopped', 'info');
-                loadStreamRecordings();
-            });
-        };
-
-        document.getElementById('stream-add-marker-btn').onclick = function() {
-            if (!_currentStreamId) { showToast('Start a capture first', 'warning'); return; }
-            var label = document.getElementById('stream-marker-label').value.trim() || '';
-            bridge.stream_add_marker(_currentStreamId, label).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                loadStreamMarkers();
-                document.getElementById('stream-marker-label').value = '';
-            });
-        };
-
-        document.getElementById('stream-refresh-recordings-btn').onclick = function() {
-            loadStreamRecordings();
-        };
-
-        function loadStreamMarkers() {
-            if (!_currentStreamId) return;
-            bridge.stream_get_status(_currentStreamId).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) return;
-                // We re-fetch by just showing chapter count
-                if (markerList) markerList.innerHTML = 'Markers: ' + r.chapters;
-            });
-        }
-
-        function loadStreamRecordings() {
-            if (!recordingsDiv) return;
-            bridge.stream_list_recordings().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error || !r.recordings || r.recordings.length === 0) {
-                    recordingsDiv.innerHTML = '<p class="hint">No recordings yet.</p>';
-                    return;
-                }
-                recordingsDiv.innerHTML = r.recordings.slice(0, 20).map(function(f) {
-                    var size = (f.size / 1024 / 1024).toFixed(1) + ' MB';
-                    return '<div class="stream-rec-entry" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.8rem">'
-                        + '<span>' + f.name + '</span><span>' + size + '</span></div>';
-                }).join('');
-            });
-        }
-
-        loadStreamRecordings();
-    }
-
-    // ── Phase 8: Cloud Sync ──
-    var _cloudInitialized = false;
-
-    function initCloud() {
-        if (_cloudInitialized) return;
-        _cloudInitialized = true;
-
-        var statusEl = document.getElementById('cloud-connection');
-        var authResult = document.getElementById('cloud-auth-result');
-        var syncResult = document.getElementById('cloud-sync-result');
-        var inviteResult = document.getElementById('cloud-invite-result');
-
-        function updateCloudUI() {
-            bridge.cloud_is_logged_in().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) return;
-                if (r.logged_in) {
-                    document.getElementById('cloud-logged-out').classList.add('hidden');
-                    document.getElementById('cloud-logged-in').classList.remove('hidden');
-                    if (r.user) {
-                        document.getElementById('cloud-user-display').textContent = r.user.display_name || r.user.username;
-                        document.getElementById('cloud-user-email').textContent = r.user.email;
-                    }
-                    if (statusEl) statusEl.textContent = 'Online';
-                    if (statusEl) statusEl.style.background = 'var(--success)';
-                } else {
-                    document.getElementById('cloud-logged-out').classList.remove('hidden');
-                    document.getElementById('cloud-logged-in').classList.add('hidden');
-                    if (statusEl) statusEl.textContent = 'Offline';
-                    if (statusEl) statusEl.style.background = 'var(--text-muted)';
-                }
-            });
-            loadCloudTeams();
-        }
-
-        // Cloud server control
-        document.getElementById('cloud-start-server-btn').onclick = function() {
-            bridge.cloud_start_server(8741).then(function(raw) {
-                var r = JSON.parse(raw);
-                showToast(r.message || 'Server started', r.error ? 'error' : 'info');
-                checkCloudHealth();
-            });
-        };
-
-        document.getElementById('cloud-refresh-btn').onclick = function() {
-            checkCloudHealth();
-            updateCloudUI();
-        };
-
-        // Auth
-        document.getElementById('cloud-login-btn').onclick = function() {
-            var email = document.getElementById('cloud-email').value.trim();
-            var pw = document.getElementById('cloud-password').value;
-            if (!email || !pw) { showToast('Enter email and password', 'warning'); return; }
-            bridge.cloud_login(email, pw).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
-                authResult.textContent = 'Logged in as ' + (r.user?.display_name || r.user?.username);
-                updateCloudUI();
-            });
-        };
-
-        document.getElementById('cloud-register-btn').onclick = function() {
-            var email = document.getElementById('cloud-email').value.trim();
-            var pw = document.getElementById('cloud-password').value;
-            var username = email.split('@')[0];
-            if (!email || !pw || pw.length < 8) { showToast('Email + password (min 8 chars)', 'warning'); return; }
-            bridge.cloud_register(username, email, pw, username).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
-                authResult.textContent = 'Registered! Logged in as ' + (r.user?.display_name || r.user?.username);
-                updateCloudUI();
-            });
-        };
-
-        document.getElementById('cloud-logout-btn').onclick = function() {
-            bridge.cloud_logout().then(function() {
-                updateCloudUI();
-            });
-        };
-
-        // Teams
-        document.getElementById('cloud-create-team-btn').onclick = function() {
-            var name = document.getElementById('cloud-team-name').value.trim();
-            if (!name) { showToast('Enter a team name', 'warning'); return; }
-            bridge.cloud_create_team(name, '').then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { showToast(r.error, 'error'); return; }
-                showToast('Team created!', 'info');
-                loadCloudTeams();
-            });
-        };
-
-        // Invite
-        document.getElementById('cloud-invite-btn').onclick = function() {
-            var teamId = parseInt(document.getElementById('cloud-invite-team').value, 10);
-            var email = document.getElementById('cloud-invite-email').value.trim();
-            if (!teamId || !email) { showToast('Select team and enter email', 'warning'); return; }
-            bridge.cloud_invite_member(teamId, email).then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { inviteResult.textContent = 'Error: ' + r.error; return; }
-                inviteResult.textContent = 'Invite sent! Token: ' + (r.invite_token || '');
-            });
-        };
-
-        // Sync
-        document.getElementById('cloud-sync-push-btn').onclick = function() {
-            bridge.cloud_sync_push('desktop-001', '[]').then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
-                syncResult.textContent = 'Pushed: ' + (r.operations?.length || 0) + ' ops, ' + (r.conflicts?.length || 0) + ' conflicts';
-            });
-        };
-
-        document.getElementById('cloud-sync-pull-btn').onclick = function() {
-            bridge.cloud_sync_pull('desktop-001').then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
-                syncResult.textContent = 'Pulled: ' + (r.operations?.length || 0) + ' items';
-            });
-        };
-
-        function loadCloudTeams() {
-            var list = document.getElementById('cloud-team-list');
-            var select = document.getElementById('cloud-invite-team');
-            if (!list || !select) return;
-            bridge.cloud_list_teams().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (r.error || !Array.isArray(r)) {
-                    list.innerHTML = '<p class="hint">Log in to manage teams.</p>';
-                    return;
-                }
-                if (r.length === 0) {
-                    list.innerHTML = '<p class="hint">No teams yet. Create one above.</p>';
-                    select.innerHTML = '<option value="">Select team</option>';
-                    return;
-                }
-                list.innerHTML = r.map(function(t) {
-                    return '<div class="collab-user-item" style="padding:6px 8px"><span class="collab-user-name">' + t.name + '</span><span class="collab-user-role">' + (t.role || 'member') + '</span></div>';
-                }).join('');
-                select.innerHTML = '<option value="">Select team</option>' + r.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
-            });
-        }
-
-        function checkCloudHealth() {
-            bridge.cloud_check_health().then(function(raw) {
-                var r = JSON.parse(raw);
-                if (statusEl) {
-                    if (r.status === 'ok') {
-                        statusEl.textContent = 'Server Online';
-                        statusEl.style.background = 'var(--success)';
-                    } else {
-                        statusEl.textContent = 'Server Offline';
-                        statusEl.style.background = 'var(--danger)';
-                    }
-                }
-            });
-        }
-
-        checkCloudHealth();
-    }
-
-    // ── Phase 13 — Opponent Database + Scouting Network + Transfermarkt ──
-
-    function initOpponentWorkspace() {
-        // Tab switching
-        function switchOppTab(tabId) {
-            document.querySelectorAll('#opponent-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
-            document.querySelectorAll('#opponent-section .tab-content').forEach(function(c) { c.classList.add('hidden'); });
-            var tab = document.querySelector('#opponent-tabs .tab[data-tab="' + tabId + '"]');
-            if (tab) tab.classList.add('active');
-            var content = document.getElementById(tabId);
-            if (content) content.classList.remove('hidden');
-        }
-
-        document.querySelectorAll('#opponent-tabs .tab').forEach(function(tab) {
-            tab.addEventListener('click', function() { switchOppTab(this.dataset.tab); });
-        });
-
-        // === Opponent Profiles ===
-        function loadOpponents() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.opponent_list(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (!data.success) return;
-                    var list = document.getElementById('opp-list');
-                    list.innerHTML = '';
-                    (data.profiles || []).forEach(function(p) {
-                        var card = document.createElement('div');
-                        card.className = 'pro-card opp-card';
-                        card.style.cursor = 'pointer';
-                        card.innerHTML = '<div style="font-weight:700">' + escapeHtml(p.team_name) + '</div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted)">' + escapeHtml(p.league || 'N/A') +
-                            ' | ' + escapeHtml(p.formation) + ' | Pressing: ' + escapeHtml(p.pressing_style) +
-                            ' | ' + p.matches + ' matches</div>';
-                        card.addEventListener('click', function() { loadOpponentDetail(p.id); });
-                        list.appendChild(card);
-                    });
-                    if (data.profiles.length === 0) {
-                        list.innerHTML = '<p class="hint">No opponents yet. Create your first opponent profile.</p>';
-                    }
-                } catch(e) {}
-            });
-        }
-
-        function loadOpponentDetail(profileId) {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.opponent_get(profileId, function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (!data.success) return;
-                    var p = data.profile;
-                    document.getElementById('opp-detail').classList.remove('hidden');
-                    document.getElementById('opp-detail-name').textContent = p.team_name;
-                    document.getElementById('opp-detail-tactical').innerHTML =
-                        '<p><strong>Formations:</strong> ' + escapeHtml((p.formation_tendencies || []).join(', ') || 'N/A') + '</p>' +
-                        '<p><strong>Pressing:</strong> ' + escapeHtml(p.pressing_style || 'N/A') + '</p>' +
-                        '<p><strong>Attack:</strong> ' + escapeHtml((p.attacking_patterns || []).join(', ') || 'N/A') + '</p>' +
-                        '<p><strong>Defensive gaps:</strong> ' + escapeHtml((p.defensive_vulnerabilities || []).join(', ') || 'N/A') + '</p>' +
-                        '<p><strong>Set pieces:</strong> ' + escapeHtml((p.set_piece_routines || []).join(', ') || 'N/A') + '</p>';
-                    var mu = document.getElementById('opp-matchups');
-                    mu.innerHTML = '';
-                    (data.matchups || []).forEach(function(m) {
-                        mu.innerHTML += '<div style="font-size:0.75rem;padding:4px 0;border-bottom:1px solid var(--border)">' +
-                            escapeHtml(m.date) + ' — ' + escapeHtml(m.score) + ' (xG: ' + m.our_xg + '-' + m.their_xg + ')' +
-                            '</div>';
-                    });
-                    if (!data.matchups || data.matchups.length === 0) {
-                        mu.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted)">No matchups recorded yet.</p>';
-                    }
-                    document.getElementById('opp-generate-report-btn').onclick = function() {
-                        bridge.opponent_scouting_report(profileId, function(r2) {
-                            try { var d2 = JSON.parse(r2); document.getElementById('opp-scouting-report').textContent = d2.report || 'Error'; } catch(e) {}
-                        });
-                    };
-                    document.getElementById('opp-delete-btn').onclick = function() {
-                        if (!confirm('Delete opponent profile?')) return;
-                        bridge.opponent_delete(profileId, function() {
-                            document.getElementById('opp-detail').classList.add('hidden');
-                            loadOpponents();
-                            showToast('Deleted', 'info');
-                        });
-                    };
-                } catch(e) {}
-            });
-        }
-
-        document.getElementById('opp-refresh-btn').onclick = loadOpponents;
-        document.getElementById('opp-create-btn').onclick = function() {
-            var name = prompt('Opponent team name:');
-            if (!name) return;
-            var league = prompt('League (optional):') || '';
-            var country = prompt('Country (optional):') || '';
-            bridge.opponent_create(name, league, country, function() {
-                loadOpponents();
-                showToast('Opponent created: ' + name, 'success');
-            });
-        };
-
-        // === Scouting Network ===
-        function searchScoutNetwork() {
-            var query = document.getElementById('scout-net-search').value;
-            var position = document.getElementById('scout-net-position').value;
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.scout_network_search(query, position, '0', '99', '', '0', function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (!data.success) return;
-                    var container = document.getElementById('scout-net-results');
-                    container.innerHTML = '';
-                    (data.players || []).forEach(function(p) {
-                        var card = document.createElement('div');
-                        card.className = 'pro-card';
-                        card.style.margin = '4px 0';
-                        card.innerHTML = '<div style="display:flex;justify-content:space-between">' +
-                            '<div><strong>' + escapeHtml(p.name) + '</strong> — ' + escapeHtml(p.position || 'N/A') +
-                            ' | ' + escapeHtml(p.club || 'N/A') + ' | Age: ' + p.age + '</div>' +
-                            '<div><span class="badge" style="background:var(--primary)">' + p.rating + '/10</span></div></div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted)">' + escapeHtml(p.league || '') +
-                            (p.estimated_value ? ' | €' + (p.estimated_value/1e6).toFixed(1) + 'M' : '') +
-                            (p.strengths && p.strengths.length ? ' | Strengths: ' + escapeHtml(p.strengths.join(', ')) : '') + '</div>';
-                        container.appendChild(card);
-                    });
-                    if (!data.players || data.players.length === 0) {
-                        container.innerHTML = '<p class="hint">No players found. Add a player or broaden your search.</p>';
-                    }
-                } catch(e) {}
-            });
-        }
-
-        document.getElementById('scout-net-search-btn').onclick = searchScoutNetwork;
-        document.getElementById('scout-net-add-btn').onclick = function() {
-            var name = prompt('Player name:');
-            if (!name) return;
-            var position = prompt('Position:') || '';
-            var club = prompt('Club:') || '';
-            var league = prompt('League:') || '';
-            var rating = prompt('Rating (0-10):') || '5';
-            bridge.scout_network_add(name, position, club, league, rating, '[]', '[]', '', '', '[]', function() {
-                showToast('Player added: ' + name, 'success');
-                searchScoutNetwork();
-            });
-        };
-
-        if (typeof bridge !== 'undefined' && bridge) {
-            bridge.scout_network_stats(function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.success && data.stats) {
-                        document.getElementById('scout-net-stats').textContent =
-                            data.stats.total + ' players, avg rating: ' + data.stats.avg_rating;
-                    }
-                } catch(e) {}
-            });
-        }
-
-        // === Transfermarkt ===
-        document.getElementById('tm-search-btn').onclick = function() {
-            var name = document.getElementById('tm-search-input').value.trim();
-            if (!name) { showToast('Enter a player name.', 'warning'); return; }
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.transfermarkt_search(name, function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (!data.success) return;
-                    var container = document.getElementById('tm-results');
-                    container.innerHTML = '';
-                    (data.results || []).forEach(function(p) {
-                        var card = document.createElement('div');
-                        card.className = 'pro-card';
-                        card.style.cursor = 'pointer';
-                        card.style.margin = '4px 0';
-                        card.innerHTML = '<div style="display:flex;justify-content:space-between">' +
-                            '<div><strong>' + escapeHtml(p.name) + '</strong> — ' + escapeHtml(p.position || 'N/A') +
-                            ' | ' + escapeHtml(p.club || 'N/A') + '</div>' +
-                            '<div>€' + (p.market_value/1e6).toFixed(1) + 'M</div></div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted)">' + escapeHtml(p.league || '') + ' | Age: ' + p.age + ' | ' + escapeHtml(p.nationality || '') + '</div>';
-                        card.addEventListener('click', function() {
-                            bridge.transfermarkt_get(String(p.id), function(r2) {
-                                try {
-                                    var d2 = JSON.parse(r2);
-                                    if (!d2.success) return;
-                                    var det = d2.details;
-                                    document.getElementById('tm-detail').classList.remove('hidden');
-                                    document.getElementById('tm-player-name').textContent = det.name;
-                                    var html = '<p><strong>Position:</strong> ' + escapeHtml(det.position) + '</p>' +
-                                        '<p><strong>Club:</strong> ' + escapeHtml(det.club) + '</p>' +
-                                        '<p><strong>League:</strong> ' + escapeHtml(det.league) + '</p>' +
-                                        '<p><strong>Market Value:</strong> €' + (det.market_value/1e6).toFixed(1) + 'M</p>' +
-                                        '<p><strong>Age:</strong> ' + det.age + '</p>' +
-                                        '<p><strong>Height:</strong> ' + (det.height_cm || 'N/A') + ' cm</p>' +
-                                        '<p><strong>Foot:</strong> ' + escapeHtml(det.foot || 'N/A') + '</p>' +
-                                        '<p><strong>Contract:</strong> ' + escapeHtml(det.contract_until || 'N/A') + '</p>';
-                                    if (det.stats) {
-                                        html += '<h4>Stats</h4><p>Apps: ' + det.stats.appearances + ' | Goals: ' + det.stats.goals + ' | Assists: ' + det.stats.assists + '</p>';
-                                    }
-                                    document.getElementById('tm-player-details').innerHTML = html;
-                                } catch(e) {}
-                            });
-                        });
-                        container.appendChild(card);
-                    });
-                    if (!data.results || data.results.length === 0) {
-                        container.innerHTML = '<p class="hint">No results found.</p>';
-                    }
-                } catch(e) {}
-            });
-        };
-
-        loadOpponents();
-    }
-
-    // ── Phase 15 — Community Marketplace ──
-
-    function initMarketplace() {
-        var currentType = 'drill';
-
-        function switchMpTab(tabId) {
-            currentType = tabId.replace('mp-', '');
-            document.querySelectorAll('#marketplace-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
-            var tab = document.querySelector('#marketplace-tabs .tab[data-mp-tab="' + tabId + '"]');
-            if (tab) tab.classList.add('active');
-            loadCategories(currentType);
-            loadItems();
-        }
-
-        document.querySelectorAll('#marketplace-tabs .tab').forEach(function(tab) {
-            tab.addEventListener('click', function() { switchMpTab(this.dataset.mpTab); });
-        });
-
-        function loadCategories(itemType) {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.marketplace_categories(itemType, function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (!data.success) return;
-                    var sel = document.getElementById('mp-category-select');
-                    sel.innerHTML = '<option value="">All categories</option>';
-                    (data.categories || []).forEach(function(c) {
-                        sel.innerHTML += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>';
-                    });
-                } catch(e) {}
-            });
-        }
-
-        function loadItems() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            var query = document.getElementById('mp-search-input').value;
-            var category = document.getElementById('mp-category-select').value;
-            bridge.marketplace_list(currentType, category, query, '', function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (!data.success) return;
-                    var grid = document.getElementById('mp-items-grid');
-                    grid.innerHTML = '';
-                    (data.items || []).forEach(function(item) {
-                        var card = document.createElement('div');
-                        card.className = 'pro-card';
-                        card.style.cursor = 'pointer';
-                        var icon = item.item_type === 'drill' ? '🏃' : item.item_type === 'template' ? '📐' : '🔌';
-                        card.innerHTML = '<div style="font-weight:700">' + icon + ' ' + escapeHtml(item.name) + '</div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted);margin:2px 0">' +
-                            escapeHtml(item.description) + '</div>' +
-                            '<div style="display:flex;gap:8px;font-size:0.7rem;color:var(--text-muted)">' +
-                            '<span>⭐ ' + item.rating + '</span>' +
-                            '<span>⬇ ' + item.download_count + '</span>' +
-                            (item.category ? '<span>📂 ' + escapeHtml(item.category) + '</span>' : '') +
-                            '</div>';
-                        card.addEventListener('click', function() { showItemDetail(item.id); });
-                        grid.appendChild(card);
-                    });
-                    if (!data.items || data.items.length === 0) {
-                        grid.innerHTML = '<p class="hint">No items found. Be the first to submit!</p>';
-                    }
-                } catch(e) {}
-            });
-        }
-
-        function showItemDetail(itemId) {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.marketplace_get(itemId, function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (!data.success) return;
-                    var item = data.item;
-                    document.getElementById('mp-detail-modal').classList.remove('hidden');
-                    document.getElementById('mp-detail-modal').style.display = 'flex';
-                    document.getElementById('mp-detail-name').textContent = item.name;
-                    document.getElementById('mp-detail-type').textContent = item.item_type + ' | ' + (item.category || 'General');
-                    document.getElementById('mp-detail-body').textContent = item.description;
-                    document.getElementById('mp-detail-rating').textContent = '⭐ ' + item.rating + ' | ⬇ ' + item.download_count + ' downloads | By: ' + (item.author || 'Community');
-                    var dataEl = document.getElementById('mp-detail-data');
-                    try {
-                        var parsed = JSON.parse(item.data || '{}');
-                        dataEl.textContent = JSON.stringify(parsed, null, 2);
-                    } catch(e) {
-                        dataEl.textContent = item.data || 'No data';
-                    }
-                    var delBtn = document.getElementById('mp-detail-delete-btn');
-                    if (item.source === 'local') {
-                        delBtn.classList.remove('hidden');
-                        delBtn.onclick = function() {
-                            if (!confirm('Delete this item?')) return;
-                            bridge.marketplace_delete(itemId, function() {
-                                document.getElementById('mp-detail-modal').classList.add('hidden');
-                                document.getElementById('mp-detail-modal').style.display = '';
-                                loadItems();
-                                showToast('Deleted', 'info');
-                            });
-                        };
-                    } else {
-                        delBtn.classList.add('hidden');
-                    }
-                    document.getElementById('mp-download-btn').onclick = function() {
-                        bridge.marketplace_rate(itemId, '5.0', function() {
-                            showToast('Downloaded! Thanks for your interest.', 'success');
-                            loadItems();
-                        });
-                    };
-                } catch(e) {}
-            });
-        }
-
-        document.getElementById('mp-detail-close').onclick = function() {
-            document.getElementById('mp-detail-modal').classList.add('hidden');
-            document.getElementById('mp-detail-modal').style.display = '';
-        };
-        document.getElementById('mp-search-btn').onclick = loadItems;
-        document.getElementById('mp-search-input').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') loadItems();
-        });
-        document.getElementById('mp-category-select').onchange = loadItems;
-        document.getElementById('mp-add-btn').onclick = function() {
-            var name = prompt('Item name:');
-            if (!name) return;
-            var desc = prompt('Description:') || '';
-            var category = prompt('Category (e.g. possession, finishing, defense, formation):') || '';
-            bridge.marketplace_add(currentType, name, desc, 'Local User', category, '[]', '{}', 'local', function() {
-                loadItems();
-                showToast('Item submitted!', 'success');
-            });
-        };
-
-        // Load stats
-        if (typeof bridge !== 'undefined' && bridge) {
-            bridge.marketplace_stats(function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.success && data.stats) {
-                        document.getElementById('marketplace-stats').textContent =
-                            data.stats.total + ' items (' + data.stats.drills + ' drills, ' + data.stats.templates + ' templates, ' + data.stats.plugins + ' plugins)';
-                    }
-                } catch(e) {}
-            });
-            loadCategories('drill');
-            loadItems();
-        }
-    }
-
-    // ── Sprint 2: Physiology & Wearables ──
+    // â”€â”€ Sprint 2: Physiology & Wearables â”€â”€
     var _physInitialized = false;
     var _physWearableData = null;
     var _physWearablePath = '';
@@ -8529,7 +6061,7 @@
         (report.correlations || []).forEach(function (c) {
             html += '<div class="phys-correlation-item">' +
                 '<strong>' + escapeHtml(c.event_type) + '</strong> ' +
-                '(n=' + c.sample_count + ') pre: ' + c.pre_speed + ' m/s → post: ' + c.post_speed + ' m/s ' +
+                '(n=' + c.sample_count + ') pre: ' + c.pre_speed + ' m/s â†’ post: ' + c.post_speed + ' m/s ' +
                 '<span class="' + (c.speed_delta_pct < 0 ? 'text-danger' : 'text-success') + '">' +
                 (c.speed_delta_pct > 0 ? '+' : '') + c.speed_delta_pct.toFixed(1) + '%</span>' +
                 (c.hr_delta_pct !== null ? ' HR: ' + (c.hr_delta_pct > 0 ? '+' : '') + c.hr_delta_pct.toFixed(1) + '%' : '') +
@@ -8608,7 +6140,7 @@
             _telestrateState.active = !_telestrateState.active;
             canvas.classList.toggle('active', _telestrateState.active);
             toolbar.classList.toggle('hidden', !_telestrateState.active);
-            toggleBtn.textContent = _telestrateState.active ? '✏️ Drawing ON' : '✏️ Draw';
+            toggleBtn.textContent = _telestrateState.active ? 'âœï¸ Drawing ON' : 'âœï¸ Draw';
             if (_telestrateState.active) {
                 resizeCanvas();
             }
@@ -8932,9 +6464,9 @@
         });
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 10 — Telestration v2 Enhancements
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // Phase 10 â€” Telestration v2 Enhancements
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     var _telV2Initialized = false;
     var _telLayers = {};
@@ -8958,10 +6490,10 @@
         var toolbar = document.getElementById('telestrate-toolbar');
         if (!toolbar) return;
         var extras = [
-            { tool: 'bezier', label: '🔄', title: 'Bezier Curve' },
-            { tool: 'spotlight', label: '🔦', title: 'Spotlight' },
-            { tool: 'magnifier', label: '🔍', title: 'Magnifying Glass' },
-            { tool: 'laser', label: '🔴', title: 'Laser Pointer (trail)' },
+            { tool: 'bezier', label: 'ðŸ”„', title: 'Bezier Curve' },
+            { tool: 'spotlight', label: 'ðŸ”¦', title: 'Spotlight' },
+            { tool: 'magnifier', label: 'ðŸ”', title: 'Magnifying Glass' },
+            { tool: 'laser', label: 'ðŸ”´', title: 'Laser Pointer (trail)' },
         ];
         var ref = toolbar.querySelector('.telestrate-color') || toolbar.lastElementChild;
         extras.forEach(function(e) {
@@ -8985,20 +6517,20 @@
             panel.id = 'tel-layer-panel';
             panel.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:6px;flex-wrap:wrap';
             panel.innerHTML = '<span style="font-size:0.78rem;font-weight:600">Layers:</span>'
-                + '<button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">➕</button>'
-                + '<button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary" title="Toggle Layer Visibility">👁️</button>'
+                + '<button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">âž•</button>'
+                + '<button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary" title="Toggle Layer Visibility">ðŸ‘ï¸</button>'
                 + '<span id="tel-layer-indicator" style="font-size:0.75rem;color:var(--text-muted)">Layer 1</span>'
                 + '<input type="range" id="tel-layer-opacity" min="0" max="100" value="100" style="width:60px" title="Opacity">'
                 + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Anim:</span>'
-                + '<button id="tel-anim-prev" class="btn btn-sm btn-secondary" title="Previous Frame">◀</button>'
+                + '<button id="tel-anim-prev" class="btn btn-sm btn-secondary" title="Previous Frame">â—€</button>'
                 + '<span id="tel-anim-counter" style="font-size:0.75rem;color:var(--text-muted)">0/0</span>'
-                + '<button id="tel-anim-next" class="btn btn-sm btn-secondary" title="Next Frame">▶</button>'
-                + '<button id="tel-anim-play" class="btn btn-sm btn-secondary" title="Play Animation">▶▶</button>'
-                + '<button id="tel-anim-record" class="btn btn-sm btn-secondary" title="Record Frame">⏺️</button>'
+                + '<button id="tel-anim-next" class="btn btn-sm btn-secondary" title="Next Frame">â–¶</button>'
+                + '<button id="tel-anim-play" class="btn btn-sm btn-secondary" title="Play Animation">â–¶â–¶</button>'
+                + '<button id="tel-anim-record" class="btn btn-sm btn-secondary" title="Record Frame">âºï¸</button>'
                 + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Export:</span>'
-                + '<button id="tel-export-video-btn" class="btn btn-sm btn-secondary" title="Export Annotated Video">🎬 Export</button>'
-                + '<button id="tel-save-preset-btn" class="btn btn-sm btn-secondary" title="Save Preset">💾 Save</button>'
-                + '<button id="tel-load-preset-btn" class="btn btn-sm btn-secondary" title="Load Preset">📂 Load</button>';
+                + '<button id="tel-export-video-btn" class="btn btn-sm btn-secondary" title="Export Annotated Video">ðŸŽ¬ Export</button>'
+                + '<button id="tel-save-preset-btn" class="btn btn-sm btn-secondary" title="Save Preset">ðŸ’¾ Save</button>'
+                + '<button id="tel-load-preset-btn" class="btn btn-sm btn-secondary" title="Load Preset">ðŸ“‚ Load</button>';
             container.appendChild(panel);
         }
     }
@@ -9017,7 +6549,7 @@
             if (!firstKey) return;
             bridge.tel_layer_toggle(firstKey).then(function() {
                 _telLayers[firstKey].visible = !_telLayers[firstKey].visible;
-                document.getElementById('tel-layer-indicator').textContent = (_telLayers[firstKey].visible ? '' : '👁️‍🗨️ ') + _telLayers[firstKey].name;
+                document.getElementById('tel-layer-indicator').textContent = (_telLayers[firstKey].visible ? '' : 'ðŸ‘ï¸â€ðŸ—¨ï¸ ') + _telLayers[firstKey].name;
             });
         });
         document.getElementById('tel-layer-opacity')?.addEventListener('input', function() {
@@ -9044,12 +6576,12 @@
         document.getElementById('tel-anim-play')?.addEventListener('click', function() {
             if (_telAnimPlaying) {
                 _telAnimPlaying = false;
-                this.textContent = '▶▶';
+                this.textContent = 'â–¶â–¶';
                 return;
             }
             if (_telAnimFrames.length === 0) return;
             _telAnimPlaying = true;
-            this.textContent = '⏸️';
+            this.textContent = 'â¸ï¸';
             playAnimLoop();
         });
         document.getElementById('tel-anim-record')?.addEventListener('click', function() {
@@ -9062,7 +6594,7 @@
 
     function playAnimLoop() {
         if (!_telAnimPlaying || _telAnimFrames.length === 0) {
-            document.getElementById('tel-anim-play').textContent = '▶▶';
+            document.getElementById('tel-anim-play').textContent = 'â–¶â–¶';
             return;
         }
         applyAnimFrame(_telAnimCurrent);
@@ -9129,9 +6661,9 @@
         });
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-       Wave B — Season Dashboard
-       ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       Wave B â€” Season Dashboard
+       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     function initSeasonDashboard() {
         var refreshBtn = document.getElementById('season-refresh-btn');
@@ -9237,9 +6769,9 @@
         container.innerHTML = html;
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-       Wave C — Training Planner
-       ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       Wave C â€” Training Planner
+       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     var _trainingState = {
         drills: [],
@@ -9354,7 +6886,7 @@
                 '<span class="training-drill-cat">' + escapeHtml(d.category) + '</span>' +
                 '<span class="training-drill-diff ' + d.difficulty + '">' + escapeHtml(d.difficulty) + '</span>' +
                 '<span class="training-drill-dur">' + (d.duration_min || 15) + ' min</span>' +
-                (inSession ? '<span style="color:var(--success);font-size:0.7rem">✓</span>' : '') +
+                (inSession ? '<span style="color:var(--success);font-size:0.7rem">âœ“</span>' : '') +
                 '</div>';
         });
         container.innerHTML = html;
@@ -9414,7 +6946,7 @@
                 '<span class="order">' + (idx + 1) + '.</span>' +
                 '<span class="name">' + escapeHtml(d.name || 'Drill') + '</span>' +
                 '<span class="dur">' + (d.duration_min || 15) + ' min</span>' +
-                '<span class="remove-drill" data-idx="' + idx + '">✕</span>' +
+                '<span class="remove-drill" data-idx="' + idx + '">âœ•</span>' +
                 '</div>';
         });
         html += '<div style="padding:6px 8px;font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;">Total: ' + totalMin + ' min (' + _trainingState.sessionDrills.length + ' drills)</div>';
@@ -9430,9 +6962,9 @@
         });
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-       Wave D — Presentation Mode
-       ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       Wave D â€” Presentation Mode
+       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     var _presState = {
         matchId: null,
@@ -9481,11 +7013,11 @@
             if (!_presState.isFullscreen) {
                 container.classList.add('pres-fullscreen');
                 _presState.isFullscreen = true;
-                fullscreenBtn.textContent = '✕ Exit Fullscreen';
+                fullscreenBtn.textContent = 'âœ• Exit Fullscreen';
             } else {
                 container.classList.remove('pres-fullscreen');
                 _presState.isFullscreen = false;
-                fullscreenBtn.textContent = '⛶ Fullscreen';
+                fullscreenBtn.textContent = 'â›¶ Fullscreen';
             }
             window.dispatchEvent(new Event('resize'));
         });
@@ -9643,9 +7175,9 @@
         document.getElementById('pres-next-btn').disabled = idx >= _presState.slides.length - 1;
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-       Wave E — Scout Portal
-       ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       Wave E â€” Scout Portal
+       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     var _scoutState = {
         searchResults: [],
@@ -9711,7 +7243,7 @@
                 { track_id: 1, name: 'Erling Haaland', position: 'FW', team: 'Manchester City', age: 22, matches: 28, goals: 32, assists: 5, xg: 28.5, passes: 412, tackles: 12 },
                 { track_id: 2, name: 'Kevin De Bruyne', position: 'MF', team: 'Manchester City', age: 30, matches: 25, goals: 8, assists: 16, xg: 7.2, passes: 1250, tackles: 34 },
                 { track_id: 3, name: 'Virgil van Dijk', position: 'DF', team: 'Liverpool', age: 31, matches: 30, goals: 3, assists: 2, xg: 2.8, passes: 1800, tackles: 45 },
-                { track_id: 4, name: 'Kylian Mbappé', position: 'FW', team: 'PSG', age: 24, matches: 26, goals: 28, assists: 8, xg: 24.1, passes: 380, tackles: 8 },
+                { track_id: 4, name: 'Kylian MbappÃ©', position: 'FW', team: 'PSG', age: 24, matches: 26, goals: 28, assists: 8, xg: 24.1, passes: 380, tackles: 8 },
                 { track_id: 5, name: 'Jude Bellingham', position: 'MF', team: 'Real Madrid', age: 20, matches: 27, goals: 15, assists: 7, xg: 12.8, passes: 890, tackles: 42 },
             ];
             var q = query.toLowerCase();
@@ -9759,8 +7291,8 @@
                 '<div class="stat"><div class="stat-val">' + (p.matches || '--') + '</div><div class="stat-label">M</div></div>' +
                 '</div>' +
                 '<div class="scout-icons">' +
-                '<button class="scout-icon ' + (onShortlist ? 'added' : '') + '" data-action="shortlist" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '" data-pos="' + escapeHtml(p.position || '') + '">' + (onShortlist ? '★' : '☆') + '</button>' +
-                '<button class="scout-icon" data-action="compare" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '">⇄</button>' +
+                '<button class="scout-icon ' + (onShortlist ? 'added' : '') + '" data-action="shortlist" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '" data-pos="' + escapeHtml(p.position || '') + '">' + (onShortlist ? 'â˜…' : 'â˜†') + '</button>' +
+                '<button class="scout-icon" data-action="compare" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '">â‡„</button>' +
                 '</div></div>';
         });
         container.innerHTML = html;
@@ -9791,12 +7323,12 @@
         var idx = _scoutState.shortlist.findIndex(function(s) { return s.track_id === trackId; });
         if (idx >= 0) {
             _scoutState.shortlist.splice(idx, 1);
-            btn.textContent = '☆';
+            btn.textContent = 'â˜†';
             btn.classList.remove('added');
             showToast('Removed from shortlist.', 'info');
         } else {
             _scoutState.shortlist.push({ track_id: trackId, name: name, position: position });
-            btn.textContent = '★';
+            btn.textContent = 'â˜…';
             btn.classList.add('added');
             showToast('Added to shortlist!', 'success');
         }
@@ -9824,7 +7356,7 @@
                 '<span>' + escapeHtml(p.position || '--') + '</span>' +
                 '</div></div>' +
                 '<div class="scout-icons">' +
-                '<button class="scout-icon" data-action="remove-shortlist" data-track-id="' + p.track_id + '">✕</button>' +
+                '<button class="scout-icon" data-action="remove-shortlist" data-track-id="' + p.track_id + '">âœ•</button>' +
                 '</div></div>';
         });
         container.innerHTML = html;
@@ -10018,7 +7550,7 @@
         setupPlayerComparison();
         setTimeout(connectProgressSignals, 500);
 
-        // ── Item 7: Init Timeline Scrubber ──
+        // â”€â”€ Item 7: Init Timeline Scrubber â”€â”€
         initTimelineScrubber();
         // Re-init scrubber when timeline events load
         var _origLoadTimeline = loadEventTimeline;
@@ -10027,16 +7559,16 @@
             setTimeout(initTimelineScrubber, 300);
         };
 
-        // ── Item 10: Init Density Toggle ──
+        // â”€â”€ Item 10: Init Density Toggle â”€â”€
         initDensityToggle();
 
-        // ── Item 12: Init Color Settings ──
+        // â”€â”€ Item 12: Init Color Settings â”€â”€
         initColorSettings();
 
-        // ── Item 13: Init Video Shortcuts ──
+        // â”€â”€ Item 13: Init Video Shortcuts â”€â”€
         initVideoShortcuts();
 
-        // ── Item 14: Save/restore filter state on route change ──
+        // â”€â”€ Item 14: Save/restore filter state on route change â”€â”€
         restoreFilterState();
 
         // Initialize SPA Router
@@ -10153,46 +7685,46 @@
             });
         });
 
-        // ── View toggle wiring ──
+        // â”€â”€ View toggle wiring â”€â”€
         setupViewToggles();
 
-        // ── Batch action wiring ──
+        // â”€â”€ Batch action wiring â”€â”€
         setupBatchActions();
 
-        // ── Coding Workspace Init ──
+        // â”€â”€ Coding Workspace Init â”€â”€
         initCodingWorkspace();
 
-        // ── Event Review Init ──
+        // â”€â”€ Event Review Init â”€â”€
         initReviewWorkspace();
 
-        // ── Phase 2.3-4 & 3-4 Init ──
+        // â”€â”€ Phase 2.3-4 & 3-4 Init â”€â”€
         initTacticsWorkspace();
         initAiWorkspace();
         initSquadWorkspace();
 
-        // ── Wave A — Telestration ──
+        // â”€â”€ Wave A â€” Telestration â”€â”€
         initTelestration();
         initTelestrationV2();
 
-        // ── Wave B — Season Dashboard ──
+        // â”€â”€ Wave B â€” Season Dashboard â”€â”€
         initSeasonDashboard();
 
-        // ── Wave C — Training Planner ──
+        // â”€â”€ Wave C â€” Training Planner â”€â”€
         initTrainingPlanner();
 
-        // ── Wave D — Presentation Mode ──
+        // â”€â”€ Wave D â€” Presentation Mode â”€â”€
         initPresentationMode();
 
-        // ── Wave E — Scout Portal ──
+        // â”€â”€ Wave E â€” Scout Portal â”€â”€
         initScoutPortal();
 
-        // ── Phase 13 — Opponent Database + Scouting Network ──
+        // â”€â”€ Phase 13 â€” Opponent Database + Scouting Network â”€â”€
         initOpponentWorkspace();
 
-        // ── Phase 15 — Community Marketplace ──
+        // â”€â”€ Phase 15 â€” Community Marketplace â”€â”€
         initMarketplace();
 
-        // ── Help modal ──
+        // â”€â”€ Help modal â”€â”€
         document.getElementById('help-btn').onclick = function() {
             document.getElementById('help-modal').classList.remove('hidden');
             document.getElementById('help-modal').style.display = 'flex';
@@ -10208,7 +7740,7 @@
             }
         };
 
-        // ── Load sample data buttons ──
+        // â”€â”€ Load sample data buttons â”€â”€
         var sampleBtn = document.getElementById('load-sample-data-btn');
         if (sampleBtn) {
             sampleBtn.onclick = function() {
@@ -10227,7 +7759,7 @@
             };
         }
 
-        // ── First-run wizard ──
+        // â”€â”€ First-run wizard â”€â”€
         showFirstRunWizard();
     });
 })();

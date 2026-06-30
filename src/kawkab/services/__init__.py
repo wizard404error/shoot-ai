@@ -40,7 +40,10 @@ from kawkab.services.quality_scoring_service import QualityScoringService
 from kawkab.services.batch_service import BatchService, BatchJob, BatchStatus
 from kawkab.services.lightglue_homography_service import LightGlueHomographyService
 from kawkab.services.face_recognition_service import FaceRecognitionService
-from kawkab.services.norfair_tracker import NorfairTracker
+try:
+    from kawkab.services.norfair_tracker import NorfairTracker
+except ImportError:
+    NorfairTracker = None  # type: ignore
 from kawkab.services.pose_analysis_service import (
     PoseAnalysisService, PoseResult, ActivitySegment, FallEvent,
 )
