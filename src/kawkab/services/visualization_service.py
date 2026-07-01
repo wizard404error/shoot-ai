@@ -209,14 +209,10 @@ class VisualizationService:
     ) -> Path | None:
         """Generate a pass sonar (polar plot) showing pass directions and distances.
 
-        Args:
-            pass_events: List of pass events
-            player_positions: Dict mapping track_id to (x, y) position
-            title: Chart title
-            output_name: Output filename
+        Uses soccerplots for professional rendering when available,
+        falls back to matplotlib polar plots.
         """
         try:
-            from daimon_runtime import setup_plot
             import matplotlib.pyplot as plt
         except ImportError:
             logger.error("matplotlib not available")
@@ -225,7 +221,16 @@ class VisualizationService:
         if not pass_events or not player_positions:
             return None
 
+        # Try soccerplots for enhanced rendering
+        _HAS_SOCCERPLOTS = False
         try:
+            from soccerplots.radar_chart import Radar
+            _HAS_SOCCERPLOTS = True
+        except ImportError:
+            pass
+
+        try:
+            from daimon_runtime import setup_plot
             setup_plot({"runDir": str(self._exports_dir)})
 
             # Compute pass angles and distances by player
@@ -251,63 +256,13 @@ class VisualizationService:
             if not player_passes:
                 return None
 
-            n_players = len(player_passes)
-            cols = min(4, n_players)
-            rows = math.ceil(n_players / cols)
-
-            fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows),
-                                     subplot_kw=dict(polar=True))
-            if n_players == 1:
-                axes = [axes]
-            else:
-                axes = axes.flatten() if rows > 1 else axes
-
-            for idx, (player_id, passes) in enumerate(player_passes.items()):
-                if idx >= len(axes):
-                    break
-                ax = axes[idx] if hasattr(axes, '__getitem__') else axes
-
-                # Bin passes by angle
-                angles = [p[0] for p in passes]
-                distances = [p[1] for p in passes]
-
-                n_bins = 8
-                bin_width = 2 * math.pi / n_bins
-                bin_counts = [0] * n_bins
-                bin_distances = [0.0] * n_bins
-
-                for angle, dist in zip(angles, distances):
-                    bin_idx = int((angle + math.pi) / bin_width) % n_bins
-                    bin_counts[bin_idx] += 1
-                    bin_distances[bin_idx] += dist
-
-                # Average distance per bin
-                avg_distances = [bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0
-                                  for i in range(n_bins)]
-                max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
-                normalized = [d / max_dist for d in avg_distances]
-
-                theta = [i * bin_width - math.pi for i in range(n_bins)]
-                theta += [theta[0]]  # close the polygon
-                normalized += [normalized[0]]
-
-                ax.fill(theta, normalized, alpha=0.3, color="blue")
-                ax.plot(theta, normalized, color="blue", linewidth=2)
-                ax.set_title(f"Player {player_id}", fontsize=10)
-                ax.set_ylim(0, 1.2)
-                ax.set_yticks([])
-
-            # Hide unused subplots
-            for idx in range(len(player_passes), len(axes) if hasattr(axes, '__len__') else 1):
-                if hasattr(axes, '__getitem__'):
-                    axes[idx].axis("off")
-
-            fig.suptitle(title, fontsize=14)
-            output_path = self._exports_dir / output_name
-            plt.savefig(output_path, dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            logger.info(f"Generated pass sonar: {output_path}")
-            return output_path
+            if _HAS_SOCCERPLOTS and len(player_passes) <= 6:
+                return self._render_pass_sonar_soccerplots(
+                    player_passes, title, output_name
+                )
+            return self._render_pass_sonar_matplotlib(
+                player_passes, title, output_name
+            )
         except Exception as e:
             logger.error(f"Pass sonar generation failed: {e}")
             return None
@@ -377,3 +332,126 @@ class VisualizationService:
         except Exception as e:
             logger.error(f"Formation diagram generation failed: {e}")
             return None
+
+    # ------------------------------------------------------------------
+    # Pass sonar rendering backends
+    # ------------------------------------------------------------------
+
+    def _render_pass_sonar_matplotlib(
+        self,
+        player_passes: dict[int, list[tuple[float, float]]],
+        title: str,
+        output_name: str,
+    ) -> Path | None:
+        """Render pass sonar using matplotlib polar plots."""
+        import matplotlib.pyplot as plt
+
+        n_players = len(player_passes)
+        cols = min(4, n_players)
+        rows = math.ceil(n_players / cols)
+
+        fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows),
+                                 subplot_kw=dict(polar=True))
+        if n_players == 1:
+            axes = [axes]
+        else:
+            axes = axes.flatten() if rows > 1 else axes
+
+        for idx, (player_id, passes) in enumerate(player_passes.items()):
+            if idx >= len(axes):
+                break
+            ax = axes[idx] if hasattr(axes, '__getitem__') else axes
+            angles = [p[0] for p in passes]
+            distances = [p[1] for p in passes]
+            n_bins = 8
+            bin_width = 2 * math.pi / n_bins
+            bin_counts = [0] * n_bins
+            bin_distances = [0.0] * n_bins
+            for angle, dist in zip(angles, distances):
+                bin_idx = int((angle + math.pi) / bin_width) % n_bins
+                bin_counts[bin_idx] += 1
+                bin_distances[bin_idx] += dist
+            avg_distances = [bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0
+                              for i in range(n_bins)]
+            max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
+            normalized = [d / max_dist for d in avg_distances]
+            theta = [i * bin_width - math.pi for i in range(n_bins)]
+            theta += [theta[0]]
+            normalized += [normalized[0]]
+            ax.fill(theta, normalized, alpha=0.3, color="blue")
+            ax.plot(theta, normalized, color="blue", linewidth=2)
+            ax.set_title(f"Player {player_id}", fontsize=10)
+            ax.set_ylim(0, 1.2)
+            ax.set_yticks([])
+
+        for idx in range(len(player_passes), len(axes) if hasattr(axes, '__len__') else 1):
+            if hasattr(axes, '__getitem__'):
+                axes[idx].axis("off")
+
+        fig.suptitle(title, fontsize=14)
+        output_path = self._exports_dir / output_name
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        logger.info(f"Generated pass sonar (matplotlib): {output_path}")
+        return output_path
+
+    def _render_pass_sonar_soccerplots(
+        self,
+        player_passes: dict[int, list[tuple[float, float]]],
+        title: str,
+        output_name: str,
+    ) -> Path | None:
+        """Render pass sonar using soccerplots for professional-quality output."""
+        from soccerplots.radar_chart import Radar
+        import matplotlib.pyplot as plt
+
+        n_players = len(player_passes)
+        cols = min(3, n_players)
+        rows = math.ceil(n_players / cols)
+
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
+        if n_players == 1:
+            axes = [axes]
+        else:
+            axes = axes.flatten() if rows > 1 else axes
+
+        for idx, (player_id, passes) in enumerate(player_passes.items()):
+            if idx >= len(axes):
+                break
+            ax = axes[idx]
+            angles = [p[0] for p in passes]
+            distances = [p[1] for p in passes]
+            n_bins = 8
+            bin_width = 2 * math.pi / n_bins
+            bin_counts = [0] * n_bins
+            bin_distances = [0.0] * n_bins
+            for angle, dist in zip(angles, distances):
+                bin_idx = int((angle + math.pi) / bin_width) % n_bins
+                bin_counts[bin_idx] += 1
+                bin_distances[bin_idx] += dist
+            avg_distances = [bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0
+                              for i in range(n_bins)]
+            max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
+            normalized = [d / max_dist for d in avg_distances]
+            theta = [i * bin_width - math.pi for i in range(n_bins)]
+            theta_deg = [math.degrees(t) for t in theta]
+            params = [f"{i*45}°" for i in range(n_bins)]
+            ranges = [(0, 1.2)] * n_bins
+            values = normalized
+
+            radar = Radar()
+            fig_radar, ax_radar = radar.plot(
+                params=params, ranges=ranges, values=[values],
+                title={"title": f"Player {player_id}", "color": "#1a1a1a"},
+                alphas=[0.3],  # type: ignore
+            )
+
+        for idx in range(len(player_passes), len(axes)):
+            axes[idx].axis("off")
+
+        fig.suptitle(title, fontsize=14, y=1.02)
+        output_path = self._exports_dir / output_name
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        logger.info(f"Generated pass sonar (soccerplots): {output_path}")
+        return output_path

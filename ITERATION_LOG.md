@@ -266,6 +266,16 @@ A cycle is small enough to complete in 1–4 hours of focused work, but big enou
 - **What I did:** updated `CVService._init_boxmot_tracker()` to call `self._model_manager.ensure_model("osnet_sportsmot")` before initializing the BoT-SORT tracker, ensuring OSNet ReID weights are downloaded on first run.
 - **Files touched:** `src/kawkab/services/cv_service.py`, `pyproject.toml` (version bump)
 
+### Cycle P — Phase 6: boxmot v19+ upgrade + jersey OCR enhancement + xT training + ground truth + soccerplots (2026-07-01)
+- **Target:** Phase 6 differentiation layer — 6 improvements across tracking, jersey OCR, analytics, validation, and viz
+- **What I did:**
+  - **boxmot v19+ (C++/fp16):** Updated `cv_service.py` (`BoTSORT`→`BotSort`, `model_weights`/`fp16`→`ReID`+`reid_model`/`half`), `norfair_tracker.py` (`ReidAutoBackend`→`ReID`), pyproject.toml (`>=3.0.0`→`>=19.0.0,<22`). Enables C++ native tracker backends + fp16 half-precision ReID.
+  - **Jersey OCR enhancement:** Added CLAHE preprocessing + bilateral filter + adaptive upscale to jersey_service.py before EasyOCR. Created `scripts/train_jersey_cnn.py` for SoccerNet sn-jersey CNN training.
+  - **xT model training:** Created `tools/train_xt_model.py` — trains 12x8 xT grid on StatsBomb open data, exports `.npy` weights.
+  - **Ground truth datasets:** Created `scripts/download_ground_truth.py` — downloads SkillCorner, Metrica, StatsBomb data. Added `load_skillcorner_events()` and `load_metrica_events()` to ValidationService.
+  - **soccerplots:** Added dependency. Enhanced VisualizationService with soccerplots-based pass sonar rendering (falls back to matplotlib when unavailable).
+- **Files touched:** `src/kawkab/services/cv_service.py`, `src/kawkab/services/norfair_tracker.py`, `src/kawkab/services/jersey_service.py`, `src/kawkab/services/visualization_service.py`, `src/kawkab/services/validation_service.py`, `pyproject.toml`, `scripts/train_jersey_cnn.py`, `scripts/download_ground_truth.py`, `tools/train_xt_model.py`, `tests/unit/test_jersey_service.py`
+
 ---
 
 ## Operating Principles (the "professional" rules)

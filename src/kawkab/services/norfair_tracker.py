@@ -48,22 +48,22 @@ _soccernet_extractor = None  # lazy-loaded SoccerNet ReID extractor
 
 
 def _get_osnet_extractor():
-    """Lazy-load OSNet ReID feature extractor from boxmot."""
+    """Lazy-load OSNet ReID feature extractor from boxmot (v19+ API)."""
     global _osnet_extractor
     if _osnet_extractor is not None:
         return _osnet_extractor
     try:
-        from boxmot.appearance.reid_auto_backend import ReidAutoBackend
+        from boxmot import ReID
         from kawkab.core.paths import get_paths
 
         model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
         if model_path.exists():
-            rab = ReidAutoBackend(
+            rab = ReID(
                 weights=str(model_path),
                 device="cuda:0",
                 half=True,
             )
-            _osnet_extractor = rab.get_model()
+            _osnet_extractor = rab.model
             logger.info("OSNet SportsMOT ReID extractor loaded")
         else:
             logger.info("osnet_sportsmot.pt not cached, falling back to HSV")

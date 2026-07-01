@@ -16,6 +16,12 @@ import json
 from kawkab.core.logging import get_logger
 from kawkab.core.coordinate_validator import CoordinateValidator
 
+try:
+    import pandas as pd
+    _HAS_PANDAS = True
+except ImportError:
+    _HAS_PANDAS = False
+
 logger = get_logger(__name__)
 
 
@@ -400,3 +406,111 @@ class ValidationService:
             results=results,
             summary=summary,
         )
+
+    # ------------------------------------------------------------------
+    # SkillCorner open-data ground truth loader
+    # ------------------------------------------------------------------
+
+    def load_skillcorner_events(self, data_dir: Path | str) -> list[EventGroundTruth]:
+        """Load SkillCorner open-data tracking events as ground truth.
+
+        SkillCorner format: CSV with columns [period, frame, time, player, x, y, ...]
+        Returns simplified ground truth events extracted from tracking positions.
+        """
+        data_dir = Path(data_dir)
+        events: list[EventGroundTruth] = []
+        csv_files = list(data_dir.glob("**/*.csv"))
+        if not csv_files:
+            logger.warning(f"No CSV files found in {data_dir}")
+            return events
+
+        for csv_path in csv_files[:3]:  # limit to 3 files for performance
+            try:
+                lines = csv_path.read_text(encoding="utf-8").strip().split("\n")
+                if len(lines) < 2:
+                    continue
+                header = [h.strip().lower() for h in lines[0].split(",")]
+                for line in lines[1:]:
+                    parts = line.split(",")
+                    if len(parts) < 3:
+                        continue
+                    events.append(EventGroundTruth(
+                        event_type="tracking_sample",
+                        timestamp=float(parts[1]) if len(parts) > 1 else 0.0,
+                        team=parts[3] if len(parts) > 3 else "unknown",
+                        player_id=int(parts[4]) if len(parts) > 4 and parts[4].strip().isdigit() else None,
+                    ))
+            except Exception as e:
+                logger.debug(f"Error reading {csv_path}: {e}")
+                continue
+
+        logger.info(f"Loaded {len(events)} SkillCorner tracking samples")
+        return events
+
+    # ------------------------------------------------------------------
+    # Metrica Sports sample-data ground truth loader
+    # ------------------------------------------------------------------
+
+    def load_metrica_events(self, data_dir: Path | str, match_id: str = "Sample_Game_1") -> list[EventGroundTruth]:
+        """Load Metrica Sports event data as ground truth.
+
+        Metrica format: JSON with event types (pass, shot, tackle, etc.)
+        """
+        data_dir = Path(data_dir)
+        metrica_dir = data_dir / match_id
+        events_path = metrica_dir / f"{match_id}_Events.json"
+
+        if not events_path.exists():
+            logger.warning(f"Metrica events not found at {events_path}")
+            return self._load_metrica_legacy(data_dir, match_id)
+
+        try:
+            raw = json.loads(events_path.read_text(encoding="utf-8"))
+            events = []
+            for item in raw:
+                ev_type = item.get("EventType", "unknown").lower()
+                ts = item.get("StartTime", {}).get("s", 0.0)
+                team = item.get("Team", "unknown")
+                player = item.get("From", {})
+                player_id = player.get("id") if isinstance(player, dict) else None
+                x = item.get("StartX")
+                y = item.get("StartY")
+                events.append(EventGroundTruth(
+                    event_type=ev_type,
+                    timestamp=float(ts),
+                    team=team,
+                    player_id=int(player_id) if player_id else None,
+                    position=(float(x), float(y)) if x is not None else None,
+                ))
+            logger.info(f"Loaded {len(events)} Metrica events from {events_path}")
+            return events
+        except Exception as e:
+            logger.warning(f"Failed to load Metrica events: {e}")
+            return self._load_metrica_legacy(data_dir, match_id)
+
+    @staticmethod
+    def _load_metrica_legacy(data_dir: Path, match_id: str) -> list[EventGroundTruth]:
+        """Fallback: load Metrica tracking CSV as simplified events."""
+        events = []
+        for suffix in ["_RawTrackingData_Home_Team.csv", "_RawTrackingData_Away_Team.csv"]:
+            csv_path = data_dir / match_id / f"{match_id}{suffix}"
+            if not csv_path.exists():
+                continue
+            try:
+                lines = csv_path.read_text(encoding="utf-8").strip().split("\n")
+                if len(lines) < 3:
+                    continue
+                for line in lines[2:]:  # skip 2 header rows
+                    parts = line.split(",")
+                    if len(parts) < 3:
+                        continue
+                    events.append(EventGroundTruth(
+                        event_type="tracking_sample",
+                        timestamp=float(parts[1]) if len(parts) > 1 else 0.0,
+                        team="home" if "Home" in suffix else "away",
+                        player_id=int(parts[2]) if len(parts) > 2 and parts[2].strip().lstrip("-").isdigit() else None,
+                    ))
+            except Exception:
+                continue
+        logger.info(f"Loaded {len(events)} Metrica tracking samples (legacy)")
+        return events

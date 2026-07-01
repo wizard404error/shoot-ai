@@ -63,11 +63,37 @@ class JerseyNumberService:
         return self._detect_pixel(torso)
 
     # ------------------------------------------------------------------
-    # EasyOCR backend
+    # EasyOCR backend with enhanced preprocessing
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _preprocess_for_ocr(torso: np.ndarray) -> np.ndarray:
+        """Enhance torso crop for better OCR on small jersey numbers.
+
+        Steps:
+          1. CLAHE contrast enhancement on luminance channel
+          2. Bilateral filter for edge-preserving smooth
+          3. Adaptive thresholding to isolate digits
+          4. 2x upscale via INTER_CUBIC for tiny (8-20px) numbers
+        """
+        h, w = torso.shape[:2]
+        if min(h, w) < 10:
+            return torso
+        lab = cv2.cvtColor(torso, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
+        l = clahe.apply(l)
+        enhanced = cv2.merge([l, a, b])
+        enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+        enhanced = cv2.bilateralFilter(enhanced, 5, 50, 50)
+        if max(h, w) < 60:
+            scale = max(2.0, 60.0 / max(h, w))
+            enhanced = cv2.resize(enhanced, None, fx=scale, fy=scale,
+                                  interpolation=cv2.INTER_CUBIC)
+        return enhanced
+
     def _detect_ocr(self, torso: np.ndarray) -> dict[str, Any]:
-        """Detect jersey number using EasyOCR."""
+        """Detect jersey number using EasyOCR with enhanced preprocessing."""
         try:
             if self._ocr_reader is None:
                 import easyocr
@@ -75,20 +101,19 @@ class JerseyNumberService:
                 self._ocr_reader = easyocr.Reader(
                     ["en"], gpu=self._gpu, verbose=False
                 )
-            results = self._ocr_reader.readtext(torso, allowlist="0123456789")
+            processed = self._preprocess_for_ocr(torso)
+            results = self._ocr_reader.readtext(processed, allowlist="0123456789")
             if not results:
                 return {"jersey_number": None, "confidence": 0.0,
                         "candidates": [], "source": "none"}
 
-            # Build digit string from OCR results
             digits = "".join(r[1] for r in results if r[2] > 0.2)
             if not digits:
                 return {"jersey_number": None, "confidence": 0.0,
                         "candidates": [], "source": "none"}
 
-            # Parse as number (0-99)
             try:
-                num = int(digits[:2])  # max 2 digits
+                num = int(digits[:2])
                 if 0 <= num <= 99:
                     conf = float(np.mean([r[2] for r in results if r[2] > 0.2]))
                     return {

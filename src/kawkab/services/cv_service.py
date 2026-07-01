@@ -32,7 +32,8 @@ except ImportError:
 
 _BOXMOT_AVAILABLE = False
 try:
-    from boxmot import BoTSORT
+    from boxmot import ReID
+    from boxmot.trackers import BotSort
     _BOXMOT_AVAILABLE = True
 except ImportError:
     pass
@@ -224,11 +225,10 @@ class CVService:
         logger.info("CVService initialized")
 
     def _init_boxmot_tracker(self):
-        """Lazy-init boxmot BoT-SORT tracker with OSNet SportsMOT ReID."""
+        """Lazy-init boxmot BoT-SORT tracker with OSNet SportsMOT ReID (v19+ API)."""
         from pathlib import Path
         from kawkab.core.paths import get_paths
 
-        # Use ModelManager to ensure the osnet model is downloaded
         if self._model_manager is not None:
             try:
                 model_path_str = self._model_manager.ensure_model("osnet_sportsmot")
@@ -237,23 +237,37 @@ class CVService:
                 model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
         else:
             model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
+
         weights = str(model_path) if model_path.exists() else None
+        device = "cuda:0" if self.gpu_enabled else "cpu"
+
         if weights:
             logger.info("Initializing boxmot BoT-SORT with OSNet SportsMOT ReID")
+            reid_model = ReID(
+                weights=weights,
+                device=device,
+                half=self.gpu_enabled,
+            )
+            tracker = BotSort(
+                reid_model=reid_model.model,
+                with_reid=True,
+                track_high_thresh=self.confidence_threshold,
+                track_low_thresh=self.ball_confidence_threshold,
+                new_track_thresh=self.ball_confidence_threshold,
+                per_class=True,
+            )
         else:
             logger.info(
                 "osnet_sportsmot.pt not cached yet, initializing boxmot BoT-SORT "
                 "without custom ReID (will use boxmot internal defaults)"
             )
-        tracker = BoTSORT(
-            model_weights=weights,
-            device="cuda:0" if self.gpu_enabled else "cpu",
-            fp16=self.gpu_enabled,
-            per_class=True,
-            track_high_thresh=self.confidence_threshold,
-            track_low_thresh=self.ball_confidence_threshold,
-            new_track_thresh=self.ball_confidence_threshold,
-        )
+            tracker = BotSort(
+                with_reid=False,
+                track_high_thresh=self.confidence_threshold,
+                track_low_thresh=self.ball_confidence_threshold,
+                new_track_thresh=self.ball_confidence_threshold,
+                per_class=True,
+            )
         return tracker
 
     async def detect_frame(
