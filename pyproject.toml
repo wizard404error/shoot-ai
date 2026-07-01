@@ -1,6 +1,6 @@
 [project]
 name = "kawkab-ai"
-version = "0.8.3"
+version = "0.12.0"
 description = "AI Football Coach for Amateur Teams - Local, Private, Free"
 authors = [{ name = "Kawkab AI" }]
 license = { text = "MIT" }
@@ -41,6 +41,10 @@ dependencies = [
 [project.optional-dependencies]
 gpu = [
     "torch[cuda]>=2.2.0",
+]
+reid = [
+    "boxmot>=3.0.0",
+    "soccernet-tracklab>=1.0.0",
 ]
 enhancement = []
 audio = [

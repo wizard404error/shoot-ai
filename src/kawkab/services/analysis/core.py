@@ -139,6 +139,13 @@ class AnalysisServiceCore:
     ) -> MatchAnalysis:
         logger.info(f"Analyzing match: {track_data.total_frames} frames")
 
+        # Auto-use homography from CV auto-calibration when none explicitly provided
+        if homography_matrix is None:
+            auto_hom = track_data.tracking_metrics.get("auto_homography")
+            if auto_hom is not None:
+                homography_matrix = auto_hom
+                logger.info("Using auto-calibrated homography from PitchDetector")
+
         if homography_matrix is not None and track_data.player_teams:
             self._assign_teams_by_pitch_side(track_data, homography_matrix)
 

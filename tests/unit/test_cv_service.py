@@ -36,8 +36,15 @@ def _install_cv2_stub() -> None:
     cv2_stub.CAP_PROP_FPS = 5
     cv2_stub.CAP_PROP_FRAME_COUNT = 7
     for fn in ("cvtColor", "inRange", "morphologyEx", "findContours",
-               "contourArea", "drawContours", "VideoCapture"):
+               "contourArea", "drawContours", "VideoCapture",
+               "setUseOptimized", "useOptimized"):
         setattr(cv2_stub, fn, MagicMock())
+    # Add cv2.ocl sub-module
+    ocl_mod = types.ModuleType("cv2.ocl")
+    ocl_mod.haveOpenCL = MagicMock(return_value=False)
+    ocl_mod.setUseOpenCL = MagicMock()
+    cv2_stub.ocl = ocl_mod
+    sys.modules["cv2.ocl"] = ocl_mod
     sys.modules["cv2"] = cv2_stub
 
 
@@ -90,15 +97,27 @@ def _make_mock_boxes(xyxys, confs, cls_ids, track_ids=None):
     return boxes
 
 
-def _make_track_schedule(schedule: dict[int, list[int]]):
-    """Build a detect_frame side-effect that returns specific track IDs per frame."""
+def _make_track_schedule(schedule: dict[int, list[int]], bbox_map: dict[int, tuple] | None = None):
+    """Build a detect_frame that returns specific track IDs per frame.
+
+    Args:
+        schedule: {track_id: [frame_numbers]}
+        bbox_map: optional {track_id: (x1, y1, x2, y2)} for custom bboxes.
+                  If omitted, each track gets a widely-spaced x-center
+                  (cx = 10 + tid*60) to avoid false stitching by P0-A1.
+    """
     def _factory(cv_mod):
         async def _detect(frame, frame_number, timestamp, norfair_tracker=None):
             dets = []
             for tid, frames in schedule.items():
                 if frame_number in frames:
+                    if bbox_map and tid in bbox_map:
+                        bbox = bbox_map[tid]
+                    else:
+                        x_offset = 10 + tid * 60
+                        bbox = (x_offset, 20, x_offset + 50, 120)
                     dets.append(cv_mod.Detection(
-                        bbox=(10, 20, 60, 120), confidence=0.85,
+                        bbox=bbox, confidence=0.85,
                         class_id=0, class_name="person", track_id=tid,
                     ))
             return cv_mod.FrameDetections(
@@ -576,6 +595,25 @@ class TestDetectFrame:
             assert result.detections[0].track_id == 42
 
 
+def _mock_video_capture(n_frames=90, fps=30.0, height=100, width=100):
+    """Patch cv2.VideoCapture to yield n_frames then stop."""
+    from unittest.mock import patch as _patch
+    frames = [(True, np.zeros((height, width, 3), dtype=np.uint8))
+              for _ in range(n_frames)]
+    frames.append((False, None))
+
+    vc_patcher = _patch("cv2.VideoCapture")
+    mock_vc = vc_patcher.start()
+    mock_cap = MagicMock()
+    mock_vc.return_value = mock_cap
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = (
+        lambda prop: fps if prop == 5 else n_frames
+    )
+    mock_cap.read.side_effect = frames
+    return vc_patcher
+
+
 # ===================================================================
 # process_video
 # ===================================================================
@@ -583,26 +621,9 @@ class TestDetectFrame:
 class TestProcessVideo:
     """CVService.process_video full pipeline and track filtering."""
 
-    def _mock_video_capture(self, n_frames=90, fps=30.0, height=100, width=100):
-        """Patch cv2.VideoCapture to yield n_frames then stop."""
-        frames = [(True, np.zeros((height, width, 3), dtype=np.uint8))
-                  for _ in range(n_frames)]
-        frames.append((False, None))
-
-        vc_patcher = patch("cv2.VideoCapture")
-        mock_vc = vc_patcher.start()
-        mock_cap = MagicMock()
-        mock_vc.return_value = mock_cap
-        mock_cap.isOpened.return_value = True
-        mock_cap.get.side_effect = (
-            lambda prop: fps if prop == 5 else n_frames
-        )
-        mock_cap.read.side_effect = frames
-        return vc_patcher
-
     @pytest.mark.asyncio
     async def test_basic_processing(self, cv_mod):
-        vc_patcher = self._mock_video_capture(60)
+        vc_patcher = _mock_video_capture(60)
         service = cv_mod.CVService(model_size="n", expected_player_count=22)
         service._initialized = True
 
@@ -623,7 +644,7 @@ class TestProcessVideo:
 
     @pytest.mark.asyncio
     async def test_frame_skip_reuses_last_detections(self, cv_mod):
-        vc_patcher = self._mock_video_capture(30)
+        vc_patcher = _mock_video_capture(30)
         service = cv_mod.CVService(
             model_size="n", expected_player_count=22,
             min_track_lifetime_frames=1,
@@ -644,7 +665,7 @@ class TestProcessVideo:
 
     @pytest.mark.asyncio
     async def test_track_lifetime_filtering(self, cv_mod):
-        vc_patcher = self._mock_video_capture(20)
+        vc_patcher = _mock_video_capture(20)
         service = cv_mod.CVService(
             model_size="n", expected_player_count=22,
             min_track_lifetime_frames=5,
@@ -668,7 +689,7 @@ class TestProcessVideo:
 
     @pytest.mark.asyncio
     async def test_top_n_truncation(self, cv_mod):
-        vc_patcher = self._mock_video_capture(30)
+        vc_patcher = _mock_video_capture(30)
         service = cv_mod.CVService(
             model_size="n", expected_player_count=10,
             min_track_lifetime_frames=1, max_keep_top_n=3,
@@ -700,7 +721,7 @@ class TestProcessVideo:
     @pytest.mark.asyncio
     async def test_quality_assessment_excellent(self, cv_mod):
         """22 tracks with 100% lifetime → count_ratio=1.0 → excellent."""
-        vc_patcher = self._mock_video_capture(60)
+        vc_patcher = _mock_video_capture(60)
         service = cv_mod.CVService(
             model_size="n", expected_player_count=22,
             min_track_lifetime_frames=1,
@@ -724,7 +745,7 @@ class TestProcessVideo:
     async def test_match_type_inference_full_match(self, cv_mod):
         """360 frames @0.2fps = 1800s, between 1200–4800, low fragmentation
         + high avg_span → inferred as full_match."""
-        vc_patcher = self._mock_video_capture(n_frames=360, fps=0.2)
+        vc_patcher = _mock_video_capture(n_frames=360, fps=0.2)
         service = cv_mod.CVService(
             model_size="n", expected_player_count=22,
             min_track_lifetime_frames=1,
@@ -744,3 +765,127 @@ class TestProcessVideo:
         # fragmentation = 1/1 = 1.0 (< 2.0) and avg_span ≈ 1795s (≥ 60)
         # → full_match
         assert result.match_type == "full_match"
+
+
+# ===================================================================
+# _detect_track_stitches
+# ===================================================================
+
+class TestDetectTrackStitches:
+    """CVService._detect_track_stitches merges fragments of the same player."""
+
+    def _make_service(self, cv_mod):
+        svc = cv_mod.CVService(model_size="n")
+        svc._initialized = True
+        return svc
+
+    def test_empty_valid_set(self, cv_mod):
+        svc = self._make_service(cv_mod)
+        result = svc._detect_track_stitches([], set(), {}, {}, 30.0, {})
+        assert result == {}
+
+    def test_no_stitch_needed(self, cv_mod):
+        """Two tracks with disjoint time windows and far positions → no merge."""
+        frames = [
+            cv_mod.FrameDetections(0, 0.0, [
+                cv_mod.Detection((0, 0, 20, 40), 0.9, 0, "person", track_id=1),
+            ], 100, 100),
+            cv_mod.FrameDetections(200, 6.67, [
+                cv_mod.Detection((80, 0, 100, 40), 0.9, 0, "person", track_id=2),
+            ], 100, 100),
+        ]
+        svc = self._make_service(cv_mod)
+        result = svc._detect_track_stitches(
+            frames, {1, 2}, {1: 0, 2: 200}, {1: 0, 2: 200}, 30.0, {},
+            spatial_threshold_px=20.0, temporal_gap_max=1.0,
+        )
+        assert result == {}
+
+    def test_overlap_stitch(self, cv_mod):
+        """Two tracks overlapping in time with close x-centers → merge."""
+        frames = []
+        for fn in range(10):
+            dets = [
+                cv_mod.Detection((20, 20, 40, 60), 0.9, 0, "person", track_id=1),
+                cv_mod.Detection((25, 20, 45, 60), 0.9, 0, "person", track_id=2),
+            ]
+            frames.append(cv_mod.FrameDetections(fn, fn / 30.0, dets, 100, 100))
+        svc = self._make_service(cv_mod)
+        result = svc._detect_track_stitches(
+            frames, {1, 2}, {1: 0, 2: 0}, {1: 9, 2: 9}, 30.0, {},
+            spatial_threshold_px=10.0, temporal_gap_max=1.0,
+        )
+        assert len(result) == 1
+        discarded, survivor = list(result.items())[0]
+        assert survivor == 1
+        assert discarded == 2
+
+    def test_temporal_gap_stitch(self, cv_mod):
+        """Two sequential tracks with small gap and close boundary positions."""
+        frames = []
+        for fn in range(5):
+            frames.append(cv_mod.FrameDetections(fn, fn / 30.0, [
+                cv_mod.Detection((20, 20, 40, 60), 0.9, 0, "person", track_id=1),
+            ], 100, 100))
+        for fn in range(8, 13):
+            frames.append(cv_mod.FrameDetections(fn, fn / 30.0, [
+                cv_mod.Detection((22, 20, 42, 60), 0.9, 0, "person", track_id=2),
+            ], 100, 100))
+        svc = self._make_service(cv_mod)
+        result = svc._detect_track_stitches(
+            frames, {1, 2}, {1: 0, 2: 8}, {1: 4, 2: 12}, 30.0, {},
+            spatial_threshold_px=10.0, temporal_gap_max=5.0,
+        )
+        assert len(result) == 1
+        discarded, survivor = list(result.items())[0]
+        assert survivor == 1
+
+    def test_transitive_resolution(self, cv_mod):
+        """Three overlapping tracks → two get merged (no transitive chains)."""
+        frames = []
+        for fn in range(10):
+            dets = [
+                cv_mod.Detection((20, 20, 40, 60), 0.9, 0, "person", track_id=1),
+                cv_mod.Detection((25, 20, 45, 60), 0.9, 0, "person", track_id=2),
+                cv_mod.Detection((28, 20, 48, 60), 0.9, 0, "person", track_id=3),
+            ]
+            frames.append(cv_mod.FrameDetections(fn, fn / 30.0, dets, 100, 100))
+        svc = self._make_service(cv_mod)
+        result = svc._detect_track_stitches(
+            frames, {1, 2, 3}, {1: 0, 2: 0, 3: 0}, {1: 9, 2: 9, 3: 9}, 30.0, {},
+            spatial_threshold_px=10.0, temporal_gap_max=1.0,
+        )
+        assert len(result) >= 1
+        for discarded, survivor in result.items():
+            assert survivor not in result  # no transitive chains remain
+
+    @pytest.mark.asyncio
+    async def test_stitch_in_process_video(self, cv_mod):
+        """Integration: overlapping tracks in process_video get stitched."""
+        vc_patcher = _mock_video_capture(30)
+        service = cv_mod.CVService(
+            model_size="n", expected_player_count=22,
+            min_track_lifetime_frames=1,
+        )
+        service._initialized = True
+
+        # Two tracks with overlapping frames and close x-positions
+        schedule: dict[int, list[int]] = {
+            1: list(range(0, 30)),
+            2: list(range(5, 25)),
+        }
+        bbox_map = {1: (20, 20, 40, 60), 2: (25, 20, 45, 60)}
+        factory = _make_track_schedule(schedule, bbox_map=bbox_map)
+        service.detect_frame = factory(cv_mod)
+
+        result = await service.process_video(
+            Path("/fake/video.mp4"), frame_skip=1,
+            enable_team_detection=False,
+        )
+        vc_patcher.stop()
+
+        # Track 2 should be stitched into track 1
+        assert result.tracking_metrics.get("stitched_tracks", 0) >= 1
+        # Only one final track
+        assert len(result.track_registry) == 1
+        assert 1 in result.track_registry

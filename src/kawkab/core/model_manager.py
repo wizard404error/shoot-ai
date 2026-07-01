@@ -61,6 +61,16 @@ class ModelManager:
             "size_mb": 97.1,
             "sha256": None,
         },
+        "osnet_sportsmot": {
+            "url": "https://github.com/mikel-brostrom/boxmot/releases/download/v3.0.0/osnet_sportsmot.pt",
+            "size_mb": 37.0,
+            "sha256": None,
+        },
+        "soccernet_reid": {
+            "url": "https://github.com/SoccerNet/sn-tracking/releases/download/v1.0/resnet50_circleloss.pt",
+            "size_mb": 200.0,
+            "sha256": None,
+        },
     }
 
     def __init__(self, cache_dir: Path | None = None) -> None:

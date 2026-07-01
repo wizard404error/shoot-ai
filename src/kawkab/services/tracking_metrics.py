@@ -173,3 +173,81 @@ def _estimate_id_switches(
                 switches += 1
 
     return switches
+
+
+def compute_merge_map_from_switches(
+    frames: list,
+    track_frames: dict[int, set[int]],
+    fps: float,
+    spatial_threshold_px: float = 30.0,
+    temporal_gap_max_frames: int | None = None,
+) -> dict[int, int]:
+    """Output a consumable merge map from ID switch analysis.
+
+    Returns {discarded_track_id: survivor_track_id} — pairs of tracks
+    that are likely the same player but got different IDs.
+
+    Uses two signals:
+    1. Overlapping frames with close x-centers (spatial-temporal overlap)
+    2. Sequential tracks with small temporal gap and matching boundary positions
+    """
+    from collections import defaultdict
+
+    if temporal_gap_max_frames is None:
+        temporal_gap_max_frames = int(fps * 2)
+
+    frame_positions: dict[int, dict[int, float]] = defaultdict(dict)
+    for fdet in frames:
+        fn = fdet.frame_number
+        for det in fdet.detections:
+            if det.class_name != "person" or det.track_id is None:
+                continue
+            cx = (det.bbox[0] + det.bbox[2]) / 2
+            frame_positions[fn][det.track_id] = cx
+
+    track_ids = list(track_frames.keys())
+    merge_map: dict[int, int] = {}
+
+    for i in range(len(track_ids)):
+        for j in range(i + 1, len(track_ids)):
+            tid_a, tid_b = track_ids[i], track_ids[j]
+            if tid_a in merge_map or tid_b in merge_map:
+                continue
+
+            overlap = track_frames[tid_a] & track_frames[tid_b]
+            if overlap:
+                close = sum(
+                    1 for fn in overlap
+                    if abs(frame_positions[fn].get(tid_a, 999) - frame_positions[fn].get(tid_b, 999)) < spatial_threshold_px
+                )
+                if len(overlap) > 0 and close / len(overlap) > 0.5:
+                    count_a = len(track_frames[tid_a])
+                    count_b = len(track_frames[tid_b])
+                    survivor = tid_a if count_a >= count_b else tid_b
+                    discarded = tid_b if survivor == tid_a else tid_a
+                    merge_map[discarded] = survivor
+                continue
+
+            # Sequential gap
+            first_a, last_a = min(track_frames[tid_a]), max(track_frames[tid_a])
+            first_b, last_b = min(track_frames[tid_b]), max(track_frames[tid_b])
+            if first_b > last_a and (first_b - last_a) <= temporal_gap_max_frames:
+                ca = frame_positions[last_a].get(tid_a)
+                cb = frame_positions[first_b].get(tid_b)
+                if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                    count_a = len(track_frames[tid_a])
+                    count_b = len(track_frames[tid_b])
+                    survivor = tid_a if count_a >= count_b else tid_b
+                    discarded = tid_b if survivor == tid_a else tid_a
+                    merge_map[discarded] = survivor
+            elif first_a > last_b and (first_a - last_b) <= temporal_gap_max_frames:
+                ca = frame_positions[last_b].get(tid_b)
+                cb = frame_positions[first_a].get(tid_a)
+                if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                    count_a = len(track_frames[tid_a])
+                    count_b = len(track_frames[tid_b])
+                    survivor = tid_a if count_a >= count_b else tid_b
+                    discarded = tid_b if survivor == tid_a else tid_a
+                    merge_map[discarded] = survivor
+
+    return merge_map

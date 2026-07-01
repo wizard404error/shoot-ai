@@ -6,14 +6,39 @@ for different GPU tiers. Stores results in the database for trend analysis.
 
 from __future__ import annotations
 
+import json
+import os
 import time
+from pathlib import Path
+from typing import Any
+
 import psutil
 from dataclasses import dataclass, field, asdict
-from typing import Any
 
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+_BENCHMARK_CACHE_PATH = Path("data/benchmark_cache.json")
+
+
+def _load_benchmark_cache() -> dict[str, Any]:
+    """Load cached benchmark results keyed by GPU model."""
+    if _BENCHMARK_CACHE_PATH.exists():
+        try:
+            return json.loads(_BENCHMARK_CACHE_PATH.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_benchmark_cache(cache: dict[str, Any]) -> None:
+    """Save benchmark cache to disk."""
+    try:
+        _BENCHMARK_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _BENCHMARK_CACHE_PATH.write_text(json.dumps(cache, indent=2))
+    except Exception as e:
+        logger.warning(f"Failed to save benchmark cache: {e}")
 
 
 @dataclass
@@ -247,3 +272,112 @@ class BenchmarkService:
             },
         }
         return tiers.get(gpu_tier, tiers["unknown"])
+
+    @staticmethod
+    async def measure_processing_speed(
+        model_size: str,
+        video_path: str | Path,
+        gpu_enabled: bool = True,
+        test_duration_seconds: float = 30.0,
+    ) -> dict[str, Any]:
+        """Measure processing speed for a given YOLO variant on a video clip.
+
+        Processes the first N seconds of a video and returns FPS and realtime ratio.
+        """
+        import time as _time
+        from pathlib import Path as _Path
+
+        try:
+            from kawkab.services.cv_service import CVService
+
+            vp = _Path(video_path)
+            if not vp.exists():
+                return {"error": f"Video not found: {video_path}", "fps": 0.0}
+
+            import cv2
+            cap = cv2.VideoCapture(str(vp))
+            if not cap.isOpened():
+                return {"error": "Cannot open video", "fps": 0.0}
+
+            test_frames = int(test_duration_seconds * (cap.get(cv2.CAP_PROP_FPS) or 30.0))
+            cap.release()
+
+            svc = CVService(
+                model_size=model_size,
+                gpu_enabled=gpu_enabled,
+                min_track_lifetime_frames=1,
+            )
+            await svc.initialize()
+
+            start = _time.perf_counter()
+            processed = 0
+            cap = cv2.VideoCapture(str(vp))
+            try:
+                for _ in range(test_frames):
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    await svc.detect_frame(frame, processed, processed / 30.0)
+                    processed += 1
+            finally:
+                cap.release()
+                await svc.shutdown()
+
+            elapsed = _time.perf_counter() - start
+            fps = processed / elapsed if elapsed > 0 else 0.0
+            realtime_ratio = elapsed / test_duration_seconds if test_duration_seconds > 0 else 0.0
+
+            return {
+                "variant": model_size,
+                "frames_processed": processed,
+                "elapsed_seconds": round(elapsed, 2),
+                "fps": round(fps, 2),
+                "realtime_ratio": round(realtime_ratio, 3),
+            }
+        except Exception as e:
+            logger.warning(f"measure_processing_speed({model_size}) failed: {e}")
+            return {"error": str(e), "fps": 0.0}
+
+    @staticmethod
+    async def auto_select_yolo_variant(
+        video_path: str | Path,
+        gpu_enabled: bool = True,
+        min_realtime_ratio: float = 0.5,
+        test_duration_seconds: float = 30.0,
+    ) -> str:
+        """Benchmark all YOLO variants and select the best one.
+
+        Picks the largest variant that achieves >= min_realtime_ratio.
+        Falls back to 'n' (nano) if none can reach the threshold.
+        Results are cached by GPU model to avoid re-benchmarking.
+        """
+        from kawkab.core.gpu_acceleration import detect_gpu_tier as _tier
+
+        gpu_tier = _tier()
+        cache_key = f"gpu_{gpu_tier}"
+
+        cache = _load_benchmark_cache()
+        if cache_key in cache:
+            cached = cache[cache_key]
+            logger.info(f"Using cached benchmark for GPU tier={gpu_tier}: variant={cached['variant']}")
+            return cached["variant"]
+
+        variants = ["n", "s", "m", "l", "x"]
+        best_variant = "n"
+
+        for var in variants:
+            result = await BenchmarkService.measure_processing_speed(
+                var, video_path, gpu_enabled=gpu_enabled,
+                test_duration_seconds=min(test_duration_seconds, 15.0),
+            )
+            ratio = result.get("realtime_ratio", 999.0)
+            logger.info(f"  yolo11{var}: {result.get('fps', 0):.1f} FPS (ratio={ratio:.2f})")
+            if ratio <= min_realtime_ratio:
+                best_variant = var
+            else:
+                break  # larger variants will only be slower
+
+        cache[cache_key] = {"variant": best_variant, "gpu_tier": gpu_tier}
+        _save_benchmark_cache(cache)
+        logger.info(f"Auto-selected YOLO variant: yolo11{best_variant}")
+        return best_variant

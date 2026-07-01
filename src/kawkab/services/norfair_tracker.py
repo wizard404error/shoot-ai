@@ -43,6 +43,97 @@ def _bbox_center(bbox: tuple[float, float, float, float]) -> np.ndarray:
     return np.array([[(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]], dtype=np.float32)
 
 
+_osnet_extractor = None  # lazy-loaded OSNet ReID extractor
+_soccernet_extractor = None  # lazy-loaded SoccerNet ReID extractor
+
+
+def _get_osnet_extractor():
+    """Lazy-load OSNet ReID feature extractor from boxmot."""
+    global _osnet_extractor
+    if _osnet_extractor is not None:
+        return _osnet_extractor
+    try:
+        from boxmot.appearance.reid_auto_backend import ReidAutoBackend
+        from kawkab.core.paths import get_paths
+
+        model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
+        if model_path.exists():
+            rab = ReidAutoBackend(
+                weights=str(model_path),
+                device="cuda:0",
+                half=True,
+            )
+            _osnet_extractor = rab.get_model()
+            logger.info("OSNet SportsMOT ReID extractor loaded")
+        else:
+            logger.info("osnet_sportsmot.pt not cached, falling back to HSV")
+    except Exception as e:
+        logger.debug(f"OSNet extractor init failed: {e}")
+    return _osnet_extractor
+
+
+def _get_soccernet_extractor():
+    """Lazy-load SoccerNet ResNet-50 ReID feature extractor."""
+    global _soccernet_extractor
+    if _soccernet_extractor is not None:
+        return _soccernet_extractor
+    try:
+        from kawkab.services.reid_feature_extractor import SoccerNetReIDExtractor
+
+        _soccernet_extractor = SoccerNetReIDExtractor(device="cuda:0")
+        if _soccernet_extractor.available:
+            logger.info("SoccerNet ReID extractor loaded")
+        else:
+            logger.info("SoccerNet ReID not available")
+    except Exception as e:
+        logger.debug(f"SoccerNet extractor init failed: {e}")
+    return _soccernet_extractor
+
+
+def _reid_embedding(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray:
+    """Compute ReID embedding using OSNet, SoccerNet, or HSV fallback (in priority order)."""
+    # Try OSNet (general sports ReID)
+    extractor = _get_osnet_extractor()
+    if extractor is not None:
+        try:
+            import cv2
+            x1, y1, x2, y2 = [int(v) for v in bbox]
+            h, w = frame.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            if x2 > x1 and y2 > y1:
+                crop = frame[y1:y2, x1:x2]
+                emb = extractor.extract(crop)
+                if emb is not None and emb.size > 0:
+                    emb_flat = emb.flatten().astype(np.float32)
+                    norm = np.linalg.norm(emb_flat)
+                    if norm > 1e-8:
+                        return emb_flat / norm
+        except Exception as e:
+            logger.debug(f"OSNet extraction failed: {e}")
+    # Try SoccerNet (football-specific ReID)
+    sn_extractor = _get_soccernet_extractor()
+    if sn_extractor is not None and sn_extractor.available:
+        try:
+            import cv2
+            x1, y1, x2, y2 = [int(v) for v in bbox]
+            h, w = frame.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            if x2 > x1 and y2 > y1:
+                crop = frame[y1:y2, x1:x2]
+                emb = sn_extractor.extract(crop)
+                if emb is not None and emb.size > 0:
+                    emb_flat = emb.flatten().astype(np.float32)
+                    norm = np.linalg.norm(emb_flat)
+                    if norm > 1e-8:
+                        return emb_flat / norm
+        except Exception as e:
+            logger.debug(f"SoccerNet extraction failed: {e}")
+    # Fallback: HSV histogram
+    return _hsv_histogram(frame, bbox)
+
+
 def _hsv_histogram(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray:
     """Compute normalized HSV histogram for the torso region of a bbox.
 
@@ -175,7 +266,7 @@ class NorfairTracker:
         ball_dets = []
         for d in detections:
             if d["label"] == "person":
-                emb = _hsv_histogram(frame, d["bbox"])
+                emb = _reid_embedding(frame, d["bbox"])
                 person_dets.append(
                     Detection(
                         points=_bbox_corners(d["bbox"]),

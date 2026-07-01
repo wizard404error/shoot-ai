@@ -225,6 +225,47 @@ A cycle is small enough to complete in 1–4 hours of focused work, but big enou
 - **Target:** #1 in backlog
 - **Status:** ⏸ pending — user needs to run through the 10-question checklist in `docs/CYCLE_1_VIDEO_PIPELINE.md` and report what happened
 
+### Cycle I — Phase 1: Fix version/service-count inconsistencies across all docs (2026-07-01)
+- **Target:** #3 in backlog (partially done in Cycle B, completed here)
+- **What I did:** fixed STATUS.md "Bottom Line" from v0.7.2 → v0.12.0, footer from v0.8.3 → v0.12.0, service count 30+ → 57. Fixed README.md version refs v0.4.1/v0.8.3 → v0.12.0. Updated PROFESSIONAL_AUDIT.md from v0.6.0 → v0.12.0. Added v0.12.0 context note to REVIEW.md. Updated docs/INDEX.md from v0.8.3 → v0.12.0. Updated PLAN.md from v0.8.3 → v0.12.0. Updated pyproject.toml version from 0.8.3 → 0.12.0.
+- **Files touched:** `STATUS.md`, `README.md`, `PROFESSIONAL_AUDIT.md`, `REVIEW.md`, `docs/INDEX.md`, `PLAN.md`, `pyproject.toml`
+- **Status:** ✅ complete
+
+### Cycle J — Phase 0-A/C: Real e2e video pipeline test (2026-07-01)
+- **Target:** #6 in backlog (end-to-end integration test on a fixture video)
+- **What I did:** wrote `tests/e2e/test_e2e_video_pipeline.py` with CI-safe video structure tests (5 tests: existence, duration, dimensions, frame format) and full-pipeline tests that require ultralytics (skipped in CI). Verified `real_match.mp4` (4.2 MB, 89s) and `sweden_test_60s.mp4` (50.7 MB, 60s) as test fixtures.
+- **Files touched:** `tests/e2e/test_e2e_video_pipeline.py` (new)
+- **Status:** ✅ complete
+
+### Cycle K — Phase 2-A: Benchmark cache as default YOLO selector (2026-07-01)
+- **Target:** Wire benchmark-backed YOLO model selection (req for backlog #57 — CPU fallback)
+- **What I did:** modified `CVService.__init__()` to check `_load_benchmark_cache()` before calling `recommend_yolo_variant()`. When a benchmark result exists for the current GPU tier, uses the cached variant. Falls back to heuristic on first run.
+- **Files touched:** `src/kawkab/services/cv_service.py`
+- **Status:** ✅ complete
+
+### Cycle L — Phase 2-B: Auto-homography as default path (2026-07-01)
+- **Target:** #5 in backlog (auto-homography from pitch keypoints)
+- **What I did:** added auto-calibration to `CVService.process_video()` using `PitchDetector` on the first frame. When confidence ≥ 0.4, computes homography via `HomographyService.compute_homography_from_corners()` and stores in tracking_metrics. Wired `AnalysisServiceCore.analyze_match()` to auto-read it when no explicit homography is passed.
+- **Files touched:** `src/kawkab/services/cv_service.py`, `src/kawkab/services/analysis/core.py`
+- **Status:** ✅ complete
+
+### Cycle M — Phase 4-A/B: Model card + Data card (2026-07-01)
+- **Target:** #17, #18 in backlog
+- **What I did:** wrote `docs/MODEL_CARD.md` documenting all models (YOLO, OSNet, SoccerNet, ArcFace), their training data, failure modes, and selection logic. Wrote `docs/DATA_CARD.md` documenting the tactical knowledge base (64 YAML rules), analytical models, ground-truth status, and privacy guarantees.
+- **Files touched:** `docs/MODEL_CARD.md` (new), `docs/DATA_CARD.md` (new)
+- **Status:** ✅ complete
+
+### Cycle N — Phase 4-C: pip-audit in CI (2026-07-01)
+- **Target:** #61 in backlog
+- **What I did:** added `pip-audit` step to lint job in `.github/workflows/test.yml`, after ruff/black checks.
+- **Files touched:** `.github/workflows/test.yml`
+- **Status:** ✅ complete
+
+### Cycle O — Phase 5-A: Wire ModelManager into boxmot init (2026-07-01)
+- **Target:** #50 in backlog (lazy model loading)
+- **What I did:** updated `CVService._init_boxmot_tracker()` to call `self._model_manager.ensure_model("osnet_sportsmot")` before initializing the BoT-SORT tracker, ensuring OSNet ReID weights are downloaded on first run.
+- **Files touched:** `src/kawkab/services/cv_service.py`, `pyproject.toml` (version bump)
+
 ---
 
 ## Operating Principles (the "professional" rules)

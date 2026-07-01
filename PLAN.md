@@ -1,14 +1,13 @@
-# Kawkab AI — Next Build Plan (v0.9.0)
+# Kawkab AI — Next Build Plan (v0.12.0)
 
 ## Context
 Project: Kawkab AI — AI Football Coach for Amateur Teams
-Current version: v0.8.3
+Current version: v0.12.0
 Goal: Continue building toward Phase 2/3 (Analyst → Detective)
 
 > **Note:** Previous versions of this plan referenced v0.5.5/v0.6.0. As of
-> v0.8.3 the project has shipped PDF export, clip extraction, team swap,
-> pass network + heatmap visualizations, advanced event detection, and
-> physical load metrics. This plan now targets v0.9.0.
+> v0.12.0 the project has shipped all 25 audit gaps closed, production
+> hardening, 900+ tests, 57 services.
 
 ## What We Build Next
 

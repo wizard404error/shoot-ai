@@ -1311,3 +1311,23 @@ class Bridge(QObject):
     @Slot(str, str, str, float, result=str)
     async def analyze_physio_tactical(self, events_json: str, speed_timeline_json: str, hr_timeline_json: str = "", window_s: float = 5.0) -> str:
         return await self._analysis.analyze_physio_tactical(events_json, speed_timeline_json, hr_timeline_json if hr_timeline_json else None, window_s)
+
+    # ================================================================
+    # P0-B2: YOLO variant control
+    # ================================================================
+
+    @Slot(result=str)
+    async def get_recommended_yolo_variant(self) -> str:
+        return await self._analysis.get_recommended_yolo_variant()
+
+    @Slot(result=str)
+    async def get_current_yolo_variant(self) -> str:
+        return await self._analysis.get_current_yolo_variant()
+
+    @Slot(str, result=str)
+    async def set_yolo_variant(self, variant: str) -> str:
+        return await self._analysis.set_yolo_variant(variant)
+
+    @Slot(result=str)
+    async def get_gpu_tier(self) -> str:
+        return await self._analysis.get_gpu_tier()

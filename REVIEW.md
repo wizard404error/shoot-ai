@@ -1,5 +1,7 @@
 # Kawkab AI — Full Project Review
 
+> **Note (v0.12.0):** This review was written at v0.4.1/v0.6.0. Since then, version strings have been reconciled to v0.12.0 across all docs, and most of the issues below have been resolved. Cross-reference with STATUS.md before acting on any finding.
+>
 > **Reviewer:** Mavis (AI assistant, fresh eyes)
 > **Project version stated in README:** v0.4.1
 > **Project version stated in PLAN.md:** v0.6.0

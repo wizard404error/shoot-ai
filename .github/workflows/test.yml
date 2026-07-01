@@ -58,6 +58,10 @@ jobs:
       - run: uv sync
       - run: uv run ruff check src/ tests/
       - run: uv run black --check src/ tests/
+      - name: Dependency vulnerability scan
+        run: |
+          pip install pip-audit
+          pip-audit --desc on --strict 2>&1 | tail -5 || echo "Vulnerability scan found issues (non-blocking)"
       - run: uv run mypy src/
 
   mypy-strict:

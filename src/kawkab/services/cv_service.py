@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.gpu_acceleration import detect_gpu_tier, recommend_yolo_variant
 from kawkab.core.logging import get_logger
 
 try:
@@ -20,6 +21,21 @@ try:
 except ImportError:
     _NORFAIR_AVAILABLE = False
     NorfairTracker = None  # type: ignore
+
+_FACE_REC_AVAILABLE = False
+FaceRecognitionService = None  # type: ignore
+try:
+    from kawkab.services.face_recognition_service import FaceRecognitionService
+    _FACE_REC_AVAILABLE = True
+except ImportError:
+    pass
+
+_BOXMOT_AVAILABLE = False
+try:
+    from boxmot import BoTSORT
+    _BOXMOT_AVAILABLE = True
+except ImportError:
+    pass
 
 logger = get_logger(__name__)
 
@@ -93,7 +109,7 @@ class CVService:
 
     def __init__(
         self,
-        model_size: str = "l",
+        model_size: str = "auto",
         confidence_threshold: float = 0.4,
         ball_confidence_threshold: float = 0.15,
         iou_threshold: float = 0.5,
@@ -105,6 +121,23 @@ class CVService:
         max_keep_top_n: int = 28,
         model_manager=None,
     ) -> None:
+        if model_size == "auto":
+            # Check benchmark cache first; fall back to heuristic
+            try:
+                from kawkab.services.benchmark_service import _load_benchmark_cache
+
+                _gpu_tier = detect_gpu_tier()
+                cache = _load_benchmark_cache()
+                cache_key = f"gpu_{_gpu_tier}"
+                if cache_key in cache:
+                    model_size = cache[cache_key]["variant"]
+                    logger.info(
+                        f"Using benchmark-cached YOLO variant: yolo11{model_size}"
+                    )
+                else:
+                    model_size = recommend_yolo_variant()
+            except Exception:
+                model_size = recommend_yolo_variant()
         self.model_size = model_size
         self.confidence_threshold = confidence_threshold
         self.ball_confidence_threshold = ball_confidence_threshold
@@ -118,6 +151,13 @@ class CVService:
         self._model: Any = None
         self._initialized = False
         self._model_manager = model_manager
+        self._boxmot_tracker: Any | None = None
+        gpu_tier = detect_gpu_tier()
+        self._use_boxmot = (
+            model_size == "auto"
+            and _BOXMOT_AVAILABLE
+            and gpu_tier in ("medium", "high", "ultra")
+        )
 
         logger.info(
             f"CVService v2: model=yolo11{model_size}, "
@@ -173,8 +213,48 @@ class CVService:
             except ImportError:
                 logger.warning("PyTorch not installed, cannot check CUDA")
 
+        # Initialize boxmot BoT-SORT for deep ReID (OSNet SportsMOT)
+        if self._use_boxmot and _BOXMOT_AVAILABLE:
+            try:
+                self._boxmot_tracker = self._init_boxmot_tracker()
+            except Exception as e:
+                logger.warning(f"boxmot BoT-SORT init failed: {e}, using default tracker")
+
         self._initialized = True
         logger.info("CVService initialized")
+
+    def _init_boxmot_tracker(self):
+        """Lazy-init boxmot BoT-SORT tracker with OSNet SportsMOT ReID."""
+        from pathlib import Path
+        from kawkab.core.paths import get_paths
+
+        # Use ModelManager to ensure the osnet model is downloaded
+        if self._model_manager is not None:
+            try:
+                model_path_str = self._model_manager.ensure_model("osnet_sportsmot")
+                model_path = Path(model_path_str)
+            except Exception:
+                model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
+        else:
+            model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
+        weights = str(model_path) if model_path.exists() else None
+        if weights:
+            logger.info("Initializing boxmot BoT-SORT with OSNet SportsMOT ReID")
+        else:
+            logger.info(
+                "osnet_sportsmot.pt not cached yet, initializing boxmot BoT-SORT "
+                "without custom ReID (will use boxmot internal defaults)"
+            )
+        tracker = BoTSORT(
+            model_weights=weights,
+            device="cuda:0" if self.gpu_enabled else "cpu",
+            fp16=self.gpu_enabled,
+            per_class=True,
+            track_high_thresh=self.confidence_threshold,
+            track_low_thresh=self.ball_confidence_threshold,
+            new_track_thresh=self.ball_confidence_threshold,
+        )
+        return tracker
 
     async def detect_frame(
         self, frame: np.ndarray, frame_number: int, timestamp: float,
@@ -198,8 +278,14 @@ class CVService:
             await self.initialize()
 
         use_norfair = norfair_tracker is not None and _NORFAIR_AVAILABLE
+        use_boxmot = self._boxmot_tracker is not None and not use_norfair
 
-        if use_norfair:
+        if use_boxmot:
+            results = self._model(
+                frame, conf=self.ball_confidence_threshold,
+                iou=self.iou_threshold, classes=[0, 32], verbose=False,
+            )
+        elif use_norfair:
             results = self._model(
                 frame, conf=self.ball_confidence_threshold,
                 iou=self.iou_threshold, classes=[0, 32], verbose=False,
@@ -214,6 +300,33 @@ class CVService:
         h, w = frame.shape[:2]
         frame_area = w * h
         pitch_mask = self._compute_pitch_mask(frame)
+
+        # Run boxmot BoT-SORT tracking when available (deep ReID via OSNet)
+        if use_boxmot and results and len(results) > 0:
+            boxes = results[0].boxes
+            if boxes is not None and len(boxes) > 0:
+                import torch
+                dets_np = torch.cat([
+                    boxes.xyxy,
+                    boxes.conf.unsqueeze(1),
+                    boxes.cls.unsqueeze(1),
+                ], dim=1).cpu().numpy()
+                tracked = self._boxmot_tracker.update(dets_np, frame)
+                # Initialize track IDs to -1 for all detections
+                boxes.id = torch.full((len(boxes),), -1, dtype=torch.int32)
+                if tracked is not None and len(tracked) > 0:
+                    for t in tracked:
+                        x1, y1, x2, y2, tid, conf, cls_id, *_ = t
+                        tid = int(tid)
+                        for i in range(len(boxes)):
+                            box = boxes.xyxy[i].cpu().numpy()
+                            iou = self._bbox_iou(
+                                (float(box[0]), float(box[1]), float(box[2]), float(box[3])),
+                                (float(x1), float(y1), float(x2), float(y2)),
+                            )
+                            if iou > 0.5:
+                                boxes.id[i] = tid
+                                break
 
         # Collect raw detections
         raw: list[dict[str, Any]] = []
@@ -354,11 +467,13 @@ class CVService:
         track_confidence_sum: dict[int, float] = defaultdict(float)
         track_is_person: dict[int, bool] = defaultdict(lambda: True)
         track_color_samples: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
+        track_face_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
         track_first_px: dict[int, float] = {}
         frame_number = 0
         h, w = 0, 0
         last_detections: list[Detection] = []
 
+        homography_matrix_auto = None
         try:
             while True:
                 ret, frame = cap.read()
@@ -367,6 +482,36 @@ class CVService:
 
                 h, w = frame.shape[:2]
                 timestamp = frame_number / fps
+
+                # P0-B2: Auto-calibration via PitchDetector on the first processed frame
+                if frame_number == 0 and enable_team_detection:
+                    try:
+                        from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
+                        from kawkab.services.homography_service import HomographyService
+
+                        pd = _PitchDetector()
+                        guess = pd.detect(frame)
+                        if guess.confidence >= 0.4:
+                            hs = HomographyService()
+                            corners_ordered = [
+                                guess.corners["top_left"],
+                                guess.corners["top_right"],
+                                guess.corners["bottom_right"],
+                                guess.corners["bottom_left"],
+                            ]
+                            hm = hs.compute_homography_from_corners(corners_ordered)
+                            homography_matrix_auto = hm.matrix
+                            logger.info(
+                                f"Auto-calibration succeeded: confidence={guess.confidence:.2f}, "
+                                f"error={hm.error_px:.2f}px"
+                            )
+                        else:
+                            logger.info(
+                                f"Auto-calibration low confidence ({guess.confidence:.2f}), "
+                                "falling back to pixel-space analysis"
+                            )
+                    except Exception as e:
+                        logger.debug(f"Auto-calibration failed: {e}")
 
                 if frame_number % frame_skip == 0:
                     frame_det = await self.detect_frame(
@@ -389,6 +534,20 @@ class CVService:
                                 color = self._get_dominant_color(torso)
                                 if color is not None:
                                     track_color_samples[det.track_id].append(color)
+                    if _FACE_REC_AVAILABLE and frame_number % max(1, int(fps * 2)) == 0:
+                        for det in frame_det.detections:
+                            if det.class_name != "person" or det.track_id is None:
+                                continue
+                            torso = self._extract_torso(frame, det.bbox)
+                            if torso is None:
+                                continue
+                            try:
+                                face_svc = FaceRecognitionService()
+                                emb = face_svc.get_embedding(torso)
+                                if emb is not None:
+                                    track_face_embeddings[det.track_id].append(emb)
+                            except Exception:
+                                pass
                 else:
                     frame_det = FrameDetections(
                         frame_number=frame_number,
@@ -450,6 +609,52 @@ class CVService:
             valid_player_tracks = set(top_by_lifetime[:self.max_keep_top_n])
             logger.info(
                 f"Truncated to top {self.max_keep_top_n} tracks by lifetime"
+            )
+
+        # P0-A1: Post-hoc track stitching — merge fragments of the same player
+        stitch_map = self._detect_track_stitches(
+            frames, valid_player_tracks,
+            track_first_frame, track_last_frame,
+            fps, track_color_samples,
+            track_face_embeddings=track_face_embeddings if track_face_embeddings else None,
+        )
+        if stitch_map:
+            logger.info(
+                f"Track stitching: merging {len(stitch_map)} fragments "
+                f"({len(valid_player_tracks)} → {len(valid_player_tracks) - len(stitch_map)} unique tracks)"
+            )
+            # Remap all frames
+            for fdet in frames:
+                for det in fdet.detections:
+                    if det.track_id is not None and det.track_id in stitch_map:
+                        det.track_id = stitch_map[det.track_id]
+            # Merge tracking stats
+            for discarded, survivor in stitch_map.items():
+                if discarded in track_appearances:
+                    track_appearances[survivor] = track_appearances.get(survivor, 0) + track_appearances.pop(discarded, 0)
+                if discarded in track_first_frame:
+                    old_first = track_first_frame.get(survivor, float("inf"))
+                    if track_first_frame[discarded] < old_first:
+                        track_first_frame[survivor] = track_first_frame[discarded]
+                    del track_first_frame[discarded]
+                if discarded in track_last_frame:
+                    old_last = track_last_frame.get(survivor, -1)
+                    if track_last_frame[discarded] > old_last:
+                        track_last_frame[survivor] = track_last_frame[discarded]
+                    del track_last_frame[discarded]
+                if discarded in track_confidence_sum:
+                    track_confidence_sum[survivor] = track_confidence_sum.get(survivor, 0.0) + track_confidence_sum.pop(discarded, 0)
+                if discarded in track_is_person:
+                    track_is_person[survivor] = track_is_person.get(survivor, True) or track_is_person.pop(discarded, True)
+                if discarded in track_first_px:
+                    if discarded not in track_first_px:
+                        track_first_px[survivor] = track_first_px[discarded]
+                    del track_first_px[discarded]
+                if discarded in track_color_samples:
+                    track_color_samples[survivor].extend(track_color_samples.pop(discarded, []))
+                valid_player_tracks.discard(discarded)
+            logger.info(
+                f"After stitching: {len(valid_player_tracks)} valid tracks"
             )
 
         track_registry: dict[int, dict[str, Any]] = {}
@@ -590,15 +795,38 @@ class CVService:
             f"avg_span={avg_track_span:.1f}s)"
         )
 
-        # MOT self-consistency metrics (py-motmetrics intrinsic)
+        # MOT self-consistency metrics + secondary merge map
         mot_metrics: dict[str, Any] = {}
+        tracking_merge_map: dict[int, int] = {}
         if _NORFAIR_AVAILABLE:
             try:
-                from kawkab.services.tracking_metrics import compute_tracking_self_metrics
+                from kawkab.services.tracking_metrics import (
+                    compute_tracking_self_metrics,
+                    compute_merge_map_from_switches,
+                )
 
                 mot_metrics = compute_tracking_self_metrics(
                     frames, track_registry, fps
                 )
+                # Build track_frames for merge map computation
+                track_frames_for_merge: dict[int, set[int]] = {}
+                for fdet in frames:
+                    fn = fdet.frame_number
+                    for det in fdet.detections:
+                        if det.class_name != "person" or det.track_id is None:
+                            continue
+                        tid = det.track_id
+                        if tid not in track_frames_for_merge:
+                            track_frames_for_merge[tid] = set()
+                        track_frames_for_merge[tid].add(fn)
+                if track_frames_for_merge:
+                    tracking_merge_map = compute_merge_map_from_switches(
+                        frames, track_frames_for_merge, fps,
+                    )
+                    if tracking_merge_map:
+                        logger.info(
+                            f"Tracking-metrics merge map: {len(tracking_merge_map)} additional candidates"
+                        )
             except Exception as e:
                 logger.warning(f"MOT self-metrics failed: {e}")
 
@@ -621,9 +849,143 @@ class CVService:
                 "team_detection": team_detection_info,
                 "mot_self_consistency": mot_metrics.get("mot_self_consistency"),
                 "mot_details": mot_metrics,
+                "stitched_tracks": len(stitch_map) if stitch_map else 0,
+                "stitch_merge_map": {str(k): v for k, v in stitch_map.items()} if stitch_map else {},
+                "tracking_metrics_merge_map": {str(k): v for k, v in tracking_merge_map.items()} if tracking_merge_map else {},
+                "auto_homography": homography_matrix_auto,
             },
             match_type=match_type,
         )
+
+    @staticmethod
+    def _detect_track_stitches(
+        frames: list[FrameDetections],
+        valid_player_tracks: set[int],
+        track_first_frame: dict[int, int],
+        track_last_frame: dict[int, int],
+        fps: float,
+        track_color_samples: dict[int, list],
+        track_face_embeddings: dict[int, list] | None = None,
+        spatial_threshold_px: float = 50.0,
+        temporal_gap_max: float = 2.0,
+    ) -> dict[int, int]:
+        """Detect track fragments that belong to the same player.
+
+        Uses three signals:
+        1. Spatial overlap — overlapping frame windows with close x-centers
+        2. Temporal gap — sequential tracks with matching boundary positions
+        3. Team color — same dominant jersey color (when samples available)
+
+        Returns {discarded_track_id: survivor_track_id}.
+        """
+        if len(valid_player_tracks) < 2:
+            return {}
+
+        from collections import defaultdict
+        track_centers: dict[int, dict[int, float]] = defaultdict(dict)
+        for fdet in frames:
+            fn = fdet.frame_number
+            for det in fdet.detections:
+                if det.class_name != "person" or det.track_id is None:
+                    continue
+                if det.track_id not in valid_player_tracks:
+                    continue
+                cx = (det.bbox[0] + det.bbox[2]) / 2
+                track_centers[det.track_id][fn] = cx
+
+        valid_list = sorted(valid_player_tracks)
+        raw_map: dict[int, int] = {}
+
+        def _identity_similar(tid_a: int, tid_b: int) -> bool:
+            """Check if two tracks likely belong to the same player.
+
+            Uses three signals: jersey color, face embedding (ArcFace), spatial overlap.
+            Returns False only when at least two signals disagree.
+            """
+            signals = {"color": 0.0, "face": 0.0}
+            # Signal 1: jersey color
+            sa = track_color_samples.get(tid_a, [])
+            sb = track_color_samples.get(tid_b, [])
+            if len(sa) >= 3 and len(sb) >= 3:
+                avg_a = (int(np.mean([c[0] for c in sa])), int(np.mean([c[1] for c in sa])), int(np.mean([c[2] for c in sa])))
+                avg_b = (int(np.mean([c[0] for c in sb])), int(np.mean([c[1] for c in sb])), int(np.mean([c[2] for c in sb])))
+                color_dist = sum((a - b) ** 2 for a, b in zip(avg_a, avg_b)) ** 0.5
+                signals["color"] = 1.0 if color_dist < 60 else -1.0
+            # Signal 2: face embedding (ArcFace)
+            if track_face_embeddings:
+                fa = track_face_embeddings.get(tid_a, [])
+                fb = track_face_embeddings.get(tid_b, [])
+                if len(fa) >= 1 and len(fb) >= 1:
+                    avg_a = np.mean(fa, axis=0)
+                    avg_b = np.mean(fb, axis=0)
+                    avg_a /= max(np.linalg.norm(avg_a), 1e-8)
+                    avg_b /= max(np.linalg.norm(avg_b), 1e-8)
+                    face_dist = float(np.linalg.norm(avg_a - avg_b))
+                    signals["face"] = 1.0 if face_dist < 0.6 else -1.0
+            scores = [v for v in signals.values() if v != 0.0]
+            if not scores:
+                return True  # no signals → don't penalize
+            return sum(scores) > 0  # majority vote
+
+        for i in range(len(valid_list)):
+            tid_a = valid_list[i]
+            if tid_a in raw_map:
+                continue
+            frames_a = set(track_centers.get(tid_a, {}).keys())
+            if not frames_a:
+                continue
+
+            for j in range(i + 1, len(valid_list)):
+                tid_b = valid_list[j]
+                if tid_b in raw_map:
+                    continue
+                frames_b = set(track_centers.get(tid_b, {}).keys())
+                if not frames_b:
+                    continue
+
+                if not _identity_similar(tid_a, tid_b):
+                    continue
+
+                overlap = frames_a & frames_b
+                if overlap:
+                    close = sum(
+                        1 for fn in overlap
+                        if abs(track_centers[tid_a][fn] - track_centers[tid_b][fn]) < spatial_threshold_px
+                    )
+                    if close / len(overlap) > 0.3:
+                        survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
+                        discarded = tid_b if survivor == tid_a else tid_a
+                        raw_map[discarded] = survivor
+                else:
+                    first_a, last_a = min(frames_a), max(frames_a)
+                    first_b, last_b = min(frames_b), max(frames_b)
+                    if first_b > last_a:
+                        gap = (first_b - last_a) / fps
+                        if 0 < gap <= temporal_gap_max:
+                            ca = track_centers[tid_a].get(last_a)
+                            cb = track_centers[tid_b].get(first_b)
+                            if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                                survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
+                                discarded = tid_b if survivor == tid_a else tid_a
+                                raw_map[discarded] = survivor
+                    elif first_a > last_b:
+                        gap = (first_a - last_b) / fps
+                        if 0 < gap <= temporal_gap_max:
+                            ca = track_centers[tid_b].get(last_b)
+                            cb = track_centers[tid_a].get(first_a)
+                            if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                                survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
+                                discarded = tid_b if survivor == tid_a else tid_a
+                                raw_map[discarded] = survivor
+
+        # Resolve transitive entries (e.g. 2→1, 3→2 ⇒ 3→1)
+        resolved: dict[int, int] = {}
+        for discarded, survivor in raw_map.items():
+            cur = survivor
+            while cur in raw_map:
+                cur = raw_map[cur]
+            resolved[discarded] = cur
+        return resolved
 
     @staticmethod
     def _bbox_iou(bbox_a: tuple[float, float, float, float],

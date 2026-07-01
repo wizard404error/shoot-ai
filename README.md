@@ -112,17 +112,17 @@ ollama pull ministral-3:14b
 # Verify everything is set up
 uv run python scripts/verify_system.py
 
-# Test tracking quality (v0.4.1)
+# Test tracking quality (v0.12.0)
 uv run python scripts/test_tracking_v2.py --video path/to/match.mp4
 
-# Test homography integration (v0.4.0)
+# Test homography integration (v0.12.0)
 uv run python scripts/test_homography.py
 
 # Launch the desktop app
 uv run python -m kawkab
 ```
 
-### v0.8.3 Workflow
+### v0.12.0 Workflow
 
 1. Drop a match video in the app
 2. Click "Analyze" — YOLO tracks 28 players (close to actual 22), K-means assigns teams by color
@@ -132,7 +132,7 @@ uv run python -m kawkab
 
 ---
 
-## Honest Status (v0.8.3)
+## Honest Status (v0.12.0)
 
 ### What's Actually Working ✅
 

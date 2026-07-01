@@ -8,7 +8,7 @@
 
 ### "I just want to install and try it"
 → **[README.md](../README.md)**
-Install, prerequisites, quick start, first run. Start here. Current state: **v0.8.3**.
+Install, prerequisites, quick start, first run. Start here. Current state: **v0.12.0**.
 
 ### "What's actually working and what isn't?"
 → **[STATUS.md](../STATUS.md)**

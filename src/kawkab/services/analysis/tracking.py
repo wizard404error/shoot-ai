@@ -14,8 +14,14 @@ logger = get_logger(__name__)
 
 
 class TrackingMixin:
-    def _compute_player_stats(self, track_data, homography_matrix=None):
+    def _compute_player_stats(self, track_data, homography_matrix=None, track_merge_map: dict[int, int] | None = None):
         from .core import PlayerStats
+
+        def _resolve(tid):
+            """Apply merge map to resolve stitched track IDs."""
+            if track_merge_map and tid in track_merge_map:
+                return track_merge_map[tid]
+            return tid
 
         players: dict[int, PlayerStats] = {}
         prev_positions: dict[int, tuple[float, float]] = {}
@@ -23,6 +29,15 @@ class TrackingMixin:
 
         fps = track_data.fps
         pixels_per_meter = 720.0 / self.pitch_width
+
+        # Read merge map from tracking_metrics if available and not explicitly provided
+        if track_merge_map is None:
+            metrics = getattr(track_data, "tracking_metrics", {}) or {}
+            raw_map = metrics.get("stitch_merge_map", {})
+            if raw_map:
+                track_merge_map = {int(k): v for k, v in raw_map.items()}
+            else:
+                track_merge_map = {}
 
         frame_skip = max(1, track_data.tracking_metrics.get("frame_skip", 1))
 
@@ -54,7 +69,7 @@ class TrackingMixin:
                 if det.class_name != "person" or det.track_id is None:
                     continue
 
-                tid = det.track_id
+                tid = _resolve(det.track_id)
                 if tid not in players:
                     players[tid] = PlayerStats(track_id=tid)
                     if track_data.player_teams:

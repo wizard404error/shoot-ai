@@ -1,6 +1,6 @@
 # Kawkab AI Professional Audit — Gap Analysis vs. Industry Standard
 
-> Date: 2026-06-16 | Current Version: v0.6.0 | Auditor: AI Development Team
+> Date: 2026-06-16 | Current Version: v0.12.0 | Auditor: AI Development Team
 > Benchmark: StatsBomb 360, Second Spectrum, Hudl Sportscode, Wyscout, SciSports
 
 ---

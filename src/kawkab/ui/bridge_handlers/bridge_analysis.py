@@ -2950,3 +2950,64 @@ class AnalysisHandler:
             return json.dumps({"success": True, "categories": cats})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ── P0-B2: YOLO variant control ────────────────────────────────
+
+    async def get_recommended_yolo_variant(self):
+        """Return the recommended YOLO variant for the current GPU tier."""
+        try:
+            from kawkab.core.gpu_acceleration import detect_gpu_tier, recommend_yolo_variant
+            tier = detect_gpu_tier()
+            variant = recommend_yolo_variant(tier)
+            return json.dumps({"success": True, "tier": tier, "recommended": variant})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_current_yolo_variant(self):
+        """Return the current YOLO variant in use."""
+        try:
+            cv = self._services.get("cv_service")
+            variant = cv.model_size if cv and hasattr(cv, "model_size") else "l"
+            return json.dumps({"success": True, "variant": variant})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def set_yolo_variant(self, variant: str):
+        """Set the YOLO variant for the next analysis."""
+        try:
+            valid = {"n", "s", "m", "l", "x"}
+            if variant not in valid:
+                return json.dumps({"success": False, "error": f"Invalid variant '{variant}'. Must be one of {valid}"})
+            cv = self._services.get("cv_service")
+            if cv and hasattr(cv, "model_size"):
+                cv.model_size = variant
+                logger.info(f"YOLO variant set to yolo11{variant}")
+                return json.dumps({"success": True, "variant": variant})
+            return json.dumps({"success": False, "error": "CV service not available"})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_gpu_tier(self):
+        """Return detected GPU tier and VRAM info."""
+        try:
+            from kawkab.core.gpu_acceleration import detect_gpu, detect_gpu_tier
+            backend = detect_gpu()
+            tier = detect_gpu_tier()
+            info = {"backend": backend, "tier": tier}
+            if backend == "cuda":
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        parts = result.stdout.strip().split(", ")
+                        info["gpu_name"] = parts[0] if len(parts) > 0 else "unknown"
+                        info["vram_mb"] = parts[1] if len(parts) > 1 else "unknown"
+                        info["driver"] = parts[2] if len(parts) > 2 else "unknown"
+                except Exception:
+                    pass
+            return json.dumps({"success": True, "info": info})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
