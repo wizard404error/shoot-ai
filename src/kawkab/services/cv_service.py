@@ -491,13 +491,13 @@ class CVService:
 
                         pd = _PitchDetector()
                         guess = pd.detect(frame)
-                        if guess.confidence >= 0.4:
+                        if guess.confidence >= 0.15 and len(guess.corners) >= 4:
                             hs = HomographyService()
                             corners_ordered = [
-                                guess.corners["top_left"],
-                                guess.corners["top_right"],
-                                guess.corners["bottom_right"],
-                                guess.corners["bottom_left"],
+                                guess.corners["tl"],
+                                guess.corners["tr"],
+                                guess.corners["br"],
+                                guess.corners["bl"],
                             ]
                             hm = hs.compute_homography_from_corners(corners_ordered)
                             homography_matrix_auto = hm.matrix

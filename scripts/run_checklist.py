@@ -1,0 +1,99 @@
+"""Run the 10-question debugging checklist from CYCLE_1_VIDEO_PIPELINE.md."""
+from __future__ import annotations
+
+import asyncio
+import logging
+import sys
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, force=True)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+VIDEO = PROJECT_ROOT / "data" / "real_match.mp4"
+SWEDEN = PROJECT_ROOT / "data" / "sweden_test_60s.mp4"
+
+
+async def run_checklist():
+    video = VIDEO if VIDEO.exists() else SWEDEN
+    print(f"=== Cycle 1 — 10-Question Checklist ===")
+    print(f"")
+    print(f"Q1: Did the desktop app launch?")
+    print(f"A1: Headless pipeline test running")
+    print(f"")
+
+    from kawkab.services.cv_service import CVService
+
+    svc = CVService(model_size="m", gpu_enabled=True)
+
+    print(f"Q2: Did you select the video and click Analyze?")
+    print(f"A2: Video = {video.name} ({video.stat().st_size / 1024 / 1024:.1f} MB)")
+    print(f"")
+
+    print(f"Q3: Did YOLO load?")
+    await svc.initialize()
+    print(f"A3: YOLO loaded successfully: {svc._initialized}")
+    print(f"")
+
+    print(f"Q4: How many raw tracks were detected?")
+    print(f"A4: Processing...")
+    match_data = await svc.process_video(
+        video, frame_skip=3, enable_team_detection=True,
+    )
+
+    raw = match_data.tracking_metrics.get("raw_tracks_detected", "?")
+    valid = match_data.tracking_metrics.get("validated_player_tracks", "?")
+    quality = match_data.tracking_metrics.get("tracking_quality", "?")
+    frag = match_data.tracking_metrics.get("fragmentation_rate", "?")
+    team_count = len(match_data.player_teams)
+
+    print(f"Q4: Raw tracking: {raw} unique tracks before filtering")
+    print(f"")
+    print(f"Q5: How many valid player tracks after filtering?")
+    print(f"A5: {valid} validated player tracks (fragmentation={frag}x, quality={quality})")
+    print(f"")
+
+    print(f"Q6: Did team detection work?")
+    print(f"A6: Teams assigned to {team_count} tracks (home/away labels)")
+    td = match_data.tracking_metrics.get("team_detection", {})
+    if td:
+        print(f"    home_size={td.get('home_size')}, away_size={td.get('away_size')}, "
+              f"ref_size={td.get('ref_size')}")
+    print(f"")
+
+    print(f"Q7: Auto-calibration?")
+    auto_h = match_data.tracking_metrics.get("auto_homography")
+    print(f"A7: {'Auto-calibrated (homography matrix)' if auto_h else 'Not calibrated (pixel space)'}")
+    print(f"")
+
+    print(f"Q8: Did the pipeline process without crash?")
+    print(f"A8: {'Yes — no exception' if match_data else 'No'}")
+    print(f"")
+
+    print(f"Q9: What does the report look like?")
+    print(f"A9: Match type={match_data.match_type}, FPS={match_data.fps:.1f}, "
+          f"frames={match_data.total_frames}, duration={match_data.duration_seconds:.1f}s, "
+          f"sampled_frames={len(match_data.frames)}")
+    print(f"")
+
+    print(f"Q10: What was the overall tracking quality assessment?")
+    print(f"A10: {quality}")
+    print(f"")
+
+    # Check for any issues
+    print(f"=== Additional diagnostics ===")
+    print(f"stitched_tracks: {match_data.tracking_metrics.get('stitched_tracks', 0)}")
+    merge_map = match_data.tracking_metrics.get("stitch_merge_map", {})
+    print(f"stitch_merge_map entries: {len(merge_map)}")
+    if float(frag) > 3.0:
+        print(f"WARNING: Fragmentation > 3.0x — high ID-switch rate")
+    if valid == 0:
+        print(f"WARNING: Zero valid tracks — pipeline may have failed silently")
+    if "error" in match_data.tracking_metrics:
+        print(f"ERROR: {match_data.tracking_metrics['error']}")
+
+    await svc.shutdown()
+    print(f"=== Checklist complete ===")
+
+
+if __name__ == "__main__":
+    asyncio.run(run_checklist())

@@ -60,7 +60,7 @@ class FaceRecognitionService:
                 INSIGHTFACE_MODEL_PACK,
             )
         except Exception as e:
-            logger.warning("InsightFace init failed: %s", e)
+            logger.debug("InsightFace init failed: %s", e)
             self._app = None
 
     @property
