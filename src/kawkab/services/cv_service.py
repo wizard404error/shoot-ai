@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 
 from kawkab.core.gpu_acceleration import detect_gpu_tier, recommend_yolo_variant
@@ -32,7 +33,7 @@ except ImportError:
 
 _BOXMOT_AVAILABLE = False
 try:
-    from boxmot import ReID
+    from boxmot.reid import ReID
     from boxmot.trackers import BotSort
     _BOXMOT_AVAILABLE = True
 except ImportError:
@@ -270,6 +271,88 @@ class CVService:
             )
         return tracker
 
+    @staticmethod
+    def _get_reid_embedding(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
+        """Extract ReID embedding from a detection.
+
+        Tiers:
+          1. boxmot ReID OSNet model (cached singleton) — best quality, uses full frame + bbox
+          2. HSV histogram (no model weights required) — fallback, uses crop
+
+        Returns L2-normalized vector or None on failure.
+        """
+        emb = CVService._extract_boxmot_reid(frame, bbox)
+        if emb is not None:
+            return emb
+        crop = CVService._crop_from_bbox(frame, bbox)
+        if crop is None or crop.size == 0:
+            return None
+        return CVService._histogram_embedding(crop)
+
+    @staticmethod
+    def _crop_from_bbox(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        h, w = frame.shape[:2]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return frame[y1:y2, x1:x2]
+
+    @staticmethod
+    def _extract_boxmot_reid(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
+        """Extract ReID embedding using boxmot's built-in OSNet model (auto-downloads weights)."""
+        if not _BOXMOT_AVAILABLE:
+            return None
+        reid = getattr(CVService, "_cached_reid_model", None)
+        if reid is None:
+            try:
+                reid = ReID(device="cpu", half=False)
+                setattr(CVService, "_cached_reid_model", reid)
+            except Exception as e:
+                logger.debug(f"ReID model init failed: {e}")
+                return None
+        try:
+            model = reid.model
+            x1, y1, x2, y2 = [int(v) for v in bbox]
+            # get_features(xyxys=[N,4], img=HWC) -> returns per-box embedding
+            if hasattr(model, "get_features"):
+                emb = model.get_features(xyxys=np.array([[x1, y1, x2, y2]], dtype=np.float32), img=frame)
+                if emb is not None and len(emb) > 0:
+                    emb_flat = np.asarray(emb[0]).flatten().astype(np.float32)
+                    norm = np.linalg.norm(emb_flat)
+                    if norm > 1e-8:
+                        return emb_flat / norm
+            elif hasattr(model, "extract"):
+                crop = CVService._crop_from_bbox(frame, bbox)
+                if crop is not None:
+                    emb = model.extract(crop)
+                    if emb is not None and emb.size > 0:
+                        emb_flat = emb.flatten().astype(np.float32)
+                        norm = np.linalg.norm(emb_flat)
+                        if norm > 1e-8:
+                            return emb_flat / norm
+        except Exception as e:
+            logger.debug(f"ReID extraction failed: {e}")
+        return None
+
+    @staticmethod
+    def _histogram_embedding(crop: np.ndarray) -> np.ndarray | None:
+        """32-bin per-channel HSV histogram, L2-normalized to unit vector."""
+        try:
+            hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            hists = []
+            for i in range(3):
+                hist = cv2.calcHist([hsv], [i], None, [32], [0, 256]).flatten().astype(np.float32)
+                hists.append(hist)
+            emb = np.concatenate(hists)
+            norm = np.linalg.norm(emb)
+            if norm > 1e-8:
+                return emb / norm
+        except Exception:
+            pass
+        return None
+
     async def detect_frame(
         self, frame: np.ndarray, frame_number: int, timestamp: float,
         norfair_tracker: Any | None = None,
@@ -482,6 +565,7 @@ class CVService:
         track_is_person: dict[int, bool] = defaultdict(lambda: True)
         track_color_samples: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
         track_face_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
+        track_reid_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
         track_first_px: dict[int, float] = {}
         frame_number = 0
         h, w = 0, 0
@@ -562,6 +646,17 @@ class CVService:
                                     track_face_embeddings[det.track_id].append(emb)
                             except Exception:
                                 pass
+                    # Collect ReID body embeddings for stitching (via boxmot OSNet)
+                    if _BOXMOT_AVAILABLE and frame_number % max(1, int(fps)) == 0:
+                        for det in frame_det.detections:
+                            if det.class_name != "person" or det.track_id is None:
+                                continue
+                            try:
+                                emb = self._get_reid_embedding(frame, det.bbox)
+                                if emb is not None and emb.size > 0:
+                                    track_reid_embeddings[det.track_id].append(emb)
+                            except Exception:
+                                pass
                 else:
                     frame_det = FrameDetections(
                         frame_number=frame_number,
@@ -631,6 +726,7 @@ class CVService:
             track_first_frame, track_last_frame,
             fps, track_color_samples,
             track_face_embeddings=track_face_embeddings if track_face_embeddings else None,
+            track_reid_embeddings=track_reid_embeddings if track_reid_embeddings else None,
         )
         if stitch_map:
             logger.info(
@@ -880,15 +976,17 @@ class CVService:
         fps: float,
         track_color_samples: dict[int, list],
         track_face_embeddings: dict[int, list] | None = None,
+        track_reid_embeddings: dict[int, list] | None = None,
         spatial_threshold_px: float = 50.0,
         temporal_gap_max: float = 2.0,
     ) -> dict[int, int]:
         """Detect track fragments that belong to the same player.
 
-        Uses three signals:
+        Uses four signals:
         1. Spatial overlap — overlapping frame windows with close x-centers
         2. Temporal gap — sequential tracks with matching boundary positions
         3. Team color — same dominant jersey color (when samples available)
+        4. ReID embedding — cosine similarity of body appearance (when available)
 
         Returns {discarded_track_id: survivor_track_id}.
         """
@@ -913,10 +1011,11 @@ class CVService:
         def _identity_similar(tid_a: int, tid_b: int) -> bool:
             """Check if two tracks likely belong to the same player.
 
-            Uses three signals: jersey color, face embedding (ArcFace), spatial overlap.
+            Uses four signals: jersey color, face embedding (ArcFace),
+            ReID embedding (OSNet), spatial overlap.
             Returns False only when at least two signals disagree.
             """
-            signals = {"color": 0.0, "face": 0.0}
+            signals = {"color": 0.0, "face": 0.0, "reid": 0.0}
             # Signal 1: jersey color
             sa = track_color_samples.get(tid_a, [])
             sb = track_color_samples.get(tid_b, [])
@@ -924,7 +1023,7 @@ class CVService:
                 avg_a = (int(np.mean([c[0] for c in sa])), int(np.mean([c[1] for c in sa])), int(np.mean([c[2] for c in sa])))
                 avg_b = (int(np.mean([c[0] for c in sb])), int(np.mean([c[1] for c in sb])), int(np.mean([c[2] for c in sb])))
                 color_dist = sum((a - b) ** 2 for a, b in zip(avg_a, avg_b)) ** 0.5
-                signals["color"] = 1.0 if color_dist < 60 else -1.0
+                signals["color"] = 1.0 if color_dist < 70 else -1.0
             # Signal 2: face embedding (ArcFace)
             if track_face_embeddings:
                 fa = track_face_embeddings.get(tid_a, [])
@@ -936,6 +1035,17 @@ class CVService:
                     avg_b /= max(np.linalg.norm(avg_b), 1e-8)
                     face_dist = float(np.linalg.norm(avg_a - avg_b))
                     signals["face"] = 1.0 if face_dist < 0.6 else -1.0
+            # Signal 3: ReID body embedding (OSNet / SoccerNet)
+            if track_reid_embeddings:
+                ra = track_reid_embeddings.get(tid_a, [])
+                rb = track_reid_embeddings.get(tid_b, [])
+                if len(ra) >= 1 and len(rb) >= 1:
+                    avg_a = np.mean(ra, axis=0)
+                    avg_b = np.mean(rb, axis=0)
+                    norm_a = max(np.linalg.norm(avg_a), 1e-8)
+                    norm_b = max(np.linalg.norm(avg_b), 1e-8)
+                    reid_sim = float(np.dot(avg_a, avg_b) / (norm_a * norm_b))
+                    signals["reid"] = 1.0 if reid_sim > 0.6 else -1.0
             scores = [v for v in signals.values() if v != 0.0]
             if not scores:
                 return True  # no signals → don't penalize
@@ -1362,7 +1472,7 @@ class CVService:
                     range(len(centroids_hsv)),
                     key=lambda i: (
                         centroids_hsv[i][1],
-                        -abs(centroids_hsv[i][0] - 0),
+                        -float(abs(centroids_hsv[i][0])),
                     ),
                 )
                 team_indices = [i for i in range(actual_n) if i != ref_idx]

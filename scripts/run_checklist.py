@@ -6,6 +6,8 @@ import logging
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
 logging.basicConfig(level=logging.INFO, stream=sys.stdout, force=True)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
