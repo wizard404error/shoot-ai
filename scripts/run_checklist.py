@@ -13,10 +13,11 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout, force=True)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VIDEO = PROJECT_ROOT / "data" / "real_match.mp4"
 SWEDEN = PROJECT_ROOT / "data" / "sweden_test_60s.mp4"
+FRANCE_SWEDEN = PROJECT_ROOT / "france_sweden_15min.mp4"
 
 
 async def run_checklist():
-    video = VIDEO if VIDEO.exists() else SWEDEN
+    video = FRANCE_SWEDEN if FRANCE_SWEDEN.exists() else (VIDEO if VIDEO.exists() else SWEDEN)
     print(f"=== Cycle 1 — 10-Question Checklist ===")
     print(f"")
     print(f"Q1: Did the desktop app launch?")
@@ -38,9 +39,11 @@ async def run_checklist():
 
     print(f"Q4: How many raw tracks were detected?")
     print(f"A4: Processing...")
+    frame_skip = 3  # lower = better quality but slower
     match_data = await svc.process_video(
-        video, frame_skip=3, enable_team_detection=True,
+        video, frame_skip=frame_skip, enable_team_detection=True,
     )
+    print(f"    frame_skip={frame_skip}, effective={match_data.fps / (frame_skip + 1):.1f} FPS")
 
     raw = match_data.tracking_metrics.get("raw_tracks_detected", "?")
     valid = match_data.tracking_metrics.get("validated_player_tracks", "?")

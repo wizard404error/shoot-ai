@@ -568,6 +568,7 @@ class CVService:
         track_reid_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
         track_first_px: dict[int, float] = {}
         frame_number = 0
+        det_idx = 0  # counter for detection frames only
         h, w = 0, 0
         last_detections: list[Detection] = []
 
@@ -619,10 +620,8 @@ class CVService:
                     frames.append(frame_det)
                     last_detections = frame_det.detections
                     if enable_team_detection:
-                        sample_interval = max(
-                            1, int(fps / 2)
-                        )
-                        if frame_number % sample_interval == 0:
+                        # Color sampling: every ~0.5s of detection-rate time
+                        if det_idx % max(1, int(fps / frame_skip / 2)) == 0:
                             for det in frame_det.detections:
                                 if det.class_name != "person" or det.track_id is None:
                                     continue
@@ -632,7 +631,7 @@ class CVService:
                                 color = self._get_dominant_color(torso)
                                 if color is not None:
                                     track_color_samples[det.track_id].append(color)
-                    if _FACE_REC_AVAILABLE and frame_number % max(1, int(fps * 2)) == 0:
+                    if _FACE_REC_AVAILABLE and det_idx % max(1, int(fps / frame_skip * 2)) == 0:
                         for det in frame_det.detections:
                             if det.class_name != "person" or det.track_id is None:
                                 continue
@@ -646,8 +645,8 @@ class CVService:
                                     track_face_embeddings[det.track_id].append(emb)
                             except Exception:
                                 pass
-                    # Collect ReID body embeddings for stitching (via boxmot OSNet)
-                    if _BOXMOT_AVAILABLE and frame_number % max(1, int(fps)) == 0:
+                    # Collect ReID body embeddings (every 4th detection frame ≈ 1 Hz at frame_skip=6)
+                    if _BOXMOT_AVAILABLE and det_idx % 4 == 0:
                         for det in frame_det.detections:
                             if det.class_name != "person" or det.track_id is None:
                                 continue
@@ -657,6 +656,7 @@ class CVService:
                                     track_reid_embeddings[det.track_id].append(emb)
                             except Exception:
                                 pass
+                    det_idx += 1
                 else:
                     frame_det = FrameDetections(
                         frame_number=frame_number,
@@ -698,16 +698,23 @@ class CVService:
         raw_tracks = len(track_appearances)
         logger.info(f"Raw tracking: {raw_tracks} unique tracks before filtering")
 
+        # Use effective frames for lifetime % calculation (adapts to video length)
+        effective_total = total_frames // frame_skip
+        min_life = min(self.min_track_lifetime, max(5, effective_total // 200))
         valid_player_tracks = set()
         for tid, count in track_appearances.items():
             if not track_is_person.get(tid, True):
                 continue
-            if count < self.min_track_lifetime:
+            if count < min_life:
                 continue
-            lifetime_pct = (count / total_frames) * 100
-            if lifetime_pct < 2.0:
+            lifetime_pct = (count / max(effective_total, 1)) * 100
+            if lifetime_pct < 1.0:
                 continue
             valid_player_tracks.add(tid)
+        logger.info(
+            f"Track filtering: min_life={min_life}, effective_total={effective_total}, "
+            f"keeping {len(valid_player_tracks)} of {raw_tracks} raw tracks"
+        )
 
         if self.max_keep_top_n and len(valid_player_tracks) > self.max_keep_top_n:
             top_by_lifetime = sorted(
@@ -988,6 +995,13 @@ class CVService:
         3. Team color — same dominant jersey color (when samples available)
         4. ReID embedding — cosine similarity of body appearance (when available)
 
+        Merge modes:
+        A. Spatial overlap (mode 1): overlapping frames + close x-centers
+        B. Temporal gap (mode 2): sequential tracks, small gap, matching boundary
+        C. Pure appearance (mode 3): strong ReID + color match, no spatial/temporal
+           constraint — needed for broadcast cuts where the same player appears
+           in different camera angles with large time gaps.
+
         Returns {discarded_track_id: survivor_track_id}.
         """
         if len(valid_player_tracks) < 2:
@@ -1101,6 +1115,38 @@ class CVService:
                                 survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
                                 discarded = tid_b if survivor == tid_a else tid_a
                                 raw_map[discarded] = survivor
+
+                # Mode C: Pure appearance match — broadcast cross-camera re-identification.
+                ra_pure = track_reid_embeddings.get(tid_a, []) if track_reid_embeddings else []
+                rb_pure = track_reid_embeddings.get(tid_b, []) if track_reid_embeddings else []
+                if len(ra_pure) >= 1 and len(rb_pure) >= 1:
+                    avg_a = np.mean(ra_pure, axis=0)
+                    avg_b = np.mean(rb_pure, axis=0)
+                    reid_sim = float(np.dot(avg_a, avg_b) / (
+                        max(np.linalg.norm(avg_a), 1e-8) * max(np.linalg.norm(avg_b), 1e-8)
+                    ))
+                    sa = track_color_samples.get(tid_a, [])
+                    sb = track_color_samples.get(tid_b, [])
+                    color_ok = len(sa) >= 3 and len(sb) >= 3
+                    if color_ok:
+                        avg_a_c = (
+                            int(np.mean([c[0] for c in sa])),
+                            int(np.mean([c[1] for c in sa])),
+                            int(np.mean([c[2] for c in sa])),
+                        )
+                        avg_b_c = (
+                            int(np.mean([c[0] for c in sb])),
+                            int(np.mean([c[1] for c in sb])),
+                            int(np.mean([c[2] for c in sb])),
+                        )
+                        color_dist = sum((a - b) ** 2 for a, b in zip(avg_a_c, avg_b_c)) ** 0.5
+                    else:
+                        color_dist = 999.0
+                    if reid_sim > 0.70 and color_dist < 55:
+                        if tid_a not in raw_map and tid_b not in raw_map:
+                            survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
+                            discarded = tid_b if survivor == tid_a else tid_a
+                            raw_map[discarded] = survivor
 
         # Resolve transitive entries (e.g. 2→1, 3→2 ⇒ 3→1)
         resolved: dict[int, int] = {}
