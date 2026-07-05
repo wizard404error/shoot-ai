@@ -97,3 +97,5 @@ yolo11*.pt
 yolov8*.pt
 
 tracking_output/
+
+data/ground_truth/
