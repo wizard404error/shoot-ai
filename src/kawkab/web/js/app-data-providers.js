@@ -5,9 +5,7 @@
 
     // ── Aliases for shared state from app.js ──────────────────────────
     var bridge = null;                          // set when QWebChannel connects
-    var bridgeCall = window.__kawkab.bridgeCall;
-    var showToast = window.__kawkab.showToast;
-    var safeParseFloat = window.__kawkab.safeParseFloat;
+    var safeParseFloat = function(v, def) { var n = parseFloat(v); return isFinite(n) ? n : (def || 0); };
     var escapeHtml = window.__kawkab.escapeHtml;
 
     // ── Team ID variables (were in app.js) ────────────────────────────
@@ -1332,7 +1330,7 @@
                 document.getElementById('mujoco-angle').value = p.launch_angle_deg;
                 document.getElementById('mujoco-spin').value = p.spin_rps;
                 document.getElementById('mujoco-direction').value = p.direction_deg;
-            } catch (e) { console.warn('mujocoApplyPreset:', e); }
+            } catch (e) { showToast('Failed to apply MuJoCo preset.', 'error'); console.warn('mujocoApplyPreset:', e); }
         });
     }
 

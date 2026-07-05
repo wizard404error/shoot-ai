@@ -20,6 +20,9 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.coordinate_validator import CoordinateValidator
+from kawkab.core.perf_timing import timed
+
 
 class ExpectedThreatModel:
     """Data-driven expected threat model.
@@ -177,10 +180,13 @@ class ExpectedThreatModel:
         vals = self.get_zone_values()
         return [[round(float(vals[r, c]), 4) for c in range(self.cols)] for r in range(self.rows)]
 
+    @timed()
     def compute_match_xt(
         self,
         events: list[dict[str, Any]],
     ) -> dict[str, float]:
+        for ev in events:
+            CoordinateValidator.validate_event_spatial(ev)
         self.build_transition_matrix(events)
         home_xt = 0.0
         away_xt = 0.0

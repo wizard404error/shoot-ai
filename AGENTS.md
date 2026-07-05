@@ -18,7 +18,7 @@ Rules:
 
 ## Anchored Summary
 - **Goal**: Professional football analytics platform — correct algorithms, polished UX, professional visualizations, comprehensive test coverage
-- **904+ analytical tests passing** across Sprint 1–15 ✅
+- **904+ analytical tests passing (Phase A/B improvements in progress)** across Sprint 1–15 ✅
 - **Completed sprints**: Sprint 1A–1F (critical bugs, PPDA, pass netwok betweenness, xT 16×12, video overlay perf, heatmap scaling), Sprint 2.1–2.3 (xg_model rewrite, win_prob MC, formation k-means)
 - **Sprint 3** (i18n consolidation, app.js modularization, StorageService exception handling), **Sprint 4** (VAEP module, set piece analysis, Chart.js integration)
 - **Sprint 5** (test coverage — CVService 35 tests, External API 49 tests, StorageService expanded 46 tests), **Sprint 6** (RTL coverage, memory leaks, accessibility, narrative generation, positional benchmarks)
@@ -72,3 +72,53 @@ Rules:
   - Player Rating (0-100): Bridge method `get_player_rating(match_id, track_id)` computes composite from pass accuracy, shot impact, tackles, carries, dribbles, goals, event volume
   - Squad roster: Bridge method `get_squad_summary(match_id)` returns per-team player list with pass/shot/tackle counts; Frontend "👥 Squad" tab with roster table + per-player rating badges (color-coded high/mid/low)
   - **Result**: 16 new tests (total analytical: 920+), all Phase 2-4 items delivered across bridge_analysis.py (+7 methods), bridge.py (+6 @Slots), index.html (3 new sections), main.css (~100 lines), app.js (~350 lines)
+
+## Broadcast Tracking Pipeline (Experimental — Phases A-I)
+
+| Phase | Status | Items | Key Deliverables |
+|-------|--------|-------|-----------------|
+| **A** — Critical Bugs | ✅ Complete | 10/10 | Fixed confidence=0 bug, inverted runtime formula, wrong FPS calc, Google Drive URL, checkpoint version lock, detect_frame try/except, boxmot reset guard, auto-calibration KeyError, goal direction heuristic, frame-rate-dependency |
+| **B** — Detection | ✅ Code | 6/8 | BallTracker (HSV+Kalman), adaptive HSV pitch mask, confidence calibration by bbox size, YOLO fine-tune script, `fine_tune_yolo.py`, SoccerNet annotation converter |
+| **C** — Tracking | ✅ Code | 3/10 | `TrackSmoother` (RTS Kalman), cross-segment propagation guard, config-driven stitch thresholds |
+| **D** — Events | ✅ Code | 2/8 | `ball_tracker.py` service, possession assignment placeholder in `detect_events.py`, segment-based ball detector |
+| **E** — Validation | ✅ Code | 4/8 | `mot_metrics.py` (MOTA/MOTP/IDF1), `regression_test.py`, `render_tracking_overlay.py`, ground-truth comparison in `evaluate_tracking.py` |
+| **F** — Architecture | ✅ Code | 4/8 | `config.py` (YAML/JSON tracking config), `tracker_base.py` (ABC + registry), ball tracker module, streaming mode (keep last 500 frames) |
+| **G** — Performance | ✅ Code | 3/8 | Batch ReID (every 30 frames), lazy FaceRecognitionService, streaming frame limit |
+| **H** — Advanced | ✅ New | 3/10 | `physical_metrics.py`, `heatmap_generator.py`, render overlay script |
+| **I** — Deploy | ✅ New | 3/8 | `setup.py` (one-command install), `__main__.py` (CLI entry: `python -m kawkab track`), Docker-compatible project structure |
+
+### New files added (21 total)
+- `src/kawkab/__main__.py` — CLI entry point (track, evaluate, render, events commands)
+- `src/kawkab/core/config.py` — Centralized YAML/JSON configuration (70+ parameters)
+- `src/kawkab/core/mot_metrics.py` — CLEAR MOT metrics (MOTA, MOTP, IDF1)
+- `src/kawkab/services/ball_tracker.py` — HSV+Kalman dedicated ball tracker
+- `src/kawkab/services/tracker_base.py` — Abstract tracker interface + registry
+- `src/kawkab/services/track_smoother.py` — RTS Kalman smoother for track positions
+- `src/kawkab/services/physical_metrics.py` — Player distance, speed, sprint metrics
+- `src/kawkab/services/heatmap_generator.py` — 2D Gaussian KDE heat maps
+- `scripts/setup.py` — One-command environment setup
+- `scripts/regression_test.py` — Automated regression test suite
+- `scripts/render_tracking_overlay.py` — Visual debugging overlay video
+- `scripts/fine_tune_yolo.py` — YOLO training pipeline + SoccerNet annotation converter
+
+### Modified files (4)
+- `cv_service.py` — 8 fixes: confidence tracking, adaptive pitch mask, adaptive confidence threshold, ball_tracker integration, batch ReID, lazy FaceRecognition, streaming mode, camera cut error handling, auto-calibration KeyError guard
+- `model_manager.py` — Fixed osnet_x1_0 URL (Google Drive → boxmot release)
+- `run_full_match.py` — Fixed inverted runtime formula
+- `evaluate_tracking.py` — Fixed FPS calculation
+- `detect_events.py` — Fixed goal direction heuristic, time-based segment gaps, lower ball confidence threshold
+
+### To run next
+```powershell
+# Full match with all fixes
+$env:PYTHONPATH="src"; python -m kawkab track --video "France vs Sweden_match.mp4" --output tracking_output_full --skip 6
+
+# Regression test
+$env:PYTHONPATH="src"; python scripts/regression_test.py --video france_sweden_15min.mp4
+
+# Ball-only tracking (independent module)
+$env:PYTHONPATH="src"; python -c "from kawkab.services.ball_tracker import BallTracker; print('OK')"
+
+# Physical metrics from tracking output
+$env:PYTHONPATH="src"; python -c "from kawkab.services.physical_metrics import compute_physical_metrics; print('OK')"
+```

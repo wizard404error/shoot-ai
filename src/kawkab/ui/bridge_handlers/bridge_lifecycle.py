@@ -14,9 +14,10 @@ logger = get_logger(__name__)
 class LifecycleHandler:
     """Handles app lifecycle operations for Bridge."""
 
-    def __init__(self, bridge, services):
+    def __init__(self, bridge, services, rate_limiter=None):
         self._bridge = bridge
         self._services = services
+        self._rate_limiter = rate_limiter
 
     # ── helpers ──────────────────────────────────────────────────
 
@@ -32,9 +33,14 @@ class LifecycleHandler:
     def profiler(self):
         return self._services.get("profiler")
 
+    def _check_rate_limit(self, category: str = "analysis") -> None:
+        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
+            raise RuntimeError(f"Rate limit exceeded for {category}")
+
     # ── slots ────────────────────────────────────────────────────
 
     def get_gpu_info(self):
+        self._check_rate_limit()
         from kawkab.services.benchmark_service import BenchmarkService
 
         try:
@@ -67,6 +73,7 @@ class LifecycleHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def profiler_status(self):
+        self._check_rate_limit()
         if self.profiler is None:
             return json.dumps({"error": "Profiler not initialized"})
         try:
@@ -76,6 +83,7 @@ class LifecycleHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def profiler_reset(self):
+        self._check_rate_limit()
         if self.profiler is None:
             return json.dumps({"error": "Profiler not initialized"})
         try:
@@ -87,4 +95,5 @@ class LifecycleHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def metrics_text(self):
+        self._check_rate_limit()
         return metrics.render()

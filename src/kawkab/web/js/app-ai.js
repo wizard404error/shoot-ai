@@ -1,4 +1,8 @@
-﻿    // â”€â”€ AI Coach Assistant v2 (Phase 12) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿    function _catchBridge(method) {
+        return function(err) { console.error('bridge.' + method + ' failed:', err); };
+    }
+
+    // â”€â”€ AI Coach Assistant v2 (Phase 12) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     function initAiWorkspace() {
         var askBtn = document.getElementById('ai-ask-btn');
@@ -30,7 +34,7 @@
                         var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
                         matchSelect.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
                     });
-                } catch(e) { console.warn(e); }
+                } catch(e) { showToast('Failed to load matches.', 'error'); console.warn(e); }
             });
         };
 
@@ -239,100 +243,10 @@
         loadConversations();
     }
 
-    // â”€â”€ Squad + Player Ratings (Phase 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â”€â”€ Squad + Player Ratings (delegated to app-squad.js) â”€â”€â”€
 
     function initSquadWorkspace() {
-        var loadBtn = document.getElementById('squad-load-btn');
-        var matchSelect = document.getElementById('squad-match-select');
-        if (!loadBtn) return;
-
-        window.loadSquadMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.error) data = [];
-                    var sel = document.getElementById('squad-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) { console.warn(e); }
-            });
-        };
-
-        loadBtn.addEventListener('click', function() {
-            var matchId = parseInt(matchSelect.value, 10);
-            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
-            loadSquadData(matchId);
-        });
-
-        loadSquadMatchSelect();
-    }
-
-    function loadSquadData(matchId) {
-        var status = document.getElementById('squad-status');
-        status.textContent = 'Loading...';
-
-        document.getElementById('squad-workspace').classList.remove('hidden');
-
-        bridge.get_squad_summary(matchId, function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                renderSquadRoster(data);
-                if (data.squad) {
-                    loadPlayerRatings(matchId, data.squad);
-                }
-            } catch(e) { status.textContent = 'Error loading squad.'; console.warn(e); return; }
-            status.textContent = 'Done';
-        });
-    }
-
-    function renderSquadRoster(data) {
-        var container = document.getElementById('squad-roster-content');
-        if (!container) return;
-        if (!data.squad || Object.keys(data.squad).length === 0) {
-            container.innerHTML = '<p class="hint">No squad data available.</p>';
-            return;
-        }
-
-        var html = '';
-        Object.keys(data.squad).forEach(function(team) {
-            var players = data.squad[team] || [];
-            html += '<div class="squad-team-header">' + escapeHtml(team.charAt(0).toUpperCase() + team.slice(1)) + ' (' + players.length + ')</div>';
-            players.forEach(function(p) {
-                html += '<div class="squad-player-row" data-track-id="' + p.track_id + '">' +
-                    '<span class="jersey">' + escapeHtml(String(p.jersey || '')) + '</span>' +
-                    '<span class="name">' + escapeHtml(p.name || 'Player #' + p.track_id) + '</span>' +
-                    '<span class="pos">' + escapeHtml(p.position || '') + '</span>' +
-                    '<span class="stat">P' + (p.passes || 0) + '</span>' +
-                    '<span class="stat">S' + (p.shots || 0) + '</span>' +
-                    '<span class="stat">T' + (p.tackles || 0) + '</span>' +
-                    '<span class="rating-badge" id="rating-' + p.track_id + '">--</span>' +
-                    '</div>';
-            });
-        });
-        container.innerHTML = html;
-    }
-
-    function loadPlayerRatings(matchId, squad) {
-        Object.keys(squad).forEach(function(team) {
-            (squad[team] || []).forEach(function(p) {
-                bridge.get_player_rating(matchId, p.track_id, function(result) {
-                    try {
-                        var data = typeof result === 'string' ? JSON.parse(result) : result;
-                        var badge = document.getElementById('rating-' + p.track_id);
-                        if (badge) {
-                            var r = data.rating || 0;
-                            var cls = r >= 70 ? 'rating-high' : (r >= 40 ? 'rating-mid' : 'rating-low');
-                            badge.textContent = r.toFixed(0);
-                            badge.className = 'rating-badge ' + cls;
-                        }
-                    } catch(e) { /* ignore */ }
-                });
-            });
-        });
+        if (window.KawkabSquad) return window.KawkabSquad.initSquadWorkspace();
     }
 
     // â”€â”€ Event Review Workspace (Phase 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -374,7 +288,7 @@
                         var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
                         sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
                     });
-                } catch(e) { console.warn('loadReviewMatchSelect:', e); }
+                } catch(e) { showToast('Failed to load matches.', 'error'); console.warn('loadReviewMatchSelect:', e); }
             });
         };
 
@@ -520,6 +434,7 @@
                 }
             } catch(e) {
                 status.textContent = 'Error';
+                showToast('Failed to load review workspace.', 'error');
                 console.warn(e);
             }
         });
@@ -1381,7 +1296,7 @@
         // Comments
         document.getElementById('collab-add-comment-btn').addEventListener('click', function () {
             var mid = parseInt(document.getElementById('collab-comment-match').value);
-            var eid = parseInt(document.getElementById('collab-comment-event').value) || 0;
+            var eid = parseInt(document.getElementById('collab-comment-event-select').value) || 0;
             var text = document.getElementById('collab-comment-text').value.trim();
             if (!mid || !text) { showToast('Match ID and comment text required', 'warning'); return; }
             bridge.add_comment(mid, eid, 0, text, function (result) {
@@ -1390,19 +1305,51 @@
                     if (data.error) { showToast(data.error, 'error'); return; }
                     showToast('Comment added', 'success');
                     document.getElementById('collab-comment-text').value = '';
+                    loadCollabComments();
                 } catch (e) { showToast('Failed', 'error'); }
             });
         });
-        document.getElementById('collab-load-comments-btn').addEventListener('click', function () {
+        document.getElementById('collab-load-comments-btn').addEventListener('click', loadCollabComments);
+        document.getElementById('collab-load-events-btn').addEventListener('click', function () {
             var mid = parseInt(document.getElementById('collab-comment-match').value);
             if (!mid) { showToast('Match ID required', 'warning'); return; }
-            bridge.get_comments(mid, 0, function (result) {
+            bridge.get_match_events(mid, function (result) {
                 try {
-                    var data = JSON.parse(result);
-                    renderCollabComments(data.comments || []);
-                } catch (e) { showToast('Failed', 'error'); }
+                    var data = typeof result === 'string' ? JSON.parse(result) : result;
+                    var events = data.events || data || [];
+                    var select = document.getElementById('collab-comment-event-select');
+                    select.innerHTML = '<option value="0">All Events</option>';
+                    events.forEach(function (ev) {
+                        var opt = document.createElement('option');
+                        opt.value = ev.id || ev.event_id || 0;
+                        opt.textContent = '#' + opt.value + ' ' + (ev.type || ev.event_type || '') + ' (' + (ev.timestamp || ev.time || '?') + ')';
+                        select.appendChild(opt);
+                    });
+                    showToast('Loaded ' + events.length + ' events', 'success');
+                } catch (e) { showToast('Failed to load events', 'error'); }
             });
         });
+
+        function loadCollabComments() {
+            var mid = parseInt(document.getElementById('collab-comment-match').value);
+            var eid = parseInt(document.getElementById('collab-comment-event-select').value) || 0;
+            if (!mid) { showToast('Match ID required', 'warning'); return; }
+            if (eid > 0) {
+                bridge.get_event_comments(mid, eid, function (result) {
+                    try {
+                        var data = JSON.parse(result);
+                        renderCollabComments(data.comments || []);
+                    } catch (e) { showToast('Failed', 'error'); }
+                });
+            } else {
+                bridge.get_comments(mid, 0, function (result) {
+                    try {
+                        var data = JSON.parse(result);
+                        renderCollabComments(data.comments || []);
+                    } catch (e) { showToast('Failed', 'error'); }
+                });
+            }
+        }
 
         // Projects
         document.getElementById('collab-export-btn').addEventListener('click', function () {
@@ -1446,6 +1393,12 @@
         // Activity
         document.getElementById('collab-refresh-activity-btn').addEventListener('click', loadCollabActivity);
 
+        // Sidebar activity
+        initSidebarActivity();
+
+        // Mention polling
+        initMentionPolling();
+
         // Load initial data
         loadCollabUsers();
         loadCollabActivity();
@@ -1483,13 +1436,37 @@
         }
         var html = '';
         comments.forEach(function (c) {
+            var seekLink = '';
+            if (c.event_id && c.event_id > 0) {
+                seekLink = ' <a href="#" class="collab-seek-link" data-event-id="' + c.event_id + '" data-match-id="' + c.match_id + '" title="Seek to event">(seek)</a>';
+            }
             html += '<div class="collab-comment-item">' +
                 '<strong>' + escapeHtml(c.username) + '</strong> ' +
                 '<span class="collab-comment-text">' + escapeHtml(c.text) + '</span>' +
-                '<span class="collab-comment-meta">Match ' + c.match_id + ' | ' + (c.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
+                '<span class="collab-comment-meta">Match ' + c.match_id + (c.event_id ? ' | Event #' + c.event_id : '') + ' | ' + (c.created_at || '').slice(0, 19).replace('T', ' ') + '</span>' +
+                seekLink +
                 '</div>';
         });
         el.innerHTML = html;
+        el.querySelectorAll('.collab-seek-link').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                var eventId = parseInt(this.dataset.eventId);
+                var matchId = parseInt(this.dataset.matchId);
+                if (typeof video !== 'undefined' && video && typeof video.currentTime !== 'undefined') {
+                    bridge.get_event_timestamp(matchId, eventId, function (result) {
+                        try {
+                            var data = JSON.parse(result);
+                            var ts = data.timestamp || data.time || 0;
+                            video.currentTime = ts;
+                            showToast('Seeked to event #' + eventId + ' at ' + ts.toFixed(1) + 's', 'info');
+                        } catch (e) { showToast('Could not seek', 'error'); }
+                    });
+                } else {
+                    showToast('Video player not available', 'warning');
+                }
+            });
+        });
     }
 
     function loadCollabActivity() {
@@ -1512,6 +1489,92 @@
                         '</div>';
                 });
                 el.innerHTML = html;
+            } catch (e) {}
+        });
+    }
+
+    // Phase 6 Sprint 5: Sidebar Activity + Mention Polling
+    var _sidebarActivityInterval = null;
+    var _mentionPollInterval = null;
+
+    function initSidebarActivity() {
+        var sidebarBtn = document.querySelector('[data-route="collaboration"]');
+        var sidebarPanel = document.getElementById('sidebar-activity');
+        if (!sidebarBtn || !sidebarPanel) return;
+
+        document.getElementById('sidebar-activity-close').addEventListener('click', function () {
+            sidebarPanel.classList.add('hidden');
+        });
+
+        loadSidebarActivity();
+        if (_sidebarActivityInterval) clearInterval(_sidebarActivityInterval);
+        _sidebarActivityInterval = setInterval(loadSidebarActivity, 30000);
+    }
+
+    function loadSidebarActivity() {
+        bridge.get_activity_feed(10, function (result) {
+            try {
+                var data = JSON.parse(result);
+                var el = document.getElementById('sidebar-activity-list');
+                if (!el) return;
+                if (!data.activities || data.activities.length === 0) {
+                    el.innerHTML = '<p class="hint">No recent activity.</p>';
+                    return;
+                }
+                var iconMap = { analyze: '📊', comment: '💬', export: '📤', import: '📥', tag: '🏷️', review: '🔍', user_created: '👤' };
+                var html = '';
+                data.activities.forEach(function (a) {
+                    var icon = iconMap[a.action] || '📋';
+                    var timeAgo = '';
+                    if (a.created_at) {
+                        var then = new Date(a.created_at);
+                        var now = new Date();
+                        var diffSec = Math.floor((now - then) / 1000);
+                        if (diffSec < 60) timeAgo = diffSec + 's ago';
+                        else if (diffSec < 3600) timeAgo = Math.floor(diffSec / 60) + 'm ago';
+                        else if (diffSec < 86400) timeAgo = Math.floor(diffSec / 3600) + 'h ago';
+                        else timeAgo = Math.floor(diffSec / 86400) + 'd ago';
+                    }
+                    html += '<div class="sidebar-activity-item">' +
+                        '<span class="sidebar-activity-icon">' + icon + '</span>' +
+                        '<div class="sidebar-activity-body">' +
+                        '<span class="activity-user">' + escapeHtml(a.username) + '</span> ' +
+                        '<span class="activity-desc">' + escapeHtml(a.description) + '</span>' +
+                        '<span class="activity-time">' + timeAgo + '</span>' +
+                        '</div></div>';
+                });
+                el.innerHTML = html;
+            } catch (e) {}
+        });
+    }
+
+    function initMentionPolling() {
+        if (_mentionPollInterval) clearInterval(_mentionPollInterval);
+        pollMentions();
+        _mentionPollInterval = setInterval(pollMentions, 30000);
+    }
+
+    function pollMentions() {
+        bridge.get_collab_users(function (result) {
+            try {
+                var data = JSON.parse(result);
+                var users = data.users || [];
+                if (users.length === 0) return;
+                var me = users[0].username;
+                bridge.get_mentions(me, function (res) {
+                    try {
+                        var mData = JSON.parse(res);
+                        var dot = document.getElementById('collab-mention-dot');
+                        if (!dot) return;
+                        var unread = mData.unread || 0;
+                        if (unread > 0) {
+                            dot.classList.remove('hidden');
+                            dot.title = unread + ' unread mention' + (unread > 1 ? 's' : '');
+                        } else {
+                            dot.classList.add('hidden');
+                        }
+                    } catch (e) {}
+                });
             } catch (e) {}
         });
     }
@@ -1543,10 +1606,12 @@
                 _liveSessionActive = true;
                 startBtn.classList.add('hidden');
                 stopBtn.classList.remove('hidden');
+                document.getElementById('live-dashboard-toggle').classList.remove('hidden');
                 status.textContent = r.message || 'Session active';
                 loadLiveHotkeys();
                 updateLiveStats();
-            });
+                initLiveDashboard();
+            }).catch(_catchBridge('live_start_session'));
         };
 
         stopBtn.onclick = function() {
@@ -1557,8 +1622,12 @@
                 _liveSessionActive = false;
                 startBtn.classList.remove('hidden');
                 stopBtn.classList.add('hidden');
+                document.getElementById('live-dashboard-toggle').classList.add('hidden');
+                document.getElementById('live-kpi-dashboard').classList.add('hidden');
+                document.getElementById('live-dashboard-panels').classList.add('hidden');
                 status.textContent = r.message || 'Session stopped';
                 loadLiveTags();
+                if (_liveXgChartInstance) { _liveXgChartInstance.destroy(); _liveXgChartInstance = null; }
             });
         };
 
@@ -1569,7 +1638,7 @@
                 updateLiveStats();
                 loadLiveTags();
                 showToast('Tags cleared', 'info');
-            });
+            }).catch(_catchBridge('live_stop_session'));
         };
 
         exportBtn.onclick = function() {
@@ -1583,7 +1652,7 @@
                 a.click();
                 URL.revokeObjectURL(a.href);
                 showToast('Exported ' + d.total + ' tags', 'info');
-            });
+            }).catch(_catchBridge('live_clear_tags'));
         };
 
         // Period buttons
@@ -1617,7 +1686,7 @@
                 if (btn) { btn.classList.add('active'); setTimeout(function(){ btn.classList.remove('active'); }, 200); }
                 updateLiveStats();
                 loadLiveTags();
-            });
+            }).catch(_catchBridge('live_tag_event'));
         });
 
         updateLiveStats();
@@ -1645,12 +1714,12 @@
                         btn.classList.add('active');
                         setTimeout(function(){ btn.classList.remove('active'); }, 200);
                         updateLiveStats();
-                        loadLiveTags();
-                    });
+                loadLiveTags();
+                    }).catch(_catchBridge('live_tag_event'));
                 };
                 grid.appendChild(btn);
             });
-        });
+        }).catch(_catchBridge('live_get_hotkeys'));
     }
 
     function updateLiveStats() {
@@ -1676,7 +1745,7 @@
                 d.innerHTML = '<span>' + it.label + '</span><strong>' + it.value + '</strong>';
                 container.appendChild(d);
             });
-        });
+        }).catch(_catchBridge('live_get_stats'));
     }
 
     function loadLiveTags() {
@@ -1709,6 +1778,156 @@
         var m = Math.floor(seconds / 60);
         var s = Math.floor(seconds % 60);
         return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // â”€â”€ Phase 6 Sprint 2: Live Tagging Dashboard â”€â”€
+
+    function initLiveDashboard() {
+        var toggleBtn = document.getElementById('live-dashboard-toggle');
+        var kpiSection = document.getElementById('live-kpi-dashboard');
+        var panels = document.getElementById('live-dashboard-panels');
+        if (!toggleBtn || !kpiSection || !panels) return;
+        var visible = false;
+        toggleBtn.onclick = function() {
+            visible = !visible;
+            kpiSection.classList.toggle('hidden', !visible);
+            panels.classList.toggle('hidden', !visible);
+            toggleBtn.textContent = visible ? '\u{1F4CA} Dashboard' : '\u{1F4CA} Dashboard';
+            if (visible) {
+                updateLiveDashboard();
+            }
+        };
+    }
+
+    function updateLiveDashboard() {
+        bridge.get_live_kpis('live').then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error) return;
+            document.getElementById('live-possession').textContent = r.possession_pct + '%';
+            document.getElementById('live-shots').textContent = r.shots;
+            document.getElementById('live-xg').textContent = r.xg.toFixed(2);
+            document.getElementById('live-xg-diff').textContent = (r.xg_diff >= 0 ? '+' : '') + r.xg_diff.toFixed(2);
+            document.getElementById('live-goals').textContent = r.goals;
+        }).catch(_catchBridge('get_live_kpis'));
+        bridge.get_live_pitch_map('live').then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error) return;
+            renderLivePitchMap(r);
+        }).catch(_catchBridge('get_live_pitch_map'));
+        bridge.get_live_xg_chart('live').then(function(raw) {
+            var r = JSON.parse(raw);
+            if (r.error) return;
+            renderLiveXgChart(r);
+        }).catch(_catchBridge('get_live_xg_chart'));
+    }
+
+    function renderLivePitchMap(data) {
+        var container = document.getElementById('live-pitch-events');
+        if (!container) return;
+        container.innerHTML = '';
+        var svg = document.getElementById('live-pitch-svg');
+        if (!svg) return;
+        var vb = svg.getAttribute('viewBox').split(' ').map(Number);
+        var pw = vb[2] || 1050;
+        var ph = vb[3] || 680;
+
+        function addEvent(ev, team) {
+            if (ev.x == null || ev.y == null) return;
+            var ex = (ev.x / 100) * pw * 0.85 + pw * 0.075;
+            var ey = (ev.y / 100) * ph * 0.85 + ph * 0.075;
+            var el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            var color = team === 'home' ? '#2563eb' : '#dc2626';
+            var r = 6;
+            var cls = 'pitch-event-marker';
+            if (ev.type === 'goal') {
+                el.setAttribute('r', '10');
+                el.setAttribute('fill', '#fbbf24');
+                el.setAttribute('stroke', color);
+                el.setAttribute('stroke-width', '3');
+                el.innerHTML = '<title>Goal at ' + formatLiveTime(ev.t) + '</title>';
+            } else if (ev.type === 'shot') {
+                el.setAttribute('r', '7');
+                el.setAttribute('fill', 'none');
+                el.setAttribute('stroke', color);
+                el.setAttribute('stroke-width', '2.5');
+                el.setAttribute('stroke-dasharray', '3,3');
+                el.innerHTML = '<title>Shot at ' + formatLiveTime(ev.t) + '</title>';
+            } else if (ev.type === 'pass') {
+                r = 4;
+                el.setAttribute('fill', color);
+                el.setAttribute('opacity', '0.6');
+                el.innerHTML = '<title>Pass at ' + formatLiveTime(ev.t) + '</title>';
+            } else {
+                el.setAttribute('r', '5');
+                el.setAttribute('fill', color);
+                el.setAttribute('opacity', '0.5');
+                el.innerHTML = '<title>' + (ev.type || 'event') + ' at ' + formatLiveTime(ev.t) + '</title>';
+            }
+            el.setAttribute('cx', ex);
+            el.setAttribute('cy', ey);
+            el.setAttribute('class', cls);
+            container.appendChild(el);
+        }
+        (data.home_events || []).forEach(function(ev) { addEvent(ev, 'home'); });
+        (data.away_events || []).forEach(function(ev) { addEvent(ev, 'away'); });
+    }
+
+    var _liveXgChartInstance = null;
+
+    function renderLiveXgChart(data) {
+        var canvas = document.getElementById('live-xg-chart-canvas');
+        if (!canvas) return;
+        if (_liveXgChartInstance) {
+            _liveXgChartInstance.destroy();
+            _liveXgChartInstance = null;
+        }
+        var ctx = canvas.getContext('2d');
+        if (typeof Chart === 'undefined') return;
+        var labels = (data.timeline || []).map(function(p) { return p.minute + "'"; });
+        var homeData = (data.timeline || []).map(function(p) { return p.home_xg; });
+        var awayData = (data.timeline || []).map(function(p) { return p.away_xg; });
+        if (labels.length === 0) {
+            labels = ['0\''];
+            homeData = [0];
+            awayData = [0];
+        }
+        _liveXgChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Home xG',
+                        data: homeData,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37,99,235,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                    },
+                    {
+                        label: 'Away xG',
+                        data: awayData,
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220,38,38,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { labels: { color: '#f1f5f9' } },
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.15)' } },
+                    y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.15)' } },
+                },
+            },
+        });
     }
 
     // â”€â”€ Sprint 5: Scout Camera (Mobile/Tablet) â”€â”€
@@ -1872,7 +2091,7 @@
                 if (r.error) { statusEl.textContent = 'Error: ' + r.error; return; }
                 statusEl.textContent = 'Detected: ' + r.source_type;
                 showToast('Source: ' + r.source_type, 'info');
-            });
+            }).catch(_catchBridge('stream_detect_source'));
         };
 
         document.getElementById('stream-start-btn').onclick = function() {
@@ -1886,7 +2105,7 @@
                 document.getElementById('stream-start-btn').classList.add('hidden');
                 document.getElementById('stream-stop-btn').classList.remove('hidden');
                 showToast('Stream capture started', 'info');
-            });
+            }).catch(_catchBridge('stream_start_capture'));
         };
 
         document.getElementById('stream-stop-btn').onclick = function() {
@@ -1900,7 +2119,7 @@
                 _currentStreamId = null;
                 showToast('Capture stopped', 'info');
                 loadStreamRecordings();
-            });
+            }).catch(_catchBridge('stream_stop_capture'));
         };
 
         document.getElementById('stream-add-marker-btn').onclick = function() {
@@ -1911,7 +2130,7 @@
                 if (r.error) { showToast(r.error, 'error'); return; }
                 loadStreamMarkers();
                 document.getElementById('stream-marker-label').value = '';
-            });
+            }).catch(_catchBridge('stream_add_marker'));
         };
 
         document.getElementById('stream-refresh-recordings-btn').onclick = function() {
@@ -1925,7 +2144,7 @@
                 if (r.error) return;
                 // We re-fetch by just showing chapter count
                 if (markerList) markerList.innerHTML = 'Markers: ' + r.chapters;
-            });
+            }).catch(_catchBridge('stream_get_status'));
         }
 
         function loadStreamRecordings() {
@@ -1941,7 +2160,7 @@
                     return '<div class="stream-rec-entry" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.8rem">'
                         + '<span>' + f.name + '</span><span>' + size + '</span></div>';
                 }).join('');
-            });
+            }).catch(_catchBridge('stream_list_recordings'));
         }
 
         loadStreamRecordings();
@@ -1978,7 +2197,7 @@
                     if (statusEl) statusEl.textContent = 'Offline';
                     if (statusEl) statusEl.style.background = 'var(--text-muted)';
                 }
-            });
+            }).catch(_catchBridge('cloud_is_logged_in'));
             loadCloudTeams();
         }
 
@@ -1988,7 +2207,7 @@
                 var r = JSON.parse(raw);
                 showToast(r.message || 'Server started', r.error ? 'error' : 'info');
                 checkCloudHealth();
-            });
+            }).catch(_catchBridge('cloud_start_server'));
         };
 
         document.getElementById('cloud-refresh-btn').onclick = function() {
@@ -2006,7 +2225,7 @@
                 if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
                 authResult.textContent = 'Logged in as ' + (r.user?.display_name || r.user?.username);
                 updateCloudUI();
-            });
+            }).catch(_catchBridge('cloud_login'));
         };
 
         document.getElementById('cloud-register-btn').onclick = function() {
@@ -2019,13 +2238,13 @@
                 if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
                 authResult.textContent = 'Registered! Logged in as ' + (r.user?.display_name || r.user?.username);
                 updateCloudUI();
-            });
+            }).catch(_catchBridge('cloud_register'));
         };
 
         document.getElementById('cloud-logout-btn').onclick = function() {
             bridge.cloud_logout().then(function() {
                 updateCloudUI();
-            });
+            }).catch(_catchBridge('cloud_logout'));
         };
 
         // Teams
@@ -2037,7 +2256,7 @@
                 if (r.error) { showToast(r.error, 'error'); return; }
                 showToast('Team created!', 'info');
                 loadCloudTeams();
-            });
+            }).catch(_catchBridge('cloud_create_team'));
         };
 
         // Invite
@@ -2049,7 +2268,7 @@
                 var r = JSON.parse(raw);
                 if (r.error) { inviteResult.textContent = 'Error: ' + r.error; return; }
                 inviteResult.textContent = 'Invite sent! Token: ' + (r.invite_token || '');
-            });
+            }).catch(_catchBridge('cloud_invite_member'));
         };
 
         // Sync
@@ -2058,7 +2277,7 @@
                 var r = JSON.parse(raw);
                 if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
                 syncResult.textContent = 'Pushed: ' + (r.operations?.length || 0) + ' ops, ' + (r.conflicts?.length || 0) + ' conflicts';
-            });
+            }).catch(_catchBridge('cloud_sync_push'));
         };
 
         document.getElementById('cloud-sync-pull-btn').onclick = function() {
@@ -2066,7 +2285,7 @@
                 var r = JSON.parse(raw);
                 if (r.error) { syncResult.textContent = 'Error: ' + r.error; return; }
                 syncResult.textContent = 'Pulled: ' + (r.operations?.length || 0) + ' items';
-            });
+            }).catch(_catchBridge('cloud_sync_pull'));
         };
 
         function loadCloudTeams() {
@@ -2088,7 +2307,7 @@
                     return '<div class="collab-user-item" style="padding:6px 8px"><span class="collab-user-name">' + t.name + '</span><span class="collab-user-role">' + (t.role || 'member') + '</span></div>';
                 }).join('');
                 select.innerHTML = '<option value="">Select team</option>' + r.map(function(t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
-            });
+            }).catch(_catchBridge('cloud_list_teams'));
         }
 
         function checkCloudHealth() {
@@ -2103,7 +2322,7 @@
                         statusEl.style.background = 'var(--danger)';
                     }
                 }
-            });
+            }).catch(_catchBridge('cloud_check_health'));
         }
 
         checkCloudHealth();

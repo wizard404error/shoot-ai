@@ -10,11 +10,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import asyncio
+
 import cv2
 import numpy as np
 
 from kawkab.core.gpu_acceleration import detect_gpu_tier, recommend_yolo_variant
 from kawkab.core.logging import get_logger
+from kawkab.services.physical_metrics import compute_physical_metrics
+from kawkab.services.track_smoother import TrackSmoother
 
 try:
     from kawkab.services.norfair_tracker import NorfairTracker
@@ -77,6 +81,7 @@ class MatchTrackData:
     player_teams: dict[int, str] = field(default_factory=dict)
     tracking_metrics: dict[str, Any] = field(default_factory=dict)
     match_type: str = "unknown"
+    checkpoint_manager: Any | None = None
 
     def swap_teams(self) -> None:
         """Swap home/away assignments for all players.
@@ -97,6 +102,146 @@ class MatchTrackData:
                 )
             if "home_size" in td and "away_size" in td:
                 td["home_size"], td["away_size"] = td["away_size"], td["home_size"]
+
+
+class PipelineCheckpoint:
+    """Periodic pipeline state save for crash recovery.
+
+    Writes an atomic HMAC-signed pickle checkpoint every N detection frames.
+    On resume, loads the latest checkpoint and fast-forwards past
+    already-processed frames, preserving all tracking state.
+    """
+
+    _CHECKPOINT_DIR = ".checkpoints"
+    _CHECKPOINT_SECRET = b"kawkab-pipeline-ckpt-v2"
+
+    def __init__(self, video_path: Path, frame_skip: int, interval: int = 500):
+        self.video_path = video_path.resolve()
+        self.frame_skip = frame_skip
+        self.interval = interval
+        self._last_save_det = -1
+        self._ckpt_dir = self.video_path.parent / self._CHECKPOINT_DIR
+        self._ckpt_dir.mkdir(parents=True, exist_ok=True)
+        self._ckpt_file = self._ckpt_dir / f"{self.video_path.stem}.ckpt"
+        self._tmp_file = self._ckpt_file.with_suffix(".tmp")
+
+    def should_save(self, det_idx: int) -> bool:
+        return det_idx > 0 and (det_idx - self._last_save_det) >= self.interval
+
+    def save(
+        self,
+        frame_number: int,
+        det_idx: int,
+        frames: list,
+        track_appearances: dict,
+        track_first_frame: dict,
+        track_last_frame: dict,
+        track_confidence_sum: dict,
+        track_is_person: dict,
+        track_color_samples: dict,
+        track_face_embeddings: dict,
+        track_reid_embeddings: dict,
+        track_first_px: dict,
+        last_detections: list,
+        h: int,
+        w: int,
+        homography_matrix_auto,
+        total_frames: int,
+        fps: float,
+        duration: float,
+    ) -> None:
+        """Atomically write checkpoint state."""
+        self._last_save_det = det_idx
+        frames_compact = [
+            (
+                fdet.frame_number,
+                fdet.timestamp,
+                [(d.bbox, d.confidence, d.class_id, d.class_name, d.track_id) for d in (fdet.detections or [])],
+                fdet.image_width,
+                fdet.image_height,
+            )
+            for fdet in frames
+        ]
+        last_dets_compact = [
+            (d.bbox, d.confidence, d.class_id, d.class_name, d.track_id)
+            for d in (last_detections or [])
+        ]
+        state = {
+            "version": 2,
+            "video_path": str(self.video_path),
+            "total_frames": total_frames,
+            "frame_skip": self.frame_skip,
+            "fps": fps,
+            "duration": duration,
+            "frame_number": frame_number,
+            "det_idx": det_idx,
+            "h": h,
+            "w": w,
+            "homography_matrix_auto": np.asarray(homography_matrix_auto).tolist() if homography_matrix_auto is not None else None,
+            "frames_compact": frames_compact,
+            "last_detections_compact": last_dets_compact,
+            "track_appearances": dict(track_appearances),
+            "track_first_frame": dict(track_first_frame),
+            "track_last_frame": dict(track_last_frame),
+            "track_confidence_sum": dict(track_confidence_sum),
+            "track_is_person": dict(track_is_person),
+            "track_color_samples": {str(k): v for k, v in track_color_samples.items()},
+            "track_face_embeddings": {str(k): [e.tolist() for e in v] for k, v in track_face_embeddings.items()},
+            "track_reid_embeddings": {str(k): [e.tolist() for e in v] for k, v in track_reid_embeddings.items()},
+            "track_first_px": {str(k): v for k, v in track_first_px.items()},
+        }
+        try:
+            import hashlib, hmac, pickle as _pk
+            # HMAC sign for integrity verification
+            payload = _pk.dumps(state, protocol=_pk.HIGHEST_PROTOCOL)
+            signature = hmac.new(self._CHECKPOINT_SECRET, payload, hashlib.sha256).hexdigest()
+            with open(self._tmp_file, "wb") as f:
+                f.write(signature.encode("utf-8") + b"\n" + payload)
+            self._tmp_file.rename(self._ckpt_file) if not self._ckpt_file.exists() else (self._ckpt_file.unlink(), self._tmp_file.rename(self._ckpt_file))
+            logger.info(f"Checkpoint saved at frame {frame_number} (det {det_idx})")
+        except Exception as e:
+            logger.warning(f"Checkpoint save failed at frame {frame_number}: {e}")
+            if self._tmp_file.exists():
+                self._tmp_file.unlink(missing_ok=True)
+
+    @staticmethod
+    def latest(video_path: Path) -> dict | None:
+        """Return checkpoint state dict if a resume is possible."""
+        import hashlib, hmac, pickle as _pk
+        ckpt_dir = video_path.resolve().parent / PipelineCheckpoint._CHECKPOINT_DIR
+        ckpt_file = ckpt_dir / f"{video_path.stem}.ckpt"
+        if not ckpt_file.exists():
+            return None
+        try:
+            with open(ckpt_file, "rb") as f:
+                raw = f.read()
+            sep = raw.find(b"\n")
+            if sep == -1:
+                return None
+            stored_sig = raw[:sep].decode("utf-8")
+            payload = raw[sep + 1:]
+            expected_sig = hmac.new(PipelineCheckpoint._CHECKPOINT_SECRET, payload, hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(stored_sig, expected_sig):
+                logger.warning("Checkpoint HMAC mismatch — tampered or corrupted file")
+                return None
+            state = _pk.loads(payload)
+            ver = state.get("version", 0)
+            if ver < 2:
+                logger.warning(f"Checkpoint version {ver} too old, ignoring")
+                return None
+            return state
+        except Exception:
+            return None
+
+    def delete(self) -> None:
+        """Remove checkpoint after successful completion."""
+        try:
+            if self._ckpt_file.exists():
+                self._ckpt_file.unlink()
+            if self._tmp_file.exists():
+                self._tmp_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 class CVService:
@@ -122,7 +267,30 @@ class CVService:
         expected_player_count: int = 22,
         max_keep_top_n: int = 28,
         model_manager=None,
+        tracker_type: str = "deepocsort",
+        cfg: Any = None,
+        use_track_smoother: bool = False,
     ) -> None:
+        # If a TrackingConfigRoot is provided, use its values over defaults
+        if cfg is not None:
+            d = cfg.detection
+            t = cfg.tracking
+            f = cfg.filter
+            sc = cfg.stitch
+            pc = cfg.performance
+            cc = cfg.color
+            confidence_threshold = d.confidence_threshold
+            ball_confidence_threshold = d.ball_confidence_threshold
+            iou_threshold = d.iou_threshold
+            min_bbox_area_ratio = d.min_bbox_area_ratio
+            max_bbox_area_ratio = d.max_bbox_area_ratio
+            min_track_lifetime_frames = f.min_track_lifetime_frames
+            expected_player_count = f.expected_player_count
+            max_keep_top_n = f.max_keep_top_n
+            self._cfg = cfg
+        else:
+            self._cfg = None
+        self.use_track_smoother = use_track_smoother
         if model_size == "auto":
             # Check benchmark cache first; fall back to heuristic
             try:
@@ -145,6 +313,7 @@ class CVService:
         self.ball_confidence_threshold = ball_confidence_threshold
         self.iou_threshold = iou_threshold
         self.gpu_enabled = gpu_enabled
+        self.tracker_type = tracker_type
         self.min_track_lifetime = min_track_lifetime_frames
         self.min_bbox_area = min_bbox_area_ratio
         self.max_bbox_area = max_bbox_area_ratio
@@ -152,8 +321,10 @@ class CVService:
         self.max_keep_top_n = max_keep_top_n
         self._model: Any = None
         self._initialized = False
+        self._init_lock = asyncio.Lock()
         self._model_manager = model_manager
         self._boxmot_tracker: Any | None = None
+        self._ball_tracker: Any | None = None
         gpu_tier = detect_gpu_tier()
         self._use_boxmot = (
             model_size == "auto"
@@ -176,8 +347,9 @@ class CVService:
         Args:
             progress_callback: Called with (progress, message) during model download
         """
-        if self._initialized:
-            return
+        async with self._init_lock:
+            if self._initialized:
+                return
 
         try:
             from ultralytics import YOLO
@@ -215,18 +387,23 @@ class CVService:
             except ImportError:
                 logger.warning("PyTorch not installed, cannot check CUDA")
 
-        # Initialize boxmot BoT-SORT for deep ReID (OSNet SportsMOT)
+        # Initialize boxmot tracker for deep ReID (OSNet SportsMOT)
         if self._use_boxmot and _BOXMOT_AVAILABLE:
             try:
-                self._boxmot_tracker = self._init_boxmot_tracker()
+                self._boxmot_tracker = self._init_boxmot_tracker(self.tracker_type)
             except Exception as e:
-                logger.warning(f"boxmot BoT-SORT init failed: {e}, using default tracker")
+                logger.warning(f"boxmot {self.tracker_type} init failed: {e}, using default tracker")
 
         self._initialized = True
         logger.info("CVService initialized")
 
-    def _init_boxmot_tracker(self):
-        """Lazy-init boxmot BoT-SORT tracker with OSNet SportsMOT ReID (v19+ API)."""
+    def _init_boxmot_tracker(self, tracker_type: str = "deepocsort"):
+        """Lazy-init boxmot tracker with OSNet SportsMOT ReID (v19+ API).
+
+        Args:
+            tracker_type: One of "botsort", "deepocsort", "bytetrack", "strongsort",
+                         "ocsort", "boosttrack". Falls back to deepocsort on unknown.
+        """
         from pathlib import Path
         from kawkab.core.paths import get_paths
 
@@ -242,28 +419,56 @@ class CVService:
         weights = str(model_path) if model_path.exists() else None
         device = "cuda:0" if self.gpu_enabled else "cpu"
 
+        reid_model = None
         if weights:
-            logger.info("Initializing boxmot BoT-SORT with OSNet SportsMOT ReID")
             reid_model = ReID(
                 weights=weights,
                 device=device,
                 half=self.gpu_enabled,
             )
-            tracker = BotSort(
-                reid_model=reid_model.model,
-                with_reid=True,
+
+        tracker_type = tracker_type.lower()
+        logger.info(f"Initializing boxmot {tracker_type} with OSNet SportsMOT ReID")
+
+        if tracker_type == "deepocsort":
+            from boxmot.trackers.bbox.deepocsort.deepocsort import DeepOcSort
+            reid_arg = reid_model.model if reid_model else None
+            tracker = DeepOcSort(
+                reid_model=reid_arg,
+                det_thresh=self.confidence_threshold * 0.8,
+                max_age=30,
+                min_hits=3,
+                iou_threshold=self.iou_threshold,
+                w_association_emb=0.75,
+                embedding_off=False,
+                cmc_off=False,
+                per_class=True,
+            )
+        elif tracker_type == "strongsort":
+            from boxmot.trackers.bbox.strongsort.strongsort import StrongSort
+            reid_arg = reid_model.model if reid_model else None
+            tracker = StrongSort(
+                reid_model=reid_arg,
+                det_thresh=self.confidence_threshold * 0.8,
+                max_age=30,
+                min_hits=3,
+                iou_threshold=self.iou_threshold,
+                per_class=True,
+            )
+        elif tracker_type == "bytetrack":
+            from boxmot.trackers.bbox.bytetrack.bytetrack import ByteTrack
+            tracker = ByteTrack(
                 track_high_thresh=self.confidence_threshold,
                 track_low_thresh=self.ball_confidence_threshold,
-                new_track_thresh=self.ball_confidence_threshold,
+                match_thresh=0.8,
                 per_class=True,
             )
         else:
-            logger.info(
-                "osnet_sportsmot.pt not cached yet, initializing boxmot BoT-SORT "
-                "without custom ReID (will use boxmot internal defaults)"
-            )
+            from boxmot.trackers.bbox.botsort.botsort import BotSort
+            reid_arg = reid_model.model if reid_model else None
             tracker = BotSort(
-                with_reid=False,
+                reid_model=reid_arg,
+                with_reid=reid_arg is not None,
                 track_high_thresh=self.confidence_threshold,
                 track_low_thresh=self.ball_confidence_threshold,
                 new_track_thresh=self.ball_confidence_threshold,
@@ -300,22 +505,86 @@ class CVService:
         return frame[y1:y2, x1:x2]
 
     @staticmethod
-    def _extract_boxmot_reid(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
-        """Extract ReID embedding using boxmot's built-in OSNet model (auto-downloads weights)."""
+    def _init_gpu_reid():
+        """Initialize ReID on GPU (cached singleton).
+
+        Priority:
+          1. osnet_sportsmot.pt   (football-specific, cached in app dir)
+          2. osnet_x1_0_msmt17.pt (full-width OSNet, auto-downloaded by BoxMOT)
+          3. default fallback     (tiny x0_25, BoxMOT default)
+        """
+        import torch
+        from kawkab.core.paths import get_paths
+        gpu_ok = torch.cuda.is_available()
+        sportsmot_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
+        if sportsmot_path.exists():
+            weights = str(sportsmot_path)
+        else:
+            weights = "osnet_x1_0_msmt17.pt"  # BoxMOT auto-downloads this
+        try:
+            reid = ReID(
+                weights=weights,
+                device="cuda:0" if gpu_ok else "cpu",
+                half=gpu_ok,
+            )
+            setattr(CVService, "_cached_reid_model", reid)
+            logger.info(f"ReID model loaded on {'GPU' if gpu_ok else 'CPU'} (weights={weights})")
+        except Exception as e:
+            logger.debug(f"GPU ReID init failed ({e}), trying CPU fallback")
+            try:
+                reid = ReID(device="cpu", half=False)
+                setattr(CVService, "_cached_reid_model", reid)
+            except Exception as e2:
+                logger.debug(f"CPU ReID fallback also failed: {e2}")
+
+    @staticmethod
+    def _extract_boxmot_reid(frame: np.ndarray, bbox: tuple[float, float, float, float], upscale_factor: int = 2) -> np.ndarray | None:
+        """Extract ReID embedding using boxmot's built-in OSNet model.
+
+        Priority: osnet_x1_0 or SportsMOT weights on GPU (fp16).
+        Falls back to CPU with default weights.
+        If the bbox area is small (< 80x80 px), the crop is upscaled before ReID.
+        """
         if not _BOXMOT_AVAILABLE:
             return None
         reid = getattr(CVService, "_cached_reid_model", None)
         if reid is None:
-            try:
-                reid = ReID(device="cpu", half=False)
-                setattr(CVService, "_cached_reid_model", reid)
-            except Exception as e:
-                logger.debug(f"ReID model init failed: {e}")
+            CVService._init_gpu_reid()
+            reid = getattr(CVService, "_cached_reid_model", None)
+            if reid is None:
                 return None
         try:
             model = reid.model
             x1, y1, x2, y2 = [int(v) for v in bbox]
-            # get_features(xyxys=[N,4], img=HWC) -> returns per-box embedding
+            bw, bh = x2 - x1, y2 - y1
+
+            # ROI upscale: if region is small, upscale the crop for better ReID
+            if upscale_factor > 1 and min(bw, bh) < 80:
+                crop = CVService._crop_from_bbox(frame, bbox)
+                if crop is not None and crop.size > 0:
+                    ch, cw = crop.shape[:2]
+                    new_w, new_h = cw * upscale_factor, ch * upscale_factor
+                    if new_w > 10 and new_h > 10:
+                        upscaled = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+                        if hasattr(model, "get_features"):
+                            emb = model.get_features(
+                                xyxys=np.array([[0, 0, new_w, new_h]], dtype=np.float32),
+                                img=upscaled,
+                            )
+                            if emb is not None and len(emb) > 0:
+                                emb_flat = np.asarray(emb[0]).flatten().astype(np.float32)
+                                norm = np.linalg.norm(emb_flat)
+                                if norm > 1e-8:
+                                    return emb_flat / norm
+                        elif hasattr(model, "extract"):
+                            emb = model.extract(upscaled)
+                            if emb is not None and emb.size > 0:
+                                emb_flat = emb.flatten().astype(np.float32)
+                                norm = np.linalg.norm(emb_flat)
+                                if norm > 1e-8:
+                                    return emb_flat / norm
+
+            # Default path: full-frame ReID (for larger regions)
             if hasattr(model, "get_features"):
                 emb = model.get_features(xyxys=np.array([[x1, y1, x2, y2]], dtype=np.float32), img=frame)
                 if emb is not None and len(emb) > 0:
@@ -453,7 +722,11 @@ class CVService:
             conf = d["confidence"]
             cls_name = d["class_name"]
             if cls_name == "person":
-                if conf < self.confidence_threshold:
+                bbox_h = bbox[3] - bbox[1]
+                adaptive_thresh = self.confidence_threshold
+                if bbox_h < 60:
+                    adaptive_thresh = max(0.15, self.confidence_threshold * bbox_h / 60)
+                if conf < adaptive_thresh:
                     continue
                 area_ratio = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / frame_area
                 if area_ratio < self.min_bbox_area or area_ratio > self.max_bbox_area:
@@ -485,7 +758,6 @@ class CVService:
             from collections import defaultdict
             track_lookup: dict[str, list[tuple[float, int]]] = defaultdict(list)
             for t in tracked:
-                iou = self._bbox_iou(t["bbox"], t["bbox"])  # identity
                 track_lookup[t["label"]].append((t["track_id"], t["bbox"]))
 
             for d in filtered:
@@ -520,6 +792,8 @@ class CVService:
         progress_callback=None,
         frame_skip: int = 1,
         enable_team_detection: bool = True,
+        checkpoint_interval: int = 0,
+        resume_checkpoint: dict | None = None,
     ) -> MatchTrackData:
         """Process a full video with smart track filtering (v2).
 
@@ -557,7 +831,28 @@ class CVService:
             norfair_tracker = NorfairTracker()
             logger.info("Using Norfair tracker (enhanced ReID + camera motion compensation)")
 
+        # Ball tracker — dedicated HSV + Kalman filter, runs at full FPS
+        try:
+            from kawkab.services.ball_tracker import BallDetection, BallTracker
+            self._ball_tracker = BallTracker(fps=fps)
+            logger.info("Ball tracker initialized (HSV + Kalman)")
+        except Exception as e:
+            logger.warning(f"Ball tracker init failed: {e}")
+            self._ball_tracker = None
+
+        # Camera cut detection — pre-scan to find broadcast transitions
+        camera_cuts: list[int] = []
+        try:
+            from kawkab.services.camera_cut_detector import CameraCutDetector
+            ccd = CameraCutDetector(threshold=0.35, min_cut_interval=0.5)
+            cuts_raw = ccd.detect_cuts_fast(video_path)
+            camera_cuts = [c["frame"] for c in cuts_raw]
+            logger.info(f"Camera cut detection: {len(camera_cuts)} cuts in {video_path.name}")
+        except Exception as e:
+            logger.debug(f"Camera cut detection skipped: {e}")
+
         frames: list[FrameDetections] = []
+        ball_detections: list[BallDetection] = []
         track_appearances: dict[int, int] = defaultdict(int)
         track_first_frame: dict[int, int] = {}
         track_last_frame: dict[int, int] = {}
@@ -567,12 +862,60 @@ class CVService:
         track_face_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
         track_reid_embeddings: dict[int, list[np.ndarray]] = defaultdict(list)
         track_first_px: dict[int, float] = {}
+        track_segments: dict[int, set[int]] = defaultdict(set)  # track_id -> set of segment indices
+        current_segment = 0
+        segment_homography: dict[int, Any] = {}  # segment index -> homography matrix
+        prev_det_frame = -frame_skip
         frame_number = 0
         det_idx = 0  # counter for detection frames only
         h, w = 0, 0
         last_detections: list[Detection] = []
 
-        homography_matrix_auto = None
+        ckpt_mgr = PipelineCheckpoint(video_path, frame_skip, interval=checkpoint_interval) if checkpoint_interval > 0 else None
+        resumed_from_checkpoint = False
+
+        # Resume from checkpoint if provided
+        if resume_checkpoint is not None and ckpt_mgr is not None:
+            import pickle as _pk
+            rc = resume_checkpoint
+            frame_number = rc["frame_number"]
+            det_idx = rc["det_idx"]
+            h, w = rc.get("h", 0), rc.get("w", 0)
+            homography_matrix_auto = rc.get("homography_matrix_auto")
+            resumed_from_checkpoint = True
+            ckpt_mgr._last_save_det = det_idx
+            # Restore track dicts
+            track_appearances.update(rc["track_appearances"])
+            track_first_frame.update(rc["track_first_frame"])
+            track_last_frame.update(rc["track_last_frame"])
+            track_confidence_sum.update(rc["track_confidence_sum"])
+            track_is_person.update(rc["track_is_person"])
+            track_first_px.update({int(k): v for k, v in rc["track_first_px"].items()})
+            track_color_samples.update({int(k): v for k, v in rc["track_color_samples"].items()})
+            track_face_embeddings.update({int(k): [np.array(e) for e in v] for k, v in rc["track_face_embeddings"].items()})
+            track_reid_embeddings.update({int(k): [np.array(e) for e in v] for k, v in rc["track_reid_embeddings"].items()})
+            # Restore frames & last_detections
+            for fn, ts, dets, iw, ih in rc["frames_compact"]:
+                frame_dets = FrameDetections(
+                    frame_number=fn, timestamp=ts,
+                    detections=[Detection(*d[:2], d[2], d[3], d[4]) for d in dets] if dets else [],
+                    image_width=iw, image_height=ih,
+                )
+                frames.append(frame_dets)
+            last_dets_compact = rc.get("last_detections_compact", [])
+            if last_dets_compact:
+                last_detections = [Detection(*d[:2], d[2], d[3], d[4]) for d in last_dets_compact]
+            # Fast-forward video to resume frame
+            seek_to = frame_number + 1  # +1 because frame_number was already processed
+            if seek_to < total_frames:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, seek_to)
+            logger.info(
+                f"Resumed from checkpoint: frame={frame_number}, det={det_idx}, "
+                f"frames_in_memory={len(frames)}, seek_to={seek_to}"
+            )
+
+        if not resumed_from_checkpoint:
+            homography_matrix_auto = None
         try:
             while True:
                 ret, frame = cap.read()
@@ -613,24 +956,92 @@ class CVService:
                         logger.debug(f"Auto-calibration failed: {e}")
 
                 if frame_number % frame_skip == 0:
-                    frame_det = await self.detect_frame(
-                        frame, frame_number, timestamp,
-                        norfair_tracker=norfair_tracker,
+                    # Camera cut: if a cut falls between this detection and previous,
+                    # reset boxmot tracker to avoid ID fragmentation across angles.
+                    cut_hit = any(
+                        cf > prev_det_frame and cf <= frame_number
+                        for cf in camera_cuts
                     )
+                    if cut_hit or (frame_number == 0 and len(camera_cuts) > 0):
+                        if self._boxmot_tracker is not None:
+                            try:
+                                self._boxmot_tracker = self._init_boxmot_tracker(self.tracker_type)
+                                logger.debug(f"Boxmot reset on camera cut at frame {frame_number}")
+                            except Exception as e:
+                                logger.warning(f"Boxmot reset failed at frame {frame_number}: {e}")
+                                # Keep old tracker — detect_frame will skip if None
+                        current_segment += 1
+                        # Cache homography per camera segment (only once per angle)
+                        if current_segment not in segment_homography:
+                            try:
+                                from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
+                                from kawkab.services.homography_service import HomographyService
+                                pd = _PitchDetector()
+                                guess = pd.detect(frame)
+                                if guess.confidence >= 0.15 and len(guess.corners) >= 4:
+                                    required_keys = ("tl", "tr", "bl", "br")
+                                    if not all(k in guess.corners for k in required_keys):
+                                        logger.warning(f"Missing corner keys in calibration guess: {set(required_keys) - set(guess.corners)}")
+                                        segment_homography[current_segment] = homography_matrix_auto
+                                    else:
+                                        corners_ordered = [
+                                            guess.corners["tl"], guess.corners["tr"],
+                                            guess.corners["br"], guess.corners["bl"],
+                                        ]
+                                        hs = HomographyService()
+                                        hm = hs.compute_homography_from_corners(corners_ordered)
+                                        segment_homography[current_segment] = hm.matrix
+                                        logger.debug(f"Segment {current_segment} homography cached (conf={guess.confidence:.2f})")
+                            except Exception as e:
+                                logger.debug(f"Segment {current_segment} homography failed: {e}")
+                                segment_homography[current_segment] = homography_matrix_auto
+
+                    try:
+                        frame_det = await self.detect_frame(
+                            frame, frame_number, timestamp,
+                            norfair_tracker=norfair_tracker,
+                        )
+                    except Exception as e:
+                        logger.error(f"detect_frame failed at frame {frame_number}: {e}", exc_info=True)
+                        frame_number += 1
+                        continue
                     frames.append(frame_det)
+                    # Streaming mode: keep sliding window for memory but preserve stitch data
+                    if len(frames) > 500:
+                        # Keep a compact stitch summary before discarding old frames
+                        # Stitch detection uses track_first_frame/track_last_frame/track_color_samples etc.,
+                        # which are maintained separately — only frame-level center data is lost.
+                        # Slide window instead of destructive truncation:
+                        excess = len(frames) - 500
+                        frames = frames[excess:]
                     last_detections = frame_det.detections
+                    # Ball tracker update (every frame)
+                    if self._ball_tracker is not None:
+                        ball_det = self._ball_tracker.update(frame, frame_number, timestamp)
+                        if ball_det and ball_det.conf > 0.3:
+                            ball_detections.append(ball_det)
+                    # Track per-segment visibility
+                    for det in frame_det.detections:
+                        if det.track_id is not None:
+                            track_segments[det.track_id].add(current_segment)
                     if enable_team_detection:
-                        # Color sampling: every ~0.5s of detection-rate time
-                        if det_idx % max(1, int(fps / frame_skip / 2)) == 0:
-                            for det in frame_det.detections:
-                                if det.class_name != "person" or det.track_id is None:
-                                    continue
+                        # Color sampling: immediately on first detection + every ~0.5s
+                        for det in frame_det.detections:
+                            if det.class_name != "person" or det.track_id is None:
+                                continue
+                            tid = det.track_id
+                            has_color = len(track_color_samples.get(tid, [])) > 0
+                            sample_now = not has_color
+                            if has_color and det_idx % max(1, int(fps / frame_skip / 2)) == 0:
+                                sample_now = True
+                            if sample_now:
                                 torso = self._extract_torso(frame, det.bbox)
                                 if torso is None:
                                     continue
                                 color = self._get_dominant_color(torso)
                                 if color is not None:
-                                    track_color_samples[det.track_id].append(color)
+                                    if len(track_color_samples[tid]) < 200:
+                                        track_color_samples[tid].append(color)
                     if _FACE_REC_AVAILABLE and det_idx % max(1, int(fps / frame_skip * 2)) == 0:
                         for det in frame_det.detections:
                             if det.class_name != "person" or det.track_id is None:
@@ -639,24 +1050,32 @@ class CVService:
                             if torso is None:
                                 continue
                             try:
-                                face_svc = FaceRecognitionService()
+                                if not hasattr(self, "_face_recognition_service") or self._face_recognition_service is None:
+                                    self._face_recognition_service = FaceRecognitionService()
+                                face_svc = self._face_recognition_service
                                 emb = face_svc.get_embedding(torso)
-                                if emb is not None:
+                                if emb is not None and len(track_face_embeddings[det.track_id]) < 36:
                                     track_face_embeddings[det.track_id].append(emb)
                             except Exception:
                                 pass
-                    # Collect ReID body embeddings (every 4th detection frame ≈ 1 Hz at frame_skip=6)
-                    if _BOXMOT_AVAILABLE and det_idx % 4 == 0:
+                    # Collect ReID body embeddings every 30 detection frames
+                    # (not every frame — batch/sample strategy saves 30x compute)
+                    collect_reid = _BOXMOT_AVAILABLE and det_idx % 30 == 0
+                    if collect_reid:
                         for det in frame_det.detections:
                             if det.class_name != "person" or det.track_id is None:
+                                continue
+                            tid = det.track_id
+                            if len(track_reid_embeddings.get(tid, [])) >= 36:
                                 continue
                             try:
                                 emb = self._get_reid_embedding(frame, det.bbox)
                                 if emb is not None and emb.size > 0:
-                                    track_reid_embeddings[det.track_id].append(emb)
+                                    track_reid_embeddings[tid].append(emb)
                             except Exception:
                                 pass
                     det_idx += 1
+                    prev_det_frame = frame_number
                 else:
                     frame_det = FrameDetections(
                         frame_number=frame_number,
@@ -683,6 +1102,16 @@ class CVService:
                     if det.class_name != "person":
                         track_is_person[tid] = False
 
+                if ckpt_mgr and ckpt_mgr.should_save(det_idx):
+                    ckpt_mgr.save(
+                        frame_number, det_idx, frames,
+                        track_appearances, track_first_frame, track_last_frame,
+                        track_confidence_sum, track_is_person,
+                        track_color_samples, track_face_embeddings, track_reid_embeddings,
+                        track_first_px, last_detections, h, w,
+                        homography_matrix_auto, total_frames, fps, duration,
+                    )
+
                 frame_number += 1
 
                 if progress_callback and frame_number % (30 * frame_skip) == 0:
@@ -696,40 +1125,40 @@ class CVService:
             cap.release()
 
         raw_tracks = len(track_appearances)
-        logger.info(f"Raw tracking: {raw_tracks} unique tracks before filtering")
-
-        # Use effective frames for lifetime % calculation (adapts to video length)
         effective_total = total_frames // frame_skip
-        min_life = min(self.min_track_lifetime, max(5, effective_total // 200))
-        valid_player_tracks = set()
+        logger.info(f"Raw tracking: {raw_tracks} unique tracks before filtering (eff_total={effective_total})")
+
+        # Adaptive filtering for broadcast vs single-camera footage
+        frag_ratio = raw_tracks / max(1, effective_total)
+        if frag_ratio > 0.2:
+            first_pass_min_life = max(2, raw_tracks // 3000)
+            first_pass_pct = 0.02
+            logger.info(f"Broadcast mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%")
+        else:
+            first_pass_min_life = min(self.min_track_lifetime, max(5, effective_total // 200))
+            first_pass_pct = 1.0
+            logger.info(f"Single-cam mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%")
+
+        # Stage 1: lenient filter to keep fragments for stitching
+        first_pass_tracks: set[int] = set()
         for tid, count in track_appearances.items():
             if not track_is_person.get(tid, True):
                 continue
-            if count < min_life:
+            if count < first_pass_min_life:
                 continue
             lifetime_pct = (count / max(effective_total, 1)) * 100
-            if lifetime_pct < 1.0:
+            if lifetime_pct < first_pass_pct:
                 continue
-            valid_player_tracks.add(tid)
+            first_pass_tracks.add(tid)
         logger.info(
-            f"Track filtering: min_life={min_life}, effective_total={effective_total}, "
-            f"keeping {len(valid_player_tracks)} of {raw_tracks} raw tracks"
+            f"Stage 1 filter: keeping {len(first_pass_tracks)}/{raw_tracks} tracks "
+            f"(min_life={first_pass_min_life}, pct={first_pass_pct}%)"
         )
 
-        if self.max_keep_top_n and len(valid_player_tracks) > self.max_keep_top_n:
-            top_by_lifetime = sorted(
-                valid_player_tracks,
-                key=lambda tid: track_appearances[tid],
-                reverse=True,
-            )
-            valid_player_tracks = set(top_by_lifetime[:self.max_keep_top_n])
-            logger.info(
-                f"Truncated to top {self.max_keep_top_n} tracks by lifetime"
-            )
-
         # P0-A1: Post-hoc track stitching — merge fragments of the same player
+        # Run on first_pass_tracks (lenient filter) so Mode C can merge before final filter
         stitch_map = self._detect_track_stitches(
-            frames, valid_player_tracks,
+            frames, first_pass_tracks,
             track_first_frame, track_last_frame,
             fps, track_color_samples,
             track_face_embeddings=track_face_embeddings if track_face_embeddings else None,
@@ -738,25 +1167,21 @@ class CVService:
         if stitch_map:
             logger.info(
                 f"Track stitching: merging {len(stitch_map)} fragments "
-                f"({len(valid_player_tracks)} → {len(valid_player_tracks) - len(stitch_map)} unique tracks)"
+                f"({len(first_pass_tracks)} → {len(first_pass_tracks) - len(stitch_map)} unique tracks)"
             )
-            # Remap all frames
             for fdet in frames:
                 for det in fdet.detections:
                     if det.track_id is not None and det.track_id in stitch_map:
                         det.track_id = stitch_map[det.track_id]
-            # Merge tracking stats
             for discarded, survivor in stitch_map.items():
                 if discarded in track_appearances:
                     track_appearances[survivor] = track_appearances.get(survivor, 0) + track_appearances.pop(discarded, 0)
                 if discarded in track_first_frame:
-                    old_first = track_first_frame.get(survivor, float("inf"))
-                    if track_first_frame[discarded] < old_first:
+                    if track_first_frame[discarded] < track_first_frame.get(survivor, float("inf")):
                         track_first_frame[survivor] = track_first_frame[discarded]
                     del track_first_frame[discarded]
                 if discarded in track_last_frame:
-                    old_last = track_last_frame.get(survivor, -1)
-                    if track_last_frame[discarded] > old_last:
+                    if track_last_frame[discarded] > track_last_frame.get(survivor, -1):
                         track_last_frame[survivor] = track_last_frame[discarded]
                     del track_last_frame[discarded]
                 if discarded in track_confidence_sum:
@@ -764,15 +1189,97 @@ class CVService:
                 if discarded in track_is_person:
                     track_is_person[survivor] = track_is_person.get(survivor, True) or track_is_person.pop(discarded, True)
                 if discarded in track_first_px:
-                    if discarded not in track_first_px:
+                    if survivor not in track_first_px:
                         track_first_px[survivor] = track_first_px[discarded]
                     del track_first_px[discarded]
                 if discarded in track_color_samples:
                     track_color_samples[survivor].extend(track_color_samples.pop(discarded, []))
-                valid_player_tracks.discard(discarded)
-            logger.info(
-                f"After stitching: {len(valid_player_tracks)} valid tracks"
+                if discarded in track_segments:
+                    track_segments[survivor].update(track_segments.pop(discarded, set()))
+                first_pass_tracks.discard(discarded)
+            logger.info(f"After stitching: {len(first_pass_tracks)} tracks remain")
+
+        # Stage 3: Final filter — adaptive thresholds on stitched tracks
+        final_min_life = min(self.min_track_lifetime, max(5, effective_total // 200))
+        # For broadcast with high fragmentation, use lower threshold
+        stitched_count = len(first_pass_tracks)
+        if frag_ratio > 0.2 and stitched_count > self.expected_player_count:
+            # Broadcast: keep tracks with high segment coverage OR high frame coverage
+            min_segments = 2
+            min_pct = 0.15
+            valid_player_tracks = set()
+            segment_tracks = sorted(
+                first_pass_tracks,
+                key=lambda tid: len(track_segments.get(tid, set())),
+                reverse=True,
             )
+            for tid in segment_tracks:
+                if not track_is_person.get(tid, True):
+                    continue
+                seg_count = len(track_segments.get(tid, set()))
+                lifetime_pct = (track_appearances.get(tid, 0) / max(effective_total, 1)) * 100
+                # Keep if visible in enough segments OR has substantial frame coverage
+                if seg_count >= min_segments or lifetime_pct >= min_pct:
+                    valid_player_tracks.add(tid)
+                if len(valid_player_tracks) >= self.expected_player_count + 3:
+                    break
+            logger.info(
+                f"Stage 3 broadcast filter: {len(valid_player_tracks)}/{len(first_pass_tracks)} tracks "
+                f"(min_segments={min_segments} or min_pct={min_pct}%, top_k={self.expected_player_count + 3})"
+            )
+        else:
+            valid_player_tracks = set()
+            for tid in first_pass_tracks:
+                count = track_appearances.get(tid, 0)
+                if not track_is_person.get(tid, True):
+                    continue
+                if count < final_min_life:
+                    continue
+                lifetime_pct = (count / max(effective_total, 1)) * 100
+                if lifetime_pct < 1.0:
+                    continue
+                valid_player_tracks.add(tid)
+            logger.info(
+                f"Stage 3 final filter: {len(valid_player_tracks)}/{len(first_pass_tracks)} tracks "
+                f"(min_life={final_min_life}, pct=1.0%)"
+            )
+
+        if self.max_keep_top_n and len(valid_player_tracks) > self.max_keep_top_n:
+            top_by_lifetime = sorted(
+                valid_player_tracks,
+                key=lambda tid: track_appearances[tid],
+                reverse=True,
+            )
+            valid_player_tracks = set(top_by_lifetime[:self.max_keep_top_n])
+
+        # Post-processing: RTS Kalman track smoothing (optional)
+        if self.use_track_smoother and frames:
+            try:
+                smoother = TrackSmoother(dt=1.0 / fps)
+                for tid in valid_player_tracks:
+                    t_frames: list[int] = []
+                    t_positions: list[tuple[float, float]] = []
+                    for fdet in frames:
+                        for det in fdet.detections:
+                            if det.track_id == tid:
+                                cx = (det.bbox[0] + det.bbox[2]) / 2.0
+                                cy = float(det.bbox[3])
+                                t_frames.append(fdet.frame_number)
+                                t_positions.append((cx, cy))
+                    if len(t_positions) >= 3:
+                        smoothed = smoother.smooth(t_frames, t_positions)
+                        idx = 0
+                        for fdet in frames:
+                            for det in fdet.detections:
+                                if det.track_id == tid:
+                                    w = det.bbox[2] - det.bbox[0]
+                                    h = det.bbox[3] - det.bbox[1]
+                                    sx, sy = smoothed[idx]
+                                    det.bbox = (sx - w / 2, sy - h, sx + w / 2, sy)
+                                    idx += 1
+                logger.info(f"Track smoothing applied to {len(valid_player_tracks)} tracks")
+            except Exception as e:
+                logger.warning(f"Track smoothing failed: {e}", exc_info=True)
 
         track_registry: dict[int, dict[str, Any]] = {}
         for tid in valid_player_tracks:
@@ -823,6 +1330,7 @@ class CVService:
                         f"with {sum(len(s) for s in track_color_samples.values())} samples"
                     )
                     color_data: dict[int, dict] = {}
+                    clusters: dict[int, str] = {}
                     for tid, samples in track_color_samples.items():
                         if len(samples) < 3:
                             continue
@@ -839,7 +1347,7 @@ class CVService:
                     team_detection_info["color_samples"] = sum(
                         r["samples"] for r in color_data.values()
                     )
-                clusters = self._cluster_team_colors(color_data, n_clusters=3)
+                    clusters = self._cluster_team_colors(color_data, n_clusters=3)
                 for tid, label in clusters.items():
                     if tid in color_data:
                         color_data[tid]["team_label"] = label
@@ -947,6 +1455,52 @@ class CVService:
             except Exception as e:
                 logger.warning(f"MOT self-metrics failed: {e}")
 
+        # Physical metrics via homography (pixel → world coords)
+        physical_profiles: dict[int, Any] = {}
+        if homography_matrix_auto is not None and frames:
+            try:
+                track_positions: dict[int, list[tuple[int, float, float, float]]] = defaultdict(list)
+                sorted_cuts = sorted(camera_cuts)
+                for fdet in frames:
+                    fn = fdet.frame_number
+                    seg = sum(1 for c in sorted_cuts if c <= fn)
+                    hm = segment_homography.get(seg, homography_matrix_auto)
+                    if hm is None:
+                        continue
+                    for det in fdet.detections:
+                        if det.class_name != "person" or det.track_id is None:
+                            continue
+                        foot_x = (det.bbox[0] + det.bbox[2]) / 2.0
+                        foot_y = float(det.bbox[3])
+                        px = np.array([foot_x, foot_y, 1.0])
+                        wld = hm @ px
+                        if abs(wld[2]) > 1e-9:
+                            wx = wld[0] / wld[2]
+                            wy = wld[1] / wld[2]
+                            track_positions[det.track_id].append((fn, wx, wy, fdet.timestamp))
+                if track_positions:
+                    raw_profiles = compute_physical_metrics(dict(track_positions), fps, half_duration_s=2700.0)
+                    physical_profiles = {
+                        str(k): {
+                            "total_distance_m": v.total_distance_m,
+                            "avg_speed_kmh": v.avg_speed_kmh,
+                            "max_speed_kmh": v.max_speed_kmh,
+                            "sprint_count": v.sprint_count,
+                            "sprint_distance_m": v.sprint_distance_m,
+                            "high_intensity_distance_m": v.high_intensity_distance_m,
+                            "jogging_distance_m": v.jogging_distance_m,
+                            "walking_distance_m": v.walking_distance_m,
+                            "standing_time_s": v.standing_time_s,
+                            "total_active_time_s": v.total_active_time_s,
+                            "per_half_distance": v.per_half_distance,
+                            "per_half_time": v.per_half_time,
+                        }
+                        for k, v in raw_profiles.items()
+                    }
+                    logger.info(f"Physical metrics computed for {len(physical_profiles)} players")
+            except Exception as e:
+                logger.warning(f"Physical metrics computation failed: {e}", exc_info=True)
+
         return MatchTrackData(
             match_id=0,
             fps=fps,
@@ -970,8 +1524,15 @@ class CVService:
                 "stitch_merge_map": {str(k): v for k, v in stitch_map.items()} if stitch_map else {},
                 "tracking_metrics_merge_map": {str(k): v for k, v in tracking_merge_map.items()} if tracking_merge_map else {},
                 "auto_homography": homography_matrix_auto,
+                "physical_profiles": physical_profiles if physical_profiles else {},
+                "ball_tracks": [
+                    {"frame": b.frame, "timestamp": b.timestamp, "x": b.x, "y": b.y,
+                     "conf": b.conf, "is_prediction": b.is_prediction, "radius": b.radius}
+                    for b in ball_detections
+                ] if ball_detections else [],
             },
             match_type=match_type,
+            checkpoint_manager=ckpt_mgr,
         )
 
     @staticmethod
@@ -1127,7 +1688,7 @@ class CVService:
                     ))
                     sa = track_color_samples.get(tid_a, [])
                     sb = track_color_samples.get(tid_b, [])
-                    color_ok = len(sa) >= 3 and len(sb) >= 3
+                    color_ok = len(sa) >= 1 and len(sb) >= 1
                     if color_ok:
                         avg_a_c = (
                             int(np.mean([c[0] for c in sa])),
@@ -1142,7 +1703,10 @@ class CVService:
                         color_dist = sum((a - b) ** 2 for a, b in zip(avg_a_c, avg_b_c)) ** 0.5
                     else:
                         color_dist = 999.0
-                    if reid_sim > 0.70 and color_dist < 55:
+                    # Adaptive threshold: tracks with few embeddings need higher confidence
+                    reid_thresh = 0.70 if (len(ra_pure) <= 2 or len(rb_pure) <= 2) else 0.65
+                    color_thresh = 70 if (len(sa) <= 3 or len(sb) <= 3) else 55
+                    if reid_sim > reid_thresh and color_dist < color_thresh:
                         if tid_a not in raw_map and tid_b not in raw_map:
                             survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
                             discarded = tid_b if survivor == tid_a else tid_a
@@ -1172,17 +1736,36 @@ class CVService:
         return inter / union if union > 0 else 0.0
 
     def _compute_pitch_mask(self, frame):
-        """Compute binary mask of pitch (green) area using HSV color.
+        """Compute binary mask of pitch area using adaptive HSV color detection.
 
-        Returns boolean array where True = pitch, False = sideline/crowd.
-        Used to filter detections of refs/spectators on the sidelines.
+        Auto-calibrates pitch color range from the first frame using histogram
+        peak detection on the H channel. Falls back to hardcoded range if
+        auto-detection produces an empty mask.
         """
         try:
             import cv2
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            lower_green = np.array([25, 40, 40])
-            upper_green = np.array([90, 255, 255])
+            if not hasattr(self, "_pitch_hsv_range") or self._pitch_hsv_range is None:
+                h_channel = hsv[:, :, 0]
+                hist = cv2.calcHist([h_channel], [0], None, [180], [0, 180])
+                hist_smooth = cv2.GaussianBlur(hist, (5, 5), 0)
+                peak_idx = int(np.argmax(hist_smooth))
+                margin = 15
+                lower_h = max(0, peak_idx - margin)
+                upper_h = min(180, peak_idx + margin)
+                self._pitch_hsv_range = (
+                    np.array([lower_h, 30, 30]),
+                    np.array([upper_h, 255, 255]),
+                )
+                logger.info(f"Auto-detected pitch HSV range: H=[{lower_h}, {upper_h}]")
+            lower_green, upper_green = self._pitch_hsv_range
             mask = cv2.inRange(hsv, lower_green, upper_green)
+            pitch_pixels = cv2.countNonZero(mask)
+            if pitch_pixels < frame.shape[0] * frame.shape[1] * 0.05:
+                lower_green = np.array([25, 40, 40])
+                upper_green = np.array([90, 255, 255])
+                mask = cv2.inRange(hsv, lower_green, upper_green)
+                logger.warning("Pitch mask too small, falling back to hardcoded range")
             kernel = np.ones((15, 15), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)

@@ -84,6 +84,7 @@ from kawkab.services.substitution_service import (
 from kawkab.services.possession_service import (
     PossessionService, PossessionChain, PlayerPossessionStats, PossessionReport,
 )
+from kawkab.services.feedback_service import FeedbackService
 from kawkab.services.football_data_service import FootballDataService
 from kawkab.services.bzzoiro_service import BzzoiroService
 from kawkab.services.easy_soccer_service import EasySoccerService

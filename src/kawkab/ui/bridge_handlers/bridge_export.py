@@ -15,9 +15,10 @@ logger = get_logger(__name__)
 class ExportHandler:
     """Handles data export operations for Bridge."""
 
-    def __init__(self, bridge, services):
+    def __init__(self, bridge, services, rate_limiter=None):
         self._bridge = bridge
         self._services = services
+        self._rate_limiter = rate_limiter
 
     @property
     def data_export_service(self):
@@ -31,7 +32,12 @@ class ExportHandler:
     def storage_service(self):
         return self._services.get("storage_service")
 
+    def _check_rate_limit(self, category: str = "export") -> None:
+        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
+            raise RuntimeError(f"Rate limit exceeded for {category}")
+
     async def export_match_csv(self, match_id_str):
+        self._check_rate_limit("export")
         try:
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.data_export_service is None:
@@ -43,6 +49,7 @@ class ExportHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def export_match_json(self, match_id_str):
+        self._check_rate_limit("export")
         try:
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.data_export_service is None:
@@ -54,6 +61,7 @@ class ExportHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def export_report_pdf(self, match_id, language):
+        self._check_rate_limit("export")
         import html as html_mod
         from datetime import datetime
 
@@ -145,7 +153,23 @@ h3 {{ font-size: 1rem; color: #475569; margin: 1rem 0 0.5rem; }}
             logger.error(f"export_report_pdf failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
+    async def export_match_statsbomb(self, match_id_str, file_path):
+        self._check_rate_limit("export")
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id_str)
+            if self.data_export_service is None:
+                return json.dumps({"error": "DataExportService not available"})
+            path = await self.data_export_service.export_statsbomb_compatible(match_id)
+            output = Path(file_path)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+            return json.dumps({"success": True, "path": str(output)})
+        except Exception as e:
+            logger.error(f"Export StatsBomb failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
     async def extract_event_clips(self, match_id):
+        self._check_rate_limit("export")
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.clip_service is None:

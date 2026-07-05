@@ -1,9 +1,31 @@
-var CACHE = 'KAWKAB_CACHE_V1';
+var CACHE = 'KAWKAB_CACHE_V2';
 var STATIC_ASSETS = [
+  'index.html',
+  'offline.html',
   'css/main.css',
+  'css/accessibility.css',
   'js/kawkab_polish.js',
   'js/app.js',
-  'offline.html'
+  'js/app-offline.js',
+  'js/app-router.js',
+  'js/app-skeletons.js',
+  'js/app-perf.js',
+  'js/app-ux.js',
+  'js/app-charts.js',
+  'js/app-coding.js',
+  'js/app-tactics.js',
+  'js/app-squad.js',
+  'js/app-ai.js',
+  'js/app-scout.js',
+  'js/app-sparklines.js',
+  'js/app-data-providers.js',
+  'js/app-tooltips.js',
+  'js/app-opponent.js',
+  'js/app-marketplace.js',
+  'js/app-error-boundary.js',
+  'manifest.json',
+  'icons/icon-192.svg',
+  'icons/icon-512.svg'
 ];
 
 self.addEventListener('install', function (event) {

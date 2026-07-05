@@ -573,6 +573,46 @@ body {
     color: var(--text);
 }
 
+.quality-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+}
+.quality-badge.good { background: rgba(22, 163, 74, 0.15); }
+.quality-badge.fair { background: rgba(217, 119, 6, 0.15); }
+.quality-badge.poor { background: rgba(220, 38, 38, 0.15); }
+.quality-badge.error { background: rgba(100, 116, 139, 0.15); }
+.quality-badge.hidden { display: none; }
+.quality-shield { font-size: 1rem; }
+.quality-label { color: var(--text-muted); }
+.quality-pct { font-weight: 700; }
+.quality-badge.good .quality-pct { color: var(--success); }
+.quality-badge.fair .quality-pct { color: var(--warning); }
+.quality-badge.poor .quality-pct { color: var(--danger); }
+.quality-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+.quality-badge:hover .quality-tooltip { display: block; }
+
 .stats-list {
     display: flex;
     flex-direction: column;
@@ -2882,6 +2922,107 @@ body {
     border-bottom-color: var(--primary);
 }
 
+.nav-notification-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #dc2626;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: super;
+    animation: pulse-dot 1.5s infinite;
+}
+.nav-notification-dot.hidden {
+    display: none;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Sidebar Activity Panel */
+.sidebar-panel {
+    position: fixed;
+    right: 0;
+    top: 56px;
+    bottom: 0;
+    width: 320px;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    box-shadow: -4px 0 12px rgba(0,0,0,0.3);
+}
+.sidebar-panel.hidden {
+    display: none;
+}
+.sidebar-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+}
+.sidebar-panel-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+}
+.sidebar-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.sidebar-close:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+#sidebar-activity-list {
+    padding: 8px 12px;
+    flex: 1;
+}
+.sidebar-activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+}
+.sidebar-activity-item:last-child {
+    border-bottom: none;
+}
+.sidebar-activity-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+.sidebar-activity-body {
+    flex: 1;
+    min-width: 0;
+}
+.sidebar-activity-body .activity-user {
+    font-weight: 600;
+    color: var(--text);
+}
+.sidebar-activity-body .activity-desc {
+    color: var(--text-muted);
+    display: block;
+    line-height: 1.3;
+}
+.sidebar-activity-body .activity-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
 /* Theme toggle button */
 .theme-toggle-btn {
     background: transparent;
@@ -3744,6 +3885,22 @@ body {
 .rating-high { background: var(--success); color: #fff; }
 .rating-mid { background: var(--warning); color: #fff; }
 .rating-low { background: var(--danger); color: #fff; }
+
+/* ── Injury Risk Badges ───────────────────────────────────── */
+.risk-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; min-width: 50px; text-align: center; }
+.risk-low { background: #16a34a; color: #fff; }
+.risk-moderate { background: #d97706; color: #fff; }
+.risk-high { background: #dc2626; color: #fff; }
+.risk-critical { background: #7c3aed; color: #fff; }
+.risk-acwr-bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--bg-elevated); width: 60px; vertical-align: middle; margin-right: 4px; }
+.risk-acwr-bar-fill { display: block; height: 6px; border-radius: 3px; background: var(--primary); }
+.risk-health-summary { display: flex; gap: 16px; margin: 8px 0; flex-wrap: wrap; }
+.risk-health-stat { background: var(--bg-card); border-radius: var(--radius); padding: 8px 14px; text-align: center; min-width: 100px; flex: 1; }
+.risk-health-stat .value { font-size: 1.2rem; font-weight: 700; }
+.risk-health-stat .label { font-size: 0.72rem; color: var(--text-muted); }
+.risk-factors { font-size: 0.7rem; color: var(--text-muted); max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.risk-rec { font-size: 0.7rem; color: var(--text-muted); max-width: 130px; }
+
 .squad-team-header { font-size: 0.82rem; font-weight: 700; color: var(--primary); padding: 8px 0 4px; border-bottom: 1px solid var(--border); margin-top: 8px; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3771,6 +3928,84 @@ body {
 .telestrate-color { width: 32px; height: 32px; border: none; border-radius: 4px; cursor: pointer; padding: 0; }
 .telestrate-width { width: 60px; height: 6px; cursor: pointer; accent-color: var(--primary); }
 [data-theme="light"] .telestrate-toolbar { background: var(--bg-card); }
+
+/* ── Telestration Layer Panel ── */
+.tel-layer-panel {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-top: 6px; flex-wrap: wrap;
+}
+.tel-layer-panel-title { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+.tel-layer-list { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.tel-layer-item {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: all 0.15s;
+}
+.tel-layer-item:hover { background: var(--bg-hover); }
+.tel-layer-item.active { border-color: var(--primary); background: rgba(99,102,241,0.12); }
+.tel-layer-item .layer-vis { cursor: pointer; font-size: 0.7rem; }
+.tel-layer-opacity { width: 60px; height: 6px; cursor: pointer; accent-color: var(--primary); }
+
+/* ── Telestration Preset Browser ── */
+.tel-preset-browser {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 400px; max-width: 90vw; max-height: 80vh;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  z-index: 1000; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.tel-preset-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.tel-preset-title { font-size: 0.9rem; font-weight: 700; }
+.tel-preset-list {
+  flex: 1; overflow-y: auto; padding: 8px 16px;
+  max-height: 300px;
+}
+.tel-preset-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 0.82rem;
+  cursor: pointer; transition: background 0.15s;
+}
+.tel-preset-item:hover { background: var(--bg-hover); }
+.tel-preset-item.selected { background: rgba(99,102,241,0.12); border-color: var(--primary); }
+.tel-preset-actions {
+  display: flex; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.tel-preset-actions .input { flex: 1; min-width: 120px; }
+
+/* ── Highlight Reel Builder ── */
+.highlight-layout { display: flex; flex-direction: column; gap: 12px; }
+.highlight-controls { display: flex; flex-direction: column; gap: 10px; }
+.highlight-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.highlight-row label { font-size: 0.82rem; font-weight: 600; min-width: 80px; }
+.highlight-event-types { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0; }
+.highlight-event-types label { font-size: 0.78rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.highlight-event-list {
+  max-height: 300px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px; background: var(--bg-secondary);
+}
+.highlight-event-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  font-size: 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background 0.15s;
+}
+.highlight-event-item:hover { background: var(--bg-hover); }
+.highlight-event-item.selected { background: rgba(99,102,241,0.12); }
+.highlight-event-item input[type="checkbox"] { margin: 0; }
+.highlight-event-type-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+}
+.highlight-event-type-badge.shot { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.highlight-event-type-badge.goal { background: rgba(34,197,94,0.2); color: #4ade80; }
+.highlight-event-type-badge.assist { background: rgba(168,85,247,0.2); color: #a78bfa; }
+.highlight-event-type-badge.key_pass { background: rgba(234,179,8,0.2); color: #facc15; }
+.highlight-event-type-badge.tackle { background: rgba(239,68,68,0.2); color: #f87171; }
+.highlight-event-type-badge.interception { background: rgba(249,115,22,0.2); color: #fb923c; }
+.highlight-context-input { width: 70px; }
+.highlight-result { padding: 12px; background: var(--bg-secondary); border-radius: var(--radius); font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════════
    Wave B — Season Dashboard
@@ -4115,6 +4350,16 @@ body {
   .live-hotkey-btn { padding: 6px 4px; font-size: 0.72rem; }
 }
 
+/* ── Keyboard shortcuts modal ── */
+.shortcuts-table { width: 100%; border-collapse: collapse; }
+.shortcuts-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.shortcuts-table tr:last-child td { border-bottom: none; }
+.shortcuts-table td:first-child { width: 120px; text-align: center; }
+.shortcuts-table kbd {
+    background: var(--surface, var(--bg-secondary)); padding: 2px 8px; border-radius: 4px;
+    font-family: monospace; border: 1px solid var(--border); font-size: 0.8rem;
+}
+
 /* ── Small phones (≤480px) ── */
 /* ── Phase 9: Live Stream ── */
 .stream-rec-entry:hover { background: var(--bg-hover); }
@@ -4183,4 +4428,55 @@ body {
   border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600;
 }
 .offline-indicator.visible { display: flex; }
+
+/* â”€â”€ Phase 6 Sprint 2: Live Tagging Dashboard â”€â”€ */
+
+.live-dashboard-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+@media (max-width: 900px) {
+  .live-dashboard-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pitch-map-container {
+  position: relative;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pitch-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pitch-events-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pitch-event-marker {
+  transition: opacity 0.15s;
+}
+
+.pitch-event-marker:hover {
+  opacity: 1 !important;
+  cursor: pointer;
+}
+
+[data-theme="light"] .pitch-svg rect:first-child {
+  fill: #4caf50;
+}
 

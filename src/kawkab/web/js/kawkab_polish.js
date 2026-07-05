@@ -243,7 +243,9 @@
         });
         const msg = "Shortcuts: " + lines.join(", ");
         announce(msg, "assertive");
-        alert(msg);
+        if (typeof showToast === "function") {
+            showToast(msg, "info");
+        }
     }
 
     function onKeydown(e) {

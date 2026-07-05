@@ -12,6 +12,9 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.coordinate_validator import CoordinateValidator
+from kawkab.core.perf_timing import timed
+
 
 @dataclass
 class PitchControlFrame:
@@ -77,6 +80,7 @@ class VoronoiPitchControl:
         self.grid_rows = grid_rows
         self.grid_cols = grid_cols
 
+    @timed()
     def compute_frame_control(
         self,
         home_positions: list[tuple[float, float]],
@@ -97,6 +101,10 @@ class VoronoiPitchControl:
         Returns:
             PitchControlFrame with control percentages and grid.
         """
+        for px, py in home_positions + away_positions:
+            CoordinateValidator.validate_point(px, py)
+        if ball_pos is not None:
+            CoordinateValidator.validate_point(*ball_pos)
         total = self.grid_rows * self.grid_cols
 
         all_players = home_positions + away_positions

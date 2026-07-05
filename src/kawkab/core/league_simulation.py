@@ -36,7 +36,10 @@ def _poisson_knuth(lambda_: float) -> int:
 
 import math
 
+from kawkab.core.perf_timing import timed
 
+
+@timed()
 def simulate_match(home_xg: float, away_xg: float) -> tuple[int, int]:
     home_goals = _poisson_knuth(home_xg)
     away_goals = _poisson_knuth(away_xg)

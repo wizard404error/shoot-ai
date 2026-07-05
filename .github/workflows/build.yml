@@ -1,61 +1,30 @@
-name: Build Windows Installer
+name: Build Frontend
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
-
+  build-frontend:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
-
-      - name: Install uv
-        run: pip install uv
-
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/kawkab/web/package-lock.json
       - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Run tests
-        run: uv run pytest --tb=short
-
-      - name: Run linter
-        run: uv run ruff check src/
-
-      - name: Run type checker
-        run: uv run mypy src/
-
-      - name: Build with PyInstaller
-        run: uv run pyinstaller KawkabAI.spec --clean
-
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
-
-      - name: Build installer
-        run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' infrastructure\setup.iss
-
-      - name: Get version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+        run: npm ci
+        working-directory: src/kawkab/web
+      - name: Build frontend
+        run: npm run build:frontend
+        working-directory: src/kawkab/web
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            dist/installer/*.exe
-            dist/KawkabAI.zip
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: frontend-dist
+          path: src/kawkab/web/dist/
+          if-no-files-found: warn

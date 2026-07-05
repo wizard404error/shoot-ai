@@ -174,18 +174,22 @@ def _coeff_array() -> np.ndarray:
 # ── Single-pass computation ──────────────────────────────────────────────────
 
 
-@functools.lru_cache(maxsize=128)
-def compute_ep(pass_data: tuple) -> ExpectedPassResult:
+def compute_ep(pass_data: dict) -> ExpectedPassResult:
     """Compute expected pass completion probability for a single pass.
 
     Args:
-        pass_data: Tuple of (key, value) pairs (hashable replacement for dict).
+        pass_data: Dictionary of pass attributes.
 
     Returns:
         ExpectedPassResult with the EP probability, progressive flag,
         difficulty label, and per-factor contributions.
     """
-    pd = dict(pass_data)
+    return _compute_ep_cached(tuple(sorted(pass_data.items())))
+
+
+@functools.lru_cache(maxsize=128)
+def _compute_ep_cached(pass_data_items: tuple) -> ExpectedPassResult:
+    pd = dict(pass_data_items)
     coeffs = _coeff_array()
     features = _feature_vector(pd)
 

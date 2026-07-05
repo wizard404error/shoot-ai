@@ -163,6 +163,7 @@ warn_return_any = true
 minversion = "8.0"
 addopts = "-ra -q --strict-markers"
 testpaths = ["tests"]
+asyncio_mode = "auto"
 markers = [
     "unit: Unit tests (fast, isolated)",
     "integration: Integration tests (slower, may require external deps)",
@@ -195,4 +196,3 @@ exclude_lines = [
 show_missing = true
 precision = 2
 fail_under = 30
-asyncio_mode = "auto"

@@ -26,6 +26,8 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.coordinate_validator import CoordinateValidator, ValidationResult
+from kawkab.core.perf_timing import timed
 from kawkab.core.events import (
     AssistType,
     BodyPart,
@@ -98,6 +100,7 @@ ENHANCED_COEFFICIENTS: dict[str, float] = {
 # ── Legacy functions (backward compatible) ──────────────────────────────────
 
 @functools.lru_cache(maxsize=64)
+@timed()
 def compute_xg(
     distance_m: float,
     angle_deg: float,
@@ -112,7 +115,6 @@ def compute_xg(
     """Compute expected goals using the legacy model."""
     if shot_type == "penalty":
         return PENALTY_XG
-
     coef = XG_COEFFICIENTS
     logit = coef["intercept"]
     d = max(distance_m, MIN_DISTANCE)
@@ -163,6 +165,7 @@ def compute_xg_from_shot_event(event: ShotEvent) -> float:
 
 def compute_xg_from_dict(event_dict: dict[str, Any]) -> float:
     """Compute xG from a raw event dict (legacy)."""
+    CoordinateValidator.validate_event_spatial(event_dict)
     event = ShotEvent.from_dict(event_dict)
     return compute_xg_from_shot_event(event)
 

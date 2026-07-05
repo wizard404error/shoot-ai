@@ -1,4 +1,4 @@
-﻿// Kawkab AI - Frontend JavaScript
+// Kawkab AI - Frontend JavaScript
 // Communicates with Python backend via QWebChannel
 
 (function() {
@@ -142,7 +142,7 @@
             html.setAttribute('data-theme', 'dark');
         }
         var btn = document.getElementById('theme-toggle');
-        if (btn) btn.textContent = theme === 'light' ? 'â˜€ï¸' : 'ðŸŒ™';
+        if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
     }
 
     function toggleTheme() {
@@ -181,6 +181,7 @@
                 try {
                     new QWebChannel(qt.webChannelTransport, function(channel) {
                         bridge = channel.objects.kawkab;
+                        window.__kawkab.bridge = bridge;
                         checkLLMStatus();
                         loadGPUInfo();
                         loadMatchHistory();
@@ -188,21 +189,7 @@
                         loadPlayerProfiles();
                         loadFaceGallery();
                         populateMatchDropdowns();
-                        checkFootballDataStatus();
-                        checkBzzoiroStatus();
-                        checkEasySoccerStatus();
-                        checkApiFootballStatus();
-                        checkTheSportsDBStatus();
-                        checkStatsBombStatus();
-                        checkOpenFootballStatus();
-                        checkRoboflowSportsStatus();
-                        checkPoseStatus();
-                        checkMuJoCoStatus();
-                        checkFluidX3DStatus();
-                        checkWeatherStatus();
-                        checkPsychologyStatus();
-                        checkRulesStatus();
-                        checkCardsStatus();
+                        if (window.__kawkab.checkAllDataProviderStatuses) window.__kawkab.checkAllDataProviderStatuses();
                     });
                 } catch (e) {
                     console.error('QWebChannel setup error:', e);
@@ -249,7 +236,7 @@
             }
 
             statusEl.classList.remove('hidden');
-            statusEl.textContent = `ðŸŽ® GPU: ${info.gpu_name} (${info.tier})`;
+            statusEl.textContent = `🎮 GPU: ${info.gpu_name} (${info.tier})`;
             statusEl.title = 'Click for details';
 
             document.getElementById('gpu-name').textContent = info.gpu_name;
@@ -272,1682 +259,7 @@
         document.getElementById('gpu-info-panel').classList.add('hidden');
     });
 
-    // --- v0.8.4: Football Data Integration ---
-
-    let fdHomeTeamId = null;
-    let fdAwayTeamId = null;
-    let fdHomeSearchTimer = null;
-    let fdAwaySearchTimer = null;
-
-    let bzHomeTeamId = null;
-    let bzAwayTeamId = null;
-    let bzHomeSearchTimer = null;
-    let bzAwaySearchTimer = null;
-
-    let afHomeTeamId = null;
-    let afAwayTeamId = null;
-    let afHomeSearchTimer = null;
-    let afAwaySearchTimer = null;
-
-    async function checkFootballDataStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('football-data-status');
-        const controls = document.getElementById('football-data-controls');
-        try {
-            const status = JSON.parse(await bridge.check_football_data_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (' + status.competitions_count + ' competitions available)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸ”´ Offline';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    function setupFdTeamSearch(inputId, resultsId, callback) {
-        const input = document.getElementById(inputId);
-        const results = document.getElementById(resultsId);
-        if (!input || !results) return;
-
-        input.addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                results.classList.add('hidden');
-                return;
-            }
-            clearTimeout(window[inputId + 'Timer']);
-            window[inputId + 'Timer'] = setTimeout(async () => {
-                try {
-                    const data = JSON.parse(await bridge.search_football_team(sanitizeString(query)));
-                    const teams = data.teams || [];
-                    if (teams.length === 0) {
-                        results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
-                        results.classList.remove('hidden');
-                        return;
-                    }
-                    results.innerHTML = teams.map(t => `
-                        <div class="fd-result-item" data-team-id="${t.id}" data-team-name="${escapeHtml(t.name)}" data-team-code="${escapeHtml(t.tla || '')}" data-team-crest="${escapeHtml(t.crest || '')}" data-competition-code="${escapeHtml(t.competition_code || '')}">
-                            ${t.crest ? '<img src="' + escapeHtml(t.crest) + '" alt="" onerror="this.style.display=\'none\'">' : ''}
-                            <span>
-                                <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.area_name || '')}${t.competition_name ? ' Â· ' + escapeHtml(t.competition_name) : ''}</span>
-                            </span>
-                        </div>
-                    `).join('');
-                    results.classList.remove('hidden');
-                    results.querySelectorAll('.fd-result-item').forEach(el => {
-                        el.addEventListener('click', function() {
-                            const id = parseInt(this.dataset.teamId);
-                            const name = this.dataset.teamName;
-                            const compCode = this.dataset.competitionCode;
-                            input.value = name;
-                            results.classList.add('hidden');
-                            callback(id, name, this.dataset.teamCrest, compCode);
-                        });
-                    });
-                } catch (e) {
-                    console.error('Team search failed:', e);
-                }
-            }, 300);
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !results.contains(e.target)) {
-                results.classList.add('hidden');
-            }
-        });
-    }
-
-    async function fdImportSquad(matchId, apiTeamId, side, btnId) {
-        if (!bridge) return;
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        btn.disabled = true;
-        btn.textContent = 'Importing...';
-        try {
-            const result = JSON.parse(await bridge.import_football_team_squad(validateInt(matchId), validateInt(apiTeamId), sanitizeString(side)));
-            if (result.success) {
-                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
-                loadPlayerProfiles();
-            } else {
-                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
-            }
-        } catch (e) {
-            btn.textContent = 'âŒ Error';
-        }
-        setTimeout(() => { btn.disabled = false; }, 3000);
-    }
-
-    async function fdVerifyMatch() {
-        if (!bridge || !currentMatchId) return;
-        const apiMatchIdInput = document.getElementById('fd-api-match-id');
-        const resultEl = document.getElementById('fd-verify-result');
-        const apiMatchId = parseInt(apiMatchIdInput.value);
-        if (!apiMatchId) {
-            resultEl.textContent = 'Enter an API Match ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Verifying...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.verify_match_with_api(validateInt(currentMatchId), validateInt(apiMatchId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            if (data.verified) {
-                resultEl.innerHTML = 'âœ… Score verified! API: ' + data.api_score.home + '-' + data.api_score.away +
-                    ' | Status: ' + data.status + (data.competition ? ' | ' + data.competition : '');
-                resultEl.className = 'feedback-result success';
-            } else {
-                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score.home + '-' + data.detected_score.away +
-                    ' | API: ' + (data.api_score ? data.api_score.home + '-' + data.api_score.away : 'N/A') +
-                    ' | Status: ' + data.status + (data.reason ? ' (' + data.reason + ')' : '');
-                resultEl.className = 'feedback-result';
-            }
-            loadMatchHistory();
-        } catch (e) {
-            resultEl.textContent = 'âŒ Verification failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function fdLoadTeamFixtures(apiTeamId) {
-        if (!bridge) return;
-        const section = document.getElementById('fd-fixtures-section');
-        const list = document.getElementById('fd-fixtures-list');
-        if (!apiTeamId) { section.classList.add('hidden'); return; }
-        try {
-            const data = JSON.parse(await bridge.get_football_team_matches(apiTeamId, '', ''));
-            const matches = data.matches || [];
-            if (matches.length === 0) {
-                section.classList.add('hidden');
-                return;
-            }
-            list.innerHTML = matches.slice(0, 5).map(m => {
-                const home = (m.homeTeam || {}).name || '?';
-                const away = (m.awayTeam || {}).name || '?';
-                const score = (m.score || {}).fullTime || {};
-                const sc = (score.home !== null && score.away !== null) ? score.home + '-' + score.away : '-';
-                const date = m.utcDate ? new Date(m.utcDate).toLocaleDateString() : '?';
-                const status = m.status || 'SCHEDULED';
-                return `<div class="roster-item"><span style="font-size:0.85rem">${date}</span><span style="flex:1;text-align:center">${escapeHtml(home)} ${sc} ${escapeHtml(away)}</span><span class="fd-result-area">${status}</span></div>`;
-            }).join('');
-            section.classList.remove('hidden');
-        } catch (e) {
-            section.classList.add('hidden');
-        }
-    }
-
-    async function fdLoadStandings(competitionCode) {
-        if (!bridge) return;
-        const section = document.getElementById('fd-standings-section');
-        const list = document.getElementById('fd-standings-list');
-        if (!competitionCode) { section.classList.add('hidden'); return; }
-        try {
-            const data = JSON.parse(await bridge.get_football_standings(competitionCode));
-            if (data.error || !data.standings) { section.classList.add('hidden'); return; }
-            const total = data.standings.find(s => s.type === 'TOTAL');
-            if (!total || !total.table) { section.classList.add('hidden'); return; }
-            list.innerHTML = total.table.slice(0, 5).map(t => `
-                <div class="roster-item">
-                    <span style="font-weight:700;width:24px">${t.position}</span>
-                    <span style="flex:1">${escapeHtml(t.team.name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${t.playedGames} Â· ${t.points}pts</span>
-                </div>
-            `).join('');
-            section.classList.remove('hidden');
-        } catch (e) {
-            section.classList.add('hidden');
-        }
-    }
-
-    // --- v0.8.5: Bzzoiro ---
-
-    async function checkBzzoiroStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('bzzoiro-status');
-        const controls = document.getElementById('bzzoiro-controls');
-        try {
-            const status = JSON.parse(await bridge.check_bzzoiro_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.live_matches || 0) + ' live)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                bzLoadLeagues();
-                bzLoadLive();
-            } else {
-                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸ”´ Offline';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    function setupBzTeamSearch(inputId, resultsId, callback) {
-        const input = document.getElementById(inputId);
-        const results = document.getElementById(resultsId);
-        if (!input || !results) return;
-
-        input.addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                results.classList.add('hidden');
-                return;
-            }
-            clearTimeout(window[inputId + 'Timer']);
-            window[inputId + 'Timer'] = setTimeout(async () => {
-                try {
-                    const data = JSON.parse(await bridge.search_bzzoiro_team(sanitizeString(query)));
-                    const teams = data.teams || [];
-                    if (teams.length === 0) {
-                        results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
-                        results.classList.remove('hidden');
-                        return;
-                    }
-                    results.innerHTML = teams.map(t => `
-                        <div class="fd-result-item" data-team-id="${t.id}" data-team-name="${escapeHtml(t.name)}">
-                            <span>
-                                <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.country || '')}</span>
-                            </span>
-                        </div>
-                    `).join('');
-                    results.classList.remove('hidden');
-                    results.querySelectorAll('.fd-result-item').forEach(el => {
-                        el.addEventListener('click', function() {
-                            const id = parseInt(this.dataset.teamId);
-                            const name = this.dataset.teamName;
-                            input.value = name;
-                            results.classList.add('hidden');
-                            callback(id, name);
-                        });
-                    });
-                } catch (e) {
-                    console.error('Bzzoiro team search failed:', e);
-                }
-            }, 300);
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !results.contains(e.target)) {
-                results.classList.add('hidden');
-            }
-        });
-    }
-
-    async function bzImportSquad(matchId, teamId, side, btnId) {
-        if (!bridge) return;
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        btn.disabled = true;
-        btn.textContent = 'Importing...';
-        try {
-            const result = JSON.parse(await bridge.import_bzzoiro_team_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
-            if (result.success) {
-                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
-            } else {
-                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
-            }
-        } catch (e) {
-            btn.textContent = 'âŒ Error';
-        }
-        setTimeout(() => { btn.disabled = false; }, 3000);
-    }
-
-    async function bzVerifyMatch() {
-        if (!bridge || !currentMatchId) return;
-        const eventIdInput = document.getElementById('bz-event-id');
-        const resultEl = document.getElementById('bz-verify-result');
-        const eventId = parseInt(eventIdInput.value);
-        if (!eventId) {
-            resultEl.textContent = 'Enter a Bzzoiro Event ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Verifying...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.verify_match_bzzoiro(validateInt(currentMatchId), validateInt(eventId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            if (data.match_ok) {
-                resultEl.innerHTML = 'âœ… Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
-                resultEl.className = 'feedback-result success';
-            } else {
-                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score + ' | API: ' + data.api_score;
-                resultEl.className = 'feedback-result';
-            }
-        } catch (e) {
-            resultEl.textContent = 'âŒ Verification failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function bzGetPredictions() {
-        if (!bridge) return;
-        const eventIdInput = document.getElementById('bz-event-id');
-        const resultEl = document.getElementById('bz-predictions-content');
-        const section = document.getElementById('bz-predictions-section');
-        const eventId = parseInt(eventIdInput.value);
-        if (!eventId) { resultEl.textContent = 'Enter an Event ID first'; return; }
-        resultEl.textContent = 'Loading predictions...';
-        section.classList.remove('hidden');
-        try {
-            const data = JSON.parse(await bridge.get_bzzoiro_predictions(validateInt(eventId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            const p = data.predictions || {};
-            resultEl.innerHTML = '<pre style="font-size:0.8rem;white-space:pre-wrap">' + JSON.stringify(p, null, 2) + '</pre>';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load predictions';
-        }
-    }
-
-    async function bzLoadStandings() {
-        if (!bridge) return;
-        const select = document.getElementById('bz-league-select');
-        const section = document.getElementById('bz-standings-section');
-        const list = document.getElementById('bz-standings-list');
-        const leagueId = parseInt(select.value);
-        if (!leagueId) { section.classList.add('hidden'); return; }
-        section.classList.remove('hidden');
-        list.innerHTML = '<div class="roster-item">Loading...</div>';
-        try {
-            const data = JSON.parse(await bridge.get_bzzoiro_standings(validateInt(leagueId)));
-            const standings = data.standings || [];
-            if (standings.length === 0) {
-                list.innerHTML = '<div class="roster-item">No standings data</div>';
-                return;
-            }
-            list.innerHTML = standings.map(s => `
-                <div class="roster-item">
-                    <span style="font-weight:700;width:24px">${s.position}</span>
-                    <span style="flex:1">${escapeHtml(s.team_name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} Â· ${s.points}pts</span>
-                </div>
-            `).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load standings</div>';
-        }
-    }
-
-    async function bzLoadLeagues() {
-        if (!bridge) return;
-        const select = document.getElementById('bz-league-select');
-        if (!select) return;
-        try {
-            const data = JSON.parse(await bridge.get_bzzoiro_leagues());
-            const leagues = data.leagues || [];
-            select.innerHTML = '<option value="">-- Select League for Standings --</option>' +
-                leagues.filter(l => l.is_active).map(l =>
-                    '<option value="' + l.id + '">' + escapeHtml(l.name) + ' (' + escapeHtml(l.country || '') + ')</option>'
-                ).join('');
-        } catch (e) {
-            console.error('Failed to load leagues:', e);
-        }
-    }
-
-    async function bzLoadLive() {
-        if (!bridge) return;
-        const list = document.getElementById('bz-live-list');
-        const countEl = document.getElementById('bz-live-count');
-        if (!list) return;
-        try {
-            const data = JSON.parse(await bridge.get_bzzoiro_live());
-            const matches = data.matches || [];
-            if (countEl) countEl.textContent = '(' + matches.length + ')';
-            if (matches.length === 0) {
-                list.innerHTML = '<div class="roster-item" style="color:var(--text-muted)">No live matches</div>';
-                return;
-            }
-            list.innerHTML = matches.map(m => {
-                const score = (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-');
-                const min = m.current_minute ? m.current_minute + "'" : '';
-                return `<div class="roster-item"><span style="color:var(--accent);font-size:0.75rem">${escapeHtml(m.league_name || '')}</span><span style="flex:1;text-align:center">${escapeHtml(m.home_team)} <strong>${score}</strong> ${escapeHtml(m.away_team)}</span><span style="color:var(--text-muted);font-size:0.8rem">${min}</span></div>`;
-            }).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load live matches</div>';
-        }
-    }
-
-    // --- v0.8.5: API-Football (api-sports.io) ---
-
-    async function checkApiFootballStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('apifootball-status');
-        const controls = document.getElementById('apifootball-controls');
-        try {
-            const status = JSON.parse(await bridge.check_apifootball_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.requests_left || 0) + '/' + status.daily_limit + ' req left)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                afLoadStandings();
-                afLoadLive();
-            } else {
-                statusEl.textContent = 'ðŸ”´ Offline - ' + (status.error || 'No API key configured');
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸ”´ Offline';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    function setupAfTeamSearch(inputId, resultsId, callback) {
-        const input = document.getElementById(inputId);
-        const results = document.getElementById(resultsId);
-        if (!input || !results) return;
-
-        input.addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                results.classList.add('hidden');
-                return;
-            }
-            clearTimeout(window[inputId + 'Timer']);
-            window[inputId + 'Timer'] = setTimeout(async () => {
-                try {
-                    const data = JSON.parse(await bridge.search_apifootball_team(sanitizeString(query)));
-                    const teams = data.teams || [];
-                    if (teams.length === 0) {
-                        results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
-                        results.classList.remove('hidden');
-                        return;
-                    }
-                    results.innerHTML = teams.map(t => `
-                        <div class="fd-result-item" data-team-id="${t.id}" data-team-name="${escapeHtml(t.name)}">
-                            ${t.logo ? '<img src="' + escapeHtml(t.logo) + '" alt="" onerror="this.style.display=\'none\'">' : ''}
-                            <span>
-                                <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.country || '')}${t.venue_name ? ' Â· ' + escapeHtml(t.venue_name) : ''}</span>
-                            </span>
-                        </div>
-                    `).join('');
-                    results.classList.remove('hidden');
-                    results.querySelectorAll('.fd-result-item').forEach(el => {
-                        el.addEventListener('click', function() {
-                            const id = parseInt(this.dataset.teamId);
-                            const name = this.dataset.teamName;
-                            input.value = name;
-                            results.classList.add('hidden');
-                            callback(id, name);
-                        });
-                    });
-                } catch (e) {
-                    console.error('API-Football team search failed:', e);
-                }
-            }, 300);
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !results.contains(e.target)) {
-                results.classList.add('hidden');
-            }
-        });
-    }
-
-    async function afImportSquad(matchId, teamId, side, btnId) {
-        if (!bridge) return;
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        btn.disabled = true;
-        btn.textContent = 'Importing...';
-        try {
-            const result = JSON.parse(await bridge.import_apifootball_squad(validateInt(matchId), validateInt(teamId), sanitizeString(side)));
-            if (result.success) {
-                btn.textContent = 'âœ… ' + result.created.length + ' imported, ' + result.skipped + ' skipped';
-            } else {
-                btn.textContent = 'âŒ ' + (result.error || 'Import failed');
-            }
-        } catch (e) {
-            btn.textContent = 'âŒ Error';
-        }
-        setTimeout(() => { btn.disabled = false; }, 3000);
-    }
-
-    async function afVerifyMatch() {
-        if (!bridge || !currentMatchId) return;
-        const fixtureIdInput = document.getElementById('af-fixture-id');
-        const resultEl = document.getElementById('af-verify-result');
-        const fixtureId = parseInt(fixtureIdInput.value);
-        if (!fixtureId) {
-            resultEl.textContent = 'Enter a Fixture ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Verifying...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.verify_match_apifootball(validateInt(currentMatchId), validateInt(fixtureId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            if (data.match_ok) {
-                resultEl.innerHTML = 'âœ… Score verified! ' + escapeHtml(data.match) + ' <strong>' + data.api_score + '</strong>';
-                resultEl.className = 'feedback-result success';
-            } else {
-                resultEl.innerHTML = 'âš ï¸ Score mismatch â€” Detected: ' + data.detected_score + ' | API: ' + data.api_score;
-                resultEl.className = 'feedback-result';
-            }
-        } catch (e) {
-            resultEl.textContent = 'âŒ Verification failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function afGetPredictions() {
-        if (!bridge) return;
-        const fixtureIdInput = document.getElementById('af-fixture-id');
-        const resultEl = document.getElementById('af-predictions-content');
-        const section = document.getElementById('af-predictions-section');
-        const fixtureId = parseInt(fixtureIdInput.value);
-        if (!fixtureId) { resultEl.textContent = 'Enter a Fixture ID first'; return; }
-        resultEl.textContent = 'Loading predictions...';
-        section.classList.remove('hidden');
-        try {
-            const data = JSON.parse(await bridge.get_apifootball_predictions(validateInt(fixtureId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            const p = data.predictions || {};
-            let html = '';
-            if (p.percent) {
-                html += '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">';
-                html += '<span style="color:#2563eb;font-weight:600">' + (p.percent.home || '') + '</span>';
-                html += '<span style="color:#64748b">' + (p.percent.draw || '') + '</span>';
-                html += '<span style="color:#dc2626;font-weight:600">' + (p.percent.away || '') + '</span>';
-                html += '</div>';
-            }
-            if (p.advice) html += '<div style="font-size:0.85rem;background:#f8fafc;padding:6px;border-radius:4px">Advice: ' + escapeHtml(p.advice) + '</div>';
-            if (p.winner) html += '<div style="margin-top:4px;font-size:0.85rem">Predicted winner: ' + escapeHtml(p.winner.name || p.winner) + '</div>';
-            resultEl.innerHTML = html || '<pre style="font-size:0.8rem">' + JSON.stringify(p, null, 2) + '</pre>';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load predictions';
-        }
-    }
-
-    async function afLoadStandings() {
-        if (!bridge) return;
-        const section = document.getElementById('af-standings-section');
-        const list = document.getElementById('af-standings-list');
-        section.classList.remove('hidden');
-        list.innerHTML = '<div class="roster-item">Loading standings...</div>';
-        try {
-            const data = JSON.parse(await bridge.get_apifootball_standings(200, 2024));
-            const standings = data.standings || [];
-            if (standings.length === 0) {
-                list.innerHTML = '<div class="roster-item">No standings data</div>';
-                return;
-            }
-            list.innerHTML = standings.map(s => `
-                <div class="roster-item">
-                    <span style="font-weight:700;width:24px">${s.rank}</span>
-                    <span style="flex:1">${escapeHtml(s.team_name)}</span>
-                    <span style="color:var(--text-muted);font-size:0.85rem">P${s.played} Â· ${s.points}pts</span>
-                </div>
-            `).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load standings</div>';
-        }
-    }
-
-    async function afLoadLive() {
-        if (!bridge) return;
-        const list = document.getElementById('af-live-list');
-        if (!list) return;
-        try {
-            const data = JSON.parse(await bridge.get_apifootball_live());
-            const matches = data.matches || [];
-            if (matches.length === 0) {
-                list.innerHTML = '<div class="roster-item" style="color:var(--text-muted)">No live matches</div>';
-                return;
-            }
-            list.innerHTML = matches.map(m => {
-                const score = (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-');
-                const min = m.elapsed ? m.elapsed + "'" : '';
-                return `<div class="roster-item"><span style="color:var(--accent);font-size:0.75rem">${escapeHtml(m.league_name || '')}</span><span style="flex:1;text-align:center">${escapeHtml(m.home_team)} <strong>${score}</strong> ${escapeHtml(m.away_team)}</span><span style="color:var(--text-muted);font-size:0.8rem">${min}</span></div>`;
-            }).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load live matches</div>';
-        }
-    }
-
-    // --- v0.8.5: EasySoccerData (Sofascore) ---
-
-    async function checkEasySoccerStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('easysoccer-status');
-        const controls = document.getElementById('easysoccer-controls');
-        try {
-            const status = JSON.parse(await bridge.check_easy_soccer_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                esLoadLive();
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available (pip install EasySoccerData)';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function esGetEvent() {
-        if (!bridge) return;
-        const input = document.getElementById('es-event-id');
-        const resultEl = document.getElementById('es-event-result');
-        const eventId = parseInt(input.value);
-        if (!eventId) { resultEl.textContent = 'Enter a Sofascore Event ID'; return; }
-        resultEl.textContent = 'Loading...';
-        try {
-            const data = JSON.parse(await bridge.get_easy_soccer_event(validateInt(eventId)));
-            if (data.error) { resultEl.textContent = 'âŒ ' + data.error; return; }
-            const e = data.event;
-            resultEl.innerHTML = '<div style="font-size:0.85rem"><strong>' + escapeHtml(e.home_team) + '</strong> vs <strong>' + escapeHtml(e.away_team) + '</strong><br>Score: ' +
-                (e.home_score !== null ? e.home_score : '-') + '-' + (e.away_score !== null ? e.away_score : '-') +
-                ' | Status: ' + e.status + '</div>';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load event';
-        }
-    }
-
-    async function esGetIncidents() {
-        if (!bridge) return;
-        const input = document.getElementById('es-event-id');
-        const resultEl = document.getElementById('es-event-result');
-        const eventId = parseInt(input.value);
-        if (!eventId) { resultEl.textContent = 'Enter a Sofascore Event ID'; return; }
-        resultEl.textContent = 'Loading incidents...';
-        try {
-            const data = JSON.parse(await bridge.get_easy_soccer_incidents(validateInt(eventId)));
-            if (data.error) { resultEl.textContent = 'âŒ ' + data.error; return; }
-            const incidents = data.incidents || [];
-            if (incidents.length === 0) { resultEl.textContent = 'No incidents found'; return; }
-            resultEl.innerHTML = incidents.slice(0, 15).map(i =>
-                '<div style="font-size:0.8rem;padding:2px 0">' + (i.minute ? i.minute + "' " : '') +
-                (i.type || '') + ' - ' + escapeHtml(i.player || '') + ' (' + escapeHtml(i.team || '') + ')</div>'
-            ).join('');
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load incidents';
-        }
-    }
-
-    async function esLoadLive() {
-        if (!bridge) return;
-        const list = document.getElementById('es-live-list');
-        if (!list) return;
-        try {
-            const data = JSON.parse(await bridge.get_easy_soccer_live());
-            const matches = data.matches || [];
-            if (matches.length === 0) {
-                list.innerHTML = '<div class="roster-item" style="color:var(--text-muted)">No live matches</div>';
-                return;
-            }
-            list.innerHTML = matches.map(m => {
-                const score = (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-');
-                return `<div class="roster-item"><span style="flex:1">${escapeHtml(m.home_team)} <strong>${score}</strong> ${escapeHtml(m.away_team)}</span></div>`;
-            }).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load live matches</div>';
-        }
-    }
-
-    // --- TheSportsDB ---
-
-    async function checkTheSportsDBStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('thesportsdb-status');
-        const controls = document.getElementById('thesportsdb-controls');
-        try {
-            const status = JSON.parse(await bridge.check_thesportsdb_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (public free tier)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    function setupTsdbTeamSearch(inputId, resultsId, callback) {
-        const input = document.getElementById(inputId);
-        const results = document.getElementById(resultsId);
-        if (!input || !results) return;
-
-        input.addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                results.classList.add('hidden');
-                return;
-            }
-            clearTimeout(window[inputId + 'Timer']);
-            window[inputId + 'Timer'] = setTimeout(async () => {
-                try {
-                    const data = JSON.parse(await bridge.search_thesportsdb_team(sanitizeString(query)));
-                    const teams = data.teams || [];
-                    if (teams.length === 0) {
-                        results.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No teams found</div>';
-                        results.classList.remove('hidden');
-                        return;
-                    }
-                    results.innerHTML = teams.map(t => `
-                        <div class="fd-result-item" data-team-id="${t.id}" data-team-name="${escapeHtml(t.name)}" data-league="${escapeHtml(t.league || '')}" data-league-id="${t.league_id || ''}" data-badge="${escapeHtml(t.badge || '')}">
-                            <span>
-                                <span class="fd-result-name">${escapeHtml(t.name)}</span>
-                                <span class="fd-result-area">${escapeHtml(t.league || '')}${t.location ? ' Â· ' + escapeHtml(t.location) : ''}</span>
-                            </span>
-                        </div>
-                    `).join('');
-                    results.classList.remove('hidden');
-                    results.querySelectorAll('.fd-result-item').forEach(el => {
-                        el.addEventListener('click', function() {
-                            const id = this.dataset.teamId;
-                            const name = this.dataset.teamName;
-                            input.value = name;
-                            results.classList.add('hidden');
-                            callback(id, name, this.dataset.leagueId, this.dataset.badge);
-                        });
-                    });
-                } catch (e) {
-                    console.error('TheSportsDB team search failed:', e);
-                }
-            }, 300);
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !results.contains(e.target)) {
-                results.classList.add('hidden');
-            }
-        });
-    }
-
-    async function tsdbGetTeamInfo() {
-        if (!bridge) return;
-        const infoEl = document.getElementById('tsdb-team-info');
-        const searchInput = document.getElementById('tsdb-team-search');
-        const resultsDiv = document.getElementById('tsdb-team-results');
-        const firstResult = resultsDiv.querySelector('.fd-result-item');
-        if (!firstResult) {
-            infoEl.textContent = 'Search for a team first';
-            return;
-        }
-        const teamId = firstResult.dataset.teamId;
-        infoEl.textContent = 'Loading...';
-        try {
-            const data = JSON.parse(await bridge.get_thesportsdb_team_info(sanitizeString(teamId)));
-            if (data.error || !data.team) {
-                infoEl.textContent = 'âŒ ' + (data.error || 'Team not found');
-                return;
-            }
-            const t = data.team;
-            infoEl.innerHTML = '<div style="font-size:0.85rem">' +
-                (t.badge ? '<img src="' + escapeHtml(t.badge) + '" style="height:32px;vertical-align:middle;margin-right:8px">' : '') +
-                '<strong>' + escapeHtml(t.name) + '</strong>' +
-                (t.alternate_name ? ' (' + escapeHtml(t.alternate_name) + ')' : '') +
-                '<br>League: ' + escapeHtml(t.league) + ' (ID: ' + t.league_id + ')' +
-                (t.location ? '<br>Location: ' + escapeHtml(t.location) : '') +
-                (t.stadium ? '<br>Stadium: ' + escapeHtml(t.stadium) + (t.capacity ? ' (' + t.capacity + ')' : '') : '') +
-                (t.formed_year ? '<br>Founded: ' + t.formed_year : '') +
-                (t.api_football_id && t.api_football_id !== '0' ? '<br>API-Football ID: ' + t.api_football_id : '') +
-                (t.description ? '<br><br><em>' + escapeHtml(t.description.substring(0, 300)) + '</em>' : '') +
-                '</div>';
-            infoEl.className = 'feedback-result';
-        } catch (e) {
-            infoEl.textContent = 'âŒ Failed to load team info';
-        }
-    }
-
-    async function tsdbLoadStandings() {
-        if (!bridge) return;
-        const leagueIdInput = document.getElementById('tsdb-league-id');
-        const section = document.getElementById('tsdb-standings-section');
-        const list = document.getElementById('tsdb-standings-list');
-        const leagueId = leagueIdInput.value.trim();
-        if (!leagueId) { section.classList.add('hidden'); return; }
-        try {
-            const data = JSON.parse(await bridge.get_thesportsdb_standings(leagueId));
-            if (data.error || !data.standings) { section.classList.add('hidden'); return; }
-            list.innerHTML = data.standings.map(s => {
-                const formDots = s.form ? s.form.split('').map(f => {
-                    const cls = f === 'W' ? 'form-w' : f === 'D' ? 'form-d' : 'form-l';
-                    return '<span class="' + cls + '">' + f + '</span>';
-                }).join('') : '';
-                return '<div class="roster-item">' +
-                    '<span style="font-weight:700;width:28px">' + s.rank + '</span>' +
-                    '<span style="flex:1">' + (s.badge ? '<img src="' + escapeHtml(s.badge) + '" style="height:18px;vertical-align:middle;margin-right:6px">' : '') + escapeHtml(s.team) + '</span>' +
-                    '<span style="color:var(--text-muted);font-size:0.85rem;margin:0 6px">P' + s.played + '</span>' +
-                    '<span style="color:var(--text-muted);font-size:0.85rem">' + s.points + 'pts</span>' +
-                    (formDots ? '<span style="margin-left:8px">' + formDots + '</span>' : '') +
-                    (s.description ? '<span style="color:var(--text-muted);font-size:0.7rem;margin-left:6px">' + escapeHtml(s.description) + '</span>' : '') +
-                    '</div>';
-            }).join('');
-            section.classList.remove('hidden');
-        } catch (e) {
-            section.classList.add('hidden');
-        }
-    }
-
-    async function tsdbLoadEvents(type) {
-        if (!bridge) return;
-        const teamIdInput = document.getElementById('tsdb-team-id-events');
-        const section = document.getElementById('tsdb-events-section');
-        const list = document.getElementById('tsdb-events-list');
-        const teamId = teamIdInput.value.trim();
-        if (!teamId) { section.classList.add('hidden'); return; }
-        try {
-            const method = type === 'last' ? 'get_thesportsdb_team_events_last' : 'get_thesportsdb_team_events_next';
-            const data = JSON.parse(await bridge[method](teamId));
-            if (data.error || !data.events) { section.classList.add('hidden'); return; }
-            list.innerHTML = data.events.slice(0, 10).map(e => {
-                const score = (e.home_score !== null ? e.home_score : '-') + '-' + (e.away_score !== null ? e.away_score : '-');
-                return '<div class="roster-item">' +
-                    '<span style="color:var(--text-muted);font-size:0.8rem;width:80px">' + e.date + '</span>' +
-                    '<span style="flex:1;text-align:center">' + escapeHtml(e.home) + ' <strong>' + score + '</strong> ' + escapeHtml(e.away) + '</span>' +
-                    (e.round ? '<span style="color:var(--text-muted);font-size:0.8rem">R' + e.round + '</span>' : '') +
-                    '</div>';
-            }).join('');
-            section.classList.remove('hidden');
-        } catch (e) {
-            section.classList.add('hidden');
-        }
-    }
-
-    // --- StatsBomb ---
-
-    async function checkStatsBombStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('statsbomb-status');
-        const controls = document.getElementById('statsbomb-controls');
-        try {
-            const status = JSON.parse(await bridge.check_statsbomb_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (' + (status.competitions || 0) + ' competitions)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available (network error)';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function sbGetEvents() {
-        if (!bridge) return;
-        const matchIdInput = document.getElementById('sb-match-id');
-        const resultEl = document.getElementById('sb-events-result');
-        const matchId = parseInt(matchIdInput.value);
-        if (!matchId) {
-            resultEl.textContent = 'Enter a StatsBomb Match ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Loading events...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.get_statsbomb_events(validateInt(matchId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            const s = data.summary;
-            const shotsHtml = (data.shots || []).map(sh =>
-                '<div style="font-size:0.78rem;padding:2px 0">' + sh.minute + "' " +
-                escapeHtml(sh.team) + ' Â· ' + escapeHtml(sh.player) +
-                (sh.xg !== null ? ' (xG: ' + sh.xg.toFixed(3) + ')' : '') +
-                ' Â· ' + sh.outcome + '</div>'
-            ).join('');
-            resultEl.innerHTML =
-                '<div style="font-size:0.85rem">' +
-                '<strong>' + s.total_events + '</strong> events Â· ' +
-                '<strong>' + s.shots + '</strong> shots Â· ' +
-                '<strong>' + s.passes + '</strong> passes Â· ' +
-                'xG: <strong>' + s.total_xg + '</strong><br>' +
-                'Teams: ' + escapeHtml(s.teams.join(' vs ')) +
-                '</div>' + shotsHtml;
-            resultEl.className = 'feedback-result';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load events';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function sbImportToDb() {
-        if (!bridge) return;
-        const matchIdInput = document.getElementById('sb-match-id');
-        const resultEl = document.getElementById('sb-import-result');
-        const matchId = matchIdInput.value.trim();
-        if (!matchId) {
-            resultEl.textContent = 'Enter a StatsBomb Match ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Importing events to local database...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.import_statsbomb_match(matchId));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            resultEl.textContent = 'âœ… Imported ' + data.imported + ' events from match ' + data.match_id;
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Import failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function sbGetLineups() {
-        if (!bridge) return;
-        const matchIdInput = document.getElementById('sb-match-id');
-        const resultEl = document.getElementById('sb-lineups-result');
-        const matchId = parseInt(matchIdInput.value);
-        if (!matchId) {
-            resultEl.textContent = 'Enter a StatsBomb Match ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Loading lineups...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.get_statsbomb_lineups(validateInt(matchId)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            resultEl.innerHTML = (data.lineups || []).map(team =>
-                '<div style="font-size:0.85rem;margin-top:6px"><strong>' + escapeHtml(team.team) + '</strong> (' + team.players.length + ' players)' +
-                '<div style="font-size:0.75rem;color:var(--text-muted)">' +
-                team.players.slice(0, 11).map(p => '#' + p.jersey_number + ' ' + escapeHtml(p.name)).join(' Â· ') +
-                '</div></div>'
-            ).join('');
-            resultEl.className = 'feedback-result';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load lineups';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function sbSearchTeam() {
-        if (!bridge) return;
-        const searchInput = document.getElementById('sb-team-search');
-        const resultsDiv = document.getElementById('sb-team-results');
-        const query = searchInput.value.trim();
-        if (query.length < 2) {
-            resultsDiv.classList.add('hidden');
-            return;
-        }
-        try {
-            const data = JSON.parse(await bridge.search_statsbomb_team(sanitizeString(query)));
-            const matches = data.matches || [];
-            if (matches.length === 0) {
-                resultsDiv.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No matches found</div>';
-                resultsDiv.classList.remove('hidden');
-                return;
-            }
-            resultsDiv.innerHTML = matches.slice(0, 10).map(m =>
-                '<div class="fd-result-item" data-match-id="' + m.match_id + '">' +
-                '<span style="font-size:0.8rem">' +
-                escapeHtml(m.home) + ' ' + (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-') + ' ' + escapeHtml(m.away) +
-                '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' Â· ' + escapeHtml(m.season) + ' Â· ' + m.date + '</span>' +
-                '</span></div>'
-            ).join('');
-            resultsDiv.classList.remove('hidden');
-            resultsDiv.querySelectorAll('.fd-result-item').forEach(el => {
-                el.addEventListener('click', function() {
-                    document.getElementById('sb-match-id').value = this.dataset.matchId;
-                    resultsDiv.classList.add('hidden');
-                });
-            });
-        } catch (e) {
-            console.error('StatsBomb team search failed:', e);
-        }
-    }
-
-    // --- OpenFootball ---
-
-    async function checkOpenFootballStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('openfootball-status');
-        const controls = document.getElementById('openfootball-controls');
-        try {
-            const status = JSON.parse(await bridge.check_openfootball_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Connected (CC0 public domain data)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                ofbPopulateCompetitions();
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available (network error)';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function ofbPopulateCompetitions() {
-        if (!bridge) return;
-        try {
-            const data = JSON.parse(await bridge.get_openfootball_competitions());
-            const compSelect = document.getElementById('ofb-competition');
-            const seasonSelect = document.getElementById('ofb-season');
-            compSelect.innerHTML = '<option value="">-- Competition --</option>' +
-                (data.competitions || []).map(c =>
-                    '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'
-                ).join('');
-            compSelect.onchange = function() {
-                const comp = (data.competitions || []).find(c => c.id === this.value);
-                seasonSelect.innerHTML = '<option value="">-- Season --</option>' +
-                    (comp ? comp.seasons : []).map(s =>
-                        '<option value="' + s + '">' + s + '</option>'
-                    ).join('');
-            };
-            const wcSelect = document.getElementById('ofb-wc-year');
-            wcSelect.innerHTML = '<option value="">-- World Cup Year --</option>' +
-                [1930, 1934, 1938, 1950, 1954, 1958, 1962, 1966, 1970, 1974, 1978, 1982, 1986, 1990, 1994, 1998, 2002, 2006, 2010, 2014, 2018, 2022, 2026]
-                .map(y => '<option value="' + y + '">' + y + '</option>').join('');
-        } catch (e) {
-            console.error('OpenFootball populate failed:', e);
-        }
-    }
-
-    async function ofbLoadMatches() {
-        if (!bridge) return;
-        const comp = document.getElementById('ofb-competition').value;
-        const season = document.getElementById('ofb-season').value;
-        const list = document.getElementById('ofb-matches-list');
-        if (!comp || !season) { list.innerHTML = ''; return; }
-        list.innerHTML = '<div class="roster-item">Loading...</div>';
-        try {
-            const data = JSON.parse(await bridge.get_openfootball_matches(comp, season));
-            if (data.error) { list.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>'; return; }
-            const matches = data.matches || [];
-            if (matches.length === 0) { list.innerHTML = '<div class="roster-item">No matches</div>'; return; }
-            list.innerHTML = matches.map(m => {
-                const score = (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-');
-                return '<div class="roster-item">' +
-                    '<span style="color:var(--text-muted);font-size:0.75rem;width:60px">' + m.date + '</span>' +
-                    '<span style="flex:1">' + escapeHtml(m.home) + ' <strong>' + score + '</strong> ' + escapeHtml(m.away) + '</span>' +
-                    '<span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.round) + '</span>' +
-                    '</div>';
-            }).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load</div>';
-        }
-    }
-
-    async function ofbSearchTeam() {
-        if (!bridge) return;
-        const searchInput = document.getElementById('ofb-team-search');
-        const resultsDiv = document.getElementById('ofb-team-results');
-        const query = searchInput.value.trim();
-        if (query.length < 2) { resultsDiv.classList.add('hidden'); return; }
-        clearTimeout(window.ofbTimer);
-        window.ofbTimer = setTimeout(async () => {
-            try {
-                const data = JSON.parse(await bridge.search_openfootball_team(sanitizeString(query)));
-                const matches = data.matches || [];
-                if (matches.length === 0) {
-                    resultsDiv.innerHTML = '<div class="fd-result-item" style="color: var(--text-muted)">No matches found</div>';
-                    resultsDiv.classList.remove('hidden');
-                    return;
-                }
-                resultsDiv.innerHTML = matches.slice(0, 15).map(m =>
-                    '<div class="fd-result-item">' +
-                    '<span style="font-size:0.8rem">' +
-                    escapeHtml(m.home) + ' ' + (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-') + ' ' + escapeHtml(m.away) +
-                    '<br><span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.competition) + ' Â· ' + escapeHtml(m.season) + ' Â· ' + m.date + '</span>' +
-                    '</span></div>'
-                ).join('');
-                resultsDiv.classList.remove('hidden');
-            } catch (e) {
-                console.error('OpenFootball team search failed:', e);
-            }
-        }, 400);
-    }
-
-    async function ofbLoadWorldCup() {
-        if (!bridge) return;
-        const yearInput = document.getElementById('ofb-wc-year');
-        const list = document.getElementById('ofb-wc-list');
-        const year = parseInt(yearInput.value);
-        if (!year) { list.innerHTML = ''; return; }
-        list.innerHTML = '<div class="roster-item">Loading WC ' + year + '...</div>';
-        try {
-            const data = JSON.parse(await bridge.get_openfootball_worldcup(year));
-            if (data.error) { list.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>'; return; }
-            const matches = data.matches || [];
-            if (matches.length === 0) { list.innerHTML = '<div class="roster-item">No WC matches for ' + year + '</div>'; return; }
-            list.innerHTML = matches.map(m => {
-                const score = (m.home_score !== null ? m.home_score : '-') + '-' + (m.away_score !== null ? m.away_score : '-');
-                return '<div class="roster-item">' +
-                    '<span style="color:var(--text-muted);font-size:0.75rem;width:80px">' + m.date + '</span>' +
-                    '<span style="flex:1">' + escapeHtml(m.home) + ' <strong>' + score + '</strong> ' + escapeHtml(m.away) + '</span>' +
-                    '<span style="color:var(--text-muted);font-size:0.7rem">' + escapeHtml(m.round) + '</span>' +
-                    '</div>';
-            }).join('');
-        } catch (e) {
-            list.innerHTML = '<div class="roster-item">Failed to load WC</div>';
-        }
-    }
-
-    // --- Pose Analysis ---
-
-    async function checkPoseStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('pose-status');
-        const controls = document.getElementById('pose-controls');
-        try {
-            const status = JSON.parse(await bridge.check_pose_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ YOLO26-pose model loaded';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Pose model not available (ultralytics not installed)';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function poseGetSummary() {
-        if (!bridge) return;
-        const trackIdInput = document.getElementById('pose-track-id');
-        const resultEl = document.getElementById('pose-result');
-        const trackId = parseInt(trackIdInput.value);
-        if (isNaN(trackId)) {
-            resultEl.textContent = 'Enter a player track ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Loading...';
-        try {
-            const data = JSON.parse(await bridge.get_activity_summary(trackId));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            const entries = Object.entries(data.summary || {});
-            if (entries.length === 0) {
-                resultEl.textContent = 'No activity data for track ' + trackId;
-                resultEl.className = 'feedback-result';
-                return;
-            }
-            const html = entries.map(([act, dur]) =>
-                '<span style="display:inline-block;margin:2px 6px;padding:3px 8px;background:#e2e8f0;border-radius:4px;font-size:0.85rem">' +
-                act + ': ' + dur.toFixed(1) + 's</span>'
-            ).join('');
-            resultEl.innerHTML = '<div style="font-size:0.85rem">Activity for track #' + trackId + ': ' + html + '</div>';
-            resultEl.className = 'feedback-result';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load activity';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    async function poseGetSegments() {
-        if (!bridge) return;
-        const trackIdInput = document.getElementById('pose-track-id');
-        const resultEl = document.getElementById('pose-result');
-        const trackId = parseInt(trackIdInput.value);
-        if (isNaN(trackId)) {
-            resultEl.textContent = 'Enter a player track ID';
-            resultEl.className = 'feedback-result error';
-            return;
-        }
-        resultEl.textContent = 'Loading...';
-        try {
-            const data = JSON.parse(await bridge.get_activity_segments(trackId));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            const segs = data.segments || [];
-            if (segs.length === 0) {
-                resultEl.textContent = 'No segments for track ' + trackId;
-                resultEl.className = 'feedback-result';
-                return;
-            }
-            resultEl.innerHTML = segs.slice(0, 20).map(s =>
-                '<div style="font-size:0.78rem;padding:2px 0">' +
-                s.start_time.toFixed(1) + 's â†’ ' + s.end_time.toFixed(1) + 's: ' +
-                '<strong>' + s.activity + '</strong> (' + s.duration_s.toFixed(1) + 's)' +
-                '</div>'
-            ).join('');
-            resultEl.className = 'feedback-result';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to load segments';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    // --- MuJoCo Ball Trajectory ---
-
-    async function checkMuJoCoStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('mujoco-status');
-        const controls = document.getElementById('mujoco-controls');
-        try {
-            const status = JSON.parse(await bridge.check_mujoco_status());
-            if (status.available) {
-                let info = 'ðŸŸ¢ Trajectory simulation available';
-                if (status.uses_mujoco) info += ' (using MuJoCo)';
-                else info += ' (analytical fallback)';
-                statusEl.textContent = info;
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                mujocoLoadPresets();
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function mujocoLoadPresets() {
-        if (!bridge) return;
-        try {
-            const data = JSON.parse(await bridge.get_setpiece_presets());
-            const select = document.getElementById('mujoco-preset');
-            select.innerHTML = '<option value="">-- Select Preset --</option>' +
-                (data.presets || []).map((p, idx) =>
-                    '<option value="' + idx + '">' + escapeHtml(p.name) + '</option>'
-                ).join('');
-        } catch (e) {
-            console.error('MuJoCo preset load failed:', e);
-        }
-    }
-
-    function mujocoApplyPreset() {
-        if (!bridge) return;
-        bridge.get_setpiece_presets().then(json => {
-            try {
-                const data = JSON.parse(json);
-                const idx = parseInt(document.getElementById('mujoco-preset').value);
-                if (isNaN(idx) || !data.presets || !data.presets[idx]) return;
-                const p = data.presets[idx];
-                document.getElementById('mujoco-speed').value = p.initial_speed;
-                document.getElementById('mujoco-angle').value = p.launch_angle_deg;
-                document.getElementById('mujoco-spin').value = p.spin_rps;
-                document.getElementById('mujoco-direction').value = p.direction_deg;
-            } catch (e) {}
-        }).catch(function(err) {
-            console.error('mujocoApplyPreset failed:', err);
-        });
-    }
-
-    async function mujocoSimulate() {
-        if (!bridge) return;
-        const speed = parseFloat(document.getElementById('mujoco-speed').value);
-        const angle = parseFloat(document.getElementById('mujoco-angle').value);
-        const spin = parseFloat(document.getElementById('mujoco-spin').value);
-        const direction = parseFloat(document.getElementById('mujoco-direction').value);
-        const resultEl = document.getElementById('mujoco-result');
-        resultEl.textContent = 'Simulating...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.simulate_trajectory(
-                isFinite(speed) ? speed : 0,
-                isFinite(angle) ? angle : 0,
-                isFinite(spin) ? spin : 0,
-                isFinite(direction) ? direction : 0,
-                2.5
-            ));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            resultEl.innerHTML =
-                '<div style="font-size:0.85rem">' +
-                '<strong>' + data.method + '</strong> simulation<br>' +
-                'Landing: (' + data.landing_x.toFixed(1) + ', ' + data.landing_y.toFixed(1) + ') m<br>' +
-                'Max height: ' + data.max_height.toFixed(1) + ' m<br>' +
-                'Duration: ' + data.duration_s.toFixed(2) + ' s<br>' +
-                'Final speed: ' + data.final_speed_mps.toFixed(1) + ' m/s' +
-                '</div>';
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Simulation failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    // --- Weather ---
-
-    async function checkWeatherStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('weather-status');
-        const controls = document.getElementById('weather-controls');
-        try {
-            const status = JSON.parse(await bridge.check_weather_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Available' +
-                    (status.has_video_classifier ? ' (video classifier ready)' : ' (Open-Meteo + manual)');
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function wxAnalyzeManual() {
-        if (!bridge) return;
-        const resultEl = document.getElementById('wx-result');
-        const temp = parseFloat(document.getElementById('wx-temp').value);
-        const precip = parseFloat(document.getElementById('wx-precip').value);
-        const wind = parseFloat(document.getElementById('wx-wind').value);
-        const humidity = parseFloat(document.getElementById('wx-humidity').value);
-        const conditions = document.getElementById('wx-conditions').value;
-        resultEl.textContent = 'Analyzing...';
-        try {
-            const data = JSON.parse(await bridge.set_manual_weather(
-                isFinite(temp) ? temp : 0,
-                isFinite(precip) ? precip : 0,
-                isFinite(wind) ? wind : 0,
-                isFinite(humidity) ? humidity : 0,
-                sanitizeString(conditions)
-            ));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            const c = data.conditions, i = data.impact;
-            resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                '<strong>Conditions:</strong> ' + c.conditions + ' (' + c.pitch_state + ' pitch)<br>' +
-                '<strong>Impact:</strong> ' + i.goals_delta + ' goals, ' + i.passing_delta_pct + '% passing, ' +
-                i.sprint_delta_pct + '% sprint<br>' +
-                i.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>') + '</div>';
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to analyze';
-        }
-    }
-
-    async function wxFetchFromAPI() {
-        if (!bridge) return;
-        const resultEl = document.getElementById('wx-result');
-        const lat = parseFloat(document.getElementById('wx-lat').value);
-        const lon = parseFloat(document.getElementById('wx-lon').value);
-        const date = document.getElementById('wx-date').value;
-        if (!date) {
-            resultEl.textContent = 'Enter a date';
-            return;
-        }
-        resultEl.textContent = 'Fetching from Open-Meteo...';
-        try {
-            const data = JSON.parse(await bridge.fetch_match_weather(
-                isFinite(lat) ? lat : 0,
-                isFinite(lon) ? lon : 0,
-                sanitizeString(date),
-                false
-            ));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            document.getElementById('wx-temp').value = data.temperature_c.toFixed(1);
-            document.getElementById('wx-precip').value = data.precipitation_mm.toFixed(1);
-            document.getElementById('wx-wind').value = data.wind_speed_kmh.toFixed(1);
-            document.getElementById('wx-humidity').value = data.humidity_pct.toFixed(0);
-            document.getElementById('wx-conditions').value = data.conditions;
-            resultEl.textContent = 'âœ… Fetched: ' + data.temperature_c.toFixed(1) + 'Â°C, ' +
-                data.conditions + ', pitch=' + data.pitch_state + ' (source: ' + data.source + ')';
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Fetch failed';
-        }
-    }
-
-    async function wxAnalyzeVideo() {
-        if (!bridge) return;
-        const resultEl = document.getElementById('wx-video-result');
-        const videoPath = document.getElementById('wx-video-path').value.trim();
-        if (!videoPath) {
-            resultEl.textContent = 'Enter a video file path';
-            return;
-        }
-        resultEl.textContent = 'Analyzing video weather (this may take 10-30 seconds)...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.classify_video_weather(sanitizeString(videoPath)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            const rd = data.raindrop_detection;
-            const wc = data.weather_classification;
-            let html = '<div style="font-size:0.85rem"><strong>Combined analysis:</strong> ' + escapeHtml(data.method) + '<br>';
-            if (rd) {
-                html += '<strong>Raindrops:</strong> ' + rd.raindrop_count + ' detected across ' + rd.frame_count + ' frames ' +
-                    '(density: ' + rd.raindrop_density.toFixed(1) + '/Mpx, conf: ' + rd.avg_confidence.toFixed(2) + ', method: ' + escapeHtml(rd.method) + ')<br>';
-            }
-            if (wc) {
-                html += '<strong>Multi-class:</strong> ' + escapeHtml(wc.predicted_class) + ' (conf: ' + (wc.confidence * 100).toFixed(1) + '%, method: ' + escapeHtml(wc.method) + ')<br>';
-                html += '<small>Probabilities: ';
-                const probs = Object.entries(wc.class_probabilities).sort((a, b) => b[1] - a[1]);
-                html += probs.map(([c, p]) => c + ':' + (p * 100).toFixed(0) + '%').join(', ') + '</small><br>';
-            }
-            html += '<strong>Final: </strong>' + (data.is_rainy ? 'ðŸŒ§ï¸ Rainy' : 'â˜€ï¸ Not rainy');
-            if (data.conditions) {
-                html += ' (' + data.conditions.conditions + ', ' + data.conditions.pitch_state + ' pitch)';
-            }
-            html += '</div>';
-            resultEl.innerHTML = html;
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Video analysis failed';
-        }
-    }
-
-    // --- Psychology ---
-
-    async function checkPsychologyStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('psy-status');
-        const controls = document.getElementById('psy-controls');
-        try {
-            const status = JSON.parse(await bridge.check_psychology_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Available (momentum, score-state, late-game)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function psyAnalyze() {
-        if (!bridge) return;
-        const summaryEl = document.getElementById('psy-summary');
-        const momentumEl = document.getElementById('psy-momentum');
-        const eventsEl = document.getElementById('psy-events');
-        const matchId = parseInt(document.getElementById('psy-match-id').value) || 0;
-        const home = document.getElementById('psy-home').value || 'Home';
-        const away = document.getElementById('psy-away').value || 'Away';
-        summaryEl.textContent = 'Analyzing...';
-        const events = JSON.stringify([]);
-        try {
-            const data = JSON.parse(await bridge.analyze_match_psychology(matchId, home, away, events));
-            if (data.error) {
-                summaryEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            summaryEl.innerHTML = '<div style="font-size:0.85rem">' +
-                '<strong>Score state transitions:</strong> ' + data.score_state_transitions.length + '<br>' +
-                '<strong>Post-goal lulls:</strong> ' + data.post_goal_lull_count + '<br>' +
-                '<strong>Comebacks:</strong> ' + data.comeback_count + '<br>' +
-                '<strong>Capitulations:</strong> ' + data.capitulation_count + '<br>' +
-                '<strong>Avg late-game passing drop:</strong> ' + (data.avg_late_game_passing_drop * 100).toFixed(1) + '%<br>' +
-                data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>') + '</div>';
-            summaryEl.className = 'feedback-result success';
-            if (data.momentum_timeline && data.momentum_timeline.length > 0) {
-                const last10 = data.momentum_timeline.slice(-10);
-                momentumEl.innerHTML = '<div style="font-size:0.78rem">Momentum (last 10 windows): ' +
-                    last10.map(m => 'M' + m.minute.toFixed(0) + ':' + m.home.toFixed(2)).join(' | ') + '</div>';
-            } else {
-                momentumEl.textContent = 'No momentum data (no events)';
-            }
-            if (data.psychology_events && data.psychology_events.length > 0) {
-                eventsEl.innerHTML = data.psychology_events.slice(0, 10).map(e =>
-                    '<div style="font-size:0.78rem;padding:2px 0">' +
-                    e.minute + "' " + escapeHtml(e.team) + ': <strong>' + e.type + '</strong> â€” ' +
-                    escapeHtml(e.description) + '</div>'
-                ).join('');
-            } else {
-                eventsEl.textContent = 'No psychology events (provide events JSON for full analysis)';
-            }
-        } catch (e) {
-            summaryEl.textContent = 'âŒ Analysis failed';
-        }
-    }
-
-    // --- Football Rules ---
-
-    async function checkRulesStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('rules-status');
-        const controls = document.getElementById('rules-controls');
-        try {
-            const status = JSON.parse(await bridge.check_rules_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ IFAB Laws loaded (' + status.laws_count + ' laws)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-                rulesLoadLaws();
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function rulesLoadLaws() {
-        if (!bridge) return;
-        try {
-            const data = JSON.parse(await bridge.get_all_laws());
-            const select = document.getElementById('rules-law-select');
-            select.innerHTML = '<option value="">-- Select Law --</option>' +
-                (data.laws || []).map(l =>
-                    '<option value="' + l.number + '">Law ' + l.number + ': ' + escapeHtml(l.name) + '</option>'
-                ).join('');
-        } catch (e) {
-            console.error('Failed to load laws:', e);
-        }
-    }
-
-    async function rulesShowLaw() {
-        if (!bridge) return;
-        const num = parseInt(document.getElementById('rules-law-select').value);
-        const contentEl = document.getElementById('rules-law-content');
-        if (!num) {
-            contentEl.textContent = 'Select a law';
-            return;
-        }
-        try {
-            const law = JSON.parse(await bridge.get_law_summary(num));
-            if (law.error) {
-                contentEl.textContent = 'âŒ ' + law.error;
-                return;
-            }
-            contentEl.innerHTML = '<div style="font-size:0.85rem">' +
-                '<strong>Law ' + law.number + ': ' + escapeHtml(law.name) + '</strong><br>' +
-                escapeHtml(law.summary || '') +
-                (law.key_constraints ? '<br><br><em>Key constraints:</em><ul style="margin:4px 0">' +
-                    law.key_constraints.map(c => '<li style="font-size:0.78rem">' + escapeHtml(c) + '</li>').join('') + '</ul>' : '') +
-                '</div>';
-            contentEl.className = 'feedback-result';
-        } catch (e) {
-            contentEl.textContent = 'âŒ Failed to load law';
-        }
-    }
-
-    async function rulesClassifyEvent() {
-        if (!bridge) return;
-        const resultEl = document.getElementById('cls-result');
-        const event = document.getElementById('cls-event').value;
-        const x = parseFloat(document.getElementById('cls-x').value);
-        const y = parseFloat(document.getElementById('cls-y').value);
-        const side = document.getElementById('cls-side').value;
-        resultEl.textContent = 'Classifying...';
-        try {
-            const data = JSON.parse(await bridge.classify_event_rule(sanitizeString(event), isFinite(x) ? x : 0, isFinite(y) ? y : 0, sanitizeString(side)));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                '<strong>Law ' + data.law + ': ' + escapeHtml(data.law_name) + '</strong><br>' +
-                'Restart: ' + (data.restart || 'none') + '<br>' +
-                escapeHtml(data.description) + '<br>' +
-                'Card likely: ' + (data.card_likely || 'none') + '</div>';
-            resultEl.className = 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Classification failed';
-        }
-    }
-
-    async function rulesCheckOffside() {
-        if (!bridge) return;
-        const resultEl = document.getElementById('off-result');
-        const ax = parseFloat(document.getElementById('off-attacker').value);
-        const dx = parseFloat(document.getElementById('off-defender').value);
-        const bx = parseFloat(document.getElementById('off-ball').value);
-        resultEl.textContent = 'Checking...';
-        try {
-            const data = JSON.parse(await bridge.check_offside(isFinite(ax) ? ax : 0, isFinite(dx) ? dx : 0, isFinite(bx) ? bx : 0, 'right'));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                return;
-            }
-            resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                (data.is_offside ? 'ðŸš© <strong>OFFSIDE</strong>' : 'âœ… <strong>Onside</strong>') + '<br>' +
-                escapeHtml(data.explanation) + '</div>';
-            resultEl.className = data.is_offside ? 'feedback-result error' : 'feedback-result success';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Check failed';
-        }
-    }
+    // --- Data providers moved to app-data-providers.js ---
 
     // --- Pro Analytics ---
 
@@ -1966,7 +278,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_setpieces(JSON.stringify(sampleEvents), 'home'));
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Set-Piece Analysis</strong><br>';
@@ -1976,12 +288,12 @@
             html += '<strong>Away:</strong> ' + data.away.total_corners + ' corners, ';
             html += data.away.shots_per_corner * 100 + '% shot rate<br>';
             html += '<strong>Differential:</strong> ' + data.set_piece_differential.toFixed(2) + '<br>';
-            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Set-piece analysis failed';
+            resultEl.textContent = '❌ Set-piece analysis failed';
         }
     }
 
@@ -2005,7 +317,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_goalkeeper('home', JSON.stringify(actions), JSON.stringify(shots), false));
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Goalkeeper Report</strong><br>';
@@ -2014,12 +326,12 @@
             html += 'Short distribution: ' + data.short_distribution_successful + '/' + data.short_distribution_attempts + '<br>';
             html += 'Long distribution: ' + data.long_distribution_successful + '/' + data.long_distribution_attempts + '<br>';
             html += 'Sweeps: ' + data.sweep_actions + '<br>';
-            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ GK analysis failed';
+            resultEl.textContent = '❌ GK analysis failed';
         }
     }
 
@@ -2042,14 +354,14 @@
         try {
             const data = JSON.parse(await bridge.analyze_substitutions('home', JSON.stringify(subs), JSON.stringify(events)));
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Substitution Impact</strong><br>';
             html += 'Total impact: ' + data.total_impact.toFixed(2) + ' | Avg: ' + data.avg_impact.toFixed(2) + '<br>';
             html += 'Tactical changes: ' + data.tactical_changes + ' | Formation: ' + data.formation_changes + '<br><br>';
             for (const i of data.impacts) {
-                html += '<strong>' + i.minute + '\':</strong> ' + (i.player_off || '?') + ' â†’ ' + (i.player_on || '?') + ' | ';
+                html += '<strong>' + i.minute + '\':</strong> ' + (i.player_off || '?') + ' → ' + (i.player_on || '?') + ' | ';
                 html += 'rating: ' + i.rating.toFixed(2) + ' [' + i.verdict + ']';
                 html += '<br>';
             }
@@ -2060,7 +372,7 @@
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Substitution analysis failed';
+            resultEl.textContent = '❌ Substitution analysis failed';
         }
     }
 
@@ -2082,7 +394,7 @@
         try {
             const data = JSON.parse(await bridge.analyze_possession('home', 'away', JSON.stringify(events)));
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             let html = '<div style="font-size:0.85rem"><strong>Detailed Possession</strong><br>';
@@ -2090,12 +402,12 @@
             html += 'Chains: ' + data.home_chains_count + ' (home) | ' + data.away_chains_count + ' (away)<br>';
             html += 'Avg chain: ' + data.avg_chain_duration_s + 's | Longest: ' + data.longest_chain_s + 's<br>';
             html += 'Counter-presses: ' + data.counter_presses + '<br>';
-            html += data.notes.map(n => 'â€¢ ' + escapeHtml(n)).join('<br>');
+            html += data.notes.map(n => '• ' + escapeHtml(n)).join('<br>');
             html += '</div>';
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Possession analysis failed';
+            resultEl.textContent = '❌ Possession analysis failed';
         }
     }
 
@@ -2107,13 +419,13 @@
         try {
             const data = JSON.parse(await bridge.compute_xgot(isFinite(shotX) ? shotX : 0, isFinite(shotY) ? shotY : 0, 'foot', false));
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             resultEl.innerHTML = '<div style="font-size:0.85rem"><strong>xGOT for shot at (' + shotX + ', ' + shotY + ')</strong><br>xGOT: ' + data.xgot.toFixed(3) + '</div>';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ xGOT compute failed';
+            resultEl.textContent = '❌ xGOT compute failed';
         }
     }
 
@@ -2126,7 +438,7 @@
         try {
             const data = JSON.parse(await bridge.realtime_status());
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
             const html = '<div style="font-size:0.85rem"><strong>Real-Time Service</strong><br>' +
@@ -2139,7 +451,7 @@
             resultEl.innerHTML = html;
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Status check failed';
+            resultEl.textContent = '❌ Status check failed';
         }
     }
 
@@ -2149,13 +461,13 @@
         try {
             const data = JSON.parse(await bridge.realtime_subscribe_console());
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
-            resultEl.textContent = 'âœ… Console subscriber added (events will print to log)';
+            resultEl.textContent = '✅ Console subscriber added (events will print to log)';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Subscribe failed';
+            resultEl.textContent = '❌ Subscribe failed';
         }
     }
 
@@ -2165,206 +477,16 @@
         try {
             const data = JSON.parse(await bridge.realtime_cancel());
             if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
+                resultEl.textContent = '❌ ' + data.error;
                 return;
             }
-            resultEl.textContent = 'âœ… Stream cancelled';
+            resultEl.textContent = '✅ Stream cancelled';
             resultEl.className = 'feedback-result success';
         } catch (e) {
-            resultEl.textContent = 'âŒ Cancel failed';
+            resultEl.textContent = '❌ Cancel failed';
         }
     }
 
-    // --- Card Detection ---
-
-    async function checkCardsStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('cards-status');
-        const controls = document.getElementById('cards-controls');
-        try {
-            const status = JSON.parse(await bridge.check_cards_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ Available (visual + audio + tactical + external)';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not available';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function cardsInferTactical() {
-        if (!bridge) return;
-        const listEl = document.getElementById('cards-list');
-        const events = [
-            { type: 'foul', team: 'home', minute: 23, second: 12, x: 92, severity: 0.7, player_track_id: 5, player_name: 'Defender A' },
-            { type: 'foul', team: 'away', minute: 45, second: 30, x: 12, severity: 0.8, player_track_id: 12, player_name: 'Midfielder B' },
-            { type: 'foul', team: 'home', minute: 78, second: 5, x: 88, severity: 0.65, player_track_id: 7, player_name: 'Defender C' },
-        ];
-        listEl.innerHTML = '<div class="roster-item">Inferring...</div>';
-        try {
-            const data = JSON.parse(await bridge.infer_cards_tactically(JSON.stringify(events)));
-            if (data.error) {
-                listEl.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>';
-                return;
-            }
-            const cards = data.cards || [];
-            if (cards.length === 0) {
-                listEl.innerHTML = '<div class="roster-item">No cards inferred</div>';
-                return;
-            }
-            listEl.innerHTML = cards.map(c =>
-                '<div class="roster-item" style="font-size:0.85rem">' +
-                '<strong style="color:' + (c.card_type === 'red' ? '#dc2626' : '#eab308') + '">[' + c.card_type.toUpperCase() + ']</strong> ' +
-                c.minute + "' " + escapeHtml(c.team) + ' â€” ' + escapeHtml(c.player_name) +
-                ' <span style="color:var(--text-muted);font-size:0.75rem">(' + c.source + ', ' + (c.confidence * 100).toFixed(0) + '%)</span>' +
-                '<div style="font-size:0.75rem;color:var(--text-muted)">' + escapeHtml(c.description) + '</div>' +
-                '</div>'
-            ).join('');
-        } catch (e) {
-            listEl.innerHTML = '<div class="roster-item">âŒ Failed</div>';
-        }
-    }
-
-    async function cardsFetchExternal() {
-        if (!bridge) return;
-        const listEl = document.getElementById('cards-list');
-        const matchIdInput = document.getElementById('cards-match-id');
-        const matchId = parseInt(matchIdInput.value) || 0;
-        if (!matchId) {
-            listEl.innerHTML = '<div class="roster-item">Enter a Match ID first</div>';
-            return;
-        }
-        listEl.innerHTML = '<div class="roster-item">Fetching from external...</div>';
-        try {
-            const data = JSON.parse(await bridge.fetch_external_cards(matchId));
-            if (data.error) {
-                listEl.innerHTML = '<div class="roster-item">âŒ ' + data.error + '</div>';
-                return;
-            }
-            const cards = data.cards || [];
-            if (cards.length === 0) {
-                listEl.innerHTML = '<div class="roster-item">No external cards for match ' + matchId + ' (not in StatsBomb or service unavailable)</div>';
-                return;
-            }
-            listEl.innerHTML = cards.map(c =>
-                '<div class="roster-item" style="font-size:0.85rem">' +
-                '<strong style="color:' + (c.card_type === 'red' ? '#dc2626' : '#eab308') + '">[' + c.card_type.toUpperCase() + ']</strong> ' +
-                c.minute + "' " + escapeHtml(c.team) + ' â€” ' + escapeHtml(c.player_name) +
-                ' <span style="color:var(--text-muted);font-size:0.75rem">(verified)</span></div>'
-            ).join('');
-        } catch (e) {
-            listEl.innerHTML = '<div class="roster-item">âŒ Failed</div>';
-        }
-    }
-
-    // --- FluidX3D ---
-
-    async function checkFluidX3DStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('fluidx3d-status');
-        const controls = document.getElementById('fluidx3d-controls');
-        try {
-            const status = JSON.parse(await bridge.check_fluidx3d_status());
-            if (status.available) {
-                statusEl.textContent = 'ðŸŸ¢ FluidX3D binary configured';
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.innerHTML = 'ðŸŸ¡ Binary not configured<br><small style="color:var(--text-muted)">' +
-                    escapeHtml(status.license_notice || '') + '</small>';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function cfdRun() {
-        if (!bridge) return;
-        const wind = parseFloat(document.getElementById('cfd-wind').value);
-        const spin = parseFloat(document.getElementById('cfd-spin').value);
-        const radius = parseFloat(document.getElementById('cfd-radius').value);
-        const resultEl = document.getElementById('cfd-result');
-        resultEl.textContent = 'Running CFD simulation...';
-        resultEl.className = 'feedback-result';
-        try {
-            const data = JSON.parse(await bridge.simulate_ball_cfd(
-                isFinite(wind) ? wind : 0,
-                isFinite(spin) ? spin : 0,
-                isFinite(radius) ? radius : 0
-            ));
-            resultEl.innerHTML = '<div style="font-size:0.85rem">' +
-                (data.success ? 'âœ… ' : 'âŒ ') + escapeHtml(data.notes || '') +
-                (data.error ? '<br><small style="color:var(--text-muted)">' + escapeHtml(data.error) + '</small>' : '') +
-                '</div>';
-            resultEl.className = data.success ? 'feedback-result success' : 'feedback-result error';
-        } catch (e) {
-            resultEl.textContent = 'âŒ CFD failed';
-            resultEl.className = 'feedback-result error';
-        }
-    }
-
-    // --- Roboflow Sports ---
-
-    async function checkRoboflowSportsStatus() {
-        if (!bridge) return;
-        const statusEl = document.getElementById('roboflow-sports-status');
-        const controls = document.getElementById('roboflow-sports-controls');
-        try {
-            const status = JSON.parse(await bridge.check_roboflow_sports_status());
-            if (status.available) {
-                let info = 'ðŸŸ¢ Available';
-                if (status.has_team_classifier) info += ' (team classifier âœ…)';
-                if (status.has_view_transformer) info += ' (view transformer âœ…)';
-                statusEl.textContent = info;
-                statusEl.className = 'feedback-result success';
-                controls.classList.remove('hidden');
-            } else {
-                statusEl.textContent = 'ðŸŸ¡ Not installed (pip install git+https://github.com/roboflow/sports.git)';
-                statusEl.className = 'feedback-result';
-                controls.classList.add('hidden');
-            }
-        } catch (e) {
-            statusEl.textContent = 'ðŸŸ¡ Not available';
-            statusEl.className = 'feedback-result';
-            controls.classList.add('hidden');
-        }
-    }
-
-    async function rfDrawPitch() {
-        if (!bridge) return;
-        const scaleInput = document.getElementById('rf-pitch-scale');
-        const resultEl = document.getElementById('rf-pitch-result');
-        const imgEl = document.getElementById('rf-pitch-image');
-        const scale = parseFloat(scaleInput.value) || 0.5;
-        resultEl.textContent = 'Drawing pitch...';
-        resultEl.className = 'feedback-result';
-        imgEl.innerHTML = '';
-        try {
-            const data = JSON.parse(await bridge.rf_draw_pitch(isFinite(scale) ? scale : 1));
-            if (data.error) {
-                resultEl.textContent = 'âŒ ' + data.error;
-                resultEl.className = 'feedback-result error';
-                return;
-            }
-            resultEl.textContent = 'âœ… Pitch drawn (' + data.shape[0] + 'x' + data.shape[1] + ')';
-            resultEl.className = 'feedback-result success';
-            imgEl.innerHTML = '<img src="data:image/png;base64,' + data.image_b64 + '" style="max-width:100%;border:1px solid #ccc;border-radius:6px">';
-        } catch (e) {
-            resultEl.textContent = 'âŒ Failed to draw pitch';
-            resultEl.className = 'feedback-result error';
-        }
-    }
 
     async function loadMatchHistory() {
         if (!bridge) return;
@@ -2515,7 +637,7 @@
             document.getElementById('kpi-winrate').textContent = formatNumber(winRate, 1) + '%';
             document.getElementById('kpi-ppda').textContent = formatNumber(ppdaCount > 0 ? totalPpdaHome / ppdaCount : 0, 1);
 
-            // â”€â”€ Item 8: Sparklines on KPI cards â”€â”€
+            // ── Item 8: Sparklines on KPI cards ──
             if (window.KawkabSparklines) {
                 var ks = window.KawkabSparklines;
                 var primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
@@ -2700,6 +822,9 @@
         const exportJsonBtn = document.getElementById('export-json-btn');
         if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => exportMatchData('json'));
 
+        const exportStatsbombBtn = document.getElementById('export-statsbomb-btn');
+        if (exportStatsbombBtn) exportStatsbombBtn.addEventListener('click', () => exportMatchData('statsbomb'));
+
         const qualityReportBtn = document.getElementById('quality-report-btn');
         if (qualityReportBtn) qualityReportBtn.addEventListener('click', getQualityReport);
 
@@ -2736,137 +861,6 @@
         const generateVizBtn = document.getElementById('generate-viz-btn');
         if (generateVizBtn) generateVizBtn.addEventListener('click', generateVisualizations);
 
-        // v0.8.4: Football Data
-        const fdHomeSearch = document.getElementById('fd-home-search');
-        const fdAwaySearch = document.getElementById('fd-away-search');
-        if (fdHomeSearch) setupFdTeamSearch('fd-home-search', 'fd-home-results', (id, name, crest, compCode) => {
-            fdHomeTeamId = id;
-            document.getElementById('fd-import-home-btn').disabled = false;
-            document.getElementById('fd-import-home-btn').textContent = 'Import Home Squad';
-            fdLoadTeamFixtures(id);
-            if (compCode) { fdLoadStandings(compCode); }
-        });
-        if (fdAwaySearch) setupFdTeamSearch('fd-away-search', 'fd-away-results', (id, name, crest, compCode) => {
-            fdAwayTeamId = id;
-            document.getElementById('fd-import-away-btn').disabled = false;
-            document.getElementById('fd-import-away-btn').textContent = 'Import Away Squad';
-            fdLoadTeamFixtures(id);
-            if (compCode) { fdLoadStandings(compCode); }
-        });
-        document.getElementById('fd-import-home-btn')?.addEventListener('click', () => {
-            if (currentMatchId && fdHomeTeamId) fdImportSquad(currentMatchId, fdHomeTeamId, 'home', 'fd-import-home-btn');
-        });
-        document.getElementById('fd-import-away-btn')?.addEventListener('click', () => {
-            if (currentMatchId && fdAwayTeamId) fdImportSquad(currentMatchId, fdAwayTeamId, 'away', 'fd-import-away-btn');
-        });
-        document.getElementById('fd-verify-btn')?.addEventListener('click', fdVerifyMatch);
-
-        // v0.8.5: Bzzoiro
-        const bzHomeSearch = document.getElementById('bz-home-search');
-        const bzAwaySearch = document.getElementById('bz-away-search');
-        if (bzHomeSearch) setupBzTeamSearch('bz-home-search', 'bz-home-results', (id, name) => {
-            bzHomeTeamId = id;
-            document.getElementById('bz-import-home-btn').disabled = false;
-            document.getElementById('bz-import-home-btn').textContent = 'Import Home Squad';
-        });
-        if (bzAwaySearch) setupBzTeamSearch('bz-away-search', 'bz-away-results', (id, name) => {
-            bzAwayTeamId = id;
-            document.getElementById('bz-import-away-btn').disabled = false;
-            document.getElementById('bz-import-away-btn').textContent = 'Import Away Squad';
-        });
-        document.getElementById('bz-import-home-btn')?.addEventListener('click', () => {
-            if (currentMatchId && bzHomeTeamId) bzImportSquad(currentMatchId, bzHomeTeamId, 'home', 'bz-import-home-btn');
-        });
-        document.getElementById('bz-import-away-btn')?.addEventListener('click', () => {
-            if (currentMatchId && bzAwayTeamId) bzImportSquad(currentMatchId, bzAwayTeamId, 'away', 'bz-import-away-btn');
-        });
-        document.getElementById('bz-verify-btn')?.addEventListener('click', bzVerifyMatch);
-        document.getElementById('bz-predict-btn')?.addEventListener('click', bzGetPredictions);
-        document.getElementById('bz-standings-btn')?.addEventListener('click', bzLoadStandings);
-
-        // v0.8.5: EasySoccerData
-        document.getElementById('es-get-event-btn')?.addEventListener('click', esGetEvent);
-        document.getElementById('es-get-incidents-btn')?.addEventListener('click', esGetIncidents);
-
-        // v0.8.5: API-Football
-        const afHomeSearch = document.getElementById('af-home-search');
-        const afAwaySearch = document.getElementById('af-away-search');
-        if (afHomeSearch) setupAfTeamSearch('af-home-search', 'af-home-results', (id, name) => {
-            afHomeTeamId = id;
-            document.getElementById('af-import-home-btn').disabled = false;
-            document.getElementById('af-import-home-btn').textContent = 'Import Home Squad';
-        });
-        if (afAwaySearch) setupAfTeamSearch('af-away-search', 'af-away-results', (id, name) => {
-            afAwayTeamId = id;
-            document.getElementById('af-import-away-btn').disabled = false;
-            document.getElementById('af-import-away-btn').textContent = 'Import Away Squad';
-        });
-        document.getElementById('af-import-home-btn')?.addEventListener('click', () => {
-            if (currentMatchId && afHomeTeamId) afImportSquad(currentMatchId, afHomeTeamId, 'home', 'af-import-home-btn');
-        });
-        document.getElementById('af-import-away-btn')?.addEventListener('click', () => {
-            if (currentMatchId && afAwayTeamId) afImportSquad(currentMatchId, afAwayTeamId, 'away', 'af-import-away-btn');
-        });
-        document.getElementById('af-verify-btn')?.addEventListener('click', afVerifyMatch);
-        document.getElementById('af-predict-btn')?.addEventListener('click', afGetPredictions);
-
-        // TheSportsDB
-        const tsdbSearch = document.getElementById('tsdb-team-search');
-        if (tsdbSearch) setupTsdbTeamSearch('tsdb-team-search', 'tsdb-team-results', (id, name, leagueId, badge) => {
-            document.getElementById('tsdb-get-info-btn').disabled = false;
-        });
-        document.getElementById('tsdb-get-info-btn')?.addEventListener('click', tsdbGetTeamInfo);
-        document.getElementById('tsdb-standings-btn')?.addEventListener('click', tsdbLoadStandings);
-        document.getElementById('tsdb-last-events-btn')?.addEventListener('click', () => tsdbLoadEvents('last'));
-        document.getElementById('tsdb-next-events-btn')?.addEventListener('click', () => tsdbLoadEvents('next'));
-
-        // StatsBomb
-        const sbTeamSearch = document.getElementById('sb-team-search');
-        if (sbTeamSearch) {
-            sbTeamSearch.addEventListener('input', function() { sbSearchTeam(); });
-        }
-        document.getElementById('sb-events-btn')?.addEventListener('click', sbGetEvents);
-        document.getElementById('sb-lineups-btn')?.addEventListener('click', sbGetLineups);
-        document.getElementById('sb-import-btn')?.addEventListener('click', sbImportToDb);
-
-        // OpenFootball
-        document.getElementById('ofb-load-btn')?.addEventListener('click', ofbLoadMatches);
-        const ofbTeamSearch = document.getElementById('ofb-team-search');
-        if (ofbTeamSearch) {
-            ofbTeamSearch.addEventListener('input', function() { ofbSearchTeam(); });
-        }
-        document.getElementById('ofb-wc-btn')?.addEventListener('click', ofbLoadWorldCup);
-
-        // Roboflow Sports
-        document.getElementById('rf-draw-pitch-btn')?.addEventListener('click', rfDrawPitch);
-
-        // Pose Analysis
-        document.getElementById('pose-summary-btn')?.addEventListener('click', poseGetSummary);
-        document.getElementById('pose-segments-btn')?.addEventListener('click', poseGetSegments);
-
-        // MuJoCo Trajectory
-        document.getElementById('mujoco-load-preset-btn')?.addEventListener('click', mujocoApplyPreset);
-        document.getElementById('mujoco-simulate-btn')?.addEventListener('click', mujocoSimulate);
-
-        // FluidX3D
-        document.getElementById('cfd-run-btn')?.addEventListener('click', cfdRun);
-
-        // Weather
-        document.getElementById('wx-analyze-btn')?.addEventListener('click', wxAnalyzeManual);
-        document.getElementById('wx-fetch-btn')?.addEventListener('click', wxFetchFromAPI);
-        document.getElementById('wx-analyze-video-btn')?.addEventListener('click', wxAnalyzeVideo);
-
-        // Psychology
-        document.getElementById('psy-analyze-btn')?.addEventListener('click', psyAnalyze);
-
-        // Football Rules
-        document.getElementById('rules-show-btn')?.addEventListener('click', rulesShowLaw);
-        document.getElementById('cls-classify-btn')?.addEventListener('click', rulesClassifyEvent);
-        document.getElementById('off-check-btn')?.addEventListener('click', rulesCheckOffside);
-
-        // Card Detection
-        document.getElementById('cards-infer-btn')?.addEventListener('click', cardsInferTactical);
-        document.getElementById('cards-external-btn')?.addEventListener('click', cardsFetchExternal);
 
         // Pro Analytics
         document.getElementById('pro-setpiece-btn')?.addEventListener('click', proSetpieceAnalyze);
@@ -2879,6 +873,9 @@
         document.getElementById('realtime-status-btn')?.addEventListener('click', realtimeStatus);
         document.getElementById('realtime-console-btn')?.addEventListener('click', realtimeConsole);
         document.getElementById('realtime-cancel-btn')?.addEventListener('click', realtimeCancel);
+
+        // Data provider listeners (registered by app-data-providers.js)
+        if (window.__kawkab.setupDataProviderListeners) window.__kawkab.setupDataProviderListeners();
     }
 
     function handleFileSelect(file) {
@@ -2958,6 +955,31 @@
             <div class="stat-item"><span>Events detected:</span><span>${result.event_count}</span></div>
             ${result.advanced_event_count != null ? `<div class="stat-item"><span>Advanced events:</span><span>${result.advanced_event_count}</span></div>` : ''}
         `;
+
+        // Fetch data quality score for the badge
+        if (bridge && currentMatchId) {
+            bridge.get_match_quality_score(String(currentMatchId)).then(function(qualityJson) {
+                try {
+                    const q = JSON.parse(qualityJson);
+                    const badge = document.getElementById('match-quality-badge');
+                    const shield = document.getElementById('quality-shield');
+                    const pct = document.getElementById('quality-pct');
+                    const tooltip = document.getElementById('quality-tooltip');
+                    if (!badge) return;
+                    badge.className = 'quality-badge ' + (q.level || 'fair');
+                    badge.classList.remove('hidden');
+                    if (q.level === 'good') { shield.textContent = '🟢'; }
+                    else if (q.level === 'fair') { shield.textContent = '🟡'; }
+                    else if (q.level === 'poor') { shield.textContent = '🔴'; }
+                    else { shield.textContent = '⚪'; }
+                    pct.textContent = q.score != null ? Math.round(q.score) + '%' : '--';
+                    const items = (q.anomalies || []).map(function(a) {
+                        return a.description;
+                    }).join('; ');
+                    tooltip.textContent = items ? 'Anomalies: ' + items : 'No anomalies detected';
+                } catch(e) {}
+            });
+        }
 
         renderPossession(result.home_team.possession, result.away_team.possession);
         renderTeamStats('home-stats', result.home_team, 'Home');
@@ -3501,11 +1523,15 @@
         }
 
         try {
-            const result = JSON.parse(
-                format === 'csv'
-                    ? await bridge.export_match_csv(matchId)
-                    : await bridge.export_match_json(matchId)
-            );
+            let result;
+            if (format === 'csv') {
+                result = JSON.parse(await bridge.export_match_csv(matchId));
+            } else if (format === 'statsbomb') {
+                const defaultPath = `statsbomb_${matchId}_${Date.now()}.json`;
+                result = JSON.parse(await bridge.export_match_statsbomb(matchId, defaultPath));
+            } else {
+                result = JSON.parse(await bridge.export_match_json(matchId));
+            }
             if (result.success) {
                 showToast(`Export complete! File saved to: ${result.path}`, 'success');
             } else {
@@ -3646,7 +1672,7 @@
             if (matchedMatches.length > 0) {
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchMatches') + '</div>';
                 matchedMatches.forEach(function(m, i) {
-                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">âš½ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
+                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">⚽ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
                 });
                 if (totalMatches > 5) html += '<div class="search-view-all" data-type="match">' + t('viewAllResults').replace('{n}', totalMatches) + '</div>';
                 html += '</div>';
@@ -3654,7 +1680,7 @@
             if (matchedPlayers.length > 0) {
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchPlayers') + '</div>';
                 matchedPlayers.forEach(function(p, i) {
-                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">ðŸ‘¤ ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
+                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">👤 ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
                 });
                 if (totalPlayers > 5) html += '<div class="search-view-all" data-type="player">' + t('viewAllResults').replace('{n}', totalPlayers) + '</div>';
                 html += '</div>';
@@ -3663,7 +1689,7 @@
                 html += '<div class="search-section"><div class="search-section-title">' + t('searchEvents') + '</div>';
                 matchedEvents.forEach(function(e, i) {
                     var label = (e.event_type || '').replace(/_/g, ' ') + (e.player_name ? ' - ' + e.player_name : '');
-                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">ðŸ”¹ ' + highlightMatch(escapeHtml(label), query) + '</div>';
+                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">🔹 ' + highlightMatch(escapeHtml(label), query) + '</div>';
                 });
                 if (totalEvents > 5) html += '<div class="search-view-all" data-type="event">' + t('viewAllResults').replace('{n}', totalEvents) + '</div>';
                 html += '</div>';
@@ -4131,7 +2157,7 @@
             document.getElementById('clip-result').className = 'feedback-result error';
         } finally {
             btn.disabled = false;
-            btn.textContent = 'ðŸŽ¬ Extract Clips';
+            btn.textContent = '🎬 Extract Clips';
         }
     }
 
@@ -4206,7 +2232,7 @@
         });
     }
 
-    // â”€â”€ Multi-selection helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Multi-selection helpers ──────────────────────────────
 
     function _toggleEventSelection(eventId, ctrlKey) {
         if (!ctrlKey) {
@@ -4275,7 +2301,7 @@
         });
     }
 
-    // â”€â”€ Sort / Filter / Pagination helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Sort / Filter / Pagination helpers ──────────────────
 
     function _getEventField(e, key) {
         switch (key) {
@@ -4359,7 +2385,7 @@
         return labels[key] || key;
     }
 
-    // â”€â”€ Timeline rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Timeline rendering ──────────────────────────────────
 
     function renderTimeline(events) {
         wireChartFilter();
@@ -4572,7 +2598,7 @@
     }
 
     document.addEventListener('click', function(e) {
-        // â”€â”€ Timeline item checkbox (multi-select) â”€â”€
+        // ── Timeline item checkbox (multi-select) ──
         if (e.target.closest('.timeline-checkbox')) {
             var cb = e.target;
             var eventId = parseInt(cb.dataset.eventId, 10);
@@ -4599,7 +2625,7 @@
             return;
         }
 
-        // â”€â”€ Timeline item body (seek + selection) â”€â”€
+        // ── Timeline item body (seek + selection) ──
         var item = e.target.closest('.timeline-item');
         if (item && !e.target.closest('.timeline-item-actions') && !e.target.closest('.timeline-checkbox')) {
             var eventId = parseInt(item.dataset.eventId, 10);
@@ -4620,7 +2646,7 @@
             return;
         }
 
-        // â”€â”€ Timeline edit button (div view) â”€â”€
+        // ── Timeline edit button (div view) ──
         if (e.target.closest('.edit-btn')) {
             var item = e.target.closest('.timeline-item');
             var eventId = parseInt(item.dataset.eventId, 10);
@@ -4631,7 +2657,7 @@
             return;
         }
 
-        // â”€â”€ Timeline delete button (div view) â”€â”€
+        // ── Timeline delete button (div view) ──
         if (e.target.closest('.delete-btn')) {
             var item = e.target.closest('.timeline-item');
             showConfirmDialog('Delete this event?', function() {
@@ -4651,7 +2677,7 @@
             return;
         }
 
-        // â”€â”€ Table checkbox â”€â”€
+        // ── Table checkbox ──
         if (e.target.closest('.table-checkbox')) {
             var cb = e.target;
             var eventId = parseInt(cb.dataset.eventId, 10);
@@ -4689,7 +2715,7 @@
             return;
         }
 
-        // â”€â”€ Table edit button â”€â”€
+        // ── Table edit button ──
         if (e.target.closest('.table-edit-btn')) {
             var btn = e.target.closest('.table-edit-btn');
             var eid = parseInt(btn.dataset.eventId, 10);
@@ -4698,7 +2724,7 @@
             return;
         }
 
-        // â”€â”€ Table delete button â”€â”€
+        // ── Table delete button ──
         if (e.target.closest('.table-delete-btn')) {
             var btn = e.target.closest('.table-delete-btn');
             var eid = parseInt(btn.dataset.eventId, 10);
@@ -4718,7 +2744,7 @@
             return;
         }
 
-        // â”€â”€ Table column header sort â”€â”€
+        // ── Table column header sort ──
         if (e.target.closest('.data-table th.sortable')) {
             var th = e.target.closest('.data-table th.sortable');
             if (e.target.closest('.col-filter-input')) return; // Ignore clicks on filter inputs
@@ -4733,13 +2759,13 @@
             return;
         }
 
-        // â”€â”€ Table column filter input (delegated) â”€â”€
+        // ── Table column filter input (delegated) ──
         if (e.target.closest('.col-filter-input')) {
             // Handled by input event listener below
             return;
         }
 
-        // â”€â”€ Table pagination â”€â”€
+        // ── Table pagination ──
         if (e.target.closest('.pagination-btn')) {
             var btn = e.target.closest('.pagination-btn');
             var page = btn.dataset.page;
@@ -4756,14 +2782,14 @@
             return;
         }
 
-        // â”€â”€ Table per-page select (delegated) â”€â”€
+        // ── Table per-page select (delegated) ──
         if (e.target.closest('.per-page-select')) {
             // Handled by change event
             return;
         }
     });
 
-    // â”€â”€ Chart cross-filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Chart cross-filter ──────────────────────────────────
 
     var _chartFilterCanvasId = null;
 
@@ -4823,7 +2849,7 @@
 
     document.getElementById('filter-banner-clear')?.addEventListener('click', clearTimelineFilter);
 
-    // â”€â”€ Item 7: Timeline Scrub/Zoom Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Item 7: Timeline Scrub/Zoom Widget ────────────────
 
     var _scrubState = { dragging: null, startMin: 0, endMin: 90 };
 
@@ -4969,7 +2995,7 @@
         renderTimeline(window._timelineEvents || []);
     }
 
-    // â”€â”€ Item 10: Data Density Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Item 10: Data Density Toggle ──────────────────────
 
     function initDensityToggle() {
         var stored = null;
@@ -4991,7 +3017,7 @@
         });
     }
 
-    // â”€â”€ Item 12: Color Customization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Item 12: Color Customization ──────────────────────
 
     function initColorSettings() {
         var stored = null;
@@ -5048,7 +3074,7 @@
         }
     }
 
-    // â”€â”€ Item 13: Video Keyboard Shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Item 13: Video Keyboard Shortcuts ─────────────────
 
     function initVideoShortcuts() {
         document.addEventListener('keydown', function(e) {
@@ -5093,7 +3119,7 @@
         });
     }
 
-    // â”€â”€ Item 14: Persistent Filter State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Item 14: Persistent Filter State ──────────────────
 
     function saveFilterState() {
         try {
@@ -5133,820 +3159,19 @@
         } catch(e) {}
     }
 
-    // â”€â”€ Coding Workspace (Phase 1 â€” Video Tagging Engine) â”€â”€â”€â”€â”€â”€
-
-    var _codingState = {
-        matchId: null,
-        tags: [],
-        templates: [],
-        video: null,
-        currentTime: 0,
-        activeTagId: null,
-        shortcuts: {},
-        selectedPlayer: 0,
-        selectedTeam: '',
-        selectedPeriod: 1,
-        leadMs: 2000,
-        lagMs: 3000,
-        notes: '',
-        filterText: '',
-        isLoading: false,
-        keyboardEnabled: false,
-    };
+    // ── Coding Workspace (delegated to app-coding.js) ─────────
 
     function initCodingWorkspace() {
-        var loadBtn = document.getElementById('coding-load-btn');
-        var matchSelect = document.getElementById('coding-match-select');
-        var clearBtn = document.getElementById('coding-clear-btn');
-        var exportAllBtn = document.getElementById('coding-export-all-btn');
-        var filterInput = document.getElementById('coding-filter-input');
-        var exportCsv = document.getElementById('coding-export-csv');
-        var exportJson = document.getElementById('coding-export-json');
-        var timelineCanvas = document.getElementById('coding-timeline-canvas');
-        var notesInput = document.getElementById('coding-notes-input');
-
-        if (!loadBtn) return; // Section not loaded yet
-
-        // Load match select when coding section is shown
-        window.loadCodingMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.error || !Array.isArray(data)) {
-                        data = typeof data === 'object' && data.matches ? data.matches : [];
-                    }
-                    var sel = document.getElementById('coding-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || m.home_team + ' vs ' + m.away_team || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) {
-                    console.warn('loadCodingMatchSelect:', e);
-                }
-            });
-        };
-
-        loadBtn.addEventListener('click', function() {
-            var matchId = parseInt(matchSelect.value, 10);
-            if (!matchId) {
-                showToast('Please select a match first.', 'warning');
-                return;
-            }
-            loadCodingWorkspace(matchId);
-        });
-
-        clearBtn.addEventListener('click', function() {
-            if (_codingState.tags.length === 0) return;
-            showConfirmDialog('Delete all ' + _codingState.tags.length + ' tags for this match?', function() {
-                var ids = _codingState.tags.map(function(t) { return t.id; });
-                var deleted = 0;
-                ids.forEach(function(id) {
-                    bridge.delete_coding_tag(id, function(result) {
-                        var data = JSON.parse(result);
-                        if (data.success) deleted++;
-                        if (deleted === ids.length) {
-                            _codingState.tags = [];
-                            renderCodingTagList();
-                            renderCodingTimeline();
-                            updateCodingStats();
-                            showToast('All tags deleted.', 'success');
-                        }
-                    });
-                });
-            });
-        });
-
-        exportAllBtn.addEventListener('click', function() {
-            if (_codingState.tags.length === 0) {
-                showToast('No tags to export.', 'warning');
-                return;
-            }
-            showToast('Extracting clips...', 'info');
-            var tagIds = _codingState.tags.map(function(t) { return t.id; });
-            bridge.extract_tag_clips_batch(_codingState.matchId, JSON.stringify(tagIds), function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.success) {
-                        var done = data.results.filter(function(r) { return r.success; }).length;
-                        var failed = data.results.filter(function(r) { return r.error; }).length;
-                        showToast('Exported ' + done + ' clips' + (failed ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
-                    } else {
-                        showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
-                    }
-                } catch(e) {
-                    showToast('Export failed: ' + e.message, 'error');
-                }
-            });
-        });
-
-        filterInput.addEventListener('input', function() {
-            _codingState.filterText = this.value.toLowerCase();
-            renderCodingTagList();
-        });
-
-        exportCsv.addEventListener('click', function() {
-            exportCodingTags('csv');
-        });
-        exportJson.addEventListener('click', function() {
-            exportCodingTags('json');
-        });
-
-        // Player select change
-        document.getElementById('coding-player-select').addEventListener('change', function() {
-            _codingState.selectedPlayer = parseInt(this.value, 10) || 0;
-        });
-
-        // Team select change
-        document.getElementById('coding-team-select').addEventListener('change', function() {
-            _codingState.selectedTeam = this.value;
-        });
-
-        // Period select change
-        document.getElementById('coding-period-select').addEventListener('change', function() {
-            _codingState.selectedPeriod = parseInt(this.value, 10) || 1;
-        });
-
-        // Lead/lag changes
-        document.getElementById('coding-lead-ms').addEventListener('change', function() {
-            _codingState.leadMs = parseInt(this.value, 10) || 2000;
-        });
-        document.getElementById('coding-lag-ms').addEventListener('change', function() {
-            _codingState.lagMs = parseInt(this.value, 10) || 3000;
-        });
-
-        // Notes
-        notesInput.addEventListener('change', function() {
-            _codingState.notes = this.value;
-        });
-
-        // Timeline click to seek
-        timelineCanvas.addEventListener('click', function(e) {
-            var rect = this.getBoundingClientRect();
-            var x = e.clientX - rect.left;
-            var pct = x / rect.width;
-            var video = document.getElementById('coding-video');
-            if (video && video.duration) {
-                video.currentTime = pct * video.duration;
-            }
-        });
-
-        // Keyboard shortcuts for coding workspace
-        document.addEventListener('keydown', function(e) {
-            if (!_codingState.keyboardEnabled) return;
-            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
-            if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-            var key = e.key.toLowerCase();
-            if (key === ' ' || key === 'k') {
-                e.preventDefault();
-                var vid = document.getElementById('coding-video');
-                if (vid && vid.src) {
-                    if (vid.paused) vid.play(); else vid.pause();
-                }
-                return;
-            }
-            if (key === 'arrowleft') {
-                e.preventDefault();
-                var vid = document.getElementById('coding-video');
-                if (vid) vid.currentTime = Math.max(0, vid.currentTime - 3);
-                return;
-            }
-            if (key === 'arrowright') {
-                e.preventDefault();
-                var vid = document.getElementById('coding-video');
-                if (vid) vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 3);
-                return;
-            }
-
-            // Matrix button shortcuts
-            var shortcutMap = _codingState.shortcuts;
-            if (shortcutMap[key]) {
-                e.preventDefault();
-                triggerTag(shortcutMap[key]);
-            }
-        });
-
-        // Update current time from video
-        var video = document.getElementById('coding-video');
-        if (video) {
-            video.addEventListener('timeupdate', function() {
-                _codingState.currentTime = this.currentTime;
-                updateCodingTimelineCursor();
-                highlightTagAtTime(this.currentTime);
-            });
-        }
-
-        // Load templates
-        loadCodingTemplates();
-
-        // Load match select initially
-        loadCodingMatchSelect();
+        if (window.KawkabCoding) return window.KawkabCoding.initCodingWorkspace();
     }
 
-    function loadCodingTemplates() {
-        if (typeof bridge === 'undefined' || !bridge || !bridge.get_coding_templates) return;
-        bridge.get_coding_templates(function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data.success) {
-                    _codingState.templates = data.templates;
-                    renderCodingMatrix(data.templates);
-                    // Build shortcut map
-                    var shortcuts = {};
-                    (data.templates.categories || []).forEach(function(cat) {
-                        (cat.buttons || []).forEach(function(btn) {
-                            if (btn.shortcut) shortcuts[btn.shortcut.toLowerCase()] = btn;
-                        });
-                    });
-                    _codingState.shortcuts = shortcuts;
-                }
-            } catch(e) {
-                console.warn('loadCodingTemplates:', e);
-            }
-        });
-    }
-
-    function renderCodingMatrix(templates) {
-        var container = document.getElementById('coding-matrix');
-        if (!container) return;
-        container.innerHTML = '';
-        (templates.categories || []).forEach(function(cat) {
-            var catEl = document.createElement('div');
-            catEl.className = 'coding-matrix-category';
-            catEl.innerHTML = '<div class="coding-category-label" style="color:' + (cat.color || '#fff') + '">' + escapeHtml(cat.label) + '</div>';
-            var grid = document.createElement('div');
-            grid.className = 'coding-button-grid';
-            (cat.buttons || []).forEach(function(btn) {
-                var btnEl = document.createElement('button');
-                btnEl.className = 'coding-matrix-btn';
-                btnEl.style.background = btn.color || '#555';
-                btnEl.dataset.eventType = btn.id;
-                btnEl.dataset.shortcut = btn.shortcut || '';
-                btnEl.innerHTML = escapeHtml(btn.label) + (btn.shortcut ? '<span class="shortcut-hint">' + escapeHtml(btn.shortcut) + '</span>' : '');
-                btnEl.addEventListener('click', function() {
-                    triggerTag(btn);
-                });
-                grid.appendChild(btnEl);
-            });
-            catEl.appendChild(grid);
-            container.appendChild(catEl);
-        });
-    }
-
-    function loadCodingWorkspace(matchId) {
-        _codingState.matchId = matchId;
-        _codingState.isLoading = true;
-
-        var status = document.getElementById('coding-match-status');
-        status.textContent = 'Loading...';
-
-        // Get match info
-        bridge.get_video_path(matchId, function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data && data.video_path) {
-                    var video = document.getElementById('coding-video');
-                    video.src = data.video_path;
-                    video.load();
-                    _codingState.keyboardEnabled = true;
-                    status.textContent = 'Ready';
-                } else {
-                    status.textContent = 'No video found';
-                    showToast('No video found for this match.', 'warning');
-                }
-            } catch(e) {
-                status.textContent = 'Error loading video';
-                console.warn('loadCodingWorkspace video:', e);
-            }
-        });
-
-        // Get match players
-        if (bridge.get_coding_players) {
-            bridge.get_coding_players(matchId, function(result) {
-                try {
-                    var data = JSON.parse(result);
-                    if (data.success && data.players) {
-                        var sel = document.getElementById('coding-player-select');
-                        sel.innerHTML = '<option value="0">-- None --</option>';
-                        data.players.forEach(function(p) {
-                            sel.innerHTML += '<option value="' + p.track_id + '">' +
-                                escapeHtml(p.name || 'Player ' + p.track_id) +
-                                ' (#' + p.jersey + ')</option>';
-                        });
-                    }
-                } catch(e) {}
-            });
-        }
-
-        // Load existing tags
-        bridge.get_coding_tags(matchId, function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data.success) {
-                    _codingState.tags = data.tags || [];
-                    renderCodingTagList();
-                    renderCodingTimeline();
-                    updateCodingStats();
-                }
-            } catch(e) {
-                console.warn('loadCodingWorkspace tags:', e);
-            }
-            _codingState.isLoading = false;
-
-            // Show workspace
-            document.getElementById('coding-workspace').classList.remove('hidden');
-            document.getElementById('coding-empty-state').classList.add('hidden');
-
-            showToast('Loaded ' + _codingState.tags.length + ' existing tags.', 'info');
-        });
-    }
-
-    function triggerTag(btn) {
-        if (!_codingState.matchId) {
-            showToast('Select a match first.', 'warning');
-            return;
-        }
-
-        var video = document.getElementById('coding-video');
-        if (!video || !video.src) {
-            showToast('No video loaded.', 'warning');
-            return;
-        }
-
-        var videoTime = video.currentTime;
-        var tag = {
-            event_type: btn.id,
-            sub_type: '',
-            video_time: videoTime,
-            player_track_id: _codingState.selectedPlayer,
-            player_name: getSelectedPlayerName(),
-            team: _codingState.selectedTeam,
-            period: _codingState.selectedPeriod,
-            notes: _codingState.notes || '',
-            lead_ms: _codingState.leadMs,
-            lag_ms: _codingState.lagMs,
-        };
-
-        // Flash effect on video
-        var container = document.querySelector('.coding-video-container');
-        container.classList.remove('coding-flash');
-        void container.offsetWidth;
-        container.classList.add('coding-flash');
-
-        // Save via bridge
-        bridge.save_coding_tag(_codingState.matchId, JSON.stringify(tag), function(result) {
-            try {
-                var data = JSON.parse(result);
-                if (data.success) {
-                    tag.id = data.tag_id;
-                    _codingState.tags.push(tag);
-                    renderCodingTagList();
-                    renderCodingTimeline();
-                    updateCodingStats();
-                    updateCodingLastTag(btn.label || btn.id, videoTime);
-                } else {
-                    showToast('Failed to save tag: ' + (data.error || 'Unknown'), 'error');
-                }
-            } catch(e) {
-                console.warn('triggerTag save:', e);
-            }
-        });
-    }
-
-    function getSelectedPlayerName() {
-        var sel = document.getElementById('coding-player-select');
-        if (!sel) return '';
-        var opt = sel.options[sel.selectedIndex];
-        return opt ? opt.text.split(' (#')[0] : '';
-    }
-
-    function renderCodingTagList() {
-        var list = document.getElementById('coding-tag-list');
-        if (!list) return;
-        var filter = _codingState.filterText;
-        var tags = _codingState.tags;
-
-        if (filter) {
-            tags = tags.filter(function(t) {
-                return (t.event_type || '').toLowerCase().indexOf(filter) !== -1 ||
-                       (t.player_name || '').toLowerCase().indexOf(filter) !== -1 ||
-                       (t.notes || '').toLowerCase().indexOf(filter) !== -1;
-            });
-        }
-
-        if (tags.length === 0) {
-            list.innerHTML = '<div class="coding-tag-list-empty">' +
-                (filter ? 'No tags match your filter.' : 'No tags yet. Click a matrix button to tag the current video time!') +
-                '</div>';
-            document.getElementById('coding-tag-count-badge').textContent = '0';
-            return;
-        }
-
-        var html = '';
-        tags.forEach(function(tag, idx) {
-            var timeStr = formatCodingTime(tag.video_time || 0);
-            var typeLabel = tag.event_type || 'unknown';
-            var playerLabel = tag.player_name || '';
-            var activeClass = tag.id === _codingState.activeTagId ? ' active' : '';
-            var color = getTagColor(tag.event_type);
-
-            html += '<div class="coding-tag-item' + activeClass + '" data-tag-id="' + tag.id + '" data-video-time="' + (tag.video_time || 0) + '">';
-            html += '  <span class="tag-color-dot" style="background:' + color + '"></span>';
-            html += '  <div class="tag-info">';
-            html += '    <div class="tag-type">' + escapeHtml(typeLabel) + '</div>';
-            html += '    <div class="tag-sub">' + escapeHtml(timeStr) + (playerLabel ? ' Â· ' + escapeHtml(playerLabel) : '') + '</div>';
-            html += '  </div>';
-            html += '  <div class="tag-time">' + timeStr + '</div>';
-            html += '  <div class="tag-actions">';
-            html += '    <button class="tag-action-btn tag-seek-btn" title="Seek to time">â©</button>';
-            html += '    <button class="tag-action-btn tag-clip-btn" title="Extract clip">âœ‚ï¸</button>';
-            html += '    <button class="tag-action-btn tag-delete-btn" title="Delete tag">âœ•</button>';
-            html += '  </div>';
-            html += '</div>';
-        });
-        list.innerHTML = html;
-
-        document.getElementById('coding-tag-count-badge').textContent = tags.length;
-
-        // Wire up tag item clicks
-        list.querySelectorAll('.coding-tag-item').forEach(function(item) {
-            item.addEventListener('click', function(e) {
-                if (e.target.closest('.tag-actions')) return;
-                var time = parseFloat(this.dataset.videoTime);
-                var video = document.getElementById('coding-video');
-                if (video) video.currentTime = time;
-                _codingState.activeTagId = parseInt(this.dataset.tagId, 10);
-                renderCodingTagList();
-            });
-
-            // Seek button
-            item.querySelector('.tag-seek-btn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                var time = parseFloat(item.dataset.videoTime);
-                var video = document.getElementById('coding-video');
-                if (video) video.currentTime = time;
-            });
-
-            // Clip button
-            item.querySelector('.tag-clip-btn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                var tagId = parseInt(item.dataset.tagId, 10);
-                if (!tagId) return;
-                showToast('Extracting clip...', 'info');
-                bridge.extract_tag_clip(_codingState.matchId, tagId, function(result) {
-                    try {
-                        var data = JSON.parse(result);
-                        if (data.success) {
-                            showToast('Clip saved: ' + data.clip_path, 'success');
-                        } else {
-                            showToast('Failed: ' + (data.error || 'Unknown'), 'error');
-                        }
-                    } catch(e) {
-                        showToast('Clip extraction failed.', 'error');
-                    }
-                });
-            });
-
-            // Delete button
-            item.querySelector('.tag-delete-btn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                var tagId = parseInt(item.dataset.tagId, 10);
-                if (!tagId) return;
-                showConfirmDialog('Delete this tag?', function() {
-                    bridge.delete_coding_tag(tagId, function(result) {
-                        try {
-                            var data = JSON.parse(result);
-                            if (data.success) {
-                                _codingState.tags = _codingState.tags.filter(function(t) { return t.id !== tagId; });
-                                renderCodingTagList();
-                                renderCodingTimeline();
-                                updateCodingStats();
-                            } else {
-                                showToast('Failed to delete tag.', 'error');
-                            }
-                        } catch(e) {}
-                    });
-                });
-            });
-        });
-    }
-
-    function renderCodingTimeline() {
-        var canvas = document.getElementById('coding-timeline-canvas');
-        if (!canvas) return;
-        var video = document.getElementById('coding-video');
-        var duration = video && video.duration ? video.duration : 90 * 60;
-
-        var rect = canvas.parentElement.getBoundingClientRect();
-        canvas.width = rect.width || 600;
-        canvas.height = 40;
-
-        var ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Background
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Time markers
-        var markerInterval = Math.max(60, Math.floor(duration / 10));
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1;
-        ctx.font = '9px monospace';
-        ctx.fillStyle = '#64748b';
-        for (var t = 0; t <= duration; t += markerInterval) {
-            var x = (t / duration) * canvas.width;
-            ctx.beginPath();
-            ctx.moveTo(x, 24);
-            ctx.lineTo(x, 40);
-            ctx.stroke();
-            ctx.fillText(formatCodingTime(t), x + 2, 35);
-        }
-
-        // Tag markers
-        (_codingState.tags || []).forEach(function(tag) {
-            var time = tag.video_time || 0;
-            var x = (time / duration) * canvas.width;
-            var color = getTagColor(tag.event_type);
-
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(x, 12, 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Active tag highlight
-            if (tag.id === _codingState.activeTagId) {
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(x, 12, 8, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-        });
-
-        // Current time cursor
-        if (video && video.currentTime != null) {
-            var cursorX = (video.currentTime / duration) * canvas.width;
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(cursorX, 0);
-            ctx.lineTo(cursorX, 40);
-            ctx.stroke();
-        }
-
-        // Labels
-        var labels = document.getElementById('coding-timeline-labels');
-        if (labels) {
-            labels.innerHTML = '0:00';
-            var half = Math.floor(duration / 2);
-            labels.innerHTML += '<span>' + formatCodingTime(half) + '</span>';
-            labels.innerHTML += '<span>' + formatCodingTime(duration) + '</span>';
-        }
-    }
-
-    function updateCodingTimelineCursor() {
-        renderCodingTimeline();
-    }
-
-    function highlightTagAtTime(time) {
-        var tags = _codingState.tags;
-        var closest = null;
-        var closestDist = Infinity;
-        tags.forEach(function(tag) {
-            var dist = Math.abs((tag.video_time || 0) - time);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = tag;
-            }
-        });
-        var activeId = closest && closestDist < 5 ? closest.id : null;
-        if (activeId !== _codingState.activeTagId) {
-            _codingState.activeTagId = activeId;
-            renderCodingTagList();
-        }
-    }
-
-    function updateCodingStats() {
-        var count = _codingState.tags.length;
-        document.getElementById('coding-tag-count').textContent = count;
-    }
-
-    function updateCodingLastTag(type, time) {
-        var el = document.getElementById('coding-last-tag');
-        if (el) {
-            el.innerHTML = 'Last: <strong>' + escapeHtml(type) + '</strong> at ' + formatCodingTime(time);
-        }
-    }
-
-    function formatCodingTime(seconds) {
-        if (seconds == null || !isFinite(seconds)) return '0:00';
-        var m = Math.floor(seconds / 60);
-        var s = Math.floor(seconds % 60);
-        return m + ':' + (s < 10 ? '0' : '') + s;
-    }
-
-    function getTagColor(eventType) {
-        if (!eventType) return '#64748b';
-        // Map common event types to colors
-        var colorMap = {
-            'pass': '#22c55e',
-            'through_ball': '#4ade80',
-            'shot': '#ef4444',
-            'goal': '#dc2626',
-            'dribble': '#3b82f6',
-            'cross': '#60a5fa',
-            'carry': '#818cf8',
-            'key_pass': '#a3e635',
-            'tackle': '#f97316',
-            'interception': '#fb923c',
-            'press': '#a855f7',
-            'clearance': '#c084fc',
-            'block': '#e879f9',
-            'foul': '#f43f5e',
-            'error_positional': '#92400e',
-            'error_technical': '#b45309',
-            'error_decision': '#d97706',
-            'error_physical': '#f59e0b',
-            'missed_tackle': '#ef4444',
-            'bad_pass': '#fca5a5',
-            'corner': '#06b6d4',
-            'free_kick': '#22d3ee',
-            'throw_in': '#67e8f9',
-            'goal_kick': '#a5f3fc',
-            'penalty': '#2dd4bf',
-        };
-        return colorMap[eventType] || '#64748b';
-    }
-
-    function escapeHtml(str) {
-        if (typeof str !== 'string') return '';
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
-
-    function exportCodingTags(format) {
-        if (_codingState.tags.length === 0) {
-            showToast('No tags to export.', 'warning');
-            return;
-        }
-
-        if (format === 'csv') {
-            var headers = 'id,event_type,video_time,player_name,team,period,notes,lead_ms,lag_ms';
-            var rows = _codingState.tags.map(function(t) {
-                return (t.id || '') + ',' +
-                       (t.event_type || '') + ',' +
-                       (t.video_time || 0) + ',' +
-                       '"' + (t.player_name || '') + '",' +
-                       (t.team || '') + ',' +
-                       (t.period || 1) + ',' +
-                       '"' + (t.notes || '').replace(/"/g, '""') + '",' +
-                       (t.lead_ms || 2000) + ',' +
-                       (t.lag_ms || 3000);
-            });
-            var csv = headers + '\n' + rows.join('\n');
-            downloadFile(csv, 'coding_tags_' + _codingState.matchId + '.csv', 'text/csv');
-        } else {
-            var json = JSON.stringify(_codingState.tags, null, 2);
-            downloadFile(json, 'coding_tags_' + _codingState.matchId + '.json', 'application/json');
-        }
-
-        showToast('Exported ' + _codingState.tags.length + ' tags.', 'success');
-    }
-
-    function downloadFile(content, filename, mimeType) {
-        var blob = new Blob([content], { type: mimeType });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // â”€â”€ Tactical Periods + Formation (Phase 2.3-2.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Tactical Periods + Formation (delegated to app-tactics.js) ──
 
     function initTacticsWorkspace() {
-        var loadBtn = document.getElementById('tactics-load-btn');
-        var matchSelect = document.getElementById('tactics-match-select');
-        if (!loadBtn) return;
-
-        window.loadTacticsMatchSelect = function() {
-            if (typeof bridge === 'undefined' || !bridge) return;
-            bridge.get_all_matches(function(result) {
-                try {
-                    var data = typeof result === 'string' ? JSON.parse(result) : result;
-                    if (data.error) data = [];
-                    var sel = document.getElementById('tactics-match-select');
-                    sel.innerHTML = '<option value="">-- Select Match --</option>';
-                    (data || []).forEach(function(m) {
-                        var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
-                        sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
-                    });
-                } catch(e) { console.warn(e); }
-            });
-        };
-
-        loadBtn.addEventListener('click', function() {
-            var matchId = parseInt(matchSelect.value, 10);
-            if (!matchId) { showToast('Select a match first.', 'warning'); return; }
-            loadTacticsAnalysis(matchId);
-        });
-
-        loadTacticsMatchSelect();
+        if (window.KawkabTactics) return window.KawkabTactics.initTacticsWorkspace();
     }
 
-    function loadTacticsAnalysis(matchId) {
-        var status = document.getElementById('tactics-status');
-        status.textContent = 'Analyzing...';
-
-        bridge.get_tactical_periods(matchId, function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                renderTacticalPhases(data);
-            } catch(e) { status.textContent = 'Error loading phases.'; console.warn(e); }
-        });
-
-        bridge.analyze_formation(matchId, function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                renderFormation(data);
-            } catch(e) { console.warn(e); }
-        });
-
-        document.getElementById('tactics-workspace').classList.remove('hidden');
-        status.textContent = 'Done';
-    }
-
-    function renderTacticalPhases(data) {
-        var container = document.getElementById('tactics-phases-content');
-        if (!container) return;
-        if (data.error || !data.phases || data.phases.length === 0) {
-            container.innerHTML = '<p class="hint">No phase data available.</p>';
-            return;
-        }
-
-        var colors = {
-            settled_possession: '#2563eb', transition: '#d97706',
-            counter: '#dc2626', set_piece: '#16a34a', direct: '#8b5cf6',
-        };
-        var totalDur = 0;
-        data.phases.forEach(function(p) { totalDur += p.duration_s; });
-        totalDur = Math.max(1, totalDur);
-
-        var phaseHtml = '';
-        data.phases.forEach(function(p) {
-            var pct = (p.duration_s / totalDur * 100).toFixed(1);
-            var color = colors[p.label] || '#64748b';
-            phaseHtml += '<div class="phase-bar">' +
-                '<span class="phase-label">' + escapeHtml(p.label.replace(/_/g, ' ')) + '</span>' +
-                '<span class="phase-fill" style="width:' + pct + '%;background:' + color + '"></span>' +
-                '<span class="phase-dur">' + p.duration_s.toFixed(0) + 's</span>' +
-                '<span class="phase-pct">' + pct + '%</span>' +
-                '</div>';
-        });
-
-        container.innerHTML = '<div style="margin-bottom:8px">' +
-            '<span style="font-size:0.78rem;color:var(--text-muted)">' + data.phases.length + ' phases detected</span>' +
-            '</div>' + phaseHtml;
-    }
-
-    function renderFormation(data) {
-        var container = document.getElementById('tactics-formation-content');
-        if (!container) return;
-        if (data.error) {
-            container.innerHTML = '<p class="hint">Formation analysis not available.</p>';
-            return;
-        }
-
-        var html = '';
-        ['home', 'away'].forEach(function(side) {
-            var f = data[side];
-            if (!f || !f.in_possession_formation) {
-                html += '<div class="formation-card"><div class="label">' + side.charAt(0).toUpperCase() + side.slice(1) + '</div>' +
-                    '<div class="value">Unknown</div></div>';
-                return;
-            }
-            html += '<div class="formation-card">' +
-                '<div class="label">' + side.charAt(0).toUpperCase() + side.slice(1) + '</div>' +
-                '<div class="value" style="font-size:1.3rem">' + escapeHtml(f.in_possession_formation) +
-                (f.out_possession_formation && f.out_possession_formation !== f.in_possession_formation ? ' â†’ ' + escapeHtml(f.out_possession_formation) : '') +
-                '</div>' +
-                '<div style="display:flex;gap:12px;margin-top:4px;font-size:0.72rem;color:var(--text-muted)">' +
-                '<span>Width: ' + (f.avg_width_in || 0).toFixed(1) + 'm</span>' +
-                '<span>Depth: ' + (f.avg_depth_in || 0).toFixed(1) + 'm</span>' +
-                '<span>Compact: ' + (f.avg_compactness_in || 0).toFixed(2) + '</span>' +
-                '</div></div>';
-        });
-        container.innerHTML = html;
-    }
-
-
-    // â”€â”€ Sprint 2: Physiology & Wearables â”€â”€
+    // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
     var _physWearablePath = '';
@@ -6061,7 +3286,7 @@
         (report.correlations || []).forEach(function (c) {
             html += '<div class="phys-correlation-item">' +
                 '<strong>' + escapeHtml(c.event_type) + '</strong> ' +
-                '(n=' + c.sample_count + ') pre: ' + c.pre_speed + ' m/s â†’ post: ' + c.post_speed + ' m/s ' +
+                '(n=' + c.sample_count + ') pre: ' + c.pre_speed + ' m/s → post: ' + c.post_speed + ' m/s ' +
                 '<span class="' + (c.speed_delta_pct < 0 ? 'text-danger' : 'text-success') + '">' +
                 (c.speed_delta_pct > 0 ? '+' : '') + c.speed_delta_pct.toFixed(1) + '%</span>' +
                 (c.hr_delta_pct !== null ? ' HR: ' + (c.hr_delta_pct > 0 ? '+' : '') + c.hr_delta_pct.toFixed(1) + '%' : '') +
@@ -6140,7 +3365,7 @@
             _telestrateState.active = !_telestrateState.active;
             canvas.classList.toggle('active', _telestrateState.active);
             toolbar.classList.toggle('hidden', !_telestrateState.active);
-            toggleBtn.textContent = _telestrateState.active ? 'âœï¸ Drawing ON' : 'âœï¸ Draw';
+            toggleBtn.textContent = _telestrateState.active ? '✏️ Drawing ON' : '✏️ Draw';
             if (_telestrateState.active) {
                 resizeCanvas();
             }
@@ -6464,9 +3689,9 @@
         });
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // Phase 10 â€” Telestration v2 Enhancements
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════
+    // Phase 10 — Telestration v2 Enhancements
+    // ═══════════════════════════════════════════════════════════════
 
     var _telV2Initialized = false;
     var _telLayers = {};
@@ -6490,10 +3715,10 @@
         var toolbar = document.getElementById('telestrate-toolbar');
         if (!toolbar) return;
         var extras = [
-            { tool: 'bezier', label: 'ðŸ”„', title: 'Bezier Curve' },
-            { tool: 'spotlight', label: 'ðŸ”¦', title: 'Spotlight' },
-            { tool: 'magnifier', label: 'ðŸ”', title: 'Magnifying Glass' },
-            { tool: 'laser', label: 'ðŸ”´', title: 'Laser Pointer (trail)' },
+            { tool: 'bezier', label: '🔄', title: 'Bezier Curve' },
+            { tool: 'spotlight', label: '🔦', title: 'Spotlight' },
+            { tool: 'magnifier', label: '🔍', title: 'Magnifying Glass' },
+            { tool: 'laser', label: '🔴', title: 'Laser Pointer (trail)' },
         ];
         var ref = toolbar.querySelector('.telestrate-color') || toolbar.lastElementChild;
         extras.forEach(function(e) {
@@ -6517,20 +3742,20 @@
             panel.id = 'tel-layer-panel';
             panel.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:6px;flex-wrap:wrap';
             panel.innerHTML = '<span style="font-size:0.78rem;font-weight:600">Layers:</span>'
-                + '<button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">âž•</button>'
-                + '<button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary" title="Toggle Layer Visibility">ðŸ‘ï¸</button>'
+                + '<button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">➕</button>'
+                + '<button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary" title="Toggle Layer Visibility">👁️</button>'
                 + '<span id="tel-layer-indicator" style="font-size:0.75rem;color:var(--text-muted)">Layer 1</span>'
                 + '<input type="range" id="tel-layer-opacity" min="0" max="100" value="100" style="width:60px" title="Opacity">'
                 + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Anim:</span>'
-                + '<button id="tel-anim-prev" class="btn btn-sm btn-secondary" title="Previous Frame">â—€</button>'
+                + '<button id="tel-anim-prev" class="btn btn-sm btn-secondary" title="Previous Frame">◀</button>'
                 + '<span id="tel-anim-counter" style="font-size:0.75rem;color:var(--text-muted)">0/0</span>'
-                + '<button id="tel-anim-next" class="btn btn-sm btn-secondary" title="Next Frame">â–¶</button>'
-                + '<button id="tel-anim-play" class="btn btn-sm btn-secondary" title="Play Animation">â–¶â–¶</button>'
-                + '<button id="tel-anim-record" class="btn btn-sm btn-secondary" title="Record Frame">âºï¸</button>'
+                + '<button id="tel-anim-next" class="btn btn-sm btn-secondary" title="Next Frame">▶</button>'
+                + '<button id="tel-anim-play" class="btn btn-sm btn-secondary" title="Play Animation">▶▶</button>'
+                + '<button id="tel-anim-record" class="btn btn-sm btn-secondary" title="Record Frame">⏺️</button>'
                 + '<span style="font-size:0.78rem;font-weight:600;margin-left:12px">Export:</span>'
-                + '<button id="tel-export-video-btn" class="btn btn-sm btn-secondary" title="Export Annotated Video">ðŸŽ¬ Export</button>'
-                + '<button id="tel-save-preset-btn" class="btn btn-sm btn-secondary" title="Save Preset">ðŸ’¾ Save</button>'
-                + '<button id="tel-load-preset-btn" class="btn btn-sm btn-secondary" title="Load Preset">ðŸ“‚ Load</button>';
+                + '<button id="tel-export-video-btn" class="btn btn-sm btn-secondary" title="Export Annotated Video">🎬 Export</button>'
+                + '<button id="tel-save-preset-btn" class="btn btn-sm btn-secondary" title="Save Preset">💾 Save</button>'
+                + '<button id="tel-load-preset-btn" class="btn btn-sm btn-secondary" title="Load Preset">📂 Load</button>';
             container.appendChild(panel);
         }
     }
@@ -6549,7 +3774,7 @@
             if (!firstKey) return;
             bridge.tel_layer_toggle(firstKey).then(function() {
                 _telLayers[firstKey].visible = !_telLayers[firstKey].visible;
-                document.getElementById('tel-layer-indicator').textContent = (_telLayers[firstKey].visible ? '' : 'ðŸ‘ï¸â€ðŸ—¨ï¸ ') + _telLayers[firstKey].name;
+                document.getElementById('tel-layer-indicator').textContent = (_telLayers[firstKey].visible ? '' : '👁️‍🗨️ ') + _telLayers[firstKey].name;
             });
         });
         document.getElementById('tel-layer-opacity')?.addEventListener('input', function() {
@@ -6576,12 +3801,12 @@
         document.getElementById('tel-anim-play')?.addEventListener('click', function() {
             if (_telAnimPlaying) {
                 _telAnimPlaying = false;
-                this.textContent = 'â–¶â–¶';
+                this.textContent = '▶▶';
                 return;
             }
             if (_telAnimFrames.length === 0) return;
             _telAnimPlaying = true;
-            this.textContent = 'â¸ï¸';
+            this.textContent = '⏸️';
             playAnimLoop();
         });
         document.getElementById('tel-anim-record')?.addEventListener('click', function() {
@@ -6594,7 +3819,7 @@
 
     function playAnimLoop() {
         if (!_telAnimPlaying || _telAnimFrames.length === 0) {
-            document.getElementById('tel-anim-play').textContent = 'â–¶â–¶';
+            document.getElementById('tel-anim-play').textContent = '▶▶';
             return;
         }
         applyAnimFrame(_telAnimCurrent);
@@ -6661,9 +3886,413 @@
         });
     }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       Wave B â€” Season Dashboard
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 6 Sprint 3 — Telestration Layer Panel
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _telLayerInitialized = false;
+    var _telLayersUI = {};
+    var _telSelectedLayerId = null;
+    var _telAutoSaveInterval = null;
+
+    function initTelLayerPanel() {
+        if (_telLayerInitialized) return;
+        _telLayerInitialized = true;
+
+        var addBtn = document.getElementById('tel-add-layer-btn');
+        var removeBtn = document.getElementById('tel-remove-layer-btn');
+        var toggleBtn = document.getElementById('tel-toggle-layer-btn');
+        var opacitySlider = document.getElementById('tel-layer-opacity');
+
+        if (!addBtn) return;
+
+        addBtn.addEventListener('click', function () {
+            var name = prompt('Layer name:', 'Layer ' + (Object.keys(_telLayersUI).length + 1));
+            if (!name) return;
+            var layerId = 'layer_' + Date.now();
+            if (typeof bridge.tel_layer_add === 'function') {
+                bridge.tel_layer_add(layerId, name).then(function (raw) {
+                    var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    if (r.error) { showToast(r.error, 'error'); return; }
+                    _telLayersUI[layerId] = { id: layerId, name: name, visible: true, opacity: 1.0, elements: 0 };
+                    _telSelectedLayerId = layerId;
+                    renderLayerList();
+                    showToast('Layer added: ' + name, 'success');
+                });
+            } else {
+                _telLayersUI[layerId] = { id: layerId, name: name, visible: true, opacity: 1.0, elements: 0 };
+                _telSelectedLayerId = layerId;
+                renderLayerList();
+            }
+        });
+
+        removeBtn.addEventListener('click', function () {
+            if (!_telSelectedLayerId) return;
+            var lid = _telSelectedLayerId;
+            if (typeof bridge.tel_layer_remove === 'function') {
+                bridge.tel_layer_remove(lid).then(function () {});
+            }
+            delete _telLayersUI[lid];
+            _telSelectedLayerId = Object.keys(_telLayersUI)[0] || null;
+            renderLayerList();
+            showToast('Layer removed', 'info');
+        });
+
+        toggleBtn.addEventListener('click', function () {
+            if (!_telSelectedLayerId) return;
+            var lid = _telSelectedLayerId;
+            var layer = _telLayersUI[lid];
+            if (!layer) return;
+            layer.visible = !layer.visible;
+            if (typeof bridge.tel_layer_toggle === 'function') {
+                bridge.tel_layer_toggle(lid);
+            }
+            renderLayerList();
+        });
+
+        opacitySlider.addEventListener('input', function () {
+            if (!_telSelectedLayerId) return;
+            var val = parseInt(this.value, 10) / 100;
+            var layer = _telLayersUI[_telSelectedLayerId];
+            if (!layer) return;
+            layer.opacity = val;
+            if (typeof bridge.tel_layer_opacity === 'function') {
+                bridge.tel_layer_opacity(_telSelectedLayerId, val);
+            }
+        });
+
+        // Refresh layers from bridge on init
+        refreshLayerList();
+    }
+
+    function refreshLayerList() {
+        if (typeof bridge.tel_get_layers === 'function') {
+            bridge.tel_get_layers().then(function (raw) {
+                try {
+                    var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    if (r.layers) {
+                        _telLayersUI = {};
+                        r.layers.forEach(function (l) {
+                            _telLayersUI[l.id] = l;
+                        });
+                        var keys = Object.keys(_telLayersUI);
+                        _telSelectedLayerId = keys.length > 0 ? keys[0] : null;
+                        renderLayerList();
+                    }
+                } catch (e) {}
+            });
+        }
+    }
+
+    function renderLayerList() {
+        var list = document.getElementById('tel-layer-list');
+        var removeBtn = document.getElementById('tel-remove-layer-btn');
+        var toggleBtn = document.getElementById('tel-toggle-layer-btn');
+        var opacitySlider = document.getElementById('tel-layer-opacity');
+        if (!list) return;
+
+        var keys = Object.keys(_telLayersUI);
+        if (keys.length === 0) {
+            list.innerHTML = '<span class="hint" style="font-size:0.75rem">No layers</span>';
+            if (removeBtn) removeBtn.classList.add('hidden');
+            if (toggleBtn) toggleBtn.classList.add('hidden');
+            if (opacitySlider) opacitySlider.classList.add('hidden');
+            return;
+        }
+
+        if (removeBtn) removeBtn.classList.remove('hidden');
+        if (toggleBtn) toggleBtn.classList.remove('hidden');
+        if (opacitySlider) opacitySlider.classList.remove('hidden');
+
+        list.innerHTML = keys.map(function (lid) {
+            var layer = _telLayersUI[lid];
+            var active = lid === _telSelectedLayerId ? 'active' : '';
+            var visIcon = layer.visible ? '👁️' : '👁️‍🗨️';
+            return '<div class="tel-layer-item ' + active + '" data-layer-id="' + lid + '">'
+                + '<span class="layer-vis" data-action="toggle">' + visIcon + '</span>'
+                + '<span class="layer-name">' + escapeHtml(layer.name || lid) + '</span>'
+                + '</div>';
+        }).join('');
+
+        list.querySelectorAll('.tel-layer-item').forEach(function (item) {
+            item.addEventListener('click', function (e) {
+                var lid = this.dataset.layerId;
+                if (e.target.classList.contains('layer-vis')) {
+                    // Toggle visibility
+                    var layer = _telLayersUI[lid];
+                    if (layer) {
+                        layer.visible = !layer.visible;
+                        if (typeof bridge.tel_layer_toggle === 'function') {
+                            bridge.tel_layer_toggle(lid);
+                        }
+                        renderLayerList();
+                    }
+                    return;
+                }
+                _telSelectedLayerId = lid;
+                renderLayerList();
+                var layer = _telLayersUI[lid];
+                if (layer && opacitySlider) {
+                    opacitySlider.value = Math.round((layer.opacity || 1) * 100);
+                }
+            });
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 6 Sprint 3 — Telestration Preset Browser
+       ═══════════════════════════════════════════════════════════════ */
+
+    var _telPresetInitialized = false;
+    var _telPresets = [];
+    var _telSelectedPreset = null;
+
+    function initTelPresetBrowser() {
+        if (_telPresetInitialized) return;
+        _telPresetInitialized = true;
+
+        var saveBtn2 = document.getElementById('tel-save-preset-btn2');
+        var loadBtn2 = document.getElementById('tel-load-preset-btn2');
+        var deleteBtn = document.getElementById('tel-delete-preset-btn');
+        var closeBtn = document.getElementById('tel-preset-close-btn');
+        var nameInput = document.getElementById('tel-preset-name-input');
+        var presetList = document.getElementById('tel-preset-list');
+
+        // Toggle preset browser via existing buttons
+        var oldSaveBtn = document.getElementById('tel-save-preset-btn');
+        var oldLoadBtn = document.getElementById('tel-load-preset-btn');
+
+        if (oldSaveBtn) {
+            oldSaveBtn.addEventListener('click', function () {
+                togglePresetBrowser(true);
+                loadPresetList();
+            });
+        }
+        if (oldLoadBtn) {
+            oldLoadBtn.addEventListener('click', function () {
+                togglePresetBrowser(true);
+                loadPresetList();
+            });
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                togglePresetBrowser(false);
+            });
+        }
+
+        if (saveBtn2) {
+            saveBtn2.addEventListener('click', function () {
+                var name = nameInput.value.trim();
+                if (!name) { showToast('Enter a preset name', 'warning'); return; }
+                savePreset(name);
+            });
+        }
+        if (loadBtn2) {
+            loadBtn2.addEventListener('click', function () {
+                if (!_telSelectedPreset) { showToast('Select a preset', 'warning'); return; }
+                loadPreset(_telSelectedPreset);
+            });
+        }
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function () {
+                if (!_telSelectedPreset) { showToast('Select a preset', 'warning'); return; }
+                deletePreset(_telSelectedPreset);
+            });
+        }
+    }
+
+    function togglePresetBrowser(show) {
+        var browser = document.getElementById('tel-preset-browser');
+        if (!browser) return;
+        browser.classList.toggle('hidden', !show);
+        if (show) loadPresetList();
+    }
+
+    function loadPresetList() {
+        var list = document.getElementById('tel-preset-list');
+        if (!list) return;
+        list.innerHTML = '<p class="hint">Loading presets...</p>';
+
+        if (typeof bridge.tel_list_presets === 'function') {
+            bridge.tel_list_presets().then(function (raw) {
+                try {
+                    var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    _telPresets = r.presets || [];
+                    renderPresetList();
+                } catch (e) {
+                    list.innerHTML = '<p class="hint">Error loading presets</p>';
+                }
+            }).catch(function () {
+                list.innerHTML = '<p class="hint">Bridge unavailable</p>';
+            });
+        } else {
+            list.innerHTML = '<p class="hint">Bridge unavailable</p>';
+        }
+    }
+
+    function renderPresetList() {
+        var list = document.getElementById('tel-preset-list');
+        if (!list) return;
+        if (_telPresets.length === 0) {
+            list.innerHTML = '<p class="hint">No presets saved yet</p>';
+            return;
+        }
+        list.innerHTML = _telPresets.map(function (p) {
+            var selected = _telSelectedPreset === p.name ? 'selected' : '';
+            return '<div class="tel-preset-item ' + selected + '" data-name="' + escapeHtml(p.name) + '">'
+                + '<span class="tel-preset-item-name">' + escapeHtml(p.name) + '</span>'
+                + '<span class="tel-preset-item-meta" style="font-size:0.7rem;color:var(--text-muted)">'
+                + (p.layers || 0) + ' layers'
+                + (p.updated_at ? ' · ' + new Date(p.updated_at).toLocaleDateString() : '')
+                + '</span>'
+                + '</div>';
+        }).join('');
+
+        list.querySelectorAll('.tel-preset-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                _telSelectedPreset = this.dataset.name;
+                renderPresetList();
+            });
+        });
+    }
+
+    function savePreset(name) {
+        var layers = Object.keys(_telLayersUI).map(function (lid) {
+            var l = _telLayersUI[lid];
+            return { id: l.id, name: l.name, visible: l.visible, locked: false, opacity: l.opacity, elements: [] };
+        });
+        if (layers.length === 0) {
+            layers = [{ id: 'canvas', name: 'Canvas', visible: true, locked: false, opacity: 1, elements: _telestrateState ? _telestrateState.strokes.map(function(s,i) { return { index: i, tool: s.tool || 'freehand', color: s.color, width: s.width }; }) : [] }];
+        }
+        var layersJson = JSON.stringify(layers);
+
+        if (typeof bridge.tel_save_preset === 'function') {
+            bridge.tel_save_preset(name, layersJson).then(function (raw) {
+                var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (r.error) { showToast('Error: ' + r.error, 'error'); return; }
+                showToast('Preset saved: ' + name, 'success');
+                loadPresetList();
+            }).catch(function () {
+                showToast('Preset saved locally', 'info');
+                loadPresetList();
+            });
+        } else {
+            showToast('Bridge save_preset not available', 'warning');
+        }
+    }
+
+    function loadPreset(name) {
+        if (typeof bridge.tel_load_preset === 'function') {
+            bridge.tel_load_preset(name).then(function (raw) {
+                var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (r.error) { showToast('Error: ' + r.error, 'error'); return; }
+                showToast('Preset loaded: ' + name, 'success');
+                refreshLayerList();
+                togglePresetBrowser(false);
+            }).catch(function () {
+                showToast('Failed to load preset', 'error');
+            });
+        } else {
+            showToast('bridge.tel_load_preset not available', 'warning');
+        }
+    }
+
+    function deletePreset(name) {
+        if (typeof bridge.tel_delete_preset === 'function') {
+            bridge.tel_delete_preset(name).then(function (raw) {
+                var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (r.error) { showToast('Error: ' + r.error, 'error'); return; }
+                showToast('Preset deleted: ' + name, 'info');
+                _telSelectedPreset = null;
+                loadPresetList();
+            }).catch(function () {
+                showToast('Failed to delete preset', 'error');
+            });
+        } else {
+            showToast('bridge.tel_delete_preset not available', 'warning');
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 6 Sprint 3 — Telestration Export Video
+       ═══════════════════════════════════════════════════════════════ */
+
+    function wireTelExportVideo() {
+        var exportBtn = document.getElementById('tel-export-video-btn');
+        if (!exportBtn) return;
+        // Already wired in wireTelPresets, add progress toast enhancement
+        var origClick = exportBtn.click;
+        exportBtn.addEventListener('click', function () {
+            showToast('Exporting annotated video...', 'info');
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 6 Sprint 3 — Telestration localStorage Persistence
+       ═══════════════════════════════════════════════════════════════ */
+
+    function initTelLocalStorage() {
+        // Auto-save strokes every 30 seconds
+        if (_telAutoSaveInterval) clearInterval(_telAutoSaveInterval);
+        _telAutoSaveInterval = setInterval(function () {
+            if (_telestrateState && _telestrateState.strokes && _telestrateState.strokes.length > 0) {
+                try {
+                    var data = {
+                        strokes: _telestrateState.strokes,
+                        timestamp: Date.now(),
+                        layerState: Object.keys(_telLayersUI).map(function (lid) {
+                            var l = _telLayersUI[lid];
+                            return { id: l.id, name: l.name, visible: l.visible, opacity: l.opacity };
+                        }),
+                    };
+                    localStorage.setItem('kawkab_telestration_backup', JSON.stringify(data));
+                } catch (e) {}
+            }
+        }, 30000);
+
+        // Offer restore on page load
+        try {
+            var saved = localStorage.getItem('kawkab_telestration_backup');
+            if (saved) {
+                var data = JSON.parse(saved);
+                if (data.strokes && data.strokes.length > 0) {
+                    setTimeout(function () {
+                        if (confirm('Restore previous telestration drawings (' + data.strokes.length + ' strokes)?')) {
+                            if (_telestrateState) {
+                                _telestrateState.strokes = data.strokes;
+                                _telestrateState.redoStack = [];
+                                redrawTelestration();
+                            }
+                            if (data.layerState) {
+                                data.layerState.forEach(function (ls) {
+                                    _telLayersUI[ls.id] = ls;
+                                });
+                                renderLayerList();
+                            }
+                            showToast('Telestration restored from backup', 'success');
+                        } else {
+                            localStorage.removeItem('kawkab_telestration_backup');
+                        }
+                    }, 1000);
+                }
+            }
+        } catch (e) {}
+    }
+
+    function escapeHtml(str) {
+        if (typeof str !== 'string') str = String(str || '');
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatNumber(n, d) {
+        if (n == null) return '0';
+        if (d === undefined) d = 0;
+        return Number(n).toFixed(d);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Wave B — Season Dashboard
+       ═══════════════════════════════════════════════════════════════ */
 
     function initSeasonDashboard() {
         var refreshBtn = document.getElementById('season-refresh-btn');
@@ -6684,7 +4313,7 @@
         bridge.get_season_summary(function(result) {
             try {
                 var data = typeof result === 'string' ? JSON.parse(result) : result;
-                if (data.error) { console.warn('Season error:', data.error); return; }
+                if (data.error) { showToast('Season data error: ' + data.error, 'error'); console.warn('Season error:', data.error); return; }
 
                 document.getElementById('season-match-count').textContent = data.total_matches || 0;
                 document.getElementById('season-event-count').textContent = data.total_events || 0;
@@ -6693,7 +4322,7 @@
 
                 renderSeasonFixtures(data.matches || []);
                 renderSeasonLeagueTable(data.matches || []);
-            } catch(e) { console.warn('Season load error:', e); }
+            } catch(e) { showToast('Failed to load season data.', 'error'); console.warn('Season load error:', e); }
         });
     }
 
@@ -6769,9 +4398,9 @@
         container.innerHTML = html;
     }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       Wave C â€” Training Planner
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    /* ═══════════════════════════════════════════════════════════════
+       Wave C — Training Planner
+       ═══════════════════════════════════════════════════════════════ */
 
     var _trainingState = {
         drills: [],
@@ -6831,6 +4460,70 @@
 
         // Make drill list items draggable
         setupTrainingDragDrop();
+
+        // Training plan generation button
+        var genBtn = document.getElementById('training-generate-plan-btn');
+        var genStatus = document.getElementById('training-gen-status');
+        if (genBtn) {
+            genBtn.addEventListener('click', function() {
+                var matchSelect = document.getElementById('match-select');
+                var matchId = matchSelect ? parseInt(matchSelect.value, 10) : 0;
+                if (!matchId) {
+                    matchSelect = document.getElementById('squad-match-select');
+                    matchId = matchSelect ? parseInt(matchSelect.value, 10) : 0;
+                }
+                if (!matchId) { showToast('Select a match first.', 'warning'); return; }
+                genStatus.textContent = 'Generating...';
+                genBtn.disabled = true;
+                if (typeof bridge === 'undefined' || !bridge) {
+                    genStatus.textContent = 'Bridge not available';
+                    genBtn.disabled = false;
+                    return;
+                }
+                bridge.generate_training_plan(matchId, function(result) {
+                    try {
+                        var data = typeof result === 'string' ? JSON.parse(result) : result;
+                        if (data.error) { showToast('Plan error: ' + data.error, 'error'); genStatus.textContent = 'Error'; genBtn.disabled = false; return; }
+                        renderTrainingPlan(data.plan);
+                        genStatus.textContent = 'Done';
+                        showToast('Training plan generated!', 'success');
+                    } catch(e) { genStatus.textContent = 'Error'; showToast('Failed to parse plan.', 'error'); console.warn(e); }
+                    genBtn.disabled = false;
+                });
+            });
+        }
+    }
+
+    function renderTrainingPlan(plan) {
+        var container = document.getElementById('training-plan-preview');
+        var weeksContainer = document.getElementById('training-plan-weeks');
+        if (!container || !weeksContainer) return;
+        container.classList.remove('hidden');
+        var html = '<div class="training-plan-summary" style="margin-bottom:10px;padding:8px;background:var(--bg-card);border-radius:var(--radius)">' +
+            '<strong>' + plan.duration_weeks + '-Week Plan</strong> &middot; ' +
+            plan.total_drills + ' unique drills &middot; ' +
+            'Priority: ' + escapeHtml((plan.priority_addressed || []).join(', ')) + '<br>' +
+            '<em>' + escapeHtml(plan.expected_overall_improvement || '') + '</em>' +
+            '</div>';
+        (plan.weeks || []).forEach(function(w) {
+            html += '<div class="pro-card collapsible collapsed" style="margin-bottom:6px">' +
+                '<div class="pro-card-header" onclick="this.parentElement.classList.toggle(\'collapsed\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
+                '<strong>Week ' + w.week_number + ': ' + escapeHtml(w.theme || '') + '</strong>' +
+                '<span style="font-size:0.78rem;color:var(--text-muted)">' + escapeHtml(w.primary_focus || '') + '</span>' +
+                '</div>' +
+                '<div class="pro-card-body" style="margin-top:8px">' +
+                '<div style="font-size:0.82rem;margin-bottom:6px">Expected: ' + escapeHtml((w.expected_improvements || []).join(', ')) + '</div>' +
+                '<div style="font-size:0.82rem;margin-bottom:6px">Re-test: ' + escapeHtml(w.re_test_focus || '') + '</div>';
+            (w.sessions || []).forEach(function(s) {
+                html += '<div style="padding:6px 8px;background:var(--bg-elevated);border-radius:4px;margin:4px 0">' +
+                    '<div style="display:flex;justify-content:space-between"><strong>' + escapeHtml(s.day || '') + '</strong> <span class="risk-badge risk-' + (s.intensity === 'low' ? 'low' : s.intensity === 'medium' || s.intensity === 'moderate' ? 'moderate' : 'high') + '" style="font-size:0.65rem">' + escapeHtml(s.intensity || '') + '</span></div>' +
+                    '<div style="font-size:0.78rem">Focus: ' + escapeHtml(s.focus || '') + ' &middot; ' + (s.total_duration_min || 0) + ' min</div>' +
+                    '<div style="font-size:0.72rem;color:var(--text-muted)">Drills: ' + escapeHtml((s.drills || []).join(', ')) + '</div>' +
+                    '</div>';
+            });
+            html += '</div></div>';
+        });
+        weeksContainer.innerHTML = html;
     }
 
     function loadDrills() {
@@ -6854,10 +4547,10 @@
         bridge.get_all_drills(function(result) {
             try {
                 var data = typeof result === 'string' ? JSON.parse(result) : result;
-                if (data.error) { console.warn('Drill load error:', data.error); return; }
+                if (data.error) { showToast('Drill load error: ' + data.error, 'error'); console.warn('Drill load error:', data.error); return; }
                 _trainingState.drills = data.drills || [];
                 renderDrills();
-            } catch(e) { console.warn('Drill load error:', e); }
+            } catch(e) { showToast('Failed to load drills.', 'error'); console.warn('Drill load error:', e); }
         });
     }
 
@@ -6886,7 +4579,7 @@
                 '<span class="training-drill-cat">' + escapeHtml(d.category) + '</span>' +
                 '<span class="training-drill-diff ' + d.difficulty + '">' + escapeHtml(d.difficulty) + '</span>' +
                 '<span class="training-drill-dur">' + (d.duration_min || 15) + ' min</span>' +
-                (inSession ? '<span style="color:var(--success);font-size:0.7rem">âœ“</span>' : '') +
+                (inSession ? '<span style="color:var(--success);font-size:0.7rem">✓</span>' : '') +
                 '</div>';
         });
         container.innerHTML = html;
@@ -6946,7 +4639,7 @@
                 '<span class="order">' + (idx + 1) + '.</span>' +
                 '<span class="name">' + escapeHtml(d.name || 'Drill') + '</span>' +
                 '<span class="dur">' + (d.duration_min || 15) + ' min</span>' +
-                '<span class="remove-drill" data-idx="' + idx + '">âœ•</span>' +
+                '<span class="remove-drill" data-idx="' + idx + '">✕</span>' +
                 '</div>';
         });
         html += '<div style="padding:6px 8px;font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;">Total: ' + totalMin + ' min (' + _trainingState.sessionDrills.length + ' drills)</div>';
@@ -6962,9 +4655,9 @@
         });
     }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       Wave D â€” Presentation Mode
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    /* ═══════════════════════════════════════════════════════════════
+       Wave D — Presentation Mode
+       ═══════════════════════════════════════════════════════════════ */
 
     var _presState = {
         matchId: null,
@@ -6994,7 +4687,7 @@
                         var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
                         sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
                     });
-                } catch(e) { console.warn(e); }
+                } catch(e) { showToast('Failed to load matches.', 'error'); console.warn(e); }
             });
         }
 
@@ -7013,11 +4706,11 @@
             if (!_presState.isFullscreen) {
                 container.classList.add('pres-fullscreen');
                 _presState.isFullscreen = true;
-                fullscreenBtn.textContent = 'âœ• Exit Fullscreen';
+                fullscreenBtn.textContent = '✕ Exit Fullscreen';
             } else {
                 container.classList.remove('pres-fullscreen');
                 _presState.isFullscreen = false;
-                fullscreenBtn.textContent = 'â›¶ Fullscreen';
+                fullscreenBtn.textContent = '⛶ Fullscreen';
             }
             window.dispatchEvent(new Event('resize'));
         });
@@ -7175,309 +4868,10 @@
         document.getElementById('pres-next-btn').disabled = idx >= _presState.slides.length - 1;
     }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       Wave E â€” Scout Portal
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-    var _scoutState = {
-        searchResults: [],
-        shortlist: [],
-        compareA: null,
-        compareB: null,
-    };
+    // ── Scout Portal (delegated to app-scout.js) ──────────────
 
     function initScoutPortal() {
-        // Tab switching
-        var tabs = document.querySelectorAll('.scout-tabs .tab-btn');
-        tabs.forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                tabs.forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
-                document.querySelectorAll('.scout-tab-content').forEach(function(c) { c.classList.remove('active'); });
-                var target = document.getElementById('scout-' + this.dataset.stab);
-                if (target) target.classList.add('active');
-            });
-        });
-
-        var searchBtn = document.getElementById('scout-search-btn');
-        var searchInput = document.getElementById('scout-search-input');
-        var compareBtn = document.getElementById('scout-compare-btn');
-        var reportBtn = document.getElementById('scout-report-btn');
-        var refreshBtn = document.getElementById('scout-shortlist-refresh');
-
-        if (!searchBtn) return;
-
-        searchBtn.addEventListener('click', function() {
-            var query = searchInput.value.trim();
-            var pos = document.getElementById('scout-position-input').value.trim();
-            if (!query) { showToast('Enter a player name.', 'warning'); return; }
-            scoutSearch(query, pos);
-        });
-
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') searchBtn.click();
-        });
-
-        compareBtn.addEventListener('click', function() {
-            var a = document.getElementById('scout-compare-a').value;
-            var b = document.getElementById('scout-compare-b').value;
-            if (!a || !b) { showToast('Select two players to compare.', 'warning'); return; }
-            if (a === b) { showToast('Select two different players.', 'warning'); return; }
-            scoutCompare(a, b);
-        });
-
-        reportBtn.addEventListener('click', function() {
-            generateScoutReport();
-        });
-
-        refreshBtn.addEventListener('click', loadShortlist);
-
-        loadShortlist();
-        populateCompareSelects();
-    }
-
-    function scoutSearch(query, position) {
-        if (typeof bridge === 'undefined' || !bridge) {
-            // Simulated search
-            var mockPlayers = [
-                { track_id: 1, name: 'Erling Haaland', position: 'FW', team: 'Manchester City', age: 22, matches: 28, goals: 32, assists: 5, xg: 28.5, passes: 412, tackles: 12 },
-                { track_id: 2, name: 'Kevin De Bruyne', position: 'MF', team: 'Manchester City', age: 30, matches: 25, goals: 8, assists: 16, xg: 7.2, passes: 1250, tackles: 34 },
-                { track_id: 3, name: 'Virgil van Dijk', position: 'DF', team: 'Liverpool', age: 31, matches: 30, goals: 3, assists: 2, xg: 2.8, passes: 1800, tackles: 45 },
-                { track_id: 4, name: 'Kylian MbappÃ©', position: 'FW', team: 'PSG', age: 24, matches: 26, goals: 28, assists: 8, xg: 24.1, passes: 380, tackles: 8 },
-                { track_id: 5, name: 'Jude Bellingham', position: 'MF', team: 'Real Madrid', age: 20, matches: 27, goals: 15, assists: 7, xg: 12.8, passes: 890, tackles: 42 },
-            ];
-            var q = query.toLowerCase();
-            _scoutState.searchResults = mockPlayers.filter(function(p) {
-                return (p.name || '').toLowerCase().indexOf(q) >= 0;
-            });
-            renderScoutResults();
-            return;
-        }
-        bridge.scout_search_players(query, position, function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                _scoutState.searchResults = data.results || [];
-                renderScoutResults();
-            } catch(e) { console.warn('Scout search error:', e); }
-        });
-    }
-
-    function renderScoutResults() {
-        var container = document.getElementById('scout-search-results');
-        if (!container) return;
-        var results = _scoutState.searchResults;
-
-        if (!results || results.length === 0) {
-            container.innerHTML = '<p class="hint">No players found. Try a different search.</p>';
-            return;
-        }
-
-        var html = '';
-        results.forEach(function(p) {
-            var initial = (p.name || '?').charAt(0).toUpperCase();
-            var onShortlist = _scoutState.shortlist.some(function(s) { return s.track_id === p.track_id; });
-            html += '<div class="scout-player-card">' +
-                '<div class="scout-player-avatar">' + initial + '</div>' +
-                '<div class="scout-player-info">' +
-                '<div class="scout-player-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
-                '<div class="scout-player-meta">' +
-                '<span>' + escapeHtml(p.position || '--') + '</span>' +
-                '<span>' + escapeHtml(p.team || '--') + '</span>' +
-                '<span>Age: ' + (p.age || '--') + '</span>' +
-                '</div></div>' +
-                '<div class="scout-player-stats">' +
-                '<div class="stat"><div class="stat-val">' + (p.goals != null ? p.goals : '--') + '</div><div class="stat-label">G</div></div>' +
-                '<div class="stat"><div class="stat-val">' + (p.assists != null ? p.assists : '--') + '</div><div class="stat-label">A</div></div>' +
-                '<div class="stat"><div class="stat-val">' + (p.matches || '--') + '</div><div class="stat-label">M</div></div>' +
-                '</div>' +
-                '<div class="scout-icons">' +
-                '<button class="scout-icon ' + (onShortlist ? 'added' : '') + '" data-action="shortlist" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '" data-pos="' + escapeHtml(p.position || '') + '">' + (onShortlist ? 'â˜…' : 'â˜†') + '</button>' +
-                '<button class="scout-icon" data-action="compare" data-track-id="' + p.track_id + '" data-name="' + escapeHtml(p.name) + '">â‡„</button>' +
-                '</div></div>';
-        });
-        container.innerHTML = html;
-
-        // Wire action buttons
-        container.querySelectorAll('[data-action="shortlist"]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var trackId = parseInt(this.dataset.trackId, 10);
-                var name = this.dataset.name;
-                var pos = this.dataset.pos;
-                toggleShortlist(trackId, name, pos, this);
-            });
-        });
-
-        container.querySelectorAll('[data-action="compare"]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var trackId = this.dataset.trackId;
-                var name = this.dataset.name;
-                // Add to compare dropdowns
-                addToCompare(trackId, name);
-                // Switch to compare tab
-                document.querySelector('.scout-tabs [data-stab="compare"]').click();
-            });
-        });
-    }
-
-    function toggleShortlist(trackId, name, position, btn) {
-        var idx = _scoutState.shortlist.findIndex(function(s) { return s.track_id === trackId; });
-        if (idx >= 0) {
-            _scoutState.shortlist.splice(idx, 1);
-            btn.textContent = 'â˜†';
-            btn.classList.remove('added');
-            showToast('Removed from shortlist.', 'info');
-        } else {
-            _scoutState.shortlist.push({ track_id: trackId, name: name, position: position });
-            btn.textContent = 'â˜…';
-            btn.classList.add('added');
-            showToast('Added to shortlist!', 'success');
-        }
-        renderShortlist();
-    }
-
-    function renderShortlist() {
-        var container = document.getElementById('scout-shortlist-content');
-        if (!container) return;
-        var players = _scoutState.shortlist;
-
-        if (!players || players.length === 0) {
-            container.innerHTML = '<p class="hint">No shortlisted players yet.</p>';
-            return;
-        }
-
-        var html = '';
-        players.forEach(function(p) {
-            var initial = (p.name || '?').charAt(0).toUpperCase();
-            html += '<div class="scout-player-card">' +
-                '<div class="scout-player-avatar">' + initial + '</div>' +
-                '<div class="scout-player-info">' +
-                '<div class="scout-player-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
-                '<div class="scout-player-meta">' +
-                '<span>' + escapeHtml(p.position || '--') + '</span>' +
-                '</div></div>' +
-                '<div class="scout-icons">' +
-                '<button class="scout-icon" data-action="remove-shortlist" data-track-id="' + p.track_id + '">âœ•</button>' +
-                '</div></div>';
-        });
-        container.innerHTML = html;
-
-        container.querySelectorAll('[data-action="remove-shortlist"]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var trackId = parseInt(this.dataset.trackId, 10);
-                var idx = _scoutState.shortlist.findIndex(function(s) { return s.track_id === trackId; });
-                if (idx >= 0) {
-                    _scoutState.shortlist.splice(idx, 1);
-                    renderShortlist();
-                    // Also update search results if visible
-                    renderScoutResults();
-                    showToast('Removed from shortlist.', 'info');
-                }
-            });
-        });
-    }
-
-    function loadShortlist() {
-        if (typeof bridge === 'undefined' || !bridge) {
-            // Use local state
-            renderShortlist();
-            return;
-        }
-        bridge.get_shortlist(function(result) {
-            try {
-                var data = typeof result === 'string' ? JSON.parse(result) : result;
-                _scoutState.shortlist = data.players || [];
-                renderShortlist();
-            } catch(e) { console.warn('Shortlist load error:', e); }
-        });
-    }
-
-    function generateScoutReport() {
-        if (_scoutState.shortlist.length === 0) {
-            showToast('Add players to your shortlist first.', 'warning');
-            return;
-        }
-
-        // Generate inline report
-        var report = '# Scout Report\n\n## Shortlisted Players\n\n';
-        _scoutState.shortlist.forEach(function(p) {
-            report += '- **' + p.name + '** (' + (p.position || 'N/A') + ')\n';
-        });
-        report += '\n_Generated by Kawkab AI Scout Portal_\n';
-
-        var blob = new Blob([report], { type: 'text/markdown' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'scout-report-' + Date.now() + '.md';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-        showToast('Scout report downloaded!', 'success');
-    }
-
-    function populateCompareSelects() {
-        // Will be populated from search results
-    }
-
-    function addToCompare(trackId, name) {
-        var selA = document.getElementById('scout-compare-a');
-        var selB = document.getElementById('scout-compare-b');
-        var opt = document.createElement('option');
-        opt.value = trackId;
-        opt.textContent = name;
-
-        // Add if not already present
-        var exists = false;
-        [selA, selB].forEach(function(sel) {
-            for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === trackId) exists = true;
-            }
-        });
-
-        if (!exists) {
-            selA.appendChild(opt.cloneNode(true));
-            selB.appendChild(opt.cloneNode(true));
-        }
-
-        // Auto-select
-        if (!selA.value) selA.value = trackId;
-        else if (!selB.value) selB.value = trackId;
-    }
-
-    function scoutCompare(trackIdA, trackIdB) {
-        // Look up in search results
-        var a = _scoutState.searchResults.find(function(p) { return p.track_id == trackIdA; });
-        var b = _scoutState.searchResults.find(function(p) { return p.track_id == trackIdB; });
-
-        var container = document.getElementById('scout-compare-results');
-        if (!container) return;
-        container.classList.remove('hidden');
-
-        if (!a || !b) {
-            container.innerHTML = '<p class="hint">Player data not found. Search for players first.</p>';
-            return;
-        }
-
-        var html = '<div class="pro-card"><h4>Comparison: ' + escapeHtml(a.name) + ' vs ' + escapeHtml(b.name) + '</h4>';
-        html += '<table class="data-table"><thead><tr><th>Stat</th><th>' + escapeHtml(a.name) + '</th><th>' + escapeHtml(b.name) + '</th></tr></thead><tbody>';
-
-        var stats = [
-            { key: 'goals', label: 'Goals' },
-            { key: 'assists', label: 'Assists' },
-            { key: 'matches', label: 'Matches' },
-            { key: 'xg', label: 'xG' },
-            { key: 'passes', label: 'Passes' },
-            { key: 'tackles', label: 'Tackles' },
-        ];
-
-        stats.forEach(function(s) {
-            var va = a[s.key] != null ? a[s.key] : '--';
-            var vb = b[s.key] != null ? b[s.key] : '--';
-            html += '<tr><td>' + s.label + '</td><td>' + va + '</td><td>' + vb + '</td></tr>';
-        });
-
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        if (window.KawkabScout) return window.KawkabScout.initScoutPortal();
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -7550,7 +4944,7 @@
         setupPlayerComparison();
         setTimeout(connectProgressSignals, 500);
 
-        // â”€â”€ Item 7: Init Timeline Scrubber â”€â”€
+        // ── Item 7: Init Timeline Scrubber ──
         initTimelineScrubber();
         // Re-init scrubber when timeline events load
         var _origLoadTimeline = loadEventTimeline;
@@ -7559,16 +4953,16 @@
             setTimeout(initTimelineScrubber, 300);
         };
 
-        // â”€â”€ Item 10: Init Density Toggle â”€â”€
+        // ── Item 10: Init Density Toggle ──
         initDensityToggle();
 
-        // â”€â”€ Item 12: Init Color Settings â”€â”€
+        // ── Item 12: Init Color Settings ──
         initColorSettings();
 
-        // â”€â”€ Item 13: Init Video Shortcuts â”€â”€
+        // ── Item 13: Init Video Shortcuts ──
         initVideoShortcuts();
 
-        // â”€â”€ Item 14: Save/restore filter state on route change â”€â”€
+        // ── Item 14: Save/restore filter state on route change ──
         restoreFilterState();
 
         // Initialize SPA Router
@@ -7635,6 +5029,22 @@
             saveFilterState();
             initMarketplace();
         });
+        router.register('highlight', 'highlight-section', function() {
+            saveFilterState();
+            initHighlightWorkspace();
+        });
+        router.register('tactics', 'tactics-section', function() {
+            saveFilterState();
+            initTacticsWorkspace();
+        });
+        router.register('ai', 'ai-section', function() {
+            saveFilterState();
+            initAiWorkspace();
+        });
+        router.register('squad', 'squad-section', function() {
+            saveFilterState();
+            initSquadWorkspace();
+        });
 
         // Initialize PWA on load
         initPWA();
@@ -7645,6 +5055,20 @@
         skeletons.register('report-section', '100%', 40, 6);
         skeletons.register('dashboard-kpis', '100%', 40, 5);
         skeletons.register('dashboard-recent-list', '100%', 30, 3);
+        skeletons.register('scout-section', '100%', 80, 4);
+        skeletons.register('squad-section', '100%', 60, 6);
+        skeletons.register('tactics-section', '100%', 60, 4);
+        skeletons.register('ai-section', '100%', 80, 4);
+        skeletons.register('coding-section', '100%', 80, 4);
+        skeletons.register('review-section', '100%', 80, 4);
+        skeletons.register('season-section', '100%', 60, 4);
+        skeletons.register('opponent-section', '100%', 60, 4);
+        skeletons.register('marketplace-section', '100%', 60, 4);
+        skeletons.register('physiology-section', '100%', 60, 4);
+        skeletons.register('collaboration-section', '100%', 60, 4);
+        skeletons.register('livetagging-section', '100%', 60, 4);
+        skeletons.register('professional-section', '100%', 60, 4);
+        skeletons.register('highlight-section', '100%', 60, 4);
 
         // Initialize nav tabs
         setupNavTabs();
@@ -7685,46 +5109,50 @@
             });
         });
 
-        // â”€â”€ View toggle wiring â”€â”€
+        // ── View toggle wiring ──
         setupViewToggles();
 
-        // â”€â”€ Batch action wiring â”€â”€
+        // ── Batch action wiring ──
         setupBatchActions();
 
-        // â”€â”€ Coding Workspace Init â”€â”€
+        // ── Coding Workspace Init ──
         initCodingWorkspace();
 
-        // â”€â”€ Event Review Init â”€â”€
+        // ── Event Review Init ──
         initReviewWorkspace();
 
-        // â”€â”€ Phase 2.3-4 & 3-4 Init â”€â”€
+        // ── Phase 2.3-4 & 3-4 Init ──
         initTacticsWorkspace();
         initAiWorkspace();
         initSquadWorkspace();
+        initSquadHealthTab();
 
-        // â”€â”€ Wave A â€” Telestration â”€â”€
+        // ── Wave A — Telestration ──
         initTelestration();
         initTelestrationV2();
+        initTelLayerPanel();
+        initTelPresetBrowser();
+        initTelLocalStorage();
 
-        // â”€â”€ Wave B â€” Season Dashboard â”€â”€
+        // ── Wave B — Season Dashboard ──
         initSeasonDashboard();
 
-        // â”€â”€ Wave C â€” Training Planner â”€â”€
+        // ── Wave C — Training Planner ──
         initTrainingPlanner();
 
-        // â”€â”€ Wave D â€” Presentation Mode â”€â”€
+        // ── Wave D — Presentation Mode ──
         initPresentationMode();
 
-        // â”€â”€ Wave E â€” Scout Portal â”€â”€
+        // ── Wave E — Scout Portal ──
         initScoutPortal();
 
-        // â”€â”€ Phase 13 â€” Opponent Database + Scouting Network â”€â”€
+        // ── Phase 13 — Opponent Database + Scouting Network ──
         initOpponentWorkspace();
 
-        // â”€â”€ Phase 15 â€” Community Marketplace â”€â”€
+        // ── Phase 15 — Community Marketplace ──
         initMarketplace();
 
-        // â”€â”€ Help modal â”€â”€
+        // ── Help modal ──
         document.getElementById('help-btn').onclick = function() {
             document.getElementById('help-modal').classList.remove('hidden');
             document.getElementById('help-modal').style.display = 'flex';
@@ -7740,7 +5168,7 @@
             }
         };
 
-        // â”€â”€ Load sample data buttons â”€â”€
+        // ── Load sample data buttons ──
         var sampleBtn = document.getElementById('load-sample-data-btn');
         if (sampleBtn) {
             sampleBtn.onclick = function() {
@@ -7759,7 +5187,7 @@
             };
         }
 
-        // â”€â”€ First-run wizard â”€â”€
+        // ── First-run wizard ──
         showFirstRunWizard();
     });
 })();
@@ -7783,4 +5211,12 @@ function showFirstRunWizard() {
             showToast('Welcome to Kawkab AI! Start by importing a match.', 'info');
         };
     } catch (e) {}
+
+    // Exports needed by app-data-providers.js
+    window.__kawkab.loadPlayerProfiles = loadPlayerProfiles;
+    window.__kawkab.loadMatchHistory = loadMatchHistory;
+    Object.defineProperty(window.__kawkab, 'currentMatchId', {
+        get: function() { return currentMatchId; },
+        set: function(v) { currentMatchId = v; }
+    });
 }

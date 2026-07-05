@@ -17,7 +17,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js');
+            });
         }
     </script>
 </head>
@@ -115,13 +117,14 @@
             <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
             <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
             <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
-            <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team</button>
+            <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team<span class="nav-notification-dot hidden" id="collab-mention-dot"></span></button>
             <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
             <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
             <button class="nav-tab" data-route="livestream" data-i18n="tab_livestream">📡 Live</button>
             <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
             <button class="nav-tab" data-route="opponent" data-i18n="tab_opponent">📋 Opponents</button>
             <button class="nav-tab" data-route="marketplace" data-i18n="tab_marketplace">🏪 Market</button>
+            <button class="nav-tab" data-route="highlight" data-i18n="tab_highlight">🎬 Reel Builder</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -287,6 +290,27 @@
                                 <button id="telestrate-clear-btn" class="btn btn-sm btn-danger" title="Clear All">🗑️</button>
                                 <button id="telestrate-save-btn" class="btn btn-sm btn-primary" title="Save PNG">💾</button>
                             </div>
+                            <div id="tel-layer-panel" class="tel-layer-panel hidden">
+                                <span class="tel-layer-panel-title" data-i18n="layers">Layers</span>
+                                <div id="tel-layer-list" class="tel-layer-list"></div>
+                                <button id="tel-add-layer-btn" class="btn btn-sm btn-secondary" title="Add Layer">➕</button>
+                                <button id="tel-remove-layer-btn" class="btn btn-sm btn-danger hidden" title="Remove Layer">🗑️</button>
+                                <button id="tel-toggle-layer-btn" class="btn btn-sm btn-secondary hidden" title="Toggle Visibility">👁️</button>
+                                <input type="range" id="tel-layer-opacity" min="0" max="100" value="100" class="tel-layer-opacity hidden" title="Opacity">
+                            </div>
+                            <div id="tel-preset-browser" class="tel-preset-browser hidden">
+                                <div class="tel-preset-header">
+                                    <span class="tel-preset-title" data-i18n="presets">Presets</span>
+                                    <button id="tel-preset-close-btn" class="modal-close">&times;</button>
+                                </div>
+                                <div id="tel-preset-list" class="tel-preset-list"></div>
+                                <div class="tel-preset-actions">
+                                    <input type="text" id="tel-preset-name-input" class="input" placeholder="Preset name...">
+                                    <button id="tel-save-preset-btn2" class="btn btn-sm btn-primary">💾 Save</button>
+                                    <button id="tel-load-preset-btn2" class="btn btn-sm btn-secondary">📂 Load</button>
+                                    <button id="tel-delete-preset-btn" class="btn btn-sm btn-danger">🗑️ Delete</button>
+                                </div>
+                            </div>
                             <div id="timeline-scrubber" class="timeline-scrubber">
                               <canvas id="scrubber-canvas" width="800" height="40"></canvas>
                               <div class="scrubber-range">
@@ -303,6 +327,12 @@
                             <div class="result-card">
                                 <h3 data-i18n="matchSummary" data-tooltip="Duration, player count, and event totals from the match analysis">Match Summary</h3>
                                 <div id="match-summary" class="match-summary" aria-live="polite"></div>
+                                <div id="match-quality-badge" class="quality-badge hidden">
+                                    <span class="quality-shield" id="quality-shield">🟢</span>
+                                    <span class="quality-label">Data Quality:</span>
+                                    <span class="quality-pct" id="quality-pct">--</span>
+                                    <div class="quality-tooltip" id="quality-tooltip"></div>
+                                </div>
                             </div>
                             <div class="result-card">
                                 <h3 data-i18n="possession" data-tooltip="Percentage of time each team controlled the ball">Possession</h3>
@@ -318,20 +348,36 @@
                             </div>
                             <!-- Chart containers for JS-rendered charts -->
                             <div class="result-card chart-container">
-                                <h3 data-tooltip="Momentum index over match time — positive values favor home, negative favor away">Momentum Index</h3>
+                                <h3 data-i18n="chartMomentum" data-tooltip="Momentum index over match time — positive values favor home, negative favor away">Momentum Index</h3>
                                 <div style="height:220px"><canvas id="momentum-canvas"></canvas></div>
                             </div>
                             <div class="result-card chart-container">
-                                <h3 data-tooltip="Win probability estimated from historical data and current match state">Win Probability</h3>
+                                <h3 data-i18n="chartWinProb" data-tooltip="Win probability estimated from historical data and current match state">Win Probability</h3>
                                 <div style="height:220px"><canvas id="winprob-canvas"></canvas></div>
                             </div>
                             <div class="result-card chart-container">
-                                <h3 data-tooltip="Expected goals (xG) timeline — vertical lines mark goal events">xG Timeline</h3>
+                                <h3 data-i18n="chartXgTimeline" data-tooltip="Expected goals (xG) timeline — vertical lines mark goal events">xG Timeline</h3>
                                 <div style="height:220px"><canvas id="xg-timeline-canvas"></canvas></div>
                             </div>
                             <div class="result-card chart-container">
-                                <h3 data-tooltip="Player attribute radar chart — values range 0-1">Player Radar</h3>
+                                <h3 data-i18n="chartPlayerRadar" data-tooltip="Player attribute radar chart — values range 0-1">Player Radar</h3>
                                 <div style="height:220px"><canvas id="radar-canvas"></canvas></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Pitch control heatmap showing which team controls each area">Pitch Control</h3>
+                                <div id="pitch-control-container" style="height:400px"></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Pass direction polar chart per player">Pass Sonar</h3>
+                                <div style="height:260px"><canvas id="pass-sonar-canvas"></canvas></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Voronoi-based space control heatmap">Space Control</h3>
+                                <div id="space-control-container" style="height:400px"></div>
+                            </div>
+                            <div class="result-card chart-container">
+                                <h3 data-tooltip="Composite dominance index (0-100)">Match Dominance</h3>
+                                <div id="dominance-gauge-container" style="height:450px;overflow-y:auto"></div>
                             </div>
                         </div>
 
@@ -1059,6 +1105,7 @@
                             </select>
                             <button id="export-csv-btn" class="btn btn-primary" data-i18n="exportCsvBtn">Export CSV</button>
                             <button id="export-json-btn" class="btn btn-secondary" data-i18n="exportJsonBtn">Export JSON</button>
+                            <button id="export-statsbomb-btn" class="btn btn-accent" data-i18n="exportStatsbombBtn">Export StatsBomb</button>
                         </div>
                     </div>
                     <div class="pro-card">
@@ -1475,6 +1522,10 @@
                         <div id="training-drill-list" class="training-drill-list">
                             <p class="hint" data-i18n="trainingLoadHint">Load drills to see library.</p>
                         </div>
+                        <div style="margin-top:12px">
+                            <button id="training-generate-plan-btn" class="btn btn-primary" data-i18n="trainingGeneratePlan">🤖 Generate from Match</button>
+                            <span id="training-gen-status" class="hint" style="margin-left:8px"></span>
+                        </div>
                     </div>
                     <div class="training-session-panel">
                         <h3 data-i18n="trainingSessionBuilder">📝 Session Builder</h3>
@@ -1491,6 +1542,10 @@
                             <button id="training-clear-btn" class="btn btn-secondary" data-i18n="trainingClearSession">🗑️ Clear</button>
                         </div>
                     </div>
+                </div>
+                <div id="training-plan-preview" class="hidden" style="margin-top:12px">
+                    <h3 data-i18n="trainingPlanPreview">📋 Generated Training Plan</h3>
+                    <div id="training-plan-weeks" class="training-plan-weeks"></div>
                 </div>
             </section>
 
@@ -1569,17 +1624,35 @@
                     <span id="squad-status" class="squad-status"></span>
                 </div>
                 <div id="squad-workspace" class="squad-workspace hidden">
-                    <div class="squad-grid">
-                        <div class="pro-card">
-                            <h3 data-i18n="squadRosterTitle">📋 Squad Roster</h3>
-                            <div id="squad-roster-content" class="squad-roster-content">
-                                <p class="hint">Select a match and click "Load Squad".</p>
+                    <div class="tabs" id="squad-tabs">
+                        <button class="tab active" data-tab="squad-roster-tab" data-i18n="squadTabRoster">📋 Roster</button>
+                        <button class="tab" data-tab="squad-health-tab" data-i18n="squadTabHealth">❤️ Health</button>
+                    </div>
+                    <div id="squad-roster-tab" class="tab-content">
+                        <div class="squad-grid">
+                            <div class="pro-card">
+                                <h3 data-i18n="squadRosterTitle">📋 Squad Roster</h3>
+                                <div id="squad-roster-content" class="squad-roster-content">
+                                    <p class="hint">Select a match and click "Load Squad".</p>
+                                </div>
+                            </div>
+                            <div class="pro-card">
+                                <h3 data-i18n="squadRatingsTitle">⭐ Player Ratings</h3>
+                                <div id="squad-ratings-content" class="squad-ratings-content">
+                                    <p class="hint">Player ratings will appear here.</p>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                    <div id="squad-health-tab" class="tab-content hidden">
                         <div class="pro-card">
-                            <h3 data-i18n="squadRatingsTitle">⭐ Player Ratings</h3>
-                            <div id="squad-ratings-content" class="squad-ratings-content">
-                                <p class="hint">Player ratings will appear here.</p>
+                            <h3 data-i18n="squadHealthTitle">❤️ Injury Risk Dashboard</h3>
+                            <div class="toolbar" style="margin-bottom:8px">
+                                <button id="squad-health-load-btn" class="btn btn-primary" data-i18n="squadHealthLoad">🔄 Load Health Data</button>
+                            </div>
+                            <div id="squad-health-summary" class="risk-health-summary"></div>
+                            <div id="squad-health-content" class="squad-roster-content">
+                                <p class="hint" data-i18n="squadHealthHint">Click "Load Health Data" to see injury risk analysis.</p>
                             </div>
                         </div>
                     </div>
@@ -1592,24 +1665,24 @@
             <section id="livestream-section" class="section hidden">
                 <h2 data-i18n="liveStreamTitle">📡 Live Stream Capture</h2>
                 <div class="form-row" style="margin-bottom:8px">
-                    <input type="text" id="stream-url-input" class="input" placeholder="Stream URL (m3u8, RTMP, YouTube, Twitch...)" style="flex:1">
-                    <button id="stream-detect-btn" class="btn btn-sm btn-secondary">🔍 Detect</button>
-                    <button id="stream-start-btn" class="btn btn-primary">▶ Start Capture</button>
-                    <button id="stream-stop-btn" class="btn btn-danger hidden">⏹ Stop</button>
+                    <input type="text" id="stream-url-input" class="input" data-i18n-placeholder="streamUrlPlaceholder" placeholder="Stream URL (m3u8, RTMP, YouTube, Twitch...)" style="flex:1">
+                    <button id="stream-detect-btn" class="btn btn-sm btn-secondary" data-i18n="streamDetectBtn">🔍 Detect</button>
+                    <button id="stream-start-btn" class="btn btn-primary" data-i18n="streamStartBtn">▶ Start Capture</button>
+                    <button id="stream-stop-btn" class="btn btn-danger hidden" data-i18n="streamStopBtn">⏹ Stop</button>
                 </div>
-                <div id="stream-status" class="hint" style="margin-bottom:8px">Enter a stream URL to begin.</div>
+                <div id="stream-status" class="hint" style="margin-bottom:8px" data-i18n="streamStatusHint">Enter a stream URL to begin.</div>
                 <div class="pro-card" style="margin-bottom:8px">
-                    <h3>📺 Preview & Markers</h3>
+                    <h3 data-i18n="streamPreviewTitle">📺 Preview & Markers</h3>
                     <div class="form-row">
-                        <input type="text" id="stream-marker-label" class="input" placeholder="Marker label (e.g. Goal!)" style="flex:1">
-                        <button id="stream-add-marker-btn" class="btn btn-sm btn-secondary">🏷 Add Marker</button>
+                        <input type="text" id="stream-marker-label" class="input" data-i18n-placeholder="streamMarkerPlaceholder" placeholder="Marker label (e.g. Goal!)" style="flex:1">
+                        <button id="stream-add-marker-btn" class="btn btn-sm btn-secondary" data-i18n="streamAddMarkerBtn">🏷 Add Marker</button>
                     </div>
-                    <div id="stream-marker-list" style="margin-top:6px;font-size:0.82rem"><p class="hint">Markers will appear here during capture.</p></div>
+                    <div id="stream-marker-list" style="margin-top:6px;font-size:0.82rem"><p class="hint" data-i18n="streamMarkerHint">Markers will appear here during capture.</p></div>
                 </div>
                 <div class="pro-card">
-                    <h3>💾 Recordings</h3>
-                    <button id="stream-refresh-recordings-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
-                    <div id="stream-recordings" style="margin-top:6px;font-size:0.82rem"><p class="hint">No recordings yet.</p></div>
+                    <h3 data-i18n="streamRecordingsTitle">💾 Recordings</h3>
+                    <button id="stream-refresh-recordings-btn" class="btn btn-sm btn-secondary" data-i18n="streamRefreshBtn">🔄 Refresh</button>
+                    <div id="stream-recordings" style="margin-top:6px;font-size:0.82rem"><p class="hint" data-i18n="streamNoRecordings">No recordings yet.</p></div>
                 </div>
             </section>
 
@@ -1636,40 +1709,40 @@
                  Phase 13 — Opponent Database + Scouting Network + Transfermarkt
                  ============================================================ -->
             <section id="opponent-section" class="section hidden">
-                <h2>📋 Opponent Database & Scouting</h2>
+                <h2 data-i18n="opponentTitle">📋 Opponent Database & Scouting</h2>
 
                 <!-- Tabs -->
                 <div class="tabs" id="opponent-tabs">
-                    <button class="tab active" data-tab="opp-profiles">🏟 Opponents</button>
-                    <button class="tab" data-tab="opp-scouting">🔎 Scouting Network</button>
-                    <button class="tab" data-tab="opp-transfermarkt">💰 Transfermarkt</button>
+                    <button class="tab active" data-tab="opp-profiles" data-i18n="oppTabProfiles">🏟 Opponents</button>
+                    <button class="tab" data-tab="opp-scouting" data-i18n="oppTabScouting">🔎 Scouting Network</button>
+                    <button class="tab" data-tab="opp-transfermarkt" data-i18n="oppTabTransfermarkt">💰 Transfermarkt</button>
                 </div>
 
                 <!-- Opponent Profiles -->
                 <div id="opp-profiles" class="tab-content">
                     <div class="toolbar">
-                        <input type="text" id="opp-search-input" class="input" placeholder="Search opponents..." style="max-width:250px">
-                        <button id="opp-refresh-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
-                        <button id="opp-create-btn" class="btn btn-sm btn-primary">➕ New Opponent</button>
+                        <input type="text" id="opp-search-input" class="input" data-i18n-placeholder="oppSearchPlaceholder" placeholder="Search opponents..." style="max-width:250px">
+                        <button id="opp-refresh-btn" class="btn btn-sm btn-secondary" data-i18n="oppRefreshBtn">🔄 Refresh</button>
+                        <button id="opp-create-btn" class="btn btn-sm btn-primary" data-i18n="oppCreateBtn">➕ New Opponent</button>
                     </div>
                     <div class="opp-grid" id="opp-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:8px">
-                        <p class="hint">No opponents yet. Create your first opponent profile.</p>
+                        <p class="hint" data-i18n="oppEmptyHint">No opponents yet. Create your first opponent profile.</p>
                     </div>
                     <!-- Opponent detail panel -->
                     <div id="opp-detail" class="hidden" style="margin-top:12px">
                         <h3 id="opp-detail-name"></h3>
                         <div class="opp-detail-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                             <div class="pro-card">
-                                <h4>Tactical Profile</h4>
+                                <h4 data-i18n="oppTacticalProfile">Tactical Profile</h4>
                                 <div id="opp-detail-tactical"></div>
-                                <button id="opp-generate-report-btn" class="btn btn-sm btn-primary" style="margin-top:8px">📄 Generate Scouting Report</button>
+                                <button id="opp-generate-report-btn" class="btn btn-sm btn-primary" style="margin-top:8px" data-i18n="oppGenerateReportBtn">📄 Generate Scouting Report</button>
                                 <div id="opp-scouting-report" style="margin-top:8px;background:var(--bg-card);padding:8px;border-radius:6px;font-size:0.8rem;white-space:pre-wrap"></div>
                             </div>
                             <div class="pro-card">
-                                <h4>Match History</h4>
+                                <h4 data-i18n="oppMatchHistory">Match History</h4>
                                 <div id="opp-matchups"></div>
-                                <button id="opp-edit-btn" class="btn btn-sm btn-secondary" style="margin-top:8px">✏ Edit Profile</button>
-                                <button id="opp-delete-btn" class="btn btn-sm btn-danger">🗑 Delete</button>
+                                <button id="opp-edit-btn" class="btn btn-sm btn-secondary" style="margin-top:8px" data-i18n="oppEditBtn">✏ Edit Profile</button>
+                                <button id="opp-delete-btn" class="btn btn-sm btn-danger" data-i18n="oppDeleteBtn">🗑 Delete</button>
                             </div>
                         </div>
                     </div>
@@ -1678,30 +1751,30 @@
                 <!-- Scouting Network -->
                 <div id="opp-scouting" class="tab-content hidden">
                     <div class="toolbar">
-                        <input type="text" id="scout-net-search" class="input" placeholder="Search players..." style="max-width:200px">
+                        <input type="text" id="scout-net-search" class="input" data-i18n-placeholder="scoutNetSearchPlaceholder" placeholder="Search players..." style="max-width:200px">
                         <select id="scout-net-position" class="input" style="max-width:130px">
-                            <option value="">All positions</option>
+                            <option value="" data-i18n="scoutNetAllPositions">All positions</option>
                             <option>GK</option><option>CB</option><option>LB</option><option>RB</option>
                             <option>CDM</option><option>CM</option><option>CAM</option>
                             <option>LW</option><option>RW</option><option>CF</option><option>ST</option>
                         </select>
-                        <button id="scout-net-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
-                        <button id="scout-net-add-btn" class="btn btn-sm btn-primary">➕ Add Player</button>
+                        <button id="scout-net-search-btn" class="btn btn-sm btn-secondary" data-i18n="scoutNetSearchBtn">🔍 Search</button>
+                        <button id="scout-net-add-btn" class="btn btn-sm btn-primary" data-i18n="scoutNetAddBtn">➕ Add Player</button>
                         <span id="scout-net-stats" style="font-size:0.75rem;color:var(--text-muted)"></span>
                     </div>
                     <div id="scout-net-results" style="margin-top:8px">
-                        <p class="hint">Search for players in the shared scouting network or add new ones.</p>
+                        <p class="hint" data-i18n="scoutNetHint">Search for players in the shared scouting network or add new ones.</p>
                     </div>
                 </div>
 
                 <!-- Transfermarkt -->
                 <div id="opp-transfermarkt" class="tab-content hidden">
                     <div class="toolbar">
-                        <input type="text" id="tm-search-input" class="input" placeholder="Search Transfermarkt..." style="max-width:250px">
-                        <button id="tm-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
+                        <input type="text" id="tm-search-input" class="input" data-i18n-placeholder="tmSearchPlaceholder" placeholder="Search Transfermarkt..." style="max-width:250px">
+                        <button id="tm-search-btn" class="btn btn-sm btn-secondary" data-i18n="tmSearchBtn">🔍 Search</button>
                     </div>
                     <div id="tm-results" style="margin-top:8px">
-                        <p class="hint">Search for players on Transfermarkt to see market values and stats.</p>
+                        <p class="hint" data-i18n="tmHint">Search for players on Transfermarkt to see market values and stats.</p>
                     </div>
                     <div id="tm-detail" class="hidden" style="margin-top:12px">
                         <div class="pro-card">
@@ -1716,29 +1789,29 @@
                  Phase 15 — Community Marketplace
                  ============================================================ -->
             <section id="marketplace-section" class="section hidden">
-                <h2>🏪 Community Marketplace</h2>
-                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
+                <h2 data-i18n="marketplaceTitle">🏪 Community Marketplace</h2>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px" data-i18n="marketplaceDesc">
                     Share and discover training drills, tactical templates, and plugins.
                     <span id="marketplace-stats" style="margin-left:8px"></span>
                 </div>
 
                 <div class="tabs" id="marketplace-tabs">
-                    <button class="tab active" data-mp-tab="mp-drills">🏃 Drills</button>
-                    <button class="tab" data-mp-tab="mp-templates">📐 Templates</button>
-                    <button class="tab" data-mp-tab="mp-plugins">🔌 Plugins</button>
+                    <button class="tab active" data-mp-tab="mp-drills" data-i18n="mpTabDrills">🏃 Drills</button>
+                    <button class="tab" data-mp-tab="mp-templates" data-i18n="mpTabTemplates">📐 Templates</button>
+                    <button class="tab" data-mp-tab="mp-plugins" data-i18n="mpTabPlugins">🔌 Plugins</button>
                 </div>
 
                 <div class="toolbar" style="margin-top:8px">
-                    <input type="text" id="mp-search-input" class="input" placeholder="Search..." style="max-width:250px">
+                    <input type="text" id="mp-search-input" class="input" data-i18n-placeholder="mpSearchPlaceholder" placeholder="Search..." style="max-width:250px">
                     <select id="mp-category-select" class="input" style="max-width:160px">
-                        <option value="">All categories</option>
+                        <option value="" data-i18n="mpAllCategories">All categories</option>
                     </select>
-                    <button id="mp-search-btn" class="btn btn-sm btn-secondary">🔍 Search</button>
-                    <button id="mp-add-btn" class="btn btn-sm btn-primary">➕ Submit Item</button>
+                    <button id="mp-search-btn" class="btn btn-sm btn-secondary" data-i18n="mpSearchBtn">🔍 Search</button>
+                    <button id="mp-add-btn" class="btn btn-sm btn-primary" data-i18n="mpSubmitBtn">➕ Submit Item</button>
                 </div>
 
                 <div id="mp-items-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-top:8px">
-                    <p class="hint">Loading marketplace items...</p>
+                    <p class="hint" data-i18n="mpLoadingHint">Loading marketplace items...</p>
                 </div>
 
                 <!-- Item detail modal -->
@@ -1751,8 +1824,8 @@
                         <div id="mp-detail-data" style="font-size:0.8rem;background:var(--bg-card);padding:8px;border-radius:4px;max-height:300px;overflow-y:auto;margin:8px 0"></div>
                         <div class="toolbar" style="margin-top:8px">
                             <span id="mp-detail-rating" style="font-size:0.85rem"></span>
-                            <button id="mp-download-btn" class="btn btn-sm btn-primary">⬇ Download / Use</button>
-                            <button id="mp-detail-delete-btn" class="btn btn-sm btn-danger hidden">🗑 Delete</button>
+                            <button id="mp-download-btn" class="btn btn-sm btn-primary" data-i18n="mpDownloadBtn">⬇ Download / Use</button>
+                            <button id="mp-detail-delete-btn" class="btn btn-sm btn-danger hidden" data-i18n="mpDeleteBtn">🗑 Delete</button>
                         </div>
                     </div>
                 </div>
@@ -1764,46 +1837,46 @@
             <section id="cloud-section" class="section hidden">
                 <h2 data-i18n="cloudTitle">☁️ Cloud Sync</h2>
                 <div id="cloud-status-bar" style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-                    <span id="cloud-connection" class="badge" style="background:var(--text-muted)">Offline</span>
-                    <button id="cloud-start-server-btn" class="btn btn-sm btn-secondary">Start Local Server</button>
-                    <button id="cloud-refresh-btn" class="btn btn-sm btn-secondary">🔄 Refresh</button>
+                    <span id="cloud-connection" class="badge" style="background:var(--text-muted)" data-i18n="cloudOffline">Offline</span>
+                    <button id="cloud-start-server-btn" class="btn btn-sm btn-secondary" data-i18n="cloudStartServer">Start Local Server</button>
+                    <button id="cloud-refresh-btn" class="btn btn-sm btn-secondary" data-i18n="cloudRefresh">🔄 Refresh</button>
                 </div>
                 <div class="cloud-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                     <div class="pro-card" id="cloud-auth-card">
                         <h3 data-i18n="cloudAuthTitle">🔑 Account</h3>
                         <div id="cloud-logged-out">
-                            <div class="form-row"><input type="email" id="cloud-email" class="input" placeholder="Email" style="flex:1"></div>
-                            <div class="form-row"><input type="password" id="cloud-password" class="input" placeholder="Password" style="flex:1"></div>
+                            <div class="form-row"><input type="email" id="cloud-email" class="input" data-i18n-placeholder="cloudEmailPlaceholder" placeholder="Email" style="flex:1"></div>
+                            <div class="form-row"><input type="password" id="cloud-password" class="input" data-i18n-placeholder="cloudPasswordPlaceholder" placeholder="Password" style="flex:1"></div>
                             <div class="form-row" style="gap:8px">
-                                <button id="cloud-login-btn" class="btn btn-primary">Log In</button>
-                                <button id="cloud-register-btn" class="btn btn-secondary">Register</button>
+                                <button id="cloud-login-btn" class="btn btn-primary" data-i18n="cloudLoginBtn">Log In</button>
+                                <button id="cloud-register-btn" class="btn btn-secondary" data-i18n="cloudRegisterBtn">Register</button>
                             </div>
                             <div id="cloud-auth-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
                         </div>
                         <div id="cloud-logged-in" class="hidden">
-                            <p>Logged in as <strong id="cloud-user-display"></strong> (<span id="cloud-user-email"></span>)</p>
-                            <button id="cloud-logout-btn" class="btn btn-sm btn-danger">Log Out</button>
+                            <p data-i18n="cloudLoggedInAs">Logged in as <strong id="cloud-user-display"></strong> (<span id="cloud-user-email"></span>)</p>
+                            <button id="cloud-logout-btn" class="btn btn-sm btn-danger" data-i18n="cloudLogoutBtn">Log Out</button>
                         </div>
                     </div>
                     <div class="pro-card">
                         <h3 data-i18n="cloudTeamsTitle">👥 Teams</h3>
-                        <div class="form-row"><input type="text" id="cloud-team-name" class="input" placeholder="Team name" style="flex:1"><button id="cloud-create-team-btn" class="btn btn-sm btn-primary">Create</button></div>
-                        <div id="cloud-team-list" style="margin-top:8px;font-size:0.82rem"><p class="hint">Log in to manage teams.</p></div>
+                        <div class="form-row"><input type="text" id="cloud-team-name" class="input" data-i18n-placeholder="cloudTeamNamePlaceholder" placeholder="Team name" style="flex:1"><button id="cloud-create-team-btn" class="btn btn-sm btn-primary" data-i18n="cloudCreateTeamBtn">Create</button></div>
+                        <div id="cloud-team-list" style="margin-top:8px;font-size:0.82rem"><p class="hint" data-i18n="cloudTeamsHint">Log in to manage teams.</p></div>
                     </div>
                     <div class="pro-card">
                         <h3 data-i18n="cloudSyncTitle">🔄 Sync</h3>
                         <div class="form-row">
-                            <button id="cloud-sync-push-btn" class="btn btn-sm btn-primary">Push to Cloud</button>
-                            <button id="cloud-sync-pull-btn" class="btn btn-sm btn-secondary">Pull from Cloud</button>
+                            <button id="cloud-sync-push-btn" class="btn btn-sm btn-primary" data-i18n="cloudPushBtn">Push to Cloud</button>
+                            <button id="cloud-sync-pull-btn" class="btn btn-sm btn-secondary" data-i18n="cloudPullBtn">Pull from Cloud</button>
                         </div>
                         <div id="cloud-sync-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
                     </div>
                     <div class="pro-card">
                         <h3 data-i18n="cloudInviteTitle">📨 Invite Member</h3>
                         <div class="form-row">
-                            <select id="cloud-invite-team" class="input" style="flex:1"><option value="">Select team</option></select>
-                            <input type="email" id="cloud-invite-email" class="input" placeholder="Email" style="flex:1">
-                            <button id="cloud-invite-btn" class="btn btn-sm btn-primary">Invite</button>
+                            <select id="cloud-invite-team" class="input" style="flex:1"><option value="" data-i18n="cloudSelectTeam">Select team</option></select>
+                            <input type="email" id="cloud-invite-email" class="input" data-i18n-placeholder="cloudInviteEmailPlaceholder" placeholder="Email" style="flex:1">
+                            <button id="cloud-invite-btn" class="btn btn-sm btn-primary" data-i18n="cloudInviteBtn">Invite</button>
                         </div>
                         <div id="cloud-invite-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
                     </div>
@@ -1846,10 +1919,13 @@
                         <h3 data-i18n="collabCommentsTitle">💬 Comments</h3>
                         <div class="form-row">
                             <input type="number" id="collab-comment-match" class="input" placeholder="Match ID" data-i18n-placeholder="collabMatchId">
-                            <input type="number" id="collab-comment-event" class="input" placeholder="Event ID (optional)" data-i18n-placeholder="collabEventId">
-                            <input type="text" id="collab-comment-text" class="input" placeholder="Comment..." data-i18n-placeholder="collabCommentText" style="flex:2">
+                            <select id="collab-comment-event-select" class="input" style="max-width:200px" data-i18n-placeholder="collabSelectEvent">
+                                <option value="0">All Events</option>
+                            </select>
+                            <input type="text" id="collab-comment-text" class="input" placeholder="Comment... (use @username to mention)" data-i18n-placeholder="collabCommentText" style="flex:2">
                             <button id="collab-add-comment-btn" class="btn btn-primary" data-i18n="collabAddComment">💬 Add</button>
                             <button id="collab-load-comments-btn" class="btn btn-secondary" data-i18n="collabLoadComments">📋 Load</button>
+                            <button id="collab-load-events-btn" class="btn btn-sm btn-secondary" data-i18n="collabLoadEvents">📋 Load Events</button>
                         </div>
                         <div id="collab-comment-list"><p class="hint" data-i18n="collabCommentHint">Comments will appear here.</p></div>
                     </div>
@@ -1878,6 +1954,17 @@
             </section>
 
             <!-- ============================================================
+                 Phase 6 Sprint 5 — Sidebar Activity Panel
+                 ============================================================ -->
+            <aside id="sidebar-activity" class="sidebar-panel hidden">
+                <div class="sidebar-panel-header">
+                    <h3 data-i18n="sidebarActivityTitle">📋 Recent Activity</h3>
+                    <button id="sidebar-activity-close" class="sidebar-close">&times;</button>
+                </div>
+                <div id="sidebar-activity-list"><p class="hint" data-i18n="sidebarActivityHint">Loading...</p></div>
+            </aside>
+
+            <!-- ============================================================
                  Sprint 4 — Live Tagging
                  ============================================================ -->
             <section id="livetagging-section" class="section hidden">
@@ -1891,6 +1978,7 @@
                         <button id="live-stop-btn" class="btn btn-danger hidden" data-i18n="liveStop">⏹ Stop</button>
                         <button id="live-clear-btn" class="btn btn-secondary" data-i18n="liveClear">🗑 Clear Tags</button>
                         <button id="live-export-btn" class="btn btn-secondary" data-i18n="liveExport">📥 Export</button>
+                        <button id="live-dashboard-toggle" class="btn btn-secondary hidden" data-i18n="liveDashboardToggle">📊 Dashboard</button>
                     </div>
                     <div class="form-row" style="margin-top:6px">
                         <span data-i18n="livePeriod">Period:</span>
@@ -1900,6 +1988,69 @@
                         <button class="btn btn-sm live-period-btn" data-period="4">ET 2</button>
                         <span id="live-status" class="live-status" style="margin-left:12px"></span>
                     </div>
+                </div>
+
+                <!-- Phase 6 Sprint 2 — Live KPIs -->
+                <div id="live-kpi-dashboard" class="kpi-grid hidden">
+                  <div class="kpi-card" data-tooltip="Current possession percentage (home team)">
+                    <div class="kpi-icon">⚽</div>
+                    <div class="kpi-value" id="live-possession">50%</div>
+                    <div class="kpi-label" data-i18n="kpiPossession">Possession</div>
+                  </div>
+                  <div class="kpi-card" data-tooltip="Total shots (both teams)">
+                    <div class="kpi-icon">🎯</div>
+                    <div class="kpi-value" id="live-shots">0</div>
+                    <div class="kpi-label" data-i18n="kpiShots">Shots</div>
+                  </div>
+                  <div class="kpi-card" data-tooltip="Total expected goals">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-value" id="live-xg">0.00</div>
+                    <div class="kpi-label" data-i18n="kpiXg">xG</div>
+                  </div>
+                  <div class="kpi-card" data-tooltip="xG difference (home - away)">
+                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-value" id="live-xg-diff">0.00</div>
+                    <div class="kpi-label" data-i18n="kpiXgDiff">xG Diff</div>
+                  </div>
+                  <div class="kpi-card" data-tooltip="Total goals scored">
+                    <div class="kpi-icon">⭐</div>
+                    <div class="kpi-value" id="live-goals">0</div>
+                    <div class="kpi-label" data-i18n="kpiGoals">Goals</div>
+                  </div>
+                </div>
+
+                <!-- Phase 6 Sprint 2 — Live Pitch Map + xG Chart -->
+                <div id="live-dashboard-panels" class="live-dashboard-panels hidden">
+                  <div class="pro-card">
+                    <h3 data-i18n="livePitchMap">🗺️ Pitch Map</h3>
+                    <div id="live-pitch-map-container" class="pitch-map-container">
+                      <svg id="live-pitch-svg" class="pitch-svg" viewBox="0 0 1050 680" width="100%" height="auto">
+                        <rect x="0" y="0" width="1050" height="680" fill="#2d5a27" stroke="#fff" stroke-width="2"/>
+                        <line x1="525" y1="0" x2="525" y2="680" stroke="#fff" stroke-width="2" stroke-dasharray="8,8"/>
+                        <circle cx="525" cy="340" r="91.5" fill="none" stroke="#fff" stroke-width="2"/>
+                        <rect x="0" y="170" width="165" height="340" fill="none" stroke="#fff" stroke-width="2"/>
+                        <rect x="0" y="255" width="55" height="170" fill="none" stroke="#fff" stroke-width="2"/>
+                        <circle cx="110" cy="340" r="2" fill="#fff"/>
+                        <arc/>
+                        <rect x="885" y="170" width="165" height="340" fill="none" stroke="#fff" stroke-width="2"/>
+                        <rect x="995" y="255" width="55" height="170" fill="none" stroke="#fff" stroke-width="2"/>
+                        <circle cx="940" cy="340" r="2" fill="#fff"/>
+                        <!-- Penalty arcs -->
+                        <path d="M 110 285 A 60 60 0 0 1 110 395" fill="none" stroke="#fff" stroke-width="2"/>
+                        <path d="M 940 285 A 60 60 0 0 0 940 395" fill="none" stroke="#fff" stroke-width="2"/>
+                      </svg>
+                      <div id="live-pitch-events" class="pitch-events-overlay"></div>
+                    </div>
+                  </div>
+                  <div class="pro-card">
+                    <h3 data-i18n="liveXgChart">📈 xG Timeline</h3>
+                    <div class="chart-container">
+                      <canvas id="live-xg-chart-canvas" width="400" height="250"></canvas>
+                      <div class="chart-export-bar">
+                        <button class="chart-export-btn chart-export-png" data-chart="live-xg-chart" title="Export PNG">🖼</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="live-grid">
@@ -1965,6 +2116,53 @@
             <!-- ============================================================
                  Sprint 1 — Multi-Angle Video, Trimming, Highlight Reel
                  ============================================================ -->
+            <section id="highlight-section" class="section hidden">
+                <h2 data-i18n="highlightTitle">🎬 Highlight Reel Builder</h2>
+                <div class="highlight-layout">
+                    <div class="highlight-controls">
+                        <div class="highlight-row">
+                            <label data-i18n="highlightSelectMatch">Match:</label>
+                            <select id="highlight-match-select" class="input">
+                                <option value="" data-i18n="highlightSelectMatchPlaceholder">Select a match...</option>
+                            </select>
+                        </div>
+                        <div class="highlight-row">
+                            <button id="highlight-load-events-btn" class="btn btn-primary" data-i18n="highlightLoadEvents">📋 Load Events</button>
+                        </div>
+                        <div id="highlight-events-container" class="highlight-events-container hidden">
+                            <div class="highlight-row">
+                                <input type="text" id="highlight-event-filter" class="input" placeholder="Filter events..." data-i18n-placeholder="highlightFilterPlaceholder">
+                            </div>
+                            <div class="highlight-event-types">
+                                <label><input type="checkbox" class="highlight-type-filter" value="shot" checked> Shot</label>
+                                <label><input type="checkbox" class="highlight-type-filter" value="goal" checked> Goal</label>
+                                <label><input type="checkbox" class="highlight-type-filter" value="assist" checked> Assist</label>
+                                <label><input type="checkbox" class="highlight-type-filter" value="key_pass" checked> Key Pass</label>
+                                <label><input type="checkbox" class="highlight-type-filter" value="tackle" checked> Tackle</label>
+                                <label><input type="checkbox" class="highlight-type-filter" value="interception" checked> Interception</label>
+                            </div>
+                            <div id="highlight-event-list" class="highlight-event-list"></div>
+                            <div class="highlight-row">
+                                <label data-i18n="highlightContextSeconds">Context (s):</label>
+                                <input type="number" id="highlight-context-seconds" class="input highlight-context-input" value="3" min="1" max="30">
+                            </div>
+                            <div class="highlight-row">
+                                <button id="highlight-generate-btn" class="btn btn-primary btn-large" data-i18n="highlightGenerate">🎬 Generate Reel</button>
+                            </div>
+                            <div id="highlight-progress-container" class="progress-container hidden">
+                                <div class="progress-bar">
+                                    <div id="highlight-progress-fill" class="progress-fill"></div>
+                                </div>
+                                <p id="highlight-progress-message" class="progress-message" data-i18n="highlightGenerating">Generating highlight reel...</p>
+                            </div>
+                            <div id="highlight-result" class="highlight-result hidden">
+                                <p id="highlight-result-text"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section id="multiangle-section" class="section hidden">
                 <h2 data-i18n="multiangleTitle">🎬 Multi-Angle Video Editor</h2>
                 <!-- Toolbar -->
@@ -2051,6 +2249,29 @@
         </footer>
     </div>
 
+    <!-- Keyboard Shortcuts modal -->
+    <div id="shortcuts-modal" class="modal hidden" role="dialog" aria-label="Keyboard shortcuts">
+        <div class="modal-content" style="max-width:500px">
+            <div class="modal-header">
+                <h2 data-i18n="shortcuts.title">Keyboard Shortcuts</h2>
+                <button id="shortcuts-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="shortcuts-table">
+                    <tr><td><kbd>/</kbd></td><td data-i18n="shortcuts.search">Global search</td></tr>
+                    <tr><td><kbd>?</kbd></td><td data-i18n="shortcuts.help">Show shortcuts</td></tr>
+                    <tr><td><kbd>Space</kbd></td><td data-i18n="shortcuts.play">Play/Pause video</td></tr>
+                    <tr><td><kbd>J</kbd> / <kbd>L</kbd></td><td data-i18n="shortcuts.jump">Jump -10s / +10s</td></tr>
+                    <tr><td><kbd>&larr;</kbd> / <kbd>&rarr;</kbd></td><td data-i18n="shortcuts.seek">Seek -5s / +5s</td></tr>
+                    <tr><td><kbd>F</kbd></td><td data-i18n="shortcuts.fullscreen">Fullscreen video</td></tr>
+                    <tr><td><kbd>1</kbd>-<kbd>9</kbd></td><td data-i18n="shortcuts.coding_tags">Coding tag slots 1-9</td></tr>
+                    <tr><td><kbd>Q</kbd>-<kbd>P</kbd></td><td data-i18n="shortcuts.coding_more">More coding tags</td></tr>
+                    <tr><td><kbd>Ctrl+E</kbd></td><td data-i18n="shortcuts.export">Export match data</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Help/About modal -->
     <div id="help-modal" class="modal hidden">
         <div class="modal-content" style="max-width:550px">
@@ -2116,15 +2337,22 @@
     <script src="js/utils.js"></script>
     <script src="js/app-perf.js"></script>
     <script src="js/app-ux.js"></script>
+    <script src="js/app-error-boundary.js"></script>
     <script src="js/app-router.js"></script>
     <script src="js/app-skeletons.js"></script>
     <script src="js/app-tooltips.js"></script>
     <script src="js/app-charts.js"></script>
     <script src="js/app-sparklines.js"></script>
+    <script src="js/app-coding.js"></script>
+    <script src="js/app-squad.js"></script>
+    <script src="js/app-tactics.js"></script>
+    <script src="js/app-scout.js"></script>
     <script src="js/app-ai.js"></script>
     <script src="js/app-opponent.js"></script>
     <script src="js/app-marketplace.js"></script>
+    <script src="js/app-highlight.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/app-data-providers.js"></script>
     <script src="js/tactical_sandbox.js"></script>
 </body>
 </html>

@@ -13,6 +13,7 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.perf_timing import timed
 
 # Known formation patterns: (line_counts,) -> formation label
 # Each pattern sums to 10 (outfield players)
@@ -183,6 +184,7 @@ class FormationAnalyzer:
         return f"{n_def}-{n_mid}-{n_att}"
 
     @staticmethod
+    @timed()
     def _compute_compactness(positions: list[tuple[float, float]]) -> float:
         if len(positions) < 2:
             return 0.0

@@ -14,9 +14,10 @@ logger = get_logger(__name__)
 class ExternalHandler:
     """Handles all external football data API operations for Bridge."""
 
-    def __init__(self, bridge, services):
+    def __init__(self, bridge, services, rate_limiter=None):
         self._bridge = bridge
         self._services = services
+        self._rate_limiter = rate_limiter
 
     # ── service accessors ────────────────────────────────────────
 
@@ -56,11 +57,16 @@ class ExternalHandler:
     def storage_service(self):
         return self._services.get("storage_service")
 
+    def _check_rate_limit(self, category: str = "search") -> None:
+        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
+            raise RuntimeError(f"Rate limit exceeded for {category}")
+
     # ================================================================
     # football-data.org
     # ================================================================
 
     async def check_football_data_status(self):
+        self._check_rate_limit()
         if self.football_data_service is None:
             return json.dumps({"available": False, "error": "Service not initialized"})
         try:

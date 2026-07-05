@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import uuid
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
@@ -15,20 +17,28 @@ logger = get_logger(__name__)
 class VideoHandler:
     """Handles video / real-time streaming operations for Bridge."""
 
-    def __init__(self, bridge, services):
+    def __init__(self, bridge, services, rate_limiter=None):
         self._bridge = bridge
         self._services = services
+        self._rate_limiter = rate_limiter
         self._sync_service = MultiAngleSyncService()
         reel_output = getattr(bridge, "_reel_output_dir", None)
         self._highlight_reel = HighlightReelService(output_dir=reel_output)
+        self._reel_progress: dict[str, dict] = {}
+        self._reel_lock = threading.Lock()
 
     @property
     def realtime_service(self):
         return self._services.get("realtime_service")
 
+    def _check_rate_limit(self, category: str = "tracking") -> None:
+        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
+            raise RuntimeError(f"Rate limit exceeded for {category}")
+
     # --- Multi-Angle Sync ---
 
     def sync_load(self, videos_json: str) -> str:
+        self._check_rate_limit()
         try:
             paths = json.loads(videos_json)
             return self._sync_service.load_videos(paths)
@@ -37,6 +47,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_set_offset(self, source_index: int, offset_seconds: float) -> str:
+        self._check_rate_limit()
         try:
             return self._sync_service.set_offset(source_index, offset_seconds)
         except Exception as e:
@@ -44,6 +55,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_positions(self, master_time: float) -> str:
+        self._check_rate_limit()
         try:
             return self._sync_service.get_sync_positions(master_time)
         except Exception as e:
@@ -51,6 +63,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_state(self) -> str:
+        self._check_rate_limit()
         try:
             return self._sync_service.get_state()
         except Exception as e:
@@ -58,6 +71,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_clear(self) -> str:
+        self._check_rate_limit()
         try:
             return self._sync_service.clear()
         except Exception as e:
@@ -67,6 +81,7 @@ class VideoHandler:
     # --- Video Trimming ---
 
     def trim_video(self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = "") -> str:
+        self._check_rate_limit()
         try:
             path = SecurityValidator.validate_video_path(video_path)
             if not path:
@@ -84,6 +99,7 @@ class VideoHandler:
     # --- Highlight Reel ---
 
     def reel_compose(self, clips_json: str, output_filename: str) -> str:
+        self._check_rate_limit()
         try:
             import asyncio
             from kawkab.services.highlight_reel_service import ReelClip
@@ -99,17 +115,50 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def reel_from_events(self, match_id: int, events_json: str, video_path: str) -> str:
+        self._check_rate_limit()
         try:
             events = json.loads(events_json)
-            result = self._highlight_reel.make_reel_from_events(match_id, events, video_path)
-            return result
+            reel_id = str(uuid.uuid4())[:8]
+            with self._reel_lock:
+                self._reel_progress[reel_id] = {"status": "starting", "progress": 0.0, "output_path": ""}
+
+            # Track reel progress
+            with self._reel_lock:
+                self._reel_progress[reel_id] = {"status": "processing", "progress": 0.3, "output_path": ""}
+
+            import asyncio
+            result_str = self._highlight_reel.make_reel_from_events(match_id, events, video_path)
+            result = json.loads(result_str)
+
+            with self._reel_lock:
+                if "error" in result:
+                    self._reel_progress[reel_id] = {"status": "error", "progress": 0.0, "output_path": ""}
+                else:
+                    self._reel_progress[reel_id] = {
+                        "status": "complete",
+                        "progress": 1.0,
+                        "output_path": result.get("output_path", ""),
+                    }
+
+            result["reel_id"] = reel_id
+            return json.dumps(result)
         except Exception as e:
             logger.error(f"reel_from_events failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
+    def reel_status(self, reel_id: str) -> str:
+        """Get the current progress of a highlight reel generation."""
+        try:
+            with self._reel_lock:
+                status = self._reel_progress.get(reel_id, {"status": "unknown", "progress": 0.0, "output_path": ""})
+            return json.dumps(status)
+        except Exception as e:
+            return json.dumps({"status": "error", "progress": 0.0, "output_path": "", "error": str(e)})
+
     # --- Realtime ---
 
     def realtime_status(self):
+        self._check_rate_limit()
         if self.realtime_service is None:
             return json.dumps({"available": False, "error": "RealtimeService not initialized"})
         try:
@@ -125,6 +174,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def realtime_cancel(self):
+        self._check_rate_limit()
         if self.realtime_service is None:
             return json.dumps({"error": "RealtimeService not initialized"})
         try:
@@ -135,6 +185,7 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def realtime_subscribe_console(self):
+        self._check_rate_limit()
         if self.realtime_service is None:
             return json.dumps({"error": "RealtimeService not initialized"})
         try:

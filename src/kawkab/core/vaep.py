@@ -13,7 +13,9 @@ from typing import Any
 
 import numpy as np
 
+from kawkab.core.coordinate_validator import CoordinateValidator
 from kawkab.core.game_constants import GAME
+from kawkab.core.perf_timing import timed
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M
 PITCH_WIDTH = GAME.PITCH_WIDTH_M
@@ -268,6 +270,7 @@ class VaepepResult:
         }
 
 
+@timed()
 def compute_vaep(
     events: list[dict[str, Any]],
     frames: list[dict[str, Any]] | None = None,
@@ -283,6 +286,8 @@ def compute_vaep(
     Returns:
         List of VaepepResult dicts sorted by timestamp.
     """
+    for ev in events:
+        CoordinateValidator.validate_event_spatial(ev)
     if not events:
         return []
 

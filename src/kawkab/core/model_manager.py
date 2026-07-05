@@ -61,9 +61,9 @@ class ModelManager:
             "size_mb": 97.1,
             "sha256": None,
         },
-        "osnet_sportsmot": {
-            "url": "https://github.com/mikel-brostrom/boxmot/releases/download/v3.0.0/osnet_sportsmot.pt",
-            "size_mb": 37.0,
+        "osnet_x1_0": {
+            "url": "https://github.com/mikel-brostrom/boxmot/releases/download/v10.0.64/osnet_x1_0_msmt17.pt",
+            "size_mb": 11.0,
             "sha256": None,
         },
         "soccernet_reid": {

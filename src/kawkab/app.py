@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+# Early torch init to resolve CUDA DLL conflicts with PySide6
+import os as _os
+try:
+    import torch as _torch
+    _cuda_lib = _os.path.join(_os.path.dirname(_torch.__file__), 'lib')
+    if _os.path.exists(_cuda_lib):
+        _os.add_dll_directory(_cuda_lib)
+except Exception:
+    pass
+
 import sys
 from pathlib import Path
 
@@ -80,10 +90,10 @@ class MainWindow(QMainWindow):
 
         self._init_services()
         self._init_ui()
-        self._init_system_tray()
-        self._init_bridge()
         self.profiler = Profiler()
         self.profiler.start()
+        self._init_system_tray()
+        self._init_bridge()
 
         logger.info(f"MainWindow initialized: {self.windowTitle()}")
 

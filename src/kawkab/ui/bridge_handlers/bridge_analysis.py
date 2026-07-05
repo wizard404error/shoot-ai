@@ -16,12 +16,36 @@ from kawkab.core.security import SecurityValidator, ErrorSanitizer
 logger = get_logger(__name__)
 
 
+def _compute_hot_zones(events, grid_cols=6, grid_rows=4):
+    if not events:
+        return []
+    x_vals = [e["x"] for e in events if e.get("x") is not None]
+    y_vals = [e["y"] for e in events if e.get("y") is not None]
+    if not x_vals or not y_vals:
+        return []
+    min_x, max_x = min(x_vals), max(x_vals)
+    min_y, max_y = min(y_vals), max(y_vals)
+    x_range = max(max_x - min_x, 1)
+    y_range = max(max_y - min_y, 1)
+    cells = {}
+    for e in events:
+        if e.get("x") is None or e.get("y") is None:
+            continue
+        cx = int((e["x"] - min_x) / x_range * grid_cols)
+        cy = int((e["y"] - min_y) / y_range * grid_rows)
+        key = f"{cx},{cy}"
+        cells[key] = cells.get(key, 0) + 1
+    max_count = max(cells.values()) if cells else 1
+    return [{"x": int(k.split(",")[0]), "y": int(k.split(",")[1]), "count": v, "intensity": round(v / max_count, 2)} for k, v in cells.items()]
+
+
 class AnalysisHandler:
     """Handles match analysis and specialized service operations for Bridge."""
 
-    def __init__(self, bridge, services):
+    def __init__(self, bridge, services, rate_limiter=None):
         self._bridge = bridge
         self._services = services
+        self._rate_limiter = rate_limiter
         self._overlay_cache: dict[int, list[dict]] = {}
         self._tracking_cache: dict[int, Any] = {}
 
@@ -71,6 +95,21 @@ class AnalysisHandler:
 
     @property
     def physical_load_service(self): return self._services.get("physical_load_service")
+
+    @property
+    def injury_risk_predictor(self):
+        from kawkab.core.injury_risk import InjuryRiskPredictor
+        if not hasattr(self, '_injury_risk_predictor'):
+            self._injury_risk_predictor = InjuryRiskPredictor()
+        return self._injury_risk_predictor
+
+    @property
+    def training_plan_generator(self):
+        if not hasattr(self, '_training_plan_generator'):
+            from kawkab.services.training_plan_service import TrainingPlanGenerator
+            kb = self.knowledge_service
+            self._training_plan_generator = TrainingPlanGenerator(kb)
+        return self._training_plan_generator
 
     @property
     def pressure_metrics_service(self): return self._services.get("pressure_metrics_service")
@@ -123,6 +162,10 @@ class AnalysisHandler:
     @property
     def frame_skip(self): return self._services.get("frame_skip", 3)
 
+    def _check_rate_limit(self, category: str = "analysis") -> None:
+        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
+            raise RuntimeError(f"Rate limit exceeded for {category}")
+
     # ── private helpers ──────────────────────────────────────────
 
     def _compute_overlay_data(self, track_data):
@@ -150,6 +193,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_first_frame(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
@@ -161,6 +205,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def save_homography(self, match_id, corners_json, pitch_length_m=105.0, pitch_width_m=68.0):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.homography_service is None:
@@ -221,6 +266,7 @@ class AnalysisHandler:
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_homography(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.homography_service is None:
@@ -238,6 +284,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def save_match(self, name, video_path):
+        self._check_rate_limit()
         try:
             name = SecurityValidator.validate_team_name(name)
             video_path = str(SecurityValidator.validate_video_path(video_path))
@@ -249,6 +296,7 @@ class AnalysisHandler:
             return 0
 
     async def analyze_match(self, match_id, video_path):
+        self._check_rate_limit()
         import json
 
         try:
@@ -531,6 +579,7 @@ class AnalysisHandler:
         return json.dumps(data[lo])
 
     async def get_all_matches(self):
+        self._check_rate_limit()
         try:
             matches = await self.storage_service.get_all_matches()
             return json.dumps(matches)
@@ -539,6 +588,7 @@ class AnalysisHandler:
             return json.dumps([])
 
     async def get_match_events(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
@@ -550,6 +600,7 @@ class AnalysisHandler:
     # ── Event Review / Correction (Phase 2) ──────────────────────
 
     async def get_unreviewed_events(self, match_id, min_confidence=0.0, max_confidence=0.7):
+        self._check_rate_limit()
         """Get auto-detected events with low confidence that need review.
 
         Returns events sorted by confidence ascending (lowest first),
@@ -584,6 +635,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_detection_summary(self, match_id):
+        self._check_rate_limit()
         """Get auto-detection stats by event type with average confidence."""
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
@@ -619,6 +671,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def submit_event_correction(self, match_id, event_id, action, corrections_json):
+        self._check_rate_limit()
         """Submit a correction for an auto-detected event.
 
         Actions: 'confirm' (mark reviewed), 'reject' (delete event),
@@ -677,6 +730,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_video_path(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
@@ -688,6 +742,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_report(self, match_id, language, summary):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             language = SecurityValidator.sanitize_string(language, max_length=10)
@@ -710,6 +765,7 @@ class AnalysisHandler:
         return json.dumps(self.knowledge_service.stats)
 
     async def check_llm_availability(self):
+        self._check_rate_limit()
         try:
             ollama_available = False
             for provider in self.llm_service.providers:
@@ -735,6 +791,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def create_player_profile(self, name, jersey, number, position):
+        self._check_rate_limit()
         try:
             name = SecurityValidator.sanitize_string(name, max_length=100)
             number = SecurityValidator.validate_jersey_number(number)
@@ -750,6 +807,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_all_player_profiles(self):
+        self._check_rate_limit()
         try:
             if self.player_profile_service is None:
                 return json.dumps({"profiles": []})
@@ -831,6 +889,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def compare_matches(self, match_id_1, match_id_2, focus):
+        self._check_rate_limit()
         try:
             m1 = SecurityValidator.validate_match_id(match_id_1)
             m2 = SecurityValidator.validate_match_id(match_id_2)
@@ -852,6 +911,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_match_quality_report(self, match_id_str):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.quality_scoring_service is None:
@@ -875,6 +935,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def swap_teams(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
@@ -890,6 +951,7 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_visualizations(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.visualization_service is None:
@@ -1172,6 +1234,7 @@ class AnalysisHandler:
         return json.dumps({"available": self.psychology_service.available})
 
     async def analyze_match_psychology(self, match_id, home_team, away_team, events_json):
+        self._check_rate_limit()
         if self.psychology_service is None:
             return json.dumps({"error": "Psychology service not initialized"})
         try:
@@ -1713,6 +1776,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def ask_llm(self, match_id, question):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             question = SecurityValidator.sanitize_string(question, max_length=500)
@@ -1749,6 +1813,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_player_rating(self, match_id, track_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             track_id = SecurityValidator.validate_match_id(track_id)
@@ -1796,6 +1861,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_squad_summary(self, match_id):
+        self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
@@ -1826,10 +1892,165 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Phase 6 Sprint 1 — Injury Risk
+    # ================================================================
+
+    async def get_injury_risk(self, match_id, track_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            track_id = SecurityValidator.validate_match_id(track_id) if isinstance(track_id, str) else int(track_id)
+            predictor = self.injury_risk_predictor
+            players = await self.storage_service.get_match_players(match_id)
+            player = None
+            for p in (players or []):
+                if p.get("track_id") == track_id:
+                    player = p
+                    break
+            if not player:
+                return json.dumps({"error": "Player not found"})
+            events = await self.storage_service.get_match_events(match_id)
+            p_events = [e for e in events if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id]
+            sprint_count = sum(1 for e in p_events if e.get("event_type") == "sprint")
+            workload = [float(p.get(f"workload_d{i}", 0)) for i in range(1, 29)]
+            fatigue = float(p.get("fatigue_index", 0))
+            days_rest = int(p.get("days_since_last_rest", 0))
+            position = str(p.get("position", "MID"))
+            dist_km = float(p.get("distance_covered_m", 0)) / 1000.0
+            profile = {
+                "acwr": 1.0, "recent_sprint_count": sprint_count,
+                "recent_distance_km": dist_km, "fatigue_index": fatigue,
+                "position": position, "days_since_last_rest": days_rest,
+            }
+            acwr_result = predictor.compute_acwr_overload(workload) if len(workload) >= 7 else {"acwr": 1.0, "risk_level": "moderate", "recommendation": "insufficient data"}
+            profile["acwr"] = acwr_result["acwr"]
+            risk = predictor.predict_injury_risk(profile)
+            rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
+            return json.dumps({
+                "success": True,
+                "track_id": track_id,
+                "risk_score": risk["risk_score"],
+                "risk_category": risk["risk_category"],
+                "acwr": round(acwr_result["acwr"], 3),
+                "acwr_risk_level": acwr_result["risk_level"],
+                "recovery_recommendation": rec,
+                "key_factors": risk["key_risk_factors"],
+            })
+        except Exception as e:
+            logger.error(f"get_injury_risk failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_squad_injury_report(self, match_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            players = await self.storage_service.get_match_players(match_id)
+            predictor = self.injury_risk_predictor
+            events = await self.storage_service.get_match_events(match_id)
+            home_players = []
+            away_players = []
+            total_risk_home = 0.0
+            total_risk_away = 0.0
+            high_risk_count = 0
+            for p in (players or []):
+                tid = p.get("track_id")
+                if tid is None:
+                    continue
+                team = p.get("team", "unknown")
+                p_events = [e for e in events if e.get("from_track_id") == tid or e.get("player_track_id") == tid]
+                sprint_count = sum(1 for e in p_events if e.get("event_type") == "sprint")
+                workload = [float(p.get(f"workload_d{i}", 0)) for i in range(1, 29)]
+                fatigue = float(p.get("fatigue_index", 0))
+                days_rest = int(p.get("days_since_last_rest", 0))
+                position = str(p.get("position", "MID"))
+                dist_km = float(p.get("distance_covered_m", 0)) / 1000.0
+                profile = {
+                    "acwr": 1.0, "recent_sprint_count": sprint_count,
+                    "recent_distance_km": dist_km, "fatigue_index": fatigue,
+                    "position": position, "days_since_last_rest": days_rest,
+                }
+                acwr_result = predictor.compute_acwr_overload(workload) if len(workload) >= 7 else {"acwr": 1.0, "risk_level": "moderate", "recommendation": "insufficient data"}
+                profile["acwr"] = acwr_result["acwr"]
+                risk = predictor.predict_injury_risk(profile)
+                rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
+                entry = {
+                    "track_id": tid,
+                    "name": p.get("name", f"Player #{tid}"),
+                    "jersey": p.get("jersey_number", ""),
+                    "position": position,
+                    "risk_score": risk["risk_score"],
+                    "risk_category": risk["risk_category"],
+                    "acwr": round(acwr_result["acwr"], 3),
+                    "recovery_recommendation": rec,
+                    "key_factors": risk["key_risk_factors"],
+                }
+                if team in ("home", "Home", "HOME"):
+                    home_players.append(entry)
+                    total_risk_home += risk["risk_score"]
+                else:
+                    away_players.append(entry)
+                    total_risk_away += risk["risk_score"]
+                if risk["risk_category"] in ("high", "critical"):
+                    high_risk_count += 1
+            avg_home = round(total_risk_home / len(home_players), 3) if home_players else 0
+            avg_away = round(total_risk_away / len(away_players), 3) if away_players else 0
+            return json.dumps({
+                "success": True,
+                "home_players": home_players,
+                "away_players": away_players,
+                "avg_risk_home": avg_home,
+                "avg_risk_away": avg_away,
+                "high_risk_count": high_risk_count,
+                "total_players": len(home_players) + len(away_players),
+            })
+        except Exception as e:
+            logger.error(f"get_squad_injury_report failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Phase 6 Sprint 1 — Training Plan Auto-Generate
+    # ================================================================
+
+    async def generate_training_plan(self, match_id):
+        self._check_rate_limit()
+        try:
+            match_id_val = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id_val)
+            from kawkab.services.reasoning_service import Diagnosis, DiagnosisReport
+            mock_diag = Diagnosis(
+                rule_id="phase6_gen",
+                rule_name="Match-generated training plan",
+                rule_name_ar="خطة تدريب مولّدة من المباراة",
+                category="general",
+                severity="medium",
+                confidence=0.65,
+                evidence={"event_count": len(events)},
+                explanation="Auto-generated training plan based on match events",
+                explanation_ar="خطة تدريب مولّدة تلقائياً بناءً على أحداث المباراة",
+                recommended_drills=[],
+            )
+            report = DiagnosisReport(
+                match_id=match_id_val,
+                diagnoses=[mock_diag],
+                overall_assessment="Training plan generated from match data",
+                overall_assessment_ar="تم إنشاء خطة التدريب من بيانات المباراة",
+                priority_actions=["Improve based on match analysis"],
+                priority_actions_ar=["التحسين بناءً على تحليل المباراة"],
+                confidence=0.65,
+            )
+            gen = self.training_plan_generator
+            plan = await gen.generate_plan(report, duration_weeks=4, training_days_per_week=3, language="en")
+            return json.dumps({"success": True, "plan": gen.export_to_dict(plan)})
+        except Exception as e:
+            logger.error(f"generate_training_plan failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
     # Wave B — Season Dashboard
     # ================================================================
 
     async def get_season_summary(self):
+        self._check_rate_limit()
         try:
             matches = await self.storage_service.get_all_matches()
             if not matches:
@@ -1879,6 +2100,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_all_drills(self):
+        self._check_rate_limit()
         try:
             await self.knowledge_service.initialize()
             drills = self.knowledge_service.drills
@@ -1904,6 +2126,7 @@ class AnalysisHandler:
     # ================================================================
 
     async def scout_search_players(self, query, position=""):
+        self._check_rate_limit()
         try:
             # Try real player search database first
             try:
@@ -1964,7 +2187,251 @@ class AnalysisHandler:
             logger.error(f"scout_search_players failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
+    # ================================================================
+    # Sprint 1 — Injury Risk Dashboard
+    # ================================================================
+
+    async def get_injury_risk(self, match_id, track_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            track_id = SecurityValidator.validate_match_id(track_id)
+            events = await self.storage_service.get_match_events(match_id)
+            players = await self.storage_service.get_match_players(match_id)
+
+            player_info = None
+            for p in (players or []):
+                if p.get("track_id") == track_id or p.get("id") == track_id:
+                    player_info = p
+                    break
+
+            player_events = [e for e in events if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id]
+            recent_sprints = sum(1 for e in player_events if e.get("event_type") in ("sprint", "run") and e.get("completed", True))
+            recent_distance = sum(abs(e.get("end_x", 0) - e.get("start_x", 0)) + abs(e.get("end_y", 0) - e.get("start_y", 0)) for e in player_events if "start_x" in e) / 100.0
+            position = (player_info or {}).get("position", "MID")
+            fatigue_index = min(len(player_events) / 50.0, 1.0)
+
+            acwr_data = [100 + (i % 20 - 10) for i in range(28)]
+            for ev in player_events:
+                intensity = ev.get("intensity", 0.5) if isinstance(ev.get("intensity"), (int, float)) else 0.5
+                acwr_data.append(50 + intensity * 100)
+
+            from kawkab.core.injury_risk import InjuryRiskPredictor
+            predictor = InjuryRiskPredictor()
+            acwr_result = predictor.compute_acwr_overload(acwr_data)
+            acwr = acwr_result.get("acwr", 1.0)
+
+            profile = {
+                "acwr": acwr,
+                "recent_sprint_count": recent_sprints,
+                "recent_distance_km": recent_distance,
+                "fatigue_index": fatigue_index * 30,
+                "position": position,
+                "days_since_last_rest": getattr(player_info, "days_since_rest", 3) if hasattr(player_info, "days_since_rest") else 3,
+            }
+            risk = predictor.predict_injury_risk(profile)
+            recovery = predictor.compute_recovery_recommendation(risk["risk_score"], position)
+
+            return json.dumps({
+                "risk_score": risk["risk_score"],
+                "acwr": acwr,
+                "risk_level": risk["risk_category"],
+                "recovery_recommendation": recovery,
+                "factors": risk["key_risk_factors"],
+                "player_name": (player_info or {}).get("name", f"Player #{track_id}"),
+                "position": position,
+            })
+        except Exception as e:
+            logger.error(f"get_injury_risk failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_squad_injury_report(self, match_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id)
+            players = await self.storage_service.get_match_players(match_id)
+
+            home_players = []
+            away_players = []
+            all_risks = []
+
+            from kawkab.core.injury_risk import InjuryRiskPredictor
+            predictor = InjuryRiskPredictor()
+
+            for p in (players or []):
+                tid = p.get("track_id", p.get("id", 0))
+                team = p.get("team", "home")
+                name = p.get("name", f"Player #{tid}")
+
+                p_events = [e for e in events if e.get("from_track_id") == tid or e.get("player_track_id") == tid]
+                sprints = sum(1 for e in p_events if e.get("event_type") in ("sprint", "run") and e.get("completed", True))
+                dist = sum(abs(e.get("end_x", 0) - e.get("start_x", 0)) + abs(e.get("end_y", 0) - e.get("start_y", 0)) for e in p_events if "start_x" in e) / 100.0
+                pos = p.get("position", "MID")
+                fatigue = min(len(p_events) / 50.0, 1.0)
+
+                acwr_data = [100 + (i % 20 - 10) for i in range(28)]
+                for ev in p_events:
+                    intensity = ev.get("intensity", 0.5) if isinstance(ev.get("intensity"), (int, float)) else 0.5
+                    acwr_data.append(50 + intensity * 100)
+
+                acwr_result = predictor.compute_acwr_overload(acwr_data)
+                acwr = acwr_result.get("acwr", 1.0)
+
+                profile = {
+                    "acwr": acwr,
+                    "recent_sprint_count": sprints,
+                    "recent_distance_km": dist,
+                    "fatigue_index": fatigue * 30,
+                    "position": pos,
+                    "days_since_last_rest": getattr(p, "days_since_rest", 3) if hasattr(p, "days_since_rest") else 3,
+                }
+                risk = predictor.predict_injury_risk(profile)
+                recovery = predictor.compute_recovery_recommendation(risk["risk_score"], pos)
+                all_risks.append(risk["risk_score"])
+
+                entry = {
+                    "track_id": tid,
+                    "name": name,
+                    "position": pos,
+                    "jersey": p.get("jersey_number", ""),
+                    "risk_score": risk["risk_score"],
+                    "acwr": acwr,
+                    "risk_level": risk["risk_category"],
+                    "recovery_recommendation": recovery,
+                    "factors": risk["key_risk_factors"],
+                }
+                if team == "home":
+                    home_players.append(entry)
+                else:
+                    away_players.append(entry)
+
+            high_risk_count = sum(1 for r in all_risks if r >= 0.4)
+            avg_home = round(sum(r["risk_score"] for r in home_players) / max(len(home_players), 1), 3)
+            avg_away = round(sum(r["risk_score"] for r in away_players) / max(len(away_players), 1), 3)
+
+            return json.dumps({
+                "home_players": home_players,
+                "away_players": away_players,
+                "avg_risk_home": avg_home,
+                "avg_risk_away": avg_away,
+                "high_risk_count": high_risk_count,
+                "total_players": len(home_players) + len(away_players),
+            })
+        except Exception as e:
+            logger.error(f"get_squad_injury_report failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Sprint 1 — Training Plan Auto-Generate
+    # ================================================================
+
+    async def generate_training_plan(self, match_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id)
+            players = await self.storage_service.get_match_players(match_id)
+
+            from kawkab.services.knowledge_service import KnowledgeService
+            from kawkab.services.training_plan_service import TrainingPlanGenerator
+            from kawkab.services.reasoning_service import Diagnosis, DiagnosisReport
+
+            event_types = {}
+            for ev in events or []:
+                et = ev.get("event_type", "unknown")
+                event_types[et] = event_types.get(et, 0) + 1
+
+            diagnoses = []
+            if event_types.get("pass", 0) < 10:
+                diagnoses.append(Diagnosis(
+                    rule_id="R001", rule_name="Low Passing Volume", rule_name_ar="حجم تمرير منخفض",
+                    category="technical", severity="medium", confidence=0.75,
+                    evidence={"pass_count": event_types.get("pass", 0)},
+                    explanation="Low passing volume indicates poor build-up play",
+                    explanation_ar="يشير حجم التمرير المنخفض إلى ضعف في بناء الهجمات",
+                    recommended_drills=["D001", "D002", "D003"],
+                ))
+            if event_types.get("shot", 0) < 5:
+                diagnoses.append(Diagnosis(
+                    rule_id="R002", rule_name="Low Shot Creation", rule_name_ar="خلق فرص تسديد منخفض",
+                    category="attacking", severity="medium", confidence=0.7,
+                    evidence={"shot_count": event_types.get("shot", 0)},
+                    explanation="Few shots indicate lack of attacking penetration",
+                    explanation_ar="قلة التسديدات تشير إلى ضعف الاختراق الهجومي",
+                    recommended_drills=["D004", "D005"],
+                ))
+            if event_types.get("tackle", 0) < 8:
+                diagnoses.append(Diagnosis(
+                    rule_id="R003", rule_name="Low Defensive Engagement", rule_name_ar="مشاركة دفاعية منخفضة",
+                    category="defensive", severity="high", confidence=0.65,
+                    evidence={"tackle_count": event_types.get("tackle", 0)},
+                    explanation="Low tackle count indicates passive defending",
+                    explanation_ar="يشير انخفاض عدد التدخلات إلى دفاع سلبي",
+                    recommended_drills=["D006", "D007"],
+                ))
+            if event_types.get("pressing", 0) or event_types.get("pressure", 0) or 0 < 3:
+                diagnoses.append(Diagnosis(
+                    rule_id="R004", rule_name="Low Pressing Intensity", rule_name_ar="شدة ضغط منخفضة",
+                    category="defensive", severity="medium", confidence=0.6,
+                    evidence={"pressure_count": event_types.get("pressing", 0) or event_types.get("pressure", 0) or 0},
+                    explanation="Low pressing allows opponent easy build-up",
+                    explanation_ar="الضغط المنخفض يسمح للخصم ببناء الهجمات بسهولة",
+                    recommended_drills=["D008", "D009"],
+                ))
+            if not diagnoses:
+                diagnoses.append(Diagnosis(
+                    rule_id="R005", rule_name="General Match Fitness", rule_name_ar="لياقة المباراة العامة",
+                    category="fitness", severity="low", confidence=0.5,
+                    evidence={"event_count": len(events or [])},
+                    explanation="Maintain current fitness levels",
+                    explanation_ar="الحفاظ على مستويات اللياقة الحالية",
+                    recommended_drills=["D001", "D004", "D006"],
+                ))
+
+            from kawkab.core.logging import get_logger as _get_logger
+            report = DiagnosisReport(
+                match_id=match_id,
+                diagnoses=diagnoses,
+                overall_assessment="Auto-generated training plan from match analysis",
+                overall_assessment_ar="خطة تدريب مولدة تلقائياً من تحليل المباراة",
+                priority_actions=[d.rule_name for d in diagnoses[:3]],
+                priority_actions_ar=[d.rule_name_ar for d in diagnoses[:3]],
+                confidence=0.7,
+            )
+
+            kb = KnowledgeService()
+            await kb.initialize()
+            gen = TrainingPlanGenerator(kb)
+            plan = await gen.generate_plan(report)
+
+            plan_dict = gen.export_to_dict(plan)
+
+            match_data = await self.storage_service.get_match(match_id)
+            home_team = (match_data or {}).get("home_team", "Home")
+            away_team = (match_data or {}).get("away_team", "Away")
+
+            return json.dumps({
+                "success": True,
+                "plan": plan_dict,
+                "match_info": {
+                    "match_id": match_id,
+                    "home_team": home_team,
+                    "away_team": away_team,
+                },
+                "analysis_summary": {
+                    "total_events": len(events or []),
+                    "event_breakdown": event_types,
+                    "total_players": len(players or []),
+                    "diagnoses_found": len(diagnoses),
+                },
+            })
+        except Exception as e:
+            logger.error(f"generate_training_plan failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
     async def get_shortlist(self):
+        self._check_rate_limit()
         try:
             if self._services.get("shortlist_service"):
                 sl = self._services["shortlist_service"]
@@ -1976,12 +2443,26 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_scout_report_pdf(self, track_id, match_id=0):
+        self._check_rate_limit()
         try:
             from kawkab.core.scout_reports import generate_scout_report
             report = generate_scout_report(track_id, match_id)
             return json.dumps({"report": report.to_dict() if hasattr(report, "to_dict") else str(report)})
         except Exception as e:
             logger.error(f"generate_scout_report failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_event_timestamp(self, match_id, event_id):
+        self._check_rate_limit()
+        try:
+            events = await self.storage_service.get_match_events(match_id)
+            for ev in events:
+                eid = ev.get("id") or ev.get("event_id") or 0
+                if eid == event_id:
+                    return json.dumps({"timestamp": ev.get("timestamp", 0.0), "time": ev.get("timestamp", 0.0)})
+            return json.dumps({"timestamp": 0.0, "time": 0.0})
+        except Exception as e:
+            logger.error(f"get_event_timestamp failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
@@ -2091,6 +2572,109 @@ class AnalysisHandler:
             return svc.export_tags()
         except Exception as e:
             logger.error(f"live_export failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Phase 6 Sprint 2 — Live Tagging Dashboard
+    # ================================================================
+
+    async def get_live_kpis(self, session_id):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            raw = json.loads(svc.get_stats())
+            if "error" in raw:
+                return json.dumps(raw)
+            s = raw.get("stats", {})
+            ev = s.get("events_by_type", {})
+            home_shots = ev.get("shot", 0)
+            away_shots = ev.get("shot", 0)
+            home_goals = s.get("home_goals", 0)
+            away_goals = s.get("away_goals", 0)
+            total_shots = home_shots + away_shots
+            home_shots_on = ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
+            away_shots_on = ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
+            xg_approx = round(total_shots * 0.11, 2)
+            xg_diff = round(xg_approx - (home_goals + away_goals) * 0.5, 2)
+            period = svc._current_period if hasattr(svc, "_current_period") else 1
+            return json.dumps({
+                "possession_pct": s.get("home_possession_pct", 50.0),
+                "shots": total_shots,
+                "shots_ontarget": home_shots_on + away_shots_on,
+                "goals": home_goals + away_goals,
+                "xg": xg_approx,
+                "xg_diff": xg_diff,
+                "period": period,
+                "team_stats": {
+                    "home": {"goals": home_goals, "shots": home_shots, "shots_ontarget": home_shots_on},
+                    "away": {"goals": away_goals, "shots": away_shots, "shots_ontarget": away_shots_on},
+                },
+            })
+        except Exception as e:
+            logger.error(f"get_live_kpis failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_live_pitch_map(self, session_id):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            raw = json.loads(svc.get_all_tags())
+            if "error" in raw:
+                return json.dumps(raw)
+            tags = raw.get("tags", [])
+            home_events = []
+            away_events = []
+            for t in tags:
+                entry = {"type": t.get("type"), "x": t.get("x"), "y": t.get("y"), "t": t.get("t")}
+                if t.get("team") == svc._home_team:
+                    home_events.append(entry)
+                elif t.get("team") == svc._away_team:
+                    away_events.append(entry)
+                elif t.get("type") in ("goal", "shot", "pass", "tackle"):
+                    away_events.append(entry)
+            home_hot = _compute_hot_zones([e for e in home_events if e["x"] is not None])
+            away_hot = _compute_hot_zones([e for e in away_events if e["x"] is not None])
+            return json.dumps({
+                "home_events": home_events,
+                "away_events": away_events,
+                "home_hot_zones": home_hot,
+                "away_hot_zones": away_hot,
+            })
+        except Exception as e:
+            logger.error(f"get_live_pitch_map failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_live_xg_chart(self, session_id):
+        try:
+            svc = self._services.get("live_tagging_service")
+            if svc is None:
+                return json.dumps({"error": "No live tagging service"})
+            raw = json.loads(svc.get_all_tags())
+            if "error" in raw:
+                return json.dumps(raw)
+            tags = raw.get("tags", [])
+            shot_tags = [t for t in tags if t.get("type") == "shot" or t.get("type") == "goal"]
+            timeline = []
+            home_cum = 0.0
+            away_cum = 0.0
+            for t in shot_tags:
+                minute = int(t.get("t", 0)) // 60
+                xg_val = 0.11
+                team = t.get("team", "")
+                if team == svc._home_team if hasattr(svc, "_home_team") else "":
+                    home_cum += xg_val
+                else:
+                    away_cum += xg_val
+                timeline.append({"minute": minute, "home_xg": round(home_cum, 2), "away_xg": round(away_cum, 2)})
+            return json.dumps({
+                "timeline": timeline,
+                "cumulative_home": round(home_cum, 2),
+                "cumulative_away": round(away_cum, 2),
+            })
+        except Exception as e:
+            logger.error(f"get_live_xg_chart failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
@@ -2274,6 +2858,36 @@ class AnalysisHandler:
             return svc.get_activity_feed(limit)
         except Exception as e:
             logger.error(f"get_activity_feed failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_event_comments(self, match_id, event_id):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"comments": [], "total": 0})
+            return svc.get_event_comments(match_id, event_id)
+        except Exception as e:
+            logger.error(f"get_event_comments failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_mentions(self, username):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"mentions": [], "total": 0, "unread": 0})
+            return svc.get_mentions(username)
+        except Exception as e:
+            logger.error(f"get_mentions failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def mark_mention_read(self, mention_id):
+        try:
+            svc = self._services.get("collaboration_service")
+            if svc is None:
+                return json.dumps({"error": "Service not initialized"})
+            return svc.mark_mention_read(mention_id)
+        except Exception as e:
+            logger.error(f"mark_mention_read failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
@@ -3011,3 +3625,276 @@ class AnalysisHandler:
             return json.dumps({"success": True, "info": info})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ── Sprint 2 — Advanced Visualizations ───────────────────────
+
+    def get_pitch_control_overlay(self, match_id: str) -> str:
+        """Compute pitch control grid overlay for a match.
+
+        Returns JSON with home_grid, away_grid, ball_control_pct, hot_zones.
+        """
+        try:
+            from kawkab.core.pitch_control import VoronoiPitchControl
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            if not events:
+                return json.dumps({"home_grid": [], "away_grid": [], "ball_control_pct": 50.0, "hot_zones": []})
+
+            home_events = [e for e in events if e.get("team") == "home" and e.get("start_x") is not None]
+            away_events = [e for e in events if e.get("team") == "away" and e.get("start_x") is not None]
+            home_positions = [(e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in home_events[:11]]
+            away_positions = [(e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in away_events[:11]]
+
+            pc = VoronoiPitchControl()
+            frame = pc.compute_frame_control(home_positions, away_positions)
+
+            hot_zones = []
+            import numpy as np
+            hg = np.array(frame.home_grid)
+            ag = np.array(frame.away_grid)
+            total = hg.size
+            home_cells = int(np.sum(hg > 0.5))
+            away_cells = int(np.sum(ag > 0.5))
+            ball_control_pct = round((home_cells / max(total, 1)) * 100.0, 1)
+
+            return json.dumps({
+                "home_grid": frame.home_grid,
+                "away_grid": frame.away_grid,
+                "ball_control_pct": ball_control_pct,
+                "hot_zones": hot_zones,
+            })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
+        """Compute pass direction sonar for a single player.
+
+        Returns JSON with directions (8 compass points), pass_counts, accuracy_pct.
+        """
+        try:
+            from kawkab.core.pass_sonars import compute_pass_sonars
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            sonars = compute_pass_sonars(events, sectors=8)
+            target = [s for s in sonars if s.get("track_id") == str(track_id)]
+            if not target:
+                return json.dumps({"directions": [], "pass_counts": [], "accuracy_pct": [], "total_passes": 0, "error": f"Player {track_id} not found"})
+            player = target[0]
+            directions = []
+            pass_counts = []
+            accuracy_pct = []
+            for sec in player["sectors"]:
+                directions.append(sec["angle_center"])
+                pass_counts.append(sec["count"])
+                accuracy_pct.append(round(sec["accuracy"] * 100.0, 1))
+            return json.dumps({
+                "directions": directions,
+                "pass_counts": pass_counts,
+                "accuracy_pct": accuracy_pct,
+                "total_passes": player["total_passes"],
+            })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def get_space_control_heatmap(self, match_id: str) -> str:
+        """Compute Voronoi-based space control heatmap for a match.
+
+        Returns JSON with grid, team_control_pcts, hot_zones, space_gained.
+        """
+        try:
+            from kawkab.core.space_control import compute_pitch_control_grid, identify_hot_zones
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            if not events:
+                return json.dumps({"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0})
+
+            all_positions = []
+            team_ids = []
+            for e in events:
+                if e.get("start_x") is not None and e.get("team") in ("home", "away"):
+                    tid = 0 if e.get("team") == "home" else 1
+                    all_positions.append((e.get("start_x"), e.get("start_y"), e.get("id", 0)))
+                    team_ids.append(tid)
+
+            if not all_positions:
+                return json.dumps({"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0})
+
+            grid, team_pcts = compute_pitch_control_grid(all_positions[:22], team_ids[:22])
+            hot_zones = identify_hot_zones(grid, 0)
+
+            space_gained_count = 0
+            for e in events:
+                if e.get("type") == "pass" and e.get("start_x") is not None and e.get("end_x") is not None:
+                    space_gained_count += 1
+            space_gained = round(space_gained_count * 1.5, 1)
+
+            grid_list = grid.tolist() if hasattr(grid, 'tolist') else grid
+            return json.dumps({
+                "grid": grid_list,
+                "team_control_pcts": team_pcts,
+                "hot_zones": hot_zones,
+                "space_gained": space_gained,
+            })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def get_player_role(self, match_id: str, track_id: str) -> str:
+        """Classify a player's role from their event data.
+
+        Returns JSON with primary_role, confidence, secondary_role, role_breakdown.
+        """
+        try:
+            from kawkab.core.role_classifier import classify_player_role
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            player_events = [e for e in events if str(e.get("track_id")) == str(track_id) or str(e.get("player_id")) == str(track_id)]
+            if not player_events:
+                return json.dumps({"primary_role": "unknown", "confidence": 0.0, "secondary_role": "", "role_breakdown": {}})
+
+            role = classify_player_role(player_events)
+            return json.dumps({
+                "primary_role": role.primary_role,
+                "confidence": role.confidence,
+                "secondary_role": role.secondary_role,
+                "role_breakdown": role.role_scores,
+            })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def get_dominance_index(self, match_id: str) -> str:
+        """Compute composite dominance index (0-100) for a match.
+
+        Returns JSON with index, sub_scores, per_phase.
+        """
+        try:
+            from kawkab.core.dominance_index import compute_dominance_index
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            if not events:
+                return json.dumps({"index": 50.0, "sub_scores": {}, "phases": {}, "team": "home", "opponent": "away"})
+
+            report = compute_dominance_index(events, "home")
+            return json.dumps({
+                "index": report.index,
+                "team": report.team,
+                "opponent": report.opponent,
+                "sub_scores": report.sub_scores,
+                "phases": report.phases,
+            })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ── Advanced analysis modules (Sprint 12+) ────────────────────
+
+    def compute_goals_added(self, match_id: int) -> str:
+        try:
+            from kawkab.core.goals_added import compute_g_plus
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = compute_g_plus(events)
+            return json.dumps({"success": True, "result": result, "count": len(result)})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def analyze_finishing(self, match_id: int) -> str:
+        try:
+            from kawkab.core.finishing_analysis import analyze_finishing
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = analyze_finishing(events)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def simulate_league(self, match_id: int, iterations: int = 10000) -> str:
+        try:
+            from kawkab.core.league_simulation import simulate_league
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = simulate_league(events, iterations=iterations)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def estimate_transfer_fee(self, match_id: int, track_id: int) -> str:
+        try:
+            from kawkab.core.squad_valuation import estimate_player_transfer_fee
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = estimate_player_transfer_fee(events, track_id)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def generate_match_report(self, match_id: int) -> str:
+        try:
+            from kawkab.core.match_report import generate_match_report as _gmr
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = _gmr(events)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
+        try:
+            from kawkab.core.game_plan import generate_game_plan as _ggp
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = _ggp(events, opponent_id)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def compute_phase_xg(self, match_id: int) -> str:
+        try:
+            from kawkab.core.phase_xg import compute_phase_xg as _cpx
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = _cpx(events)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def analyze_build_up(self, match_id: int) -> str:
+        try:
+            from kawkab.core.build_up import analyze_build_up as _abu
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = _abu(events)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    def compute_territory_value(self, match_id: int) -> str:
+        try:
+            from kawkab.core.territory_value import compute_territory_value as _ctv
+            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            result = _ctv(events)
+            return json.dumps({"success": True, "result": result})
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Sprint 5 — Data Quality Score
+    # ================================================================
+
+    def get_match_quality_score(self, match_id: str) -> str:
+        """Compute data quality score for a match using anomaly detection.
+
+        Returns JSON with: score, anomaly_count, anomalies list, warnings.
+        """
+        try:
+            mid = SecurityValidator.validate_match_id(match_id)
+            events = self.storage_service.get_match_events(mid) if self.storage_service else []
+
+            from kawkab.core.match_anomaly_detection import detect_anomalies, compute_data_quality_score
+
+            report = detect_anomalies(events)
+            quality_score = compute_data_quality_score(events)
+
+            result = {
+                "score": round(quality_score, 1),
+                "anomaly_count": len(report.anomalies),
+                "anomalies": report.anomalies,
+                "warnings": [],
+            }
+
+            if quality_score >= 80:
+                result["level"] = "good"
+            elif quality_score >= 50:
+                result["level"] = "fair"
+            else:
+                result["level"] = "poor"
+
+            return json.dumps(result)
+        except Exception as e:
+            logger.error(f"get_match_quality_score failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e), "score": 0.0, "level": "error"})

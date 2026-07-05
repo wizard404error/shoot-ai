@@ -1,117 +1,220 @@
-"""Core configuration and settings."""
+"""Centralized configuration for the tracking pipeline.
 
+All thresholds and parameters in one place. Loads from YAML if given,
+otherwise uses defaults. This eliminates 70+ hardcoded constants across
+cv_service.py, camera_cut_detector.py, pitch_detector.py, etc.
+
+Usage:
+    cfg = TrackingConfig.load("configs/broadcast.yaml")
+    # or use defaults:
+    cfg = TrackingConfig()
+"""
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
-
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Any
 
 
-class AppSettings(BaseSettings):
-    """Application configuration."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="KAWKAB_",
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    app_name: str = "Kawkab AI"
-    app_version: str = "0.8.0"
-    debug: bool = Field(default=False, description="Enable debug mode")
-
-    language: Literal["en", "ar"] = Field(
-        default="en", description="Default UI language"
-    )
-
-    gpu_enabled: bool = Field(default=True, description="Use GPU for inference")
-    model_size: Literal["n", "s", "m", "l", "x"] = Field(
-        default="l", description="YOLO model size (n=nano, l=large)"
-    )
-    pose_model_size: Literal["n", "s", "m", "l", "x"] = Field(
-        default="n", description="YOLO-pose model size for activity/fall analysis"
-    )
-    pose_enabled: bool = Field(
-        default=False, description="Run pose estimation in addition to detection"
-    )
-    confidence_threshold: float = Field(
-        default=0.5, ge=0.0, le=1.0, description="Detection confidence threshold"
-    )
-    iou_threshold: float = Field(
-        default=0.45, ge=0.0, le=1.0, description="IoU threshold for NMS"
-    )
-
-    enhancement_enabled: bool = Field(
-        default=True, description="Enable video enhancement"
-    )
-    enable_upscaling: bool = Field(
-        default=False, description="Enable Real-ESRGAN upscaling"
-    )
-    enable_interpolation: bool = Field(
-        default=False, description="Enable RIFE frame interpolation"
-    )
-
-    llm_provider: Literal["ollama", "groq", "google", "openrouter"] = Field(
-        default="ollama", description="LLM provider for reports"
-    )
-    ollama_model: str = Field(
-        default="ministral-3:14b", description="Ollama model name"
-    )
-    ollama_base_url: str = Field(
-        default="http://localhost:11434", description="Ollama API URL"
-    )
-
-    crash_reporting_enabled: bool = Field(
-        default=False, description="Enable Sentry crash reporting"
-    )
-    analytics_enabled: bool = Field(
-        default=False, description="Enable Plausible analytics"
-    )
-
-    max_video_size_gb: float = Field(
-        default=4.0, gt=0, description="Maximum video file size in GB"
-    )
-    analysis_timeout_min: int = Field(
-        default=60, gt=0, description="Analysis timeout in minutes"
-    )
-    frame_skip: int = Field(
-        default=3, ge=1, le=10, description="Process every Nth frame (1=full, 3=fast)"
-    )
-    auto_detect_gpu_tier: bool = Field(
-        default=True, description="Auto-detect GPU and recommend settings on startup"
-    )
-
-    football_data_api_key: str | None = Field(
-        default=None, description="API key for football-data.org"
-    )
-    bzzoiro_api_key: str | None = Field(
-        default=None, description="API key for sports.bzzoiro.com"
-    )
-    apifootball_api_key: str | None = Field(
-        default=None, description="API key for api-sports.io (API-Football)"
-    )
-    thesportsdb_api_key: str | None = Field(
-        default="123", description="API key for TheSportsDB (public key '123')"
-    )
+@dataclass
+class DetectionConfig:
+    confidence_threshold: float = 0.4
+    ball_confidence_threshold: float = 0.15
+    iou_threshold: float = 0.5
+    max_bbox_area_ratio: float = 0.15
+    min_bbox_area_ratio: float = 0.002
+    classes: list[int] = field(default_factory=lambda: [0, 32])
+    ball_size_min_px: int = 4
+    ball_size_max_px: int = 12
+    ball_circularity_min: float = 0.6
+    tile_overlap: float = 0.2
+    enable_tiling: bool = False
 
 
-_settings: AppSettings | None = None
+@dataclass
+class TrackingConfig:
+    max_age: int = 30
+    min_hits: int = 3
+    w_association_emb: float = 0.75
+    iou_match_thresh: float = 0.8
+    reid_embedding_cap: int = 8
+    reid_sample_rate: int = 30
+    enable_camera_motion_compensation: bool = False
 
 
-def get_settings() -> AppSettings:
-    """Get or create application settings singleton."""
-    global _settings
-    if _settings is None:
-        _settings = AppSettings()
-    return _settings
+@dataclass
+class FilterConfig:
+    expected_player_count: int = 22
+    max_keep_top_n: int = 28
+    min_track_lifetime_frames: int = 30
+    broadcast_frag_ratio_threshold: float = 0.2
+    broadcast_stage1_divisor: int = 3000
+    broadcast_stage1_pct: float = 0.02
+    singlecam_stage1_pct: float = 1.0
+    broadcast_stage3_min_segments: int = 2
+    broadcast_stage3_min_pct: float = 0.15
+    broadcast_stage3_top_k_buffer: int = 3
 
 
-def reload_settings() -> AppSettings:
-    """Force reload settings (useful for tests)."""
-    global _settings
-    _settings = AppSettings()
-    return _settings
+@dataclass
+class StitchConfig:
+    spatial_threshold_px: float = 50.0
+    temporal_gap_max: float = 2.0
+    gap_multiplier: float = 1.5
+    overlap_ratio: float = 0.3
+    color_distance_threshold: float = 70.0
+    face_distance_threshold: float = 0.6
+    reid_similarity_threshold: float = 0.6
+    reid_few_emb_threshold: float = 0.7
+    reid_many_emb_threshold: float = 0.65
+    color_few_samples_threshold: float = 70.0
+    color_many_samples_threshold: float = 55.0
+
+
+@dataclass
+class CameraCutConfig:
+    hue_bins: int = 32
+    sat_bins: int = 8
+    threshold: float = 0.35
+    min_cut_interval: float = 0.5
+    sample_every_n: int = 6
+    segment_min_frames: int = 6
+
+
+@dataclass
+class PitchDetectionConfig:
+    min_line_length: int = 80
+    max_line_gap: int = 12
+    canny_low: int = 50
+    canny_high: int = 150
+    hough_threshold: int = 80
+    min_confidence: float = 0.15
+
+
+@dataclass
+class ColorConfig:
+    pitch_green_lower: list[int] = field(default_factory=lambda: [25, 40, 40])
+    pitch_green_upper: list[int] = field(default_factory=lambda: [90, 255, 255])
+    n_clusters: int = 3
+    white_threshold: int = 230
+    black_threshold: int = 30
+    min_color_samples: int = 3
+    color_sample_rate_hz: float = 2.0
+    jpeg_ocr_sample_rate: int = 30
+
+
+@dataclass
+class EventDetectionConfig:
+    goal_line_x_ratio: float = 0.05
+    min_pass_duration: float = 0.3
+    max_pass_duration: float = 6.0
+    min_pass_px: float = 50.0
+    min_pass_straightness: float = 0.5
+    min_shot_px: float = 60.0
+    max_shot_duration: float = 1.5
+    min_shot_straightness: float = 0.3
+    ball_conf_min: float = 0.3
+    segment_gap_time: float = 0.5
+    segment_max_jump_px: float = 300.0
+    shot_dedup_window: float = 2.0
+    pass_dedup_window: float = 1.0
+
+
+@dataclass
+class PerformanceConfig:
+    frame_skip: int = 6
+    checkpoint_interval: int = 500
+    enable_checkpoint: bool = False
+    gpu_enabled: bool = True
+    half_precision: bool = True
+    enable_streaming: bool = False
+    batch_reid: bool = True
+
+
+@dataclass
+class TrackingConfigRoot:
+    detection: DetectionConfig = field(default_factory=DetectionConfig)
+    tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    filter: FilterConfig = field(default_factory=FilterConfig)
+    stitch: StitchConfig = field(default_factory=StitchConfig)
+    camera_cut: CameraCutConfig = field(default_factory=CameraCutConfig)
+    pitch: PitchDetectionConfig = field(default_factory=PitchDetectionConfig)
+    color: ColorConfig = field(default_factory=ColorConfig)
+    event: EventDetectionConfig = field(default_factory=EventDetectionConfig)
+    performance: PerformanceConfig = field(default_factory=PerformanceConfig)
+
+    @classmethod
+    def load(cls, path: str | Path) -> TrackingConfigRoot:
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Config not found: {p}")
+        with open(p) as f:
+            data = json.load(f) if p.suffix == ".json" else _load_yaml(p)
+        return cls._from_dict(data)
+
+    @classmethod
+    def _from_dict(cls, data: dict) -> TrackingConfigRoot:
+        root = cls()
+        for section_name, section_cls in [
+            ("detection", DetectionConfig),
+            ("tracking", TrackingConfig),
+            ("filter", FilterConfig),
+            ("stitch", StitchConfig),
+            ("camera_cut", CameraCutConfig),
+            ("pitch", PitchDetectionConfig),
+            ("color", ColorConfig),
+            ("event", EventDetectionConfig),
+            ("performance", PerformanceConfig),
+        ]:
+            if section_name in data:
+                section_data = data[section_name]
+                current = getattr(root, section_name)
+                for field_name in section_cls.__dataclass_fields__:
+                    if field_name in section_data:
+                        setattr(current, field_name, section_data[field_name])
+        return root
+
+
+def _load_yaml(path: Path) -> dict:
+    """Minimal YAML loader — just key:value lines, no nesting."""
+    import re
+    result: dict[str, Any] = {}
+    current_section: str | None = None
+    section_data: dict[str, Any] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        section_match = re.match(r"^(\w+):\s*$", line)
+        if section_match:
+            if current_section and section_data:
+                result[current_section] = dict(section_data)
+                section_data = {}
+            current_section = section_match.group(1)
+            continue
+        kv_match = re.match(r"^(\w+):\s*(.+)$", line)
+        if kv_match and current_section:
+            k, v = kv_match.group(1), kv_match.group(2).strip()
+            section_data[k] = _parse_value(v)
+    if current_section and section_data:
+        result[current_section] = section_data
+    return result
+
+
+def _parse_value(v: str) -> Any:
+    if v.lower() in ("true", "yes"):
+        return True
+    if v.lower() in ("false", "no"):
+        return False
+    try:
+        return int(v)
+    except ValueError:
+        pass
+    try:
+        return float(v)
+    except ValueError:
+        pass
+    if v.startswith("[") and v.endswith("]"):
+        return [_parse_value(x.strip()) for x in v[1:-1].split(",")]
+    return v

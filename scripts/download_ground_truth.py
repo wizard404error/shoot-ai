@@ -20,7 +20,7 @@ logger = logging.getLogger("download_ground_truth")
 
 def download_skillcorner(output_dir: Path) -> bool:
     """Download SkillCorner open data (10 matches, A-League 2024/25)."""
-    url = "https://github.com/SkillCorner/opendata/archive/refs/heads/main.zip"
+    url = "https://github.com/SkillCorner/opendata/archive/refs/heads/master.zip"
     import io
     import zipfile
 

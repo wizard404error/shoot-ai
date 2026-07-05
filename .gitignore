@@ -95,3 +95,5 @@ graphify-out/
 # YOLO model files specifically
 yolo11*.pt
 yolov8*.pt
+
+tracking_output/

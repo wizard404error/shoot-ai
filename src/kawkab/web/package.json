@@ -4,7 +4,8 @@
   "description": "",
   "scripts": {
     "test": "jest",
-    "test:e2e": "npx playwright test"
+    "test:e2e": "npx playwright test",
+    "build:frontend": "node ../../../../scripts/build-frontend.js"
   },
   "keywords": [],
   "author": "",

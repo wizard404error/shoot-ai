@@ -7,6 +7,7 @@
 
     if (typeof popmotion === 'undefined') {
         console.warn('Popmotion not loaded; UI animations disabled');
+        if (typeof showToast === 'function') showToast('Animations disabled: popmotion not loaded.', 'info');
         return;
     }
 

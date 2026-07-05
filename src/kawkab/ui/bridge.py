@@ -10,6 +10,7 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, Signal, Slot
 
 from kawkab.core.logging import get_logger
+from kawkab.core.security import RateLimiter
 from kawkab.ui.bridge_handlers import (
     AnalysisHandler,
     CodingHandler,
@@ -134,13 +135,21 @@ class Bridge(QObject):
             "frame_skip": frame_skip,
         }
 
-        self._analysis = AnalysisHandler(self, services)
-        self._coding = CodingHandler(self, services)
-        self._export = ExportHandler(self, services)
-        self._video = VideoHandler(self, services)
-        self._storage = StorageHandler(self, services)
-        self._external = ExternalHandler(self, services)
-        self._lifecycle = LifecycleHandler(self, services)
+        # Create rate limiter for bridge handlers
+        self._rate_limiter = RateLimiter()
+        self._rate_limiter.configure("analysis", 5)
+        self._rate_limiter.configure("export", 10)
+        self._rate_limiter.configure("search", 30)
+        self._rate_limiter.configure("tracking", 5)
+        self._rate_limiter.configure("coding", 20)
+
+        self._analysis = AnalysisHandler(self, services, rate_limiter=self._rate_limiter)
+        self._coding = CodingHandler(self, services, rate_limiter=self._rate_limiter)
+        self._export = ExportHandler(self, services, rate_limiter=self._rate_limiter)
+        self._video = VideoHandler(self, services, rate_limiter=self._rate_limiter)
+        self._storage = StorageHandler(self, services, rate_limiter=self._rate_limiter)
+        self._external = ExternalHandler(self, services, rate_limiter=self._rate_limiter)
+        self._lifecycle = LifecycleHandler(self, services, rate_limiter=self._rate_limiter)
 
         logger.info("Bridge initialized with handler delegation")
 
@@ -183,6 +192,10 @@ class Bridge(QObject):
     @Slot(int, result=str)
     async def get_match_events(self, match_id: int) -> str:
         return await self._analysis.get_match_events(match_id)
+
+    @Slot(int, int, result=str)
+    async def get_event_timestamp(self, match_id: int, event_id: int) -> str:
+        return await self._analysis.get_event_timestamp(match_id, event_id)
 
     @Slot(int, float, float, result=str)
     async def get_unreviewed_events(self, match_id: int, min_confidence: float = 0.0, max_confidence: float = 0.7) -> str:
@@ -227,6 +240,10 @@ class Bridge(QObject):
     @Slot(int, result=str)
     async def extract_event_clips(self, match_id: int) -> str:
         return await self._export.extract_event_clips(match_id)
+
+    @Slot(str, str, result=str)
+    async def export_match_statsbomb(self, match_id_str: str, file_path: str) -> str:
+        return await self._export.export_match_statsbomb(match_id_str, file_path)
 
     # ================================================================
     # Player Profiles
@@ -792,6 +809,10 @@ class Bridge(QObject):
     async def reel_from_events(self, match_id: int, events_json: str, video_path: str) -> str:
         return self._video.reel_from_events(match_id, events_json, video_path)
 
+    @Slot(str, result=str)
+    async def reel_status(self, reel_id: str) -> str:
+        return self._video.reel_status(reel_id)
+
     # ================================================================
     # Profiler / metrics (lifecycle)
     # ================================================================
@@ -901,6 +922,14 @@ class Bridge(QObject):
         return await self._analysis.get_all_drills()
 
     # ================================================================
+    # Sprint 5 — Data Quality Score
+    # ================================================================
+
+    @Slot(str, result=str)
+    async def get_match_quality_score(self, match_id: str) -> str:
+        return await self._analysis.get_match_quality_score(match_id)
+
+    # ================================================================
     # Wave E — Scout Portal
     # ================================================================
 
@@ -923,6 +952,26 @@ class Bridge(QObject):
     @Slot(int, result=str)
     async def get_squad_summary(self, match_id: int) -> str:
         return await self._analysis.get_squad_summary(match_id)
+
+    # ================================================================
+    # Phase 6 Sprint 1 — Injury Risk
+    # ================================================================
+
+    @Slot(str, str, result=str)
+    async def get_injury_risk(self, match_id: str, track_id: str) -> str:
+        return await self._analysis.get_injury_risk(match_id, track_id)
+
+    @Slot(str, result=str)
+    async def get_squad_injury_report(self, match_id: str) -> str:
+        return await self._analysis.get_squad_injury_report(match_id)
+
+    # ================================================================
+    # Phase 6 Sprint 1 — Training Plan Auto-Generate
+    # ================================================================
+
+    @Slot(str, result=str)
+    async def generate_training_plan(self, match_id: str) -> str:
+        return await self._analysis.generate_training_plan(match_id)
 
     # ================================================================
     # Sprint 3 — Collaboration
@@ -964,6 +1013,18 @@ class Bridge(QObject):
     async def get_activity_feed(self, limit: int = 50) -> str:
         return await self._analysis.get_activity_feed(limit)
 
+    @Slot(int, int, result=str)
+    async def get_event_comments(self, match_id: int, event_id: int) -> str:
+        return await self._analysis.get_event_comments(match_id, event_id)
+
+    @Slot(str, result=str)
+    async def get_mentions(self, username: str) -> str:
+        return await self._analysis.get_mentions(username)
+
+    @Slot(int, result=str)
+    async def mark_mention_read(self, mention_id: int) -> str:
+        return await self._analysis.mark_mention_read(mention_id)
+
     # ================================================================
     # Sprint 4 — Live Tagging
     # ================================================================
@@ -1003,6 +1064,20 @@ class Bridge(QObject):
     @Slot(result=str)
     async def live_export(self) -> str:
         return await self._analysis.live_export()
+
+    # ── Phase 6 Sprint 2 — Live Tagging Dashboard ───────────────────
+
+    @Slot(str, result=str)
+    async def get_live_kpis(self, session_id: str) -> str:
+        return await self._analysis.get_live_kpis(session_id)
+
+    @Slot(str, result=str)
+    async def get_live_pitch_map(self, session_id: str) -> str:
+        return await self._analysis.get_live_pitch_map(session_id)
+
+    @Slot(str, result=str)
+    async def get_live_xg_chart(self, session_id: str) -> str:
+        return await self._analysis.get_live_xg_chart(session_id)
 
     # ================================================================
     # Sprint 6 — Auto-Updater
@@ -1331,3 +1406,67 @@ class Bridge(QObject):
     @Slot(result=str)
     async def get_gpu_tier(self) -> str:
         return await self._analysis.get_gpu_tier()
+
+    # ================================================================
+    # Sprint 2 — Advanced Visualizations
+    # ================================================================
+
+    @Slot(str, result=str)
+    def get_pitch_control_overlay(self, match_id: str) -> str:
+        return self._analysis.get_pitch_control_overlay(match_id)
+
+    @Slot(str, str, result=str)
+    def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
+        return self._analysis.get_player_pass_sonar(match_id, track_id)
+
+    @Slot(str, result=str)
+    def get_space_control_heatmap(self, match_id: str) -> str:
+        return self._analysis.get_space_control_heatmap(match_id)
+
+    @Slot(str, str, result=str)
+    def get_player_role(self, match_id: str, track_id: str) -> str:
+        return self._analysis.get_player_role(match_id, track_id)
+
+    @Slot(str, result=str)
+    def get_dominance_index(self, match_id: str) -> str:
+        return self._analysis.get_dominance_index(match_id)
+
+    # ================================================================
+    # Sprint 12+ — Advanced Analysis Bridge Methods
+    # ================================================================
+
+    @Slot(int, result=str)
+    async def compute_goals_added(self, match_id: int) -> str:
+        return self._analysis.compute_goals_added(match_id)
+
+    @Slot(int, result=str)
+    async def analyze_finishing(self, match_id: int) -> str:
+        return self._analysis.analyze_finishing(match_id)
+
+    @Slot(int, int, result=str)
+    async def simulate_league(self, match_id: int, iterations: int = 10000) -> str:
+        return self._analysis.simulate_league(match_id, iterations)
+
+    @Slot(int, int, result=str)
+    async def estimate_transfer_fee(self, match_id: int, track_id: int) -> str:
+        return self._analysis.estimate_transfer_fee(match_id, track_id)
+
+    @Slot(int, result=str)
+    async def generate_match_report(self, match_id: int) -> str:
+        return self._analysis.generate_match_report(match_id)
+
+    @Slot(int, int, result=str)
+    async def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
+        return self._analysis.generate_game_plan(match_id, opponent_id)
+
+    @Slot(int, result=str)
+    async def compute_phase_xg(self, match_id: int) -> str:
+        return self._analysis.compute_phase_xg(match_id)
+
+    @Slot(int, result=str)
+    async def analyze_build_up(self, match_id: int) -> str:
+        return self._analysis.analyze_build_up(match_id)
+
+    @Slot(int, result=str)
+    async def compute_territory_value(self, match_id: int) -> str:
+        return self._analysis.compute_territory_value(match_id)

@@ -91,6 +91,16 @@
                     if (closeBtn) closeBtn.click();
                 });
             }
+
+            // '?' key shows shortcuts modal
+            if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+                var modal = document.getElementById('shortcuts-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.style.display = 'flex';
+                    e.preventDefault();
+                }
+            }
         });
         
         // Focus trap in modals
@@ -115,6 +125,25 @@
             }
         });
     }
+
+    // Keyboard shortcuts modal close
+    document.addEventListener('DOMContentLoaded', function() {
+        var closeBtn = document.getElementById('shortcuts-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                var modal = document.getElementById('shortcuts-modal');
+                if (modal) modal.classList.add('hidden');
+            });
+        }
+        var shortcutsModal = document.getElementById('shortcuts-modal');
+        if (shortcutsModal) {
+            shortcutsModal.addEventListener('click', function(e) {
+                if (e.target === shortcutsModal) {
+                    shortcutsModal.classList.add('hidden');
+                }
+            });
+        }
+    });
 
     // Export
     window.showConfirmDialog = showConfirmDialog;

@@ -7,6 +7,7 @@
 
     if (typeof Matter === 'undefined') {
         console.warn('matter-js not loaded; tactical sandbox disabled');
+        if (typeof showToast === 'function') showToast('Tactical sandbox disabled: matter-js not loaded.', 'info');
         return;
     }
 
