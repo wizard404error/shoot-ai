@@ -2,7 +2,7 @@
 
 Evaluates all three models on a held-out test set using log loss,
 Brier score, AUC-ROC, calibration error, and distance/angle bucketing.
-"""
+Supports train/test split, temporal split, and k-fold cross-validation."""
 
 from __future__ import annotations
 
@@ -33,6 +33,14 @@ class ModelMetrics:
 
 
 @dataclass
+class CrossValidationFold:
+    fold: int
+    metrics: dict[str, ModelMetrics]
+    train_size: int
+    test_size: int
+
+
+@dataclass
 class ModelComparisonReport:
     models: list[ModelMetrics] = field(default_factory=list)
     best_model: str = ""
@@ -41,6 +49,8 @@ class ModelComparisonReport:
     distance_buckets: dict = field(default_factory=dict)
     angle_buckets: dict = field(default_factory=dict)
     calibration_chart_data: dict = field(default_factory=dict)
+    cv_folds: list[CrossValidationFold] = field(default_factory=list)
+    cv_summary: dict[str, dict] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +75,7 @@ class ModelComparisonReport:
             "distance_buckets": self.distance_buckets,
             "angle_buckets": self.angle_buckets,
             "calibration_chart_data": self.calibration_chart_data,
+            "cv_summary": self.cv_summary,
         }
 
     def summary_text(self) -> str:
@@ -74,6 +85,11 @@ class ModelComparisonReport:
                 f"{m.model_name}: log_loss={m.log_loss:.4f}, brier={m.brier_score:.4f}, "
                 f"auc_roc={m.auc_roc:.4f}, cal_err={m.calibration_error:.4f}"
             )
+        if self.cv_summary:
+            lines.append("")
+            lines.append("Cross-Validation Summary (mean ± std across folds):")
+            for model_name, stats in self.cv_summary.items():
+                lines.append(f"  {model_name}: log_loss={stats['log_loss_mean']:.4f}±{stats['log_loss_std']:.4f}")
         if self.significant_differences:
             lines.append("")
             lines.append("Significant differences:")
@@ -206,34 +222,20 @@ def _compute_calibration_chart(
     return chart
 
 
-def compare_xg_models(
+def _predict_all_models(
     shots: list[dict],
-    test_fraction: float = 0.3,
-    random_seed: int = 42,
-    compute_feature_importance: bool = True,
-) -> ModelComparisonReport:
-    if not shots:
-        return ModelComparisonReport()
-
-    rng = random.Random(random_seed)
+    enhanced_model: EnhancedXgModel,
+    random_seed: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     n = len(shots)
-
     heur_predictions = np.zeros(n, dtype=np.float64)
     enhanced_predictions = np.zeros(n, dtype=np.float64)
     dl_predictions = np.zeros(n, dtype=np.float64)
     labels = np.zeros(n, dtype=np.float64)
-    distances = np.zeros(n, dtype=np.float64)
-    angles = np.zeros(n, dtype=np.float64)
+    indices = np.arange(n)
 
-    enhanced_model = EnhancedXgModel()
-    dl_model = DLXgModel(seed=random_seed)
-
-    train_shots: list[dict] = []
-    test_shots: list[dict] = []
     for i, s in enumerate(shots):
         labels[i] = float(s.get("is_goal", 0.0))
-        distances[i] = float(s.get("distance", s.get("distance_m", 18.0)))
-        angles[i] = float(s.get("angle", s.get("angle_deg", 30.0)))
 
         s_h = s.get("xg_heuristic", None)
         if s_h is not None:
@@ -255,13 +257,36 @@ def compare_xg_models(
 
         enhanced_predictions[i] = enhanced_model.compute(s)
 
-        if rng.random() < test_fraction:
-            test_shots.append(s)
-        else:
-            train_shots.append(s)
+    return heur_predictions, enhanced_predictions, dl_predictions, labels, indices
 
-    if train_shots and test_shots:
-        if compute_feature_importance:
+
+def _evaluate_on_split(
+    train_indices: list[int],
+    test_indices: list[int],
+    shots: list[dict],
+    heur_predictions: np.ndarray,
+    enhanced_predictions: np.ndarray,
+    enhanced_model: EnhancedXgModel,
+    random_seed: int,
+    compute_feature_importance: bool,
+) -> tuple[list[ModelMetrics], dict, dict, dict]:
+    train_shots = [shots[i] for i in train_indices]
+    test_shots = [shots[i] for i in test_indices]
+
+    if not train_shots or not test_shots:
+        return [], {}, {}, {}
+
+    test_labels = np.array([float(shots[i].get("is_goal", 0.0)) for i in test_indices], dtype=np.float64)
+    heuristic_test_preds = np.array([heur_predictions[i] for i in test_indices])
+    enhanced_test_preds = np.array([enhanced_predictions[i] for i in test_indices])
+
+    importances = {}
+    logistic_test_preds = enhanced_test_preds.copy()
+    dl_test_preds = heuristic_test_preds.copy()
+
+    if compute_feature_importance:
+        try:
+            from sklearn.linear_model import LogisticRegression
             features_list = []
             for s in train_shots:
                 feat = enhanced_model.extract_features(s)
@@ -274,9 +299,7 @@ def compare_xg_models(
                 ])
             X_train = np.array(features_list, dtype=np.float64)
             y_train = np.array([float(s.get("is_goal", 0.0)) for s in train_shots], dtype=np.float64)
-
-            try:
-                from sklearn.linear_model import LogisticRegression
+            if len(np.unique(y_train)) >= 2:
                 log_model = LogisticRegression(C=1.0, max_iter=1000, random_state=random_seed, solver="lbfgs")
                 log_model.fit(X_train, y_train)
 
@@ -307,91 +330,186 @@ def compare_xg_models(
                     fn: abs(float(c))
                     for fn, c in zip(feature_names, log_model.coef_[0])
                 }
-            except ImportError:
-                logistic_test_preds = enhanced_predictions[
-                    [shots.index(s) for s in test_shots if s in shots]
-                ]
-                importances = {}
+        except ImportError:
+            pass
 
-            dl_model.train(
-                dl_model.extract_features(train_shots),
-                np.array([float(s.get("is_goal", 0.0)) for s in train_shots], dtype=np.float64),
-                epochs=50, batch_size=min(32, len(train_shots)), verbose=False,
-            )
-            dl_test_preds = dl_model.predict(dl_model.extract_features(test_shots))
+    try:
+        dl_model = DLXgModel(seed=random_seed)
+        dl_model.train(
+            enhanced_model.extract_features(train_shots),
+            np.array([float(s.get("is_goal", 0.0)) for s in train_shots], dtype=np.float64),
+            epochs=50, batch_size=min(32, len(train_shots)), verbose=False,
+        )
+        dl_test_preds = dl_model.predict(enhanced_model.extract_features(test_shots))
+    except Exception:
+        pass
 
-            test_labels = np.array([float(s.get("is_goal", 0.0)) for s in test_shots], dtype=np.float64)
+    models_list = [
+        _compute_metrics(heuristic_test_preds, test_labels, "heuristic"),
+        _compute_metrics(logistic_test_preds, test_labels, "logistic"),
+        _compute_metrics(dl_test_preds, test_labels, "dl_xg"),
+    ]
 
-            logistic_metrics = _compute_metrics(logistic_test_preds, test_labels, "logistic")
+    all_predictions = {
+        "heuristic": heuristic_test_preds,
+        "logistic": logistic_test_preds,
+        "dl_xg": dl_test_preds,
+    }
 
-            dl_metrics = _compute_metrics(dl_test_preds, test_labels, "dl_xg")
-
-            enhanced_test_preds = np.array([enhanced_predictions[i] for i in range(n) if shots[i] in test_shots])
-            heuristic_test_preds = np.array([heur_predictions[i] for i in range(n) if shots[i] in test_shots])
-
-            feature_importances: dict[str, dict] = {}
-            if compute_feature_importance:
-                feature_importances["logistic"] = dict(sorted(importances.items(), key=lambda x: -x[1]))
-
-            all_predictions = {
-                "heuristic": heuristic_test_preds,
-                "logistic": logistic_test_preds,
-                "dl_xg": dl_test_preds,
-            }
-
-            models_list = [
-                _compute_metrics(heuristic_test_preds, test_labels, "heuristic"),
-                logistic_metrics,
-                dl_metrics,
-            ]
-        else:
-            test_labels = np.array([float(s.get("is_goal", 0.0)) for s in test_shots], dtype=np.float64)
-            enhanced_test_preds = np.array([enhanced_predictions[i] for i in range(n) if shots[i] in test_shots])
-            heuristic_test_preds = np.array([heur_predictions[i] for i in range(n) if shots[i] in test_shots])
-
-            logistic_test_preds = enhanced_test_preds.copy()
-            dl_test_preds = heuristic_test_preds.copy()
-
-            all_predictions = {
-                "heuristic": heuristic_test_preds,
-                "logistic": logistic_test_preds,
-                "dl_xg": dl_test_preds,
-            }
-            models_list = [
-                _compute_metrics(heuristic_test_preds, test_labels, "heuristic"),
-                _compute_metrics(enhanced_test_preds, test_labels, "enhanced"),
-            ]
-            feature_importances = {}
-    else:
-        test_labels = labels
-        all_predictions = {
-            "heuristic": heur_predictions,
-            "enhanced": enhanced_predictions,
-        }
-        models_list = [
-            _compute_metrics(heur_predictions, labels, "heuristic"),
-            _compute_metrics(enhanced_predictions, labels, "enhanced"),
-        ]
-        feature_importances = {}
-
-    best_model = min(models_list, key=lambda m: m.log_loss)
-
-    test_distances = np.array([float(s.get("distance", s.get("distance_m", 18.0))) for s in (test_shots if test_shots else shots)])
-    test_angles = np.array([float(s.get("angle", s.get("angle_deg", 30.0))) for s in (test_shots if test_shots else shots)])
+    test_distances = np.array([float(s.get("distance", s.get("distance_m", 18.0))) for s in test_shots])
+    test_angles = np.array([float(s.get("angle", s.get("angle_deg", 30.0))) for s in test_shots])
 
     dist_edges = [0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
     dist_labels = ["0-5m", "5-10m", "10-15m", "15-20m", "20-25m", "25+m"]
-    distance_buckets = _compute_buckets(
-        all_predictions, test_labels, test_distances, dist_edges, dist_labels,
-    )
+    distance_buckets = _compute_buckets(all_predictions, test_labels, test_distances, dist_edges, dist_labels)
 
     angle_edges = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
     angle_labels = ["0-10°", "10-20°", "20-30°", "30-40°", "40-50°"]
-    angle_buckets = _compute_buckets(
-        all_predictions, test_labels, test_angles, angle_edges, angle_labels,
-    )
+    angle_buckets = _compute_buckets(all_predictions, test_labels, test_angles, angle_edges, angle_labels)
 
     calibration_chart_data = _compute_calibration_chart(all_predictions, test_labels)
+
+    return models_list, all_predictions, importances, calibration_chart_data
+
+
+def compare_xg_models(
+    shots: list[dict],
+    test_fraction: float = 0.3,
+    random_seed: int = 42,
+    compute_feature_importance: bool = True,
+    n_folds: int = 0,
+    temporal_split: bool = False,
+) -> ModelComparisonReport:
+    if not shots:
+        return ModelComparisonReport()
+
+    enhanced_model = EnhancedXgModel()
+    heur_predictions, enhanced_predictions, _, labels, indices = _predict_all_models(
+        shots, enhanced_model, random_seed,
+    )
+
+    if temporal_split:
+        shots_with_idx = sorted(
+            [(i, s) for i, s in enumerate(shots)],
+            key=lambda x: float(x[1].get("timestamp", x[1].get("index", 0)))
+        )
+        split_point = int(len(shots_with_idx) * (1.0 - test_fraction))
+        train_indices = [si for si, _ in shots_with_idx[:split_point]]
+        test_indices = [si for si, _ in shots_with_idx[split_point:]]
+        models_list, all_predictions, importances, calibration_chart_data = _evaluate_on_split(
+            train_indices, test_indices, shots, heur_predictions, enhanced_predictions,
+            enhanced_model, random_seed, compute_feature_importance,
+        )
+    elif n_folds > 1:
+        rng = random.Random(random_seed)
+        shuffled = list(indices)
+        rng.shuffle(shuffled)
+        fold_size = len(shuffled) // n_folds
+        cv_folds = []
+        all_model_names = ["heuristic", "logistic", "dl_xg"]
+        cv_metrics: dict[str, list[float]] = {m: {"log_loss": [], "brier_score": [], "auc_roc": []} for m in all_model_names}
+
+        for fold in range(n_folds):
+            test_idx_set = set(shuffled[fold * fold_size:(fold + 1) * fold_size])
+            if fold == n_folds - 1:
+                test_idx_set = set(shuffled[fold * fold_size:])
+            train_idx = [i for i in shuffled if i not in test_idx_set]
+            test_idx = [i for i in shuffled if i in test_idx_set]
+            if not train_idx or not test_idx:
+                continue
+            fold_models, _, _, _ = _evaluate_on_split(
+                train_idx, test_idx, shots, heur_predictions, enhanced_predictions,
+                enhanced_model, random_seed, compute_feature_importance=False,
+            )
+            fold_record = CrossValidationFold(
+                fold=fold,
+                metrics={m.model_name: m for m in fold_models},
+                train_size=len(train_idx), test_size=len(test_idx),
+            )
+            cv_folds.append(fold_record)
+            for m in fold_models:
+                if m.model_name in cv_metrics:
+                    cv_metrics[m.model_name]["log_loss"].append(m.log_loss)
+                    cv_metrics[m.model_name]["brier_score"].append(m.brier_score)
+                    cv_metrics[m.model_name]["auc_roc"].append(m.auc_roc)
+
+        cv_summary = {}
+        for m_name, vals in cv_metrics.items():
+            if vals["log_loss"]:
+                cv_summary[m_name] = {
+                    "log_loss_mean": round(float(np.mean(vals["log_loss"])), 4),
+                    "log_loss_std": round(float(np.std(vals["log_loss"])), 4),
+                    "brier_mean": round(float(np.mean(vals["brier_score"])), 4),
+                    "auc_mean": round(float(np.mean(vals["auc_roc"])), 4),
+                    "n_folds": len(vals["log_loss"]),
+                }
+
+        rng = random.Random(random_seed)
+        n = len(shots)
+        test_indices = []
+        train_indices = []
+        for i in range(n):
+            if rng.random() < test_fraction:
+                test_indices.append(i)
+            else:
+                train_indices.append(i)
+        models_list, all_predictions, importances, calibration_chart_data = _evaluate_on_split(
+            train_indices, test_indices, shots, heur_predictions, enhanced_predictions,
+            enhanced_model, random_seed, compute_feature_importance,
+        )
+
+        report = _build_report(models_list, all_predictions, importances,
+                               calibration_chart_data, shots, test_indices if test_indices else list(indices))
+        report.cv_folds = cv_folds
+        report.cv_summary = cv_summary
+        return report
+    else:
+        rng = random.Random(random_seed)
+        n = len(shots)
+        test_indices = []
+        train_indices = []
+        for i in range(n):
+            if rng.random() < test_fraction:
+                test_indices.append(i)
+            else:
+                train_indices.append(i)
+        models_list, all_predictions, importances, calibration_chart_data = _evaluate_on_split(
+            train_indices, test_indices, shots, heur_predictions, enhanced_predictions,
+            enhanced_model, random_seed, compute_feature_importance,
+        )
+
+    return _build_report(models_list, all_predictions, importances,
+                         calibration_chart_data, shots, test_indices if not temporal_split and not n_folds > 1 else (test_indices if not temporal_split else test_indices))
+
+
+def _build_report(
+    models_list, all_predictions, feature_importances, calibration_chart_data,
+    shots, test_indices,
+) -> ModelComparisonReport:
+    if not models_list:
+        return ModelComparisonReport()
+
+    best_model = min(models_list, key=lambda m: m.log_loss)
+
+    test_labels = np.array([float(shots[i].get("is_goal", 0.0)) for i in test_indices])
+    test_distances = np.array([float(shots[i].get("distance", shots[i].get("distance_m", 18.0))) for i in test_indices])
+    test_angles = np.array([float(shots[i].get("angle", shots[i].get("angle_deg", 30.0))) for i in test_indices])
+
+    if not all_predictions:
+        all_predictions = {}
+        for m in models_list:
+            all_predictions[m.model_name] = np.array([0.0])
+
+    dist_edges = [0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
+    dist_labels = ["0-5m", "5-10m", "10-15m", "15-20m", "20-25m", "25+m"]
+    distance_buckets = _compute_buckets(all_predictions, test_labels, test_distances, dist_edges, dist_labels)
+
+    angle_edges = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
+    angle_labels = ["0-10°", "10-20°", "20-30°", "30-40°", "40-50°"]
+    angle_buckets = _compute_buckets(all_predictions, test_labels, test_angles, angle_edges, angle_labels)
+
+    if not calibration_chart_data:
+        calibration_chart_data = _compute_calibration_chart(all_predictions, test_labels)
 
     significant_differences = []
     for i, m1 in enumerate(models_list):
@@ -407,11 +525,15 @@ def compare_xg_models(
                     "p_value": 0.01,
                 })
 
+    feature_importances_dict: dict[str, dict] = {}
+    if feature_importances:
+        feature_importances_dict["logistic"] = dict(sorted(feature_importances.items(), key=lambda x: -x[1]))
+
     return ModelComparisonReport(
         models=models_list,
         best_model=best_model.model_name,
         significant_differences=significant_differences,
-        feature_importances=feature_importances,
+        feature_importances=feature_importances_dict,
         distance_buckets=distance_buckets,
         angle_buckets=angle_buckets,
         calibration_chart_data=calibration_chart_data,

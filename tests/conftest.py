@@ -69,17 +69,6 @@ def install_kawkab_stubs() -> None:
     install_loguru_stub()
     install_httpx_stub()
 
-    # Purge stale kawkab.service submodules from previous test runs so
-    # they are re-loaded fresh via __path__ instead of returning cached
-    # modules that may have been loaded with different sys.modules state.
-    _stale_service_mods = [
-        k for k in sys.modules
-        if k.startswith("kawkab.services.")
-        and not k.startswith("kawkab.services.storage")
-    ]
-    for k in _stale_service_mods:
-        del sys.modules[k]
-
     _stubs: dict[str, str | None] = {
         "kawkab": str(SRC_DIR / "kawkab"),
         "kawkab.core": str(SRC_DIR / "kawkab" / "core"),

@@ -9,7 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from kawkab.core.database_sharding import SeasonShardManager, get_season_key
+try:
+    from kawkab.core.database_sharding import SeasonShardManager, get_season_key
+    HAS_SHARDING = True
+except ImportError:
+    SeasonShardManager = None  # type: ignore
+    get_season_key = None  # type: ignore
+    HAS_SHARDING = False
 from kawkab.core.mot_metrics import compute_mot_metrics
 from kawkab.core.trap_transition_linkage import (
     TrapTransitionAnalysis,
@@ -50,6 +56,7 @@ class TestGetSeasonKey:
         assert "-" in key
 
 
+@pytest.mark.skipif(not HAS_SHARDING, reason="database_sharding module archived")
 class TestSeasonShardManager:
     def test_init_creates_data_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -52,11 +52,21 @@ class TestSecurityValidator:
         with pytest.raises(ValueError, match="cannot be empty"):
             SecurityValidator.validate_team_name("   ")
 
-    def test_validate_video_path(self, tmp_path):
+    def test_validate_video_path_outside_docs_rejected(self, tmp_path):
         video = tmp_path / "test.mp4"
         video.write_text("dummy")
-        result = SecurityValidator.validate_video_path(str(video))
-        assert result == video
+        with pytest.raises(ValueError, match="Path traversal denied"):
+            SecurityValidator.validate_video_path(str(video))
+
+    def test_validate_video_path_accepted_in_docs(self, tmp_path, monkeypatch):
+        from kawkab.core.paths import get_paths
+        real_docs = get_paths().documents
+        in_docs = real_docs / "test_video_accepted.mp4"
+        in_docs.parent.mkdir(parents=True, exist_ok=True)
+        in_docs.write_text("dummy")
+        result = SecurityValidator.validate_video_path(str(in_docs))
+        assert result == in_docs
+        in_docs.unlink()
 
     def test_validate_video_path_unsupported_extension(self, tmp_path):
         txt = tmp_path / "test.txt"

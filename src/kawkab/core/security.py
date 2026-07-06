@@ -90,17 +90,15 @@ class SecurityValidator:
 
         # Check for path traversal (resolved path must be under user docs)
         from kawkab.core.paths import get_paths
-        docs = get_paths().documents
+        docs = get_paths().documents.resolve()
         try:
             resolved.relative_to(docs)
         except ValueError:
-            # Allow any path that exists and is a file, but log a warning
-            logger.warning(f"Video path outside KawkabAI directory: {resolved}")
-            # Still allow it if it's a valid file path
-            if not resolved.exists():
-                raise ValueError(f"Video file not found: {resolved}")
-            if not resolved.is_file():
-                raise ValueError(f"Not a file: {resolved}")
+            logger.error(f"Video path outside KawkabAI directory: {resolved}")
+            raise ValueError(
+                f"Path traversal denied: {resolved} is not within {docs}. "
+                f"Only files in the KawkabAI videos directory are allowed."
+            )
 
         return resolved
 

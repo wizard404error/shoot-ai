@@ -80,7 +80,7 @@ ENHANCED_COEFFICIENTS: dict[str, float] = {
     "intercept": -1.2,
     "distance_m": -0.12,
     "distance_m_sq": -0.0003,
-    "angle_sin": 1.4,
+    "angle_sin": -1.4,
     "is_header": -0.7,
     "is_through_ball_assist": 0.4,
     "is_cross_assist": -0.2,

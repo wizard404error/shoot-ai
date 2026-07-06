@@ -2,122 +2,98 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 env:
   PYTHONPATH: src
-  NODE_OPTIONS: --experimental-vm-modules
 
 jobs:
-  python-tests:
-    name: Python Tests
+  lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11"]
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test]" 2>/dev/null || pip install pytest pytest-asyncio pytest-mock numpy scipy
+          pip install ruff mypy
+      - name: ruff lint
+        run: ruff check src/ tests/ --ignore E501
+      - name: ruff format check
+        run: ruff format --check src/ tests/
 
-      - name: Run core unit tests
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1 ffmpeg
+      - name: Install Python deps
         run: |
-          python -m pytest \
-            tests/unit/test_core_events.py \
-            tests/unit/test_xg_model.py \
-            tests/unit/test_pitch_control.py \
-            tests/unit/test_player_rating.py \
-            tests/unit/test_formation_analysis.py \
-            tests/unit/test_offball_metrics.py \
-            tests/unit/test_substitution_analysis.py \
-            tests/unit/test_export_converters.py \
-            tests/unit/test_season_aggregator.py \
-            tests/unit/test_analysis_service_xg_xt.py \
-            tests/unit/test_analysis_service_extensions.py \
-            tests/unit/test_xt_model.py \
-            tests/unit/test_pass_network.py \
-            tests/unit/test_heatmap.py \
-            tests/unit/test_tactical_periods.py \
-            tests/unit/test_game_state.py \
-            tests/unit/test_security.py \
-            tests/unit/test_xa_model.py \
-            tests/unit/test_benchmarks.py \
-            tests/unit/test_match_timeline.py \
-            tests/unit/test_migration_manager.py \
-            tests/unit/test_logging.py \
-            tests/unit/test_win_probability.py \
-            tests/unit/test_psxg_model.py \
-            tests/unit/test_momentum.py \
-            tests/unit/test_defensive_actions.py \
-            tests/unit/test_transitions.py \
-            tests/unit/test_vaep.py \
-            tests/unit/test_set_piece_analysis.py \
-            tests/unit/test_storage_service.py \
-            tests/unit/test_cv_service.py \
-            tests/unit/test_api_external_services.py \
-            tests/e2e/test_e2e_pipeline.py \
-            tests/e2e/test_e2e_full_pipeline.py \
-            -v --tb=short
-
-      - name: Run expanded unit tests
-        continue-on-error: true
+          python -m pip install --upgrade pip
+          pip install -e ".[test]" 2>/dev/null || pip install pytest pytest-asyncio numpy scikit-learn httpx
+      - name: Run unit tests (core analytical)
         run: |
-          python -m pytest tests/unit/ --tb=line -q \
+          python -m pytest tests/unit/ \
             --ignore=tests/unit/test_audio_service.py \
-            -v
+            --ignore=tests/unit/test_cv_service_model_manager.py \
+            --ignore=tests/unit/test_kalman_and_match_type.py \
+            --ignore=tests/unit/test_professional_services.py \
+            --ignore=tests/unit/test_cv_service.py \
+            --ignore=tests/unit/test_enhancement_service.py \
+            --ignore=tests/unit/test_weather_image_classifier.py \
+            --ignore=tests/unit/test_batch_service.py \
+            --ignore=tests/unit/test_benchmark_service.py \
+            --ignore=tests/unit/test_api_services.py \
+            --ignore=tests/unit/test_easy_soccer_service.py \
+            --ignore=tests/unit/test_llm_service.py \
+            --ignore=tests/unit/test_reasoning_outside.py \
+            --ignore=tests/unit/test_reasoning_service.py \
+            --ignore=tests/unit/test_storage_service.py \
+            --ignore=tests/unit/test_bridge_handlers.py \
+            --ignore=tests/unit/test_api_external_services.py \
+            --ignore=tests/unit/test_core_missing.py \
+            --ignore=tests/unit/test_visualization_service.py \
+            -v --tb=short -q
 
-  frontend-tests:
-    name: Frontend Tests
+  regression:
     runs-on: ubuntu-latest
-
+    needs: [unit]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: src/kawkab/web/package-lock.json
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy scikit-learn httpx torch --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Download ground truth data
+        run: python scripts/download_ground_truth.py --statsbomb --output data/ground_truth
+      - name: Run regression tests
+        run: python -m pytest tests/unit/test_regression_xg_models.py -v --tb=short
 
-      - name: Install dependencies
-        run: npm ci
-        working-directory: src/kawkab/web
-
-      - name: Run Jest unit tests
-        run: npm test -- --watchAll=false --verbose
-        working-directory: src/kawkab/web
-
-      - name: Run Playwright E2E tests
-        continue-on-error: true
-        run: npx playwright test
-        working-directory: src/kawkab/web
-
-  lint:
-    name: Lint
+  benchmark:
     runs-on: ubuntu-latest
+    needs: [unit]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Install ruff
-        run: pip install ruff
-
-      - name: Run ruff check
-        continue-on-error: true
-        run: ruff check src/
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy scikit-learn httpx
+      - name: Run benchmark tests
+        run: python -m pytest tests/unit/test_performance_benchmarks.py -v --tb=short

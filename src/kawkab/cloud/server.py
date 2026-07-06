@@ -19,6 +19,7 @@ from kawkab.cloud.auth import (
     verify_password,
 )
 from kawkab.cloud.database import get_cloud_db
+from kawkab.api.api_v1 import router as api_v1_router
 from kawkab.cloud.models import (
     UserRegister,
     UserLogin,
@@ -35,6 +36,8 @@ from kawkab.cloud.models import (
 )
 
 app = FastAPI(title="Kawkab AI Cloud", version="0.1.0")
+
+app.include_router(api_v1_router)
 
 app.add_middleware(
     CORSMiddleware,
