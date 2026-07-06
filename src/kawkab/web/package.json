@@ -17,5 +17,8 @@
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "playwright": "^1.49.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
   }
 }

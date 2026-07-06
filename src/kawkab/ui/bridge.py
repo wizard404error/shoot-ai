@@ -894,6 +894,30 @@ class Bridge(QObject):
         return await self._analysis.analyze_formation(match_id)
 
     # ================================================================
+    # Tactical Shape Analysis
+    # ================================================================
+
+    @Slot(int, result=str)
+    async def analyze_tactical_shapes(self, match_id: int) -> str:
+        return await self._analysis.analyze_tactical_shapes(match_id)
+
+    # ================================================================
+    # Pressing Classification
+    # ================================================================
+
+    @Slot(int, result=str)
+    async def classify_pressing(self, match_id: int) -> str:
+        return await self._analysis.classify_pressing(match_id)
+
+    # ================================================================
+    # Comprehensive Tactical Report
+    # ================================================================
+
+    @Slot(int, result=str)
+    async def get_tactical_report(self, match_id: int) -> str:
+        return await self._analysis.get_tactical_report(match_id)
+
+    # ================================================================
     # Phase 3 — AI NL Query
     # ================================================================
 

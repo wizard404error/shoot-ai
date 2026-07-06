@@ -109,6 +109,7 @@
             <button class="nav-tab" data-route="coding" data-i18n="tab_coding">🎬 Coding</button>
             <button class="nav-tab" data-route="review" data-i18n="tab_review">🔍 Review</button>
             <button class="nav-tab" data-route="tactics" data-i18n="tab_tactics">🧠 Tactics</button>
+            <button class="nav-tab" data-route="tacticsknowledge" data-i18n="tab_tacticsknowledge">📚 Tactical Know-How</button>
             <button class="nav-tab" data-route="ai" data-i18n="tab_ai">🤖 AI</button>
             <button class="nav-tab" data-route="squad" data-i18n="tab_squad">👥 Squad</button>
             <button class="nav-tab" data-route="season" data-i18n="tab_season">📅 Season</button>
@@ -125,6 +126,7 @@
             <button class="nav-tab" data-route="opponent" data-i18n="tab_opponent">📋 Opponents</button>
             <button class="nav-tab" data-route="marketplace" data-i18n="tab_marketplace">🏪 Market</button>
             <button class="nav-tab" data-route="highlight" data-i18n="tab_highlight">🎬 Reel Builder</button>
+            <button class="nav-tab" data-route="pitch3d" data-i18n="tab_pitch3d">🏟️ 3D Pitch</button>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -859,13 +861,23 @@
                                     <option value="4-3-3">4-3-3</option>
                                     <option value="3-5-2">3-5-2</option>
                                     <option value="4-2-3-1">4-2-3-1</option>
+                                    <option value="3-4-3">3-4-3</option>
+                                    <option value="4-1-2-1-2 Diamond">4-1-2-1-2 Diamond</option>
+                                    <option value="3-2-4-1">3-2-4-1</option>
                                 </select>
                                 <button id="sandbox-load-btn" class="btn btn-secondary">Load Formation</button>
                                 <button id="sandbox-press-btn" class="btn btn-primary">Press Ball</button>
                             </div>
+                            <div class="form-row" style="margin-top:8px;gap:4px;flex-wrap:wrap">
+                                <button id="sandbox-triangle-btn" class="btn btn-sm btn-secondary">🔺 Triangle</button>
+                                <button id="sandbox-show-tri-btn" class="btn btn-sm btn-secondary">🔗 Show Triangles</button>
+                                <button id="sandbox-arrow-btn" class="btn btn-sm btn-secondary">⬆ Press Arrows</button>
+                                <button id="sandbox-spacing-btn" class="btn btn-sm btn-secondary">📏 Spacing</button>
+                                <button id="sandbox-clear-btn" class="btn btn-sm btn-secondary">↺ Reset Ball</button>
+                            </div>
                             <div class="form-row" style="margin-top:8px">
                                 <span style="font-size:0.8rem;color:var(--text-muted)" data-i18n="sandboxHint">
-                                    Drag player tokens to reposition. Click "Press Ball" to simulate pressing motion.
+                                    Drag player tokens to reposition. Click triangle mode, then click 3 players to draw a triangle.
                                 </span>
                             </div>
                             <canvas id="sandbox-canvas" width="600" height="400"
@@ -1412,6 +1424,367 @@
                             </div>
                         </div>
                     </div>
+                    <div class="tactics-grid" style="margin-top:12px">
+                        <div class="pro-card">
+                            <h3 data-i18n="tacticsShapeTitle">🔺 Shape Analysis</h3>
+                            <div id="tactics-shape-content" class="tactics-shape-content">
+                                <p class="hint">Click "Analyze Tactics" to detect team shapes.</p>
+                            </div>
+                        </div>
+                        <div class="pro-card">
+                            <h3 data-i18n="tacticsPressingTitle">⚡ Pressing System</h3>
+                            <div id="tactics-pressing-content" class="tactics-pressing-content">
+                                <p class="hint">Click "Analyze Tactics" to classify pressing.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pro-card" style="margin-top:12px">
+                        <h3>📋 Tactical Profile Comparison</h3>
+                        <div id="tactics-profile-content" class="tactics-profile-content">
+                            <p class="hint">Click "Analyze Tactics" to compare team profiles.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Tactical Knowledge Reference
+                 ============================================================ -->
+            <section id="tactics-knowledge-section" class="section hidden">
+                <h2>📚 Tactical Knowledge Reference</h2>
+                <div class="tactics-knowledge-tabs">
+                    <button class="chip active" data-knowledge-tab="formations">📐 Formations</button>
+                    <button class="chip" data-knowledge-tab="triangles">🔺 Triangles</button>
+                    <button class="chip" data-knowledge-tab="pressing">⚡ Pressing</button>
+                    <button class="chip" data-knowledge-tab="transitions">🔄 Transitions</button>
+                    <button class="chip" data-knowledge-tab="shapes">🧩 Attacking Shapes</button>
+                    <button class="chip" data-knowledge-tab="defense">🛡 Defense</button>
+                </div>
+                <div id="formations-knowledge" class="knowledge-panel">
+                    <div class="knowledge-intro">
+                        <p><strong>Formations</strong> define the starting positions and shape of a team. Modern football uses formations as a base structure that shifts between defending and attacking phases.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">4-4-2</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · LB · CB · CB · RB · LM · CM · CM · RM · ST · ST</div>
+                                <p><strong>Classic balanced system.</strong> 4 defenders, 4 midfielders, 2 strikers.</p>
+                                <ul>
+                                    <li>Balanced defense/attack</li>
+                                    <li>Direct football, wide play</li>
+                                    <li>Midfield can be outnumbered (weakness)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">4-3-3</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · LB · CB · CB · RB · CM · CDM · CM · LW · ST · RW</div>
+                                <p><strong>Modern attacking system.</strong> Used by Barcelona, Liverpool.</p>
+                                <ul>
+                                    <li>High pressing, wing dominance</li>
+                                    <li>Ball possession focused</li>
+                                    <li>3 forwards press high</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">4-2-3-1</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · LB · CB · CB · RB · CDM · CDM · LW · CAM · RW · ST</div>
+                                <p><strong>Most balanced modern system.</strong></p>
+                                <ul>
+                                    <li>2 defensive midfield shields</li>
+                                    <li>3 attacking midfielders</li>
+                                    <li>Control + defense stability</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">3-5-2</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · CB · CB · CB · LWB · CM · CDM · CM · RWB · ST · ST</div>
+                                <p><strong>Wing-back system.</strong> Strong midfield control.</p>
+                                <ul>
+                                    <li>3 center backs</li>
+                                    <li>Wing-backs provide width</li>
+                                    <li>5 midfielders total</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">3-4-3</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · CB · CB · CB · LM · CM · CM · RM · LW · ST · RW</div>
+                                <p><strong>Aggressive pressing system.</strong> High pressure, fast transitions.</p>
+                                <ul>
+                                    <li>3 forwards press high</li>
+                                    <li>4 midfielders control center</li>
+                                    <li>Requires fit wing-backs</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">4-1-2-1-2 Diamond</div>
+                            <div class="knowledge-card-body">
+                                <div class="knowledge-formation-viz">GK · LB · CB · CB · RB · CDM · LM · RM · CAM · ST · ST</div>
+                                <p><strong>Midfield diamond.</strong> Great for central control.</p>
+                                <ul>
+                                    <li>4 defenders</li>
+                                    <li>Diamond midfield (1 DM, 2 wide, 1 AM)</li>
+                                    <li>2 strikers up front</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="triangles-knowledge" class="knowledge-panel hidden">
+                    <div class="knowledge-intro">
+                        <p><strong>Passing Triangles</strong> are the foundation of possession football. Every great team builds passing triangles so the player on the ball always has 2 passing options.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🔺 Basic Triangle</div>
+                            <div class="knowledge-card-body">
+                                <pre style="font-size:0.8rem;line-height:1.4;text-align:center;color:var(--text)">
+        A
+       / \
+      B---C
+  A = ball carrier
+  B & C = passing options
+                                </pre>
+                                <ul>
+                                    <li>Ball carrier always has 2 options</li>
+                                    <li>Prevents pressing traps</li>
+                                    <li>Creates quick combinations</li>
+                                    <li>Keeps possession stable</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">📐 Third Man Combination</div>
+                            <div class="knowledge-card-body">
+                                <pre style="font-size:0.8rem;line-height:1.4;text-align:center;color:var(--text)">
+  A → B (pass)
+  B → A (return)
+  A → C (switch)
+  A-B-C involved
+                                </pre>
+                                <p>A one-two followed by a switch to a third player. Breaks defensive lines.</p>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🎯 Where Triangles Appear</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li><strong>Midfield</strong> — most important zone</li>
+                                    <li><strong>Wing play</strong> — fullback + winger + midfielder</li>
+                                    <li><strong>Defense build-up</strong> — CB + CM + GK</li>
+                                    <li><strong>Attacking third</strong> — striker + 2 supporting attackers</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="pressing-knowledge" class="knowledge-panel hidden">
+                    <div class="knowledge-intro">
+                        <p><strong>Pressing Systems</strong> define how and where a team applies pressure to win back possession.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🔥 High Press</div>
+                            <div class="knowledge-card-body">
+                                <p>Pressure opponent in their own half. Force mistakes near their goal.</p>
+                                <ul>
+                                    <li>Defensive line at ~55-60% pitch length</li>
+                                    <li>Forwards press opposition CBs</li>
+                                    <li>High risk, high reward</li>
+                                    <li>Used by: Liverpool (Klopp), Manchester City</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">⚖️ Mid Block</div>
+                            <div class="knowledge-card-body">
+                                <p>Pressure in the middle third. Balanced approach.</p>
+                                <ul>
+                                    <li>Defensive line at ~35-50% pitch length</li>
+                                    <li>Team compresses middle third</li>
+                                    <li>Waits for opponent to enter midfield</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🛡 Low Block</div>
+                            <div class="knowledge-card-body">
+                                <p>Team defends deep in their own half. Compact and hard to break down.</p>
+                                <ul>
+                                    <li>Defensive line at ~30% pitch length</li>
+                                    <li>Two compact banks of 4</li>
+                                    <li>Invites opponent forward</li>
+                                    <li>Effective for counter-attacks</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🎯 Trigger Pressing</div>
+                            <div class="knowledge-card-body">
+                                <p>Press only when specific cues occur:</p>
+                                <ul>
+                                    <li>Back pass to goalkeeper</li>
+                                    <li>Poor touch / bad control</li>
+                                    <li>Slow / sideways pass</li>
+                                    <li>Player receives with back to goal</li>
+                                    <li>Ball in pressing trap zone</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">⚡ Gegenpressing</div>
+                            <div class="knowledge-card-body">
+                                <p><strong>Counter-pressing:</strong> Immediately press after losing the ball.</p>
+                                <ul>
+                                    <li>Win ball back in 5-8 seconds</li>
+                                    <li>Most dangerous time to concede</li>
+                                    <li>Used by: Klopp, Rangnick</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🧱 Man vs Zonal</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li><strong>Man marking:</strong> Each player marks one opponent</li>
+                                    <li><strong>Zonal marking:</strong> Players defend zones, not individuals</li>
+                                    <li><strong>Hybrid marking:</strong> Mix of both (modern elite system)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="transitions-knowledge" class="knowledge-panel hidden">
+                    <div class="knowledge-intro">
+                        <p><strong>Transitions</strong> are the 4 phases of football: Attack → Defensive Transition → Defense → Attacking Transition. Elite teams excel at transitions.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🔄 The 4 Phases</div>
+                            <div class="knowledge-card-body">
+                                <pre style="font-size:0.8rem;line-height:1.4;color:var(--text)">
+  Attack ←→ Defensive Transition
+    ↑              ↑
+    ↓              ↓
+  Attacking ←   Defense
+  Transition
+                                </pre>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">⚡ Counter-Attack</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li>Deep defensive block</li>
+                                    <li>Quick long passes after winning ball</li>
+                                    <li>Exploits opponent's empty space</li>
+                                    <li>Most effective within 5 seconds of regain</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🛑 Defensive Transition</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li>Immediate reaction after losing ball</li>
+                                    <li>First 5 seconds are critical</li>
+                                    <li>Counter-pressing or drop into shape</li>
+                                    <li>Communication between lines</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="shapes-knowledge" class="knowledge-panel hidden">
+                    <div class="knowledge-intro">
+                        <p><strong>Attacking Shapes</strong> describe the formation a team takes when in possession. Modern teams often use different shapes in attack vs defense.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🧩 3-2-5 in Attack</div>
+                            <div class="knowledge-card-body">
+                                <p><strong>Elite attacking shape.</strong> Used by Manchester City, Arsenal, Barcelona.</p>
+                                <ul>
+                                    <li>3 defenders stay back (2 CB + 1 DM drop)</li>
+                                    <li>2 midfield anchors control center</li>
+                                    <li>5 attackers push forward</li>
+                                    <li>Overloads opponent defense</li>
+                                    <li>Maximizes passing triangles</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🔷 Diamond Midfield</div>
+                            <div class="knowledge-card-body">
+                                <p>4-1-2-1-2 shapes into a diamond in midfield:</p>
+                                <ul>
+                                    <li>1 CDM at base</li>
+                                    <li>2 wide midfielders</li>
+                                    <li>1 CAM at tip</li>
+                                    <li>Great for central control</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">📏 Line Spacing</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li><strong>Compact:</strong> Lines close together (&lt; 30m) — harder to break through</li>
+                                    <li><strong>Stretched:</strong> Lines far apart (&gt; 40m) — more space for attackers</li>
+                                    <li><strong>Optimal:</strong> 30-40m between lines</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="defense-knowledge" class="knowledge-panel hidden">
+                    <div class="knowledge-intro">
+                        <p><strong>Defensive Systems</strong> determine how a team organizes without the ball.</p>
+                    </div>
+                    <div class="knowledge-card-grid">
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🧱 Low Block Defense</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li>Team defends in own half</li>
+                                    <li>Two compact banks of 4</li>
+                                    <li>Hard to break down</li>
+                                    <li>Vulnerable to crosses</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🔄 Rotations</div>
+                            <div class="knowledge-card-body">
+                                <p>Players swap positions dynamically in possession:</p>
+                                <ul>
+                                    <li>Fullback becomes midfielder</li>
+                                    <li>Midfielder becomes winger</li>
+                                    <li>Winger drops into midfield</li>
+                                    <li>Creates confusion for defenders</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="knowledge-card">
+                            <div class="knowledge-card-header">🚀 Overlapping Runs</div>
+                            <div class="knowledge-card-body">
+                                <ul>
+                                    <li>Fullback runs past winger</li>
+                                    <li>Creates 2v1 on the flank</li>
+                                    <li>Opens crossing chances</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1591,6 +1964,8 @@
                         <input type="text" id="scout-search-input" class="input" placeholder="Search players..." data-i18n-placeholder="scoutSearchInput">
                         <input type="text" id="scout-position-input" class="input" placeholder="Position (e.g., FW, MF)" data-i18n-placeholder="scoutPosition">
                         <button id="scout-search-btn" class="btn btn-primary" data-i18n="scoutSearchBtn">🔍 Search</button>
+                        <button id="scout-detail-toggle" class="btn btn-secondary" data-i18n="scoutCardView">🃏 Card View</button>
+                        <button id="scout-clear-search" class="btn btn-secondary" data-i18n="scoutClear">✕ Clear</button>
                     </div>
                     <div id="scout-search-results" class="scout-results"><p class="hint" data-i18n="scoutSearchHint">Enter a player name to search.</p></div>
                 </div>
@@ -2163,6 +2538,39 @@
                 </div>
             </section>
 
+            <section id="pitch3d-section" class="section hidden">
+                <h2 data-i18n="pitch3dTitle">🏟️ 3D Pitch Visualization</h2>
+                <div class="pitch3d-toolbar">
+                    <select id="pitch3d-match-select" class="input">
+                        <option value="">-- Select Match --</option>
+                    </select>
+                    <select id="pitch3d-speed" class="input pitch3d-speed-select">
+                        <option value="0.5">0.5x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="2">2x</option>
+                        <option value="4">4x</option>
+                    </select>
+                    <button id="pitch3d-play-btn" class="btn btn-sm btn-primary">▶ Play</button>
+                    <button id="pitch3d-mode" class="btn btn-sm btn-secondary">⚫ Dots</button>
+                    <button id="pitch3d-home-toggle" class="btn btn-sm btn-pitch3d-home active">🔵 Home</button>
+                    <button id="pitch3d-away-toggle" class="btn btn-sm btn-pitch3d-away active">🔴 Away</button>
+                    <button id="pitch3d-reset-cam" class="btn btn-sm btn-secondary" title="Reset camera">🎯 Reset</button>
+                </div>
+                <div class="pitch3d-seekbar">
+                    <input type="range" id="pitch3d-seek" class="pitch3d-seek" min="0" max="5400" value="0" step="0.1">
+                    <span id="pitch3d-time" class="pitch3d-time">0:00</span>
+                </div>
+                <div id="pitch3d-container" class="pitch3d-container">
+                    <div class="pitch3d-loading" id="pitch3d-loading" data-i18n="pitch3dLoading">Select a match to visualize in 3D.</div>
+                </div>
+                <div class="pitch3d-legend">
+                    <span class="pitch3d-legend-item"><span class="dot home-dot"></span> Home</span>
+                    <span class="pitch3d-legend-item"><span class="dot away-dot"></span> Away</span>
+                    <span class="pitch3d-legend-item"><span class="dot ball-dot"></span> Ball</span>
+                    <span class="pitch3d-legend-item hint">🖱 Drag to rotate · Scroll to zoom</span>
+                </div>
+            </section>
+
             <section id="multiangle-section" class="section hidden">
                 <h2 data-i18n="multiangleTitle">🎬 Multi-Angle Video Editor</h2>
                 <!-- Toolbar -->
@@ -2329,6 +2737,15 @@
         </div>
     </div>
 
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "js/lib/three.module.min.js",
+                "three/addons/": "js/lib/"
+            }
+        }
+    </script>
+    <script type="module" src="js/app-3d.js"></script>
     <script src="js/qwebchannel.js"></script>
     <script src="vendor/popmotion.min.js"></script>
     <script src="js/kawkab_animations.js"></script>

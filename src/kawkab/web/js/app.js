@@ -3171,6 +3171,29 @@
         if (window.KawkabTactics) return window.KawkabTactics.initTacticsWorkspace();
     }
 
+    // ── 3D Pitch Visualization (delegated to app-3d.js) ──
+
+    function loadPitch3dMatchSelect() {
+        if (typeof bridge === 'undefined' || !bridge) return;
+        bridge.get_all_matches(function(result) {
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                if (data.error) data = [];
+                var sel = document.getElementById('pitch3d-match-select');
+                if (!sel) return;
+                sel.innerHTML = '<option value="">-- Select Match --</option>';
+                (data || []).forEach(function(m) {
+                    var name = m.name || (m.home_team + ' vs ' + m.away_team) || 'Match #' + m.id;
+                    sel.innerHTML += '<option value="' + m.id + '">' + escapeHtml(name) + '</option>';
+                });
+            } catch(e) { showToast('Failed to load matches for 3D pitch.', 'error'); console.warn(e); }
+        });
+    }
+
+    function initPitch3dWorkspace() {
+        if (window.Kawkab3DPitch) return;
+    }
+
     // ── Sprint 2: Physiology & Wearables ──
     var _physInitialized = false;
     var _physWearableData = null;
@@ -5037,6 +5060,17 @@
             saveFilterState();
             initTacticsWorkspace();
         });
+        router.register('pitch3d', 'pitch3d-section', function() {
+            saveFilterState();
+            if (typeof init3DPitch === 'function') {
+                init3DPitch();
+                loadPitch3dMatchSelect();
+            }
+        });
+        router.register('tacticsknowledge', 'tactics-knowledge-section', function() {
+            saveFilterState();
+            initTacticsKnowledge();
+        });
         router.register('ai', 'ai-section', function() {
             saveFilterState();
             initAiWorkspace();
@@ -5069,6 +5103,7 @@
         skeletons.register('livetagging-section', '100%', 60, 4);
         skeletons.register('professional-section', '100%', 60, 4);
         skeletons.register('highlight-section', '100%', 60, 4);
+        skeletons.register('pitch3d-section', '100%', 80, 4);
 
         // Initialize nav tabs
         setupNavTabs();

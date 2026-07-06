@@ -1772,6 +1772,60 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
+    # Tactical Shape Analysis
+    # ================================================================
+
+    async def analyze_tactical_shapes(self, match_id):
+        try:
+            from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
+            match_id = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id)
+            if not events:
+                return json.dumps({"home": {}, "away": {}})
+            analyzer = TacticalShapeAnalyzer()
+            home_report = analyzer.analyze_shapes(events, team="home")
+            away_report = analyzer.analyze_shapes(events, team="away")
+            return json.dumps({"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()})
+        except Exception as e:
+            logger.error(f"analyze_tactical_shapes failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Pressing Classification
+    # ================================================================
+
+    async def classify_pressing(self, match_id):
+        try:
+            from kawkab.core.pressing_classifier import classify_pressing_system
+            match_id = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id)
+            if not events:
+                return json.dumps({"home": {}, "away": {}})
+            home_report = classify_pressing_system(events, team="home")
+            away_report = classify_pressing_system(events, team="away")
+            return json.dumps({"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()})
+        except Exception as e:
+            logger.error(f"classify_pressing failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Comprehensive Tactical Report
+    # ================================================================
+
+    async def get_tactical_report(self, match_id):
+        try:
+            from kawkab.core.tactical_report import generate_tactical_report
+            match_id = SecurityValidator.validate_match_id(match_id)
+            events = await self.storage_service.get_match_events(match_id)
+            if not events:
+                return json.dumps({"error": "No events"})
+            report = generate_tactical_report(events, match_id=match_id)
+            return json.dumps({"success": True, **report.to_dict()})
+        except Exception as e:
+            logger.error(f"get_tactical_report failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
     # Phase 3 — AI NL Query (ask a question about a match)
     # ================================================================
 
