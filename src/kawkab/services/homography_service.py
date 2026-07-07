@@ -8,7 +8,7 @@ This is the missing link that makes all spatial stats meaningful:
 
 Supports 3 calibration modes:
 1. Manual: Coach clicks 4 pitch corners on a frame
-2. Auto: SoccerNet-style keypoint detection (TODO)
+2. Auto: LightGlue feature-matching based (via LightGlueHomographyService)
 3. Default: Estimated based on visible pitch markings
 """
 

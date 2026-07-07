@@ -2247,6 +2247,44 @@
             }).catch(_catchBridge('cloud_logout'));
         };
 
+        // OAuth — sign in with Google, GitHub, Apple
+        document.querySelectorAll('.oauth-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                var provider = btn.getAttribute('data-provider');
+                bridge.cloud_oauth_authorize_url(provider).then(function(raw) {
+                    var r = JSON.parse(raw);
+                    if (r.error) { authResult.textContent = 'Error: ' + r.error; return; }
+                    if (!r.authorize_url) { authResult.textContent = 'Provider not configured (set env vars)'; return; }
+                    authResult.innerHTML = 'Opened browser for ' + provider + ' login. <br><small>After authorizing, paste the full callback URL below:</small>';
+                    var codeInput = document.createElement('div');
+                    codeInput.id = 'oauth-code-input';
+                    codeInput.style.marginTop = '6px';
+                    codeInput.innerHTML = '<div class="form-row"><input type="text" id="oauth-code-field" class="input" placeholder="Paste callback URL or code" style="flex:1"><button id="oauth-submit-btn" class="btn btn-sm btn-primary">Verify</button></div>';
+                    var existing = document.getElementById('oauth-code-input');
+                    if (existing) existing.remove();
+                    btn.parentNode.appendChild(codeInput);
+                    document.getElementById('oauth-submit-btn').onclick = function() {
+                        var codeOrUrl = document.getElementById('oauth-code-field').value.trim();
+                        if (!codeOrUrl) { showToast('Enter the authorization code', 'warning'); return; }
+                        var code = codeOrUrl;
+                        var state = r.state || '';
+                        var urlMatch = codeOrUrl.match(/[?&]code=([^&]+)/);
+                        if (urlMatch) code = decodeURIComponent(urlMatch[1]);
+                        var stateMatch = codeOrUrl.match(/[?&]state=([^&]+)/);
+                        if (stateMatch) state = decodeURIComponent(stateMatch[1]);
+                        bridge.cloud_oauth_exchange(provider, code, state).then(function(raw2) {
+                            var r2 = JSON.parse(raw2);
+                            if (r2.error) { authResult.textContent = 'Auth error: ' + r2.error; return; }
+                            authResult.textContent = 'Logged in with ' + provider + ' as ' + (r2.user?.display_name || r2.user?.username);
+                            updateCloudUI();
+                            var ci = document.getElementById('oauth-code-input');
+                            if (ci) ci.remove();
+                        }).catch(_catchBridge('cloud_oauth_exchange'));
+                    };
+                }).catch(_catchBridge('cloud_oauth_authorize_url'));
+            };
+        });
+
         // Teams
         document.getElementById('cloud-create-team-btn').onclick = function() {
             var name = document.getElementById('cloud-team-name').value.trim();

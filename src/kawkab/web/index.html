@@ -2227,6 +2227,14 @@
                                 <button id="cloud-register-btn" class="btn btn-secondary" data-i18n="cloudRegisterBtn">Register</button>
                             </div>
                             <div id="cloud-auth-result" style="font-size:0.8rem;margin-top:6px;color:var(--text-muted)"></div>
+                            <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+                                <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px" data-i18n="cloudOAuthOr">Or sign in with:</p>
+                                <div class="form-row" style="gap:6px;flex-wrap:wrap">
+                                    <button class="btn btn-sm oauth-btn" data-provider="google" style="background:#fff;color:#333;border:1px solid #ddd;min-width:90px">G</button>
+                                    <button class="btn btn-sm oauth-btn" data-provider="github" style="background:#24292e;color:#fff;min-width:90px">GH</button>
+                                    <button class="btn btn-sm oauth-btn" data-provider="apple" style="background:#000;color:#fff;min-width:90px"></button>
+                                </div>
+                            </div>
                         </div>
                         <div id="cloud-logged-in" class="hidden">
                             <p data-i18n="cloudLoggedInAs">Logged in as <strong id="cloud-user-display"></strong> (<span id="cloud-user-email"></span>)</p>

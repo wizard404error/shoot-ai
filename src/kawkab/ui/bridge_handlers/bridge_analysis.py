@@ -3249,6 +3249,27 @@ class AnalysisHandler:
         except Exception as e:
             return json.dumps({"error": str(e)})
 
+    async def cloud_oauth_authorize_url(self, provider, redirect_uri=""):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.oauth_authorize_url(provider, redirect_uri)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_oauth_exchange(self, provider, code, state):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.oauth_exchange(provider, code, state)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    async def cloud_oauth_providers(self):
+        try:
+            svc = self._get_cloud_sync()
+            return svc.oauth_providers()
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
     async def cloud_start_server(self, port=8741):
         try:
             import threading

@@ -4739,7 +4739,24 @@
         });
 
         exportBtn.addEventListener('click', function() {
-            showToast('Video export: capture slides + commentary (coming soon).', 'info');
+            if (!_presState.matchId) { showToast('Load a match presentation first.', 'warning'); return; }
+            var slides = document.querySelectorAll('.pres-slide');
+            if (!slides.length) { showToast('No slides to export.', 'warning'); return; }
+            var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Match Presentation</title>';
+            html += '<style>body{font-family:sans-serif;margin:0;padding:0}.slide{page-break-after:always;padding:40px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}</style></head><body>';
+            slides.forEach(function(s) {
+                var clone = s.cloneNode(true);
+                clone.querySelectorAll('button, .pres-controls, video').forEach(function(el) { el.remove(); });
+                html += '<div class="slide">' + clone.innerHTML + '</div>';
+            });
+            html += '</body></html>';
+            var blob = new Blob([html], {type: 'text/html'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'presentation-' + _presState.matchId + '.html';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Presentation exported as HTML (' + slides.length + ' slides). Open in browser and print to PDF.', 'info');
         });
 
         // Keyboard nav

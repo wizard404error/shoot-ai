@@ -90,6 +90,36 @@ class CloudSyncService:
     def is_logged_in(self) -> str:
         return json.dumps({"logged_in": self._token is not None, "user": self._user})
 
+    # ── OAuth ──
+
+    def oauth_providers(self) -> str:
+        try:
+            resp = httpx.get(f"{self.cloud_url}/auth/oauth/providers", timeout=5.0)
+            return resp.text
+        except Exception as e:
+            return json.dumps({"error": str(e), "providers": []})
+
+    def oauth_authorize_url(self, provider: str, redirect_uri: str = "") -> str:
+        try:
+            params = f"?redirect_uri={redirect_uri}" if redirect_uri else ""
+            resp = httpx.get(f"{self.cloud_url}/auth/oauth/{provider}/authorize{params}", timeout=10.0)
+            return resp.text
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    def oauth_exchange(self, provider: str, code: str, state: str) -> str:
+        try:
+            resp = httpx.post(f"{self.cloud_url}/auth/oauth/{provider}/callback",
+                              json={"code": code, "state": state, "provider": provider}, timeout=10.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                self._token = data["access_token"]
+                self._user = data["user"]
+                self._save_token(self._token)
+            return resp.text
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
     # ── Sync ──
 
     def sync_push(self, device_id: str, operations: list) -> str:

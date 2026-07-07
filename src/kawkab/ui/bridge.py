@@ -1387,6 +1387,18 @@ class Bridge(QObject):
     async def cloud_sync_pull(self, device_id: str) -> str:
         return await self._analysis.cloud_sync_pull(device_id)
 
+    @Slot(str, result=str)
+    async def cloud_oauth_authorize_url(self, provider: str, redirect_uri: str = "") -> str:
+        return await self._analysis.cloud_oauth_authorize_url(provider, redirect_uri)
+
+    @Slot(str, str, str, result=str)
+    async def cloud_oauth_exchange(self, provider: str, code: str, state: str) -> str:
+        return await self._analysis.cloud_oauth_exchange(provider, code, state)
+
+    @Slot(result=str)
+    async def cloud_oauth_providers(self) -> str:
+        return await self._analysis.cloud_oauth_providers()
+
     @Slot(int, result=str)
     async def cloud_start_server(self, port: int = 8741) -> str:
         return await self._analysis.cloud_start_server(port)

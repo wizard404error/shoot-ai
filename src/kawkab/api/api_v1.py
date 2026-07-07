@@ -371,6 +371,71 @@ async def get_season_summary():
     return aggregator.aggregate_team_season([])
 
 
+# ── Coding Tags ──
+
+@router.get("/matches/{match_id}/coding/tags")
+async def get_coding_tags(match_id: int):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    return svc.get_coding_tags(match_id)
+
+@router.get("/matches/{match_id}/coding/tags/stats")
+async def get_coding_stats(match_id: int):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    return svc.get_coding_tag_stats(match_id)
+
+@router.get("/matches/{match_id}/coding/tags/type/{tag_type}")
+async def get_coding_tags_by_type(match_id: int, tag_type: str):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    return svc.get_coding_tags_by_type(match_id, tag_type)
+
+
+# ── Injury / Medical ──
+
+@router.get("/players/{player_id}/injury-risk")
+async def get_player_injury_risk(player_id: int):
+    from kawkab.core.injury_risk import InjuryRiskPredictor
+    pred = InjuryRiskPredictor()
+    return pred.predict_risk(player_id)
+
+@router.get("/squad/{team_id}/injury-report")
+async def get_squad_injury_report(team_id: int):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    return svc.get_squad_injury_report(team_id)
+
+
+# ── Streaming ──
+
+@router.get("/streaming/status")
+async def get_streaming_status():
+    return {"status": "idle"}
+
+@router.post("/streaming/start")
+async def start_streaming(source: str = ""):
+    return {"status": "started", "source": source}
+
+@router.post("/streaming/stop")
+async def stop_streaming():
+    return {"status": "stopped"}
+
+
+# ── Collaboration ──
+
+@router.get("/collaboration/sessions")
+async def get_collab_sessions():
+    from kawkab.cloud.server import connected_clients
+    return {
+        "sessions": [
+            {"project_id": pid, "clients": len(clients)}
+            for pid, clients in connected_clients.items()
+        ],
+        "total_sessions": len(connected_clients),
+    }
+
+
 # ── Health ──
 
 @router.get("/health")

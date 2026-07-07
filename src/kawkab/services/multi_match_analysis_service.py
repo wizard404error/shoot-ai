@@ -138,6 +138,26 @@ class MultiMatchAnalysisService:
         )
         row = cursor.fetchone()
 
+        # Compute wins/draws/losses from individual match scores
+        wins = 0
+        draws = 0
+        losses = 0
+        total_gf = row["gf"] or 0
+        total_ga = row["ga"] or 0
+        cursor.execute(
+            "SELECT score_home, score_away FROM matches WHERE season_id = ?",
+            (season_id,),
+        )
+        for mr in cursor.fetchall():
+            sh = mr["score_home"] or 0
+            sa = mr["score_away"] or 0
+            if sh > sa:
+                wins += 1
+            elif sh < sa:
+                losses += 1
+            else:
+                draws += 1
+
         # Get formations used
         cursor.execute(
             """
@@ -160,17 +180,37 @@ class MultiMatchAnalysisService:
 
         most_common = max(formations, key=formations.get) if formations else None
 
+        # Compute pass accuracy from available event data
+        avg_pass_acc = 0.0
+        cursor.execute(
+            """
+            SELECT AVG(accuracy) as avg_acc FROM (
+                SELECT
+                    CAST(SUM(CASE WHEN e.type = 'pass' AND e.outcome = 1 THEN 1 ELSE 0 END) AS REAL) /
+                    NULLIF(CAST(COUNT(CASE WHEN e.type = 'pass' THEN 1 END) AS REAL), 0) as accuracy
+                FROM events e
+                JOIN matches m ON e.match_id = m.id
+                WHERE m.season_id = ?
+                GROUP BY e.match_id
+            )
+            """,
+            (season_id,),
+        )
+        acc_row = cursor.fetchone()
+        if acc_row and acc_row["avg_acc"] is not None:
+            avg_pass_acc = round(acc_row["avg_acc"] * 100, 1)
+
         return SeasonSummary(
             season_id=season_id,
             season_name=season_name,
             matches_played=row["matches"] or 0,
-            wins=0,  # TODO: need match result logic
-            draws=0,
-            losses=0,
-            goals_for=row["gf"] or 0,
-            goals_against=row["ga"] or 0,
+            wins=wins,
+            draws=draws,
+            losses=losses,
+            goals_for=total_gf,
+            goals_against=total_ga,
             avg_possession=round(row["avg_poss"] or 0, 1),
-            avg_pass_accuracy=0.0,  # TODO: compute from player data
+            avg_pass_accuracy=avg_pass_acc,
             avg_shots_per_match=round(row["avg_shots"] or 0, 1),
             total_distance_km=0.0,
             avg_max_speed_kmh=0.0,
