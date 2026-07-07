@@ -2,25 +2,27 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Optional
 
 CLOUD_DB_PATH = os.environ.get("KAWKAB_CLOUD_DB", str(Path.home() / ".kawkab" / "cloud.db"))
 
 
-_db: Optional[sqlite3.Connection] = None
+_local = threading.local()
 
 
 def get_cloud_db() -> sqlite3.Connection:
-    global _db
-    if _db is None:
+    conn: Optional[sqlite3.Connection] = getattr(_local, "conn", None)
+    if conn is None:
         Path(CLOUD_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-        _db = sqlite3.connect(CLOUD_DB_PATH)
-        _db.row_factory = sqlite3.Row
-        _db.execute("PRAGMA journal_mode=WAL")
-        _db.execute("PRAGMA foreign_keys=ON")
-        _migrate(_db)
-    return _db
+        conn = sqlite3.connect(CLOUD_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        _migrate(conn)
+        _local.conn = conn
+    return conn
 
 
 def _migrate(db: sqlite3.Connection) -> None:
@@ -89,5 +91,28 @@ def _migrate(db: sqlite3.Connection) -> None:
         );
 
         INSERT OR IGNORE INTO schema_version VALUES (1);
+
+        CREATE TABLE IF NOT EXISTS oauth_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            provider TEXT NOT NULL,
+            provider_user_id TEXT NOT NULL,
+            access_token TEXT,
+            refresh_token TEXT,
+            expires_at REAL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(provider, provider_user_id),
+            UNIQUE(user_id, provider)
+        );
+
+        INSERT OR IGNORE INTO schema_version VALUES (2);
+
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     db.commit()

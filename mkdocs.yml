@@ -1,0 +1,33 @@
+site_name: Kawkab AI
+site_description: Professional football analytics platform
+repo_url: https://github.com/yourusername/kawkab-ai
+theme: material
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - API Reference:
+    - Cloud Server: api/cloud.md
+    - Analytics API (v1): api/v1.md
+    - Auth & OAuth: api/auth.md
+  - Services:
+    - Real-time Pipeline: services/realtime.md
+    - Model Monitoring: services/monitoring.md
+    - Webhooks: services/webhooks.md
+    - Data Import: services/data-import.md
+  - Data Providers:
+    - StatsBomb: providers/statsbomb.md
+    - Opta F7: providers/opta.md
+  - Deployment:
+    - Docker: deploy/docker.md
+    - Configuration: deploy/config.md
+  - Development:
+    - Contributing: dev/contributing.md
+    - Tests: dev/tests.md
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+plugins:
+  - search

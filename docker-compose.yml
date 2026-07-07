@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kawkab
+      POSTGRES_USER: kawkab
+      POSTGRES_PASSWORD: ${KAWKAB_DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kawkab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      target: server
+    ports:
+      - "8741:8741"
+    environment:
+      KAWKAB_JWT_SECRET: ${KAWKAB_JWT_SECRET}
+      KAWKAB_DB_URL: postgresql+asyncpg://kawkab:${KAWKAB_DB_PASSWORD:-changeme}@postgres:5432/kawkab
+      KAWKAB_GOOGLE_CLIENT_ID: ${KAWKAB_GOOGLE_CLIENT_ID:-}
+      KAWKAB_GOOGLE_CLIENT_SECRET: ${KAWKAB_GOOGLE_CLIENT_SECRET:-}
+      KAWKAB_GITHUB_CLIENT_ID: ${KAWKAB_GITHUB_CLIENT_ID:-}
+      KAWKAB_GITHUB_CLIENT_SECRET: ${KAWKAB_GITHUB_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - kawkab_data:/root/.kawkab
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
+  kawkab_data:

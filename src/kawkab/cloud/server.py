@@ -33,6 +33,8 @@ from kawkab.cloud.models import (
     SyncResponse,
     ConflictRecord,
     SyncOperation,
+    OAuthAuthorizeResponse,
+    OAuthCallbackRequest,
 )
 
 app = FastAPI(title="Kawkab AI Cloud", version="0.1.0")
@@ -50,9 +52,53 @@ app.add_middleware(
 
 # ── Health ──
 
+import platform
+import time
+
+_start_time = time.time()
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.1.0"}
+    db_ok = False
+    try:
+        from kawkab.cloud.database import get_cloud_db
+        db = get_cloud_db()
+        db.execute("SELECT 1")
+        db_ok = True
+    except Exception:
+        pass
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "version": "0.1.0",
+        "uptime_s": round(time.time() - _start_time, 1),
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "database": "connected" if db_ok else "unreachable",
+    }
+
+@app.get("/health/ready")
+def health_ready():
+    try:
+        from kawkab.cloud.database import get_cloud_db
+        db = get_cloud_db()
+        db.execute("SELECT 1")
+        return {"ready": True}
+    except Exception as e:
+        return {"ready": False, "error": str(e)}
+
+@app.get("/health/live")
+def health_live():
+    return {"alive": True}
+
+@app.get("/metrics")
+def metrics():
+    import gc
+    return {
+        "uptime_s": round(time.time() - _start_time, 1),
+        "python_version": platform.python_version(),
+        "gc_count": gc.get_count(),
+        "gc_threshold": list(gc.get_threshold()),
+    }
 
 
 # ── Auth ──
@@ -97,6 +143,123 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     db.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
                (hash_password(body.new_password), user["id"]))
+    db.commit()
+    return {"ok": True}
+
+
+# ── OAuth ──
+
+import secrets
+from kawkab.cloud.oauth import get_oauth_provider, get_configured_providers
+
+_oauth_states: dict[str, str] = {}  # state -> provider
+
+@app.get("/auth/oauth/providers")
+def oauth_providers():
+    return {"providers": get_configured_providers()}
+
+@app.get("/auth/oauth/{provider}/authorize", response_model=OAuthAuthorizeResponse)
+def oauth_authorize(provider: str, redirect_uri: str = ""):
+    prov = get_oauth_provider(provider)
+    if not prov:
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+    state = secrets.token_hex(16)
+    _oauth_states[state] = provider
+    url = prov.get_authorize_url(redirect_uri or f"/auth/oauth/{provider}/callback", state)
+    return OAuthAuthorizeResponse(authorize_url=url, state=state, provider=provider)
+
+@app.post("/auth/oauth/{provider}/callback", response_model=TokenResponse)
+def oauth_callback(provider: str, body: OAuthCallbackRequest):
+    prov = get_oauth_provider(provider)
+    if not prov:
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+    expected_provider = _oauth_states.pop(body.state, None)
+    if expected_provider != provider:
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+    tokens = prov.exchange_code(body.code, f"/auth/oauth/{provider}/callback")
+    if tokens is None:
+        raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+    access_token = tokens.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No access token in response")
+    userinfo = prov.get_userinfo(access_token)
+    if userinfo is None:
+        raise HTTPException(status_code=400, detail="Failed to fetch user info")
+    provider_user_id = str(userinfo.get("id") or userinfo.get("sub"))
+    email = userinfo.get("email", "")
+    name = userinfo.get("name") or userinfo.get("login") or email.split("@")[0]
+    db = get_cloud_db()
+    row = db.execute(
+        "SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
+        (provider, provider_user_id),
+    ).fetchone()
+    if row:
+        db.execute(
+            "UPDATE oauth_accounts SET access_token = ?, refresh_token = ? WHERE id = ?",
+            (access_token, tokens.get("refresh_token"), row["user_id"]),
+        )
+        db.commit()
+        user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
+        jwt_token = create_access_token(user["id"])
+        return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+    existing_user = None
+    if email:
+        existing_user = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if existing_user:
+        user_id = existing_user["id"]
+    else:
+        username = name.lower().replace(" ", "_")
+        base = username
+        counter = 1
+        while db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone():
+            username = f"{base}_{counter}"
+            counter += 1
+        cur = db.execute(
+            "INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
+            (username, email or f"{provider}_{provider_user_id}@oauth.local", "oauth", name),
+        )
+        db.commit()
+        user_id = cur.lastrowid
+    db.execute(
+        "INSERT INTO oauth_accounts (user_id, provider, provider_user_id, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)",
+        (user_id, provider, provider_user_id, access_token, tokens.get("refresh_token")),
+    )
+    db.commit()
+    user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    jwt_token = create_access_token(user_id)
+    return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+
+@app.post("/auth/link-oauth")
+def link_oauth_account(provider: str, provider_user_id: str, user: dict = Depends(get_current_user)):
+    db = get_cloud_db()
+    existing = db.execute(
+        "SELECT id FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
+        (provider, provider_user_id),
+    ).fetchone()
+    if existing:
+        raise HTTPException(status_code=400, detail="OAuth account already linked")
+    db.execute(
+        "INSERT INTO oauth_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)",
+        (user["id"], provider, provider_user_id),
+    )
+    db.commit()
+    return {"ok": True}
+
+@app.get("/auth/oauth/accounts")
+def list_oauth_accounts(user: dict = Depends(get_current_user)):
+    db = get_cloud_db()
+    rows = db.execute("SELECT provider, provider_user_id, created_at FROM oauth_accounts WHERE user_id = ?", (user["id"],)).fetchall()
+    return [dict(r) for r in rows]
+
+@app.post("/auth/oauth/unlink")
+def unlink_oauth_account(provider: str, user: dict = Depends(get_current_user)):
+    db = get_cloud_db()
+    password_row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    if password_row and password_row["password_hash"] == "oauth":
+        pw_count = db.execute("SELECT COUNT(*) as c FROM oauth_accounts WHERE user_id = ?", (user["id"],)).fetchone()["c"]
+        if pw_count <= 1:
+            raise HTTPException(status_code=400, detail="Cannot unlink last login method. Set a password first.")
+    db.execute("DELETE FROM oauth_accounts WHERE user_id = ? AND provider = ?", (user["id"], provider))
     db.commit()
     return {"ok": True}
 

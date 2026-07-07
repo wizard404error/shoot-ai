@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -44,7 +45,7 @@ def verify_password(password: str, stored: str) -> bool:
     try:
         salt, pwd_hash = stored.split("$", 1)
         computed = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 600_000)
-        return computed.hex() == pwd_hash
+        return hmac.compare_digest(computed.hex(), pwd_hash)
     except (ValueError, AttributeError):
         return False
 

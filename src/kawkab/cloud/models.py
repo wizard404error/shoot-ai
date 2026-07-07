@@ -83,6 +83,22 @@ class SharedProject(BaseModel):
     permissions: str = "view"  # "view" | "edit" | "admin"
 
 
+# ── OAuth ──
+
+class OAuthAuthorizeResponse(BaseModel):
+    authorize_url: str
+    state: str
+    provider: str
+
+class OAuthCallbackRequest(BaseModel):
+    code: str
+    state: str
+    provider: str
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str
+
+
 # ── WebSocket ──
 
 class WSMessage(BaseModel):
