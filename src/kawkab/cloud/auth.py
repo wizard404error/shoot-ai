@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
 from kawkab.cloud.database import get_cloud_db
 
@@ -50,9 +51,9 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, role: str = "analyst") -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, _get_jwt_secret(), algorithm=ALGORITHM)
+    return jwt.encode({"sub": str(user_id), "role": role, "exp": expire}, _get_jwt_secret(), algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> Optional[dict]:
@@ -71,7 +72,91 @@ async def get_current_user(
     if payload is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     db = get_cloud_db()
-    user = db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (int(payload["sub"]),)).fetchone()
+    user = db.execute("SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?", (int(payload["sub"]),)).fetchone()
     if user is None or not user["is_active"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
     return dict(user)
+
+
+class APIKeyManager:
+    """Manage API keys stored in the cloud DB."""
+
+    @staticmethod
+    def _hash_key(key: str) -> str:
+        return hashlib.sha256(key.encode()).hexdigest()
+
+    @staticmethod
+    def create_api_key(user_id: int, name: str, permission: str = "read") -> dict:
+        db = get_cloud_db()
+        prefix = name[:4].upper() + "_"
+        raw_key = prefix + secrets.token_hex(24)
+        key_hash = APIKeyManager._hash_key(raw_key)
+        db.execute(
+            "INSERT INTO api_keys (user_id, name, key_hash, prefix, permission) VALUES (?, ?, ?, ?, ?)",
+            (user_id, name, key_hash, prefix, permission),
+        )
+        db.commit()
+        return {"api_key": raw_key, "name": name, "permission": permission}
+
+    @staticmethod
+    def validate_api_key(key: str) -> dict | None:
+        db = get_cloud_db()
+        key_hash = APIKeyManager._hash_key(key)
+        row = db.execute(
+            "SELECT api_keys.*, users.role FROM api_keys JOIN users ON api_keys.user_id = users.id WHERE key_hash = ? AND is_active = 1",
+            (key_hash,),
+        ).fetchone()
+        if row is None:
+            return None
+        db.execute("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?", (row["id"],))
+        db.commit()
+        return dict(row)
+
+    @staticmethod
+    def revoke_api_key(key: str) -> bool:
+        db = get_cloud_db()
+        key_hash = APIKeyManager._hash_key(key)
+        cur = db.execute("UPDATE api_keys SET is_active = 0 WHERE key_hash = ?", (key_hash,))
+        db.commit()
+        return cur.rowcount > 0
+
+    @staticmethod
+    def list_api_keys(user_id: int) -> list[dict]:
+        db = get_cloud_db()
+        rows = db.execute(
+            "SELECT id, name, prefix, permission, is_active, last_used_at, created_at, expires_at FROM api_keys WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def get_current_user_or_api_key(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    api_key: Optional[str] = Depends(_api_key_header),
+) -> dict:
+    if credentials:
+        payload = decode_token(credentials.credentials)
+        if payload:
+            db = get_cloud_db()
+            user = db.execute(
+                "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+                (int(payload["sub"]),),
+            ).fetchone()
+            if user and user["is_active"]:
+                return dict(user)
+    if api_key:
+        key_data = APIKeyManager.validate_api_key(api_key)
+        if key_data:
+            db = get_cloud_db()
+            user = db.execute(
+                "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+                (key_data["user_id"],),
+            ).fetchone()
+            if user and user["is_active"]:
+                result = dict(user)
+                result["_api_key_permission"] = key_data["permission"]
+                return result
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

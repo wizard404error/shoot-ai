@@ -94,3 +94,65 @@ rbac = RBACMiddleware()
 
 def get_rbac() -> RBACMiddleware:
     return rbac
+
+
+def require_permission(permission: str, resource_team: str = ""):
+    """FastAPI dependency factory — checks current user has required permission.
+    
+    Falls back to viewer-level access when no auth credentials are provided
+    (local desktop mode without cloud server)."""
+    from fastapi import Depends, HTTPException, status as http_status
+    from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+    from kawkab.cloud.auth import decode_token
+
+    _bearer = HTTPBearer(auto_error=False)
+
+    async def _checker(
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    ) -> dict:
+        current_user = None
+        if credentials:
+            payload = decode_token(credentials.credentials)
+            if payload:
+                db = None
+                try:
+                    from kawkab.cloud.database import get_cloud_db
+                    db = get_cloud_db()
+                    row = db.execute(
+                        "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+                        (int(payload["sub"]),),
+                    ).fetchone()
+                    if row and row["is_active"]:
+                        current_user = dict(row)
+                except Exception:
+                    pass
+        
+        if current_user is None:
+            current_user = {"id": 0, "username": "anonymous", "role": "viewer",
+                            "role_level": 30, "email": "", "team": ""}
+        
+        user_role = current_user.get("role", "viewer")
+        try:
+            role_enum = Role(user_role)
+        except ValueError:
+            role_enum = Role.VIEWER
+        user_level = ROLE_HIERARCHY.get(role_enum, 0)
+        required_role = PERMISSION_ROLES.get(permission)
+        if required_role is None:
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Unknown permission: {permission}")
+        required_level = ROLE_HIERARCHY.get(required_role, 0)
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission} (need {required_role.value}, have {user_role})",
+            )
+        if resource_team:
+            user_team = current_user.get("team", "")
+            if user_team and user_team != resource_team and user_level < ROLE_HIERARCHY[Role.ADMIN]:
+                raise HTTPException(
+                    status_code=http_status.HTTP_403_FORBIDDEN,
+                    detail=f"Team mismatch: cannot access resource of team '{resource_team}'",
+                )
+        return current_user
+
+    return _checker

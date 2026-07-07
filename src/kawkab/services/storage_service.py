@@ -1,11 +1,13 @@
-"""Storage service - SQLite database for matches, players, events, corrections.
+"""Storage service - SQLite (default) or PostgreSQL database.
 
-Privacy-first: all data stays on the coach's machine.
+Privacy-first: all data stays on the coach's machine by default (SQLite).
+Set KAWKAB_DB_URL env var for PostgreSQL (club/cloud deployment).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from dataclasses import asdict
@@ -20,7 +22,7 @@ logger = get_logger(__name__)
 
 
 class StorageService:
-    """SQLite-based storage for Kawkab AI data."""
+    """SQLite-based storage for Kawkab AI data (or PostgreSQL via KAWKAB_DB_URL)."""
 
     _COLUMN_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
@@ -31,13 +33,36 @@ class StorageService:
         logger.warning(f"Skipping invalid column name: {name}")
         return None
 
-    def __init__(self) -> None:
-        self._db_path = get_paths().database
+    def __init__(self, dsn: str | None = None) -> None:
+        self._use_postgres: bool = False
+        self._pg: Any = None
         self._conn: sqlite3.Connection | None = None
-        logger.info(f"StorageService: database={self._db_path}")
+        self._db_path: Path | None = None
+
+        actual_dsn = dsn or os.environ.get("KAWKAB_DB_URL")
+        if actual_dsn:
+            from kawkab.services.postgres_storage import PostgresStorageAdapter
+            self._pg = PostgresStorageAdapter(actual_dsn)
+            self._use_postgres = True
+            logger.info("StorageService: PostgreSQL mode enabled via KAWKAB_DB_URL")
+        else:
+            self._db_path = get_paths().database
+            logger.info(f"StorageService: SQLite mode, database={self._db_path}")
+
+    def __getattribute__(self, name: str) -> Any:
+        if name.startswith("_"):
+            return super().__getattribute__(name)
+        try:
+            pg = super().__getattribute__("_pg")
+            if pg is not None and hasattr(pg, name):
+                return getattr(pg, name)
+        except AttributeError:
+            pass
+        return super().__getattribute__(name)
 
     async def initialize(self) -> None:
-        """Create database and tables if they don't exist."""
+        if self._use_postgres:
+            return  # PostgresStorageAdapter handles init via _pg delegation
         from kawkab.core.migration_manager import MigrationManager
         from kawkab.core.paths import get_paths
 
@@ -49,7 +74,6 @@ class StorageService:
         migrations_dir = get_paths().migrations
         migrations_dir.mkdir(parents=True, exist_ok=True)
 
-        # Run migrations before opening connection
         mgr = MigrationManager(self._db_path, migrations_dir)
         mgr.migrate()
 

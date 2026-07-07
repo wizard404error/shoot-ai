@@ -114,5 +114,34 @@ def _migrate(db: sqlite3.Connection) -> None:
             expires_at TEXT NOT NULL,
             created_at TEXT DEFAULT (datetime('now'))
         );
+
     """)
     db.commit()
+
+    # Migration 3: add role column (idempotent via try/except)
+    try:
+        db.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'analyst'")
+        db.execute("INSERT OR IGNORE INTO schema_version VALUES (3)")
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    # Migration 4: api_keys table
+    try:
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                key_hash TEXT UNIQUE NOT NULL,
+                prefix TEXT DEFAULT '',
+                permission TEXT NOT NULL DEFAULT 'read',
+                is_active INTEGER DEFAULT 1,
+                last_used_at TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                expires_at TEXT
+            );
+            INSERT OR IGNORE INTO schema_version VALUES (4);
+        """)
+        db.commit()
+    except Exception:
+        db.rollback()

@@ -21,14 +21,20 @@ from kawkab.api.models import (
     FitnessOut, RecruitmentSearchIn, TransferFeeEstimateOut,
     GamePlanOut, MonitoringDashboardOut, WebhookCreateIn, WebhookOut,
 )
+from kawkab.core.rbac import require_permission
 
 router = APIRouter(prefix="/api/v1", tags=["analytics"])
 
 
+_storage_instance = None
+
 def _get_storage():
+    global _storage_instance
+    if _storage_instance is not None:
+        return _storage_instance
     from kawkab.services.storage_service import StorageService
-    svc = StorageService()
-    return svc
+    _storage_instance = StorageService()
+    return _storage_instance
 
 
 def _get_monitor():
@@ -40,17 +46,36 @@ def _not_found(msg: str):
     raise HTTPException(status_code=404, detail=msg)
 
 
+def _paginate(items: list, page: int, per_page: int) -> dict:
+    total = len(items)
+    pages = math.ceil(total / per_page) if per_page > 0 else 1
+    start = (page - 1) * per_page
+    end = start + per_page
+    return {
+        "items": items[start:end],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
+
+
 # ── Matches ──
 
-@router.get("/matches", response_model=MatchListOut)
-async def list_matches():
+@router.get("/matches")
+async def list_matches(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("match:read")),
+):
     svc = _get_storage()
-    matches = await svc.get_all_matches()
-    return MatchListOut(matches=[MatchOut(**m) for m in matches], total=len(matches))
+    matches_list = await svc.get_all_matches()
+    matches = [MatchOut(**m) for m in matches_list]
+    return _paginate(matches, page, per_page)
 
 
 @router.get("/matches/{match_id}", response_model=MatchOut)
-async def get_match(match_id: int):
+async def get_match(match_id: int, _user: dict = Depends(require_permission("match:read"))):
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -58,17 +83,20 @@ async def get_match(match_id: int):
     return MatchOut(**match)
 
 
-@router.get("/matches/{match_id}/events", response_model=list[EventOut])
+@router.get("/matches/{match_id}/events")
 async def get_match_events(
     match_id: int,
     event_type: str | None = Query(None),
     limit: int = Query(1000, le=5000),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("event:read")),
 ):
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
     if event_type:
         events = [e for e in events if e.get("type") == event_type]
-    return [EventOut(
+    items = [EventOut(
         id=e.get("id", 0),
         match_id=e.get("match_id", match_id),
         event_type=e.get("type", ""),
@@ -78,25 +106,32 @@ async def get_match_events(
         x=float(e.get("x", 0)), y=float(e.get("y", 0)),
         end_x=float(e.get("end_x", 0)), end_y=float(e.get("end_y", 0)),
     ) for e in events[:limit]]
+    return _paginate(items, page, per_page)
 
 
-@router.get("/matches/{match_id}/players", response_model=list[PlayerOut])
-async def get_match_players(match_id: int):
+@router.get("/matches/{match_id}/players")
+async def get_match_players(
+    match_id: int,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("player:read")),
+):
     svc = _get_storage()
     players = await svc.get_match_players(match_id)
-    return [PlayerOut(
+    items = [PlayerOut(
         track_id=p.get("track_id", 0),
         match_id=match_id,
         name=p.get("name", f"Player {p.get('track_id', '')}"),
         team=p.get("team", ""),
         jersey_number=int(p.get("jersey_number", 0)),
     ) for p in players]
+    return _paginate(items, page, per_page)
 
 
 # ── Analysis ──
 
 @router.get("/matches/{match_id}/analysis/shots", response_model=ShotAnalysisOut)
-async def analyze_shots(match_id: int):
+async def analyze_shots(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
     shots = [e for e in events if e.get("type") == "shot"]
@@ -129,7 +164,7 @@ async def analyze_shots(match_id: int):
 
 
 @router.get("/matches/{match_id}/analysis/tactical-shapes", response_model=TacticalShapesOut)
-async def get_tactical_shapes(match_id: int):
+async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -139,7 +174,7 @@ async def get_tactical_shapes(match_id: int):
 
 
 @router.get("/matches/{match_id}/analysis/pressing", response_model=PressingOut)
-async def get_pressing(match_id: int):
+async def get_pressing(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.pressing_classifier import PressingClassifier
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -255,7 +290,7 @@ async def get_player_fitness(track_id: int, match_id: int = Query(..., descripti
 # ── Recruitment ──
 
 @router.post("/recruitment/search")
-async def search_players(body: RecruitmentSearchIn):
+async def search_players(body: RecruitmentSearchIn, _user: dict = Depends(require_permission("recruitment:read"))):
     try:
         from kawkab.services.player_search import PlayerSearchService
         search_svc = PlayerSearchService()
@@ -273,7 +308,7 @@ async def search_players(body: RecruitmentSearchIn):
 
 
 @router.get("/recruitment/transfer-fee/{player_name}", response_model=TransferFeeEstimateOut)
-async def estimate_transfer_fee(player_name: str):
+async def estimate_transfer_fee(player_name: str, _user: dict = Depends(require_permission("recruitment:read"))):
     try:
         from kawkab.core.squad_valuation import estimate_player_transfer_fee
         fee_data = estimate_player_transfer_fee(player_name)
@@ -289,7 +324,7 @@ async def estimate_transfer_fee(player_name: str):
 
 
 @router.get("/recruitment/shortlist")
-async def get_shortlist():
+async def get_shortlist(_user: dict = Depends(require_permission("recruitment:read"))):
     try:
         from kawkab.services.shortlist_service import ShortlistService
         shortlist_svc = ShortlistService()
@@ -340,7 +375,7 @@ async def get_drift_alerts():
 # ── Webhooks ──
 
 @router.post("/webhooks", response_model=WebhookOut)
-async def create_webhook(body: WebhookCreateIn):
+async def create_webhook(body: WebhookCreateIn, _user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.services.webhook_service import WebhookService
     wh_svc = WebhookService()
     wh = wh_svc.register(body.url, body.secret, body.events)
@@ -348,14 +383,14 @@ async def create_webhook(body: WebhookCreateIn):
 
 
 @router.get("/webhooks", response_model=list[WebhookOut])
-async def list_webhooks():
+async def list_webhooks(_user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.services.webhook_service import WebhookService
     wh_svc = WebhookService()
     return [WebhookOut(**wh) for wh in wh_svc.list_all()]
 
 
 @router.delete("/webhooks/{webhook_id}")
-async def delete_webhook(webhook_id: int):
+async def delete_webhook(webhook_id: int, _user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.services.webhook_service import WebhookService
     wh_svc = WebhookService()
     wh_svc.unregister(webhook_id)
@@ -374,10 +409,15 @@ async def get_season_summary():
 # ── Coding Tags ──
 
 @router.get("/matches/{match_id}/coding/tags")
-async def get_coding_tags(match_id: int):
+async def get_coding_tags(
+    match_id: int,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
-    return svc.get_coding_tags(match_id)
+    tags = svc.get_coding_tags(match_id)
+    return _paginate(tags, page, per_page)
 
 @router.get("/matches/{match_id}/coding/tags/stats")
 async def get_coding_stats(match_id: int):
@@ -395,13 +435,13 @@ async def get_coding_tags_by_type(match_id: int, tag_type: str):
 # ── Injury / Medical ──
 
 @router.get("/players/{player_id}/injury-risk")
-async def get_player_injury_risk(player_id: int):
+async def get_player_injury_risk(player_id: int, _user: dict = Depends(require_permission("medical:read"))):
     from kawkab.core.injury_risk import InjuryRiskPredictor
     pred = InjuryRiskPredictor()
     return pred.predict_risk(player_id)
 
 @router.get("/squad/{team_id}/injury-report")
-async def get_squad_injury_report(team_id: int):
+async def get_squad_injury_report(team_id: int, _user: dict = Depends(require_permission("medical:read"))):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
     return svc.get_squad_injury_report(team_id)
@@ -437,6 +477,52 @@ async def get_collab_sessions():
 
 
 # ── Health ──
+
+@router.get("/feedback")
+async def get_all_feedback(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    feedback = await svc.get_all_feedback()
+    return _paginate(feedback, page, per_page)
+
+
+@router.get("/issues")
+async def get_all_issues(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    issues = await svc.get_all_issues()
+    return _paginate(issues, page, per_page)
+
+
+@router.get("/playlists")
+async def get_playlists(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    playlists = await svc.get_playlists()
+    return _paginate(playlists, page, per_page)
+
+
+@router.get("/matches/{match_id}/reports")
+async def get_reports(
+    match_id: int,
+    language: str = Query(""),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+):
+    from kawkab.services.storage_service import StorageService
+    svc = StorageService()
+    reports = await svc.get_reports(match_id, language)
+    return _paginate(reports, page, per_page)
+
 
 @router.get("/health")
 async def api_health():

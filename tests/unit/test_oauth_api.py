@@ -4,7 +4,10 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 import os
+import tempfile
 os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-testing-purposes-only")
+os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), f"kawkab_test_oauth_api.db")
+os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
 
 from fastapi.testclient import TestClient
 from kawkab.cloud.server import app

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
 os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-health-tests")
 
 from fastapi.testclient import TestClient

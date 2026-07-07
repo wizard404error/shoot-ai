@@ -19,6 +19,7 @@ from kawkab.cloud.auth import (
     verify_password,
 )
 from kawkab.cloud.database import get_cloud_db
+from kawkab.cloud.middleware import RateLimitMiddleware
 from kawkab.api.api_v1 import router as api_v1_router
 from kawkab.cloud.models import (
     UserRegister,
@@ -48,6 +49,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 
 # ── Health ──
@@ -110,14 +112,17 @@ def register(body: UserRegister):
     if existing:
         raise HTTPException(status_code=400, detail="Email or username already taken")
     pwd_hash = hash_password(body.password)
+    role = getattr(body, "role", "analyst")
+    if role not in ("admin", "coach", "analyst", "scout", "viewer"):
+        role = "analyst"
     cur = db.execute(
-        "INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
-        (body.username, body.email, pwd_hash, body.display_name or body.username),
+        "INSERT INTO users (username, email, password_hash, display_name, role) VALUES (?, ?, ?, ?, ?)",
+        (body.username, body.email, pwd_hash, body.display_name or body.username, role),
     )
     db.commit()
     user_id = cur.lastrowid
-    user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
-    token = create_access_token(user_id)
+    user = dict(db.execute("SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    token = create_access_token(user_id, role=role)
     return TokenResponse(access_token=token, user=UserOut(**user))
 
 @app.post("/auth/login", response_model=TokenResponse)
@@ -126,7 +131,7 @@ def login(body: UserLogin):
     row = db.execute("SELECT * FROM users WHERE email = ?", (body.email,)).fetchone()
     if not row or not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(row["id"])
+    token = create_access_token(row["id"], role=row.get("role", "analyst"))
     user = dict(row)
     del user["password_hash"]
     return TokenResponse(access_token=token, user=UserOut(**user))

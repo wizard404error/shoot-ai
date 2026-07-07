@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: kawkab
+
+commonLabels:
+  app.kubernetes.io/name: kawkab
+  app.kubernetes.io/version: "0.12.0"
+  app.kubernetes.io/component: analytics
+  app.kubernetes.io/part-of: kawkab-ai
+
+resources:
+  - deployment.yaml
+  - ingress.yaml
+
+namespace: kawkab
+
+configMapGenerator:
+  - name: kawkab-config
+    behavior: merge
+    literals:
+      - KAWKAB_LANG=en
+      - KAWKAB_DEBUG=false
+
+secretGenerator:
+  - name: kawkab-secrets
+    behavior: merge
+    type: Opaque
+
+images:
+  - name: kawkab/server
+    newName: kawkab/server
+    newTag: latest
+
+patches:
+  - target:
+      kind: Deployment
+      name: kawkab-server
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3

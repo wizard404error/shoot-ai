@@ -1,0 +1,290 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kawkab-config
+  labels:
+    app: kawkab
+data:
+  KAWKAB_JWT_SECRET: ""
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "kawkab"
+  KAWKAB_LANG: "en"
+  KAWKAB_DEBUG: "false"
+  LLM_PROVIDER: "ollama"
+  OLLAMA_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "qwen2.5:14b"
+  ENABLE_FACE_RECOGNITION: "true"
+  ENABLE_WEATHER_DETECTION: "true"
+  ENABLE_REALTIME_ANALYSIS: "false"
+  PROMETHEUS_MULTIPROC_DIR: "/tmp"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kawkab-secrets
+  labels:
+    app: kawkab
+type: Opaque
+stringData:
+  KAWKAB_JWT_SECRET: ""
+  KAWKAB_DB_URL: "postgresql+asyncpg://kawkab:changeme@postgres:5432/kawkab"
+  KAWKAB_DB_PASSWORD: "changeme"
+  FOOTBALL_DATA_API_KEY: ""
+  APIFOOTBALL_API_KEY: ""
+  BZZOIRO_API_KEY: ""
+  OPENAI_API_KEY: ""
+  KAWKAB_GOOGLE_CLIENT_ID: ""
+  KAWKAB_GOOGLE_CLIENT_SECRET: ""
+  KAWKAB_GITHUB_CLIENT_ID: ""
+  KAWKAB_GITHUB_CLIENT_SECRET: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kawkab-server
+  labels:
+    app: kawkab
+    tier: server
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: kawkab
+      tier: server
+  template:
+    metadata:
+      labels:
+        app: kawkab
+        tier: server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8741"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: server
+          image: kawkab/server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8741
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: kawkab-config
+            - secretRef:
+                name: kawkab-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8741
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8741
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          volumeMounts:
+            - name: data
+              mountPath: /root/.kawkab
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kawkab-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kawkab-celery-worker
+  labels:
+    app: kawkab
+    tier: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: kawkab
+      tier: worker
+  template:
+    metadata:
+      labels:
+        app: kawkab
+        tier: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8741"
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: kawkab/server:latest
+          imagePullPolicy: Always
+          command: ["celery", "-A", "kawkab.cloud.tasks", "worker", "--loglevel=info", "--concurrency=2"]
+          envFrom:
+            - configMapRef:
+                name: kawkab-config
+            - secretRef:
+                name: kawkab-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: data
+              mountPath: /root/.kawkab
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kawkab-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kawkab-migration-job
+  labels:
+    app: kawkab
+    tier: migration
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: migrate
+          image: kawkab/server:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "kawkab.migrations.run"]
+          envFrom:
+            - configMapRef:
+                name: kawkab-config
+            - secretRef:
+                name: kawkab-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kawkab-service
+  labels:
+    app: kawkab
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8741
+      targetPort: 8741
+      protocol: TCP
+  selector:
+    app: kawkab
+    tier: server
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kawkab-server-hpa
+  labels:
+    app: kawkab
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kawkab-server
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kawkab-data
+  labels:
+    app: kawkab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard

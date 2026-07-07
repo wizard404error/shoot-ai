@@ -2,13 +2,47 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
+# Use isolated temp DB for testing
+os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-testing-purposes-only")
+os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), f"kawkab_test_api_v1.db")
+os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
+
+from kawkab.cloud.auth import create_access_token
+from kawkab.cloud.database import get_cloud_db
 from kawkab.cloud.server import app
 
 
 client = TestClient(app)
+
+
+def _ensure_user(email, username, role):
+    """Get or create a test user, return auth headers."""
+    db = get_cloud_db()
+    row = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if not row:
+        db.execute(
+            "INSERT OR IGNORE INTO users (username, email, password_hash, display_name, role) VALUES (?, ?, ?, ?, ?)",
+            (username, email, "hash", f"{role.title()} Tester", role),
+        )
+        db.commit()
+        row = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if row is None:
+        return {}
+    token = create_access_token(row["id"], role=role)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _admin_headers():
+    return _ensure_user("admin@test.com", "admintest", "admin")
+
+
+def _analyst_headers():
+    return _ensure_user("analyst@test.com", "analysttest", "analyst")
 
 
 class TestApiHealth:
@@ -30,18 +64,18 @@ class TestApiHealth:
 
 class TestApiMatches:
     def test_list_matches(self):
-        resp = client.get("/api/v1/matches")
+        resp = client.get("/api/v1/matches", headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
-        assert "matches" in data
+        assert "items" in data or "matches" in data
         assert "total" in data
 
     def test_get_match_not_found(self):
-        resp = client.get("/api/v1/matches/999999")
+        resp = client.get("/api/v1/matches/999999", headers=_analyst_headers())
         assert resp.status_code == 404
 
     def test_get_match_players_not_found(self):
-        resp = client.get("/api/v1/matches/999999/players")
+        resp = client.get("/api/v1/matches/999999/players", headers=_analyst_headers())
         assert resp.status_code == 200
 
 
@@ -67,7 +101,7 @@ class TestApiModelComparison:
 
 class TestApiWebhooks:
     def test_create_webhook(self):
-        resp = client.post("/api/v1/webhooks", json={
+        resp = client.post("/api/v1/webhooks", headers=_admin_headers(), json={
             "url": "https://example.com/hook",
             "events": ["match.analyzed"],
         })
@@ -76,11 +110,11 @@ class TestApiWebhooks:
         assert data["url"] == "https://example.com/hook"
 
     def test_list_webhooks(self):
-        resp = client.get("/api/v1/webhooks")
+        resp = client.get("/api/v1/webhooks", headers=_admin_headers())
         assert resp.status_code == 200
 
     def test_delete_webhook(self):
-        resp = client.delete("/api/v1/webhooks/1")
+        resp = client.delete("/api/v1/webhooks/1", headers=_admin_headers())
         assert resp.status_code == 200
 
 
@@ -100,7 +134,7 @@ class TestApiMonitoring:
 
 class TestApiRecruitment:
     def test_search_players(self):
-        resp = client.post("/api/v1/recruitment/search", json={
+        resp = client.post("/api/v1/recruitment/search", headers=_analyst_headers(), json={
             "position": "forward",
             "min_age": 20,
             "max_age": 30,
@@ -108,12 +142,12 @@ class TestApiRecruitment:
         assert resp.status_code == 200
 
     def test_transfer_fee(self):
-        resp = client.get("/api/v1/recruitment/transfer-fee/Mbappe")
+        resp = client.get("/api/v1/recruitment/transfer-fee/Mbappe", headers=_analyst_headers())
         assert resp.status_code == 200
         assert "estimated_fee" in resp.json()
 
     def test_shortlist(self):
-        resp = client.get("/api/v1/recruitment/shortlist")
+        resp = client.get("/api/v1/recruitment/shortlist", headers=_analyst_headers())
         assert resp.status_code == 200
 
 
