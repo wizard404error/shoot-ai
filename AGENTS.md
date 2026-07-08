@@ -108,8 +108,10 @@ Rules:
 - `evaluate_tracking.py` — Fixed FPS calculation
 - `detect_events.py` — Fixed goal direction heuristic, time-based segment gaps, lower ball confidence threshold
 
-### New files added
-- `scripts/synthetic_benchmark.py` — Synthetic tracking benchmark: degrades Metrica GT, runs ByteTrack, reports MOTA/IDF1
+### New files added (3)
+- `scripts/synthetic_benchmark.py` — ByteTrack association robustness test: degrades Metrica GT with configurable noise/drop/FP, runs ByteTrack, reports MOTA/IDF1
+- `scripts/real_video_eval.py` — End-to-end evaluation on real video: runs YOLO at pipeline conf vs GT conf, tracks via ByteTrack, reports MOTA/Precision/Recall vs pseudo-GT
+- `scripts/manual_annotate.py` — Lightweight OpenCV manual annotation tool for independent ground truth
 
 ### Modified files (2)
 - `ball_tracker.py` — Fixed Kalman `.ravel()` bug: `self.kalman.predict()` returns 2D column vector, `float(pred[0])` crashed with `only 0-dimensional arrays can be converted to Python scalars`; added `.ravel()` before indexing
@@ -117,13 +119,13 @@ Rules:
 
 ## Tracking Accuracy Results
 
-### Real accuracy numbers (synthetic benchmark)
-ByteTrack on Metrica data with injected YOLO-like noise (22 players, 2000 frames):
+### A. ByteTrack association robustness (synthetic — Metrica GT with injected noise)
+Tests the ByteTrack association algorithm in isolation (no YOLO, no images, no homography). Underlying positions are real match data from Metrica; noise parameters (position std, dropout rate, FP rate) are assumed, not measured from the actual YOLO pipeline. 22 players, 2000 frames.
 
 | Label | Noise | Drop | FP | MOTA | IDF1 | IDSW |
 |-------|-------|------|----|------|------|------|
 | near-perfect | 0.001 | 0% | 0% | 0.9989 | 1.0000 | 50 |
-| **mild (realistic)** | **0.005** | **10%** | **2%** | **0.8683** | **0.9406** | **864** |
+| **mild (assumed noise, not measured)** | **0.005** | **10%** | **2%** | **0.8683** | **0.9406** | **864** |
 | moderate-noise | 0.010 | 10% | 2% | 0.4792 | 0.8312 | 10200 |
 | high-noise | 0.020 | 10% | 2% | 0.1751 | 0.5904 | 10597 |
 | high-dropout | 0.005 | 20% | 2% | 0.7679 | 0.8796 | 758 |
@@ -132,26 +134,51 @@ ByteTrack on Metrica data with injected YOLO-like noise (22 players, 2000 frames
 | combined-severe | 0.020 | 30% | 5% | 0.1273 | 0.4315 | 6423 |
 
 **Key findings:**
-- ByteTrack robust to 0.5% position noise + 10% dropout: **MOTA=0.87, IDF1=0.94**
+- ByteTrack robust to 0.5% position noise + 10% dropout: MOTA=0.87, IDF1=0.94
 - Breaking point at 1% position noise — IoU association fails catastrophically
 - Dropout handled well (max_age=30 keeps tracks alive for occlusions)
 - FP rejection excellent — ByteTrack filters most false positives via confidence/matching thresholds
 - ID switches are main weakness: 864 switches at mild settings (reacquisition after dropout)
-- Pipeline end-to-end verified on 105-min broadcast match (France vs Sweden, 24 tracked players)
+
+### B. End-to-end pipeline on broadcast video (pseudo-GT)
+Tests the full pipeline (YOLO11m + ByteTrack + filtering + team assignment) on 15 min of broadcast footage (france_sweden_15min.mp4, 3600 detection frames). Pseudo-ground-truth = YOLO detections at conf>0.5; pipeline threshold = conf>0.4. This is NOT independent ground truth (GT and predictions come from the same model at different thresholds), so numbers should be read as "how well does tracking preserve the highest-confidence YOLO detections" rather than absolute accuracy.
+
+| Metric | Raw detection (conf=0.4 vs conf=0.5) | Tracked (ByteTrack on conf=0.4 vs conf=0.5) |
+|--------|-------|---------|
+| MOTA | 0.844 | **0.538** |
+| Precision | 0.865 | **0.925** |
+| Recall | 1.000 | **0.586** |
+| F1 | 0.928 | **0.717** |
+
+**Key findings:**
+- **Precision = 92.5%** — When the pipeline outputs a detection, it almost certainly matches a real high-confidence player detection
+- **Recall = 58.6%** — But the pipeline misses ~41% of high-confidence detections, mainly from camera-cut fragmentation (frequent in broadcast footage) and ByteTrack's min_hits filter
+- **MOTA = 0.538** — Positive but limited by the recall gap
+- Primary recall bottleneck is broadcast camerawork (frequent cuts, close-ups, panning) not detector quality
+- An independent ground truth (manual annotation or SoccerNet) is needed to validate whether the recall gap is from missed players or from the pseudo-GT including non-player detections
+
+### C. Self-consistency (Metrica vs Metrica)
+- MOTA=1.0, IDF1=1.0 — validates MOT metric computation code
 
 ### To run next
 ```powershell
 # Full match with all fixes
 $env:PYTHONPATH="src"; python -m kawkab track --video "France vs Sweden_match.mp4" --output tracking_output_full --skip 6
 
-# Synthetic benchmark
+# ByteTrack association robustness test (synthetic)
 $env:PYTHONPATH="src"; python scripts/synthetic_benchmark.py --max-frames 5000 --noise 0.005 --drop 0.10 --fp-rate 0.02
+
+# End-to-end pipeline on real video (pseudo-GT)
+$env:PYTHONPATH="src"; python scripts/real_video_eval.py --video france_sweden_15min.mp4 --gt-conf 0.5 --pipeline-conf 0.4
 
 # Self-evaluation
 $env:PYTHONPATH="src"; python scripts/evaluate_tracking.py --self tracking_output/track_summary.json
 
-# CI benchmark
+# CI benchmark (Metrica self-consistency)
 $env:PYTHONPATH="src"; python scripts/benchmark_tracking.py
+
+# Manual annotation (independent GT)
+$env:PYTHONPATH="src"; python scripts/manual_annotate.py --video France_Sweden_clip_2min.mp4
 
 # Ball-only tracking (independent module)
 $env:PYTHONPATH="src"; python -c "from kawkab.services.ball_tracker import BallTracker; print('OK')"
