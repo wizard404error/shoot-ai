@@ -169,16 +169,21 @@ CREATE TABLE IF NOT EXISTS coding_tags (
 
     async def initialize(self):
         if not self._dsn:
+            import os
+            self._dsn = os.environ.get("KAWKAB_DB_URL")
+        if not self._dsn:
             return
         try:
             import asyncpg
             self._pool = asyncpg.create_pool(self._dsn, min_size=2, max_size=10)
-            await self._pool._initialize()
+            await self._pool  # awaitable — initializes connections
             self._available = True
             async with self._pool.acquire() as conn:
                 await conn.execute(self._SCHEMA_SQL)
-        except Exception:
+        except Exception as exc:
             self._available = False
+            import logging
+            logging.getLogger(__name__).warning("PostgreSQL init failed: %s", exc)
 
     async def close(self):
         if self._pool:

@@ -20,6 +20,7 @@ from kawkab.api.models import (
     LlmQueryIn, LlmQueryOut, CalibrationOut, ModelComparisonOut,
     FitnessOut, RecruitmentSearchIn, TransferFeeEstimateOut,
     GamePlanOut, MonitoringDashboardOut, WebhookCreateIn, WebhookOut,
+    ModelCardOut,
 )
 from kawkab.core.rbac import require_permission
 
@@ -474,6 +475,23 @@ async def get_collab_sessions():
         ],
         "total_sessions": len(connected_clients),
     }
+
+
+# ── Model Cards ──
+
+@router.get("/model-cards", response_model=list[ModelCardOut])
+async def list_model_cards():
+    from kawkab.core.model_card_registry import list_model_cards
+    return [ModelCardOut(**m.__dict__) for m in list_model_cards()]
+
+
+@router.get("/model-cards/{name}", response_model=ModelCardOut)
+async def get_model_card(name: str):
+    from kawkab.core.model_card_registry import get_model_card
+    card = get_model_card(name)
+    if not card:
+        raise HTTPException(404, f"Model card '{name}' not found")
+    return ModelCardOut(**card.__dict__)
 
 
 # ── Health ──

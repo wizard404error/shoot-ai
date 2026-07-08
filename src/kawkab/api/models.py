@@ -170,3 +170,18 @@ class WebhookOut(BaseModel):
     events: list[str]
     is_active: bool = True
     created_at: str = ""
+
+
+class ModelCardOut(BaseModel):
+    name: str
+    description: str
+    version: str = ""
+    model_type: str = ""
+    input_features: list[str] = []
+    output_description: str = ""
+    training_data: str = ""
+    known_limitations: list[str] = []
+    tested_range: str = ""
+    failure_modes: list[str] = []
+    test_count: int = 0
+    last_validated: str = ""
