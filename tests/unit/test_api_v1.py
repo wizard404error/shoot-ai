@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-testing-purposes-only")
 os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), f"kawkab_test_api_v1.db")
 os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
+os.environ.pop("KAWKAB_DB_URL", None)  # tests use SQLite for analytics
 
 from kawkab.cloud.auth import create_access_token
 from kawkab.cloud.database import get_cloud_db

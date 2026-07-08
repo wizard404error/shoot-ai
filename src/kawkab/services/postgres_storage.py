@@ -172,7 +172,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
             return
         try:
             import asyncpg
-            self._pool = await asyncpg.create_pool(self._dsn, min_size=2, max_size=10)
+            self._pool = asyncpg.create_pool(self._dsn, min_size=2, max_size=10)
+            await self._pool._initialize()
             self._available = True
             async with self._pool.acquire() as conn:
                 await conn.execute(self._SCHEMA_SQL)

@@ -21,9 +21,6 @@ class RateLimitMiddleware:
         self.app = app
         self.disabled = os.environ.get("KAWKAB_RATE_LIMIT_DISABLE") == "1"
         self._buckets: dict[str, dict] = defaultdict(lambda: {"tokens": 60, "last_refill": time.time()})
-    
-    def reset(self):
-        self._buckets.clear()
         self._limits = {
             "/api/v1/matches/": 30,
             "/api/v1/analysis": 5,
