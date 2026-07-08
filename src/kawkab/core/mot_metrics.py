@@ -28,7 +28,11 @@ def compute_mot_metrics(
     gt_tracks: dict[int, list[tuple[int, float, float]]],
     fp_threshold: float = 20.0,
     fps: float = 25.0,
+    is_normalized: bool = False,
 ) -> dict[str, Any]:
+    # Normalized [0,1] coords need a threshold in the same space
+    if is_normalized and fp_threshold > 1.0:
+        fp_threshold = 0.05  # 5% of pitch
     fn = 0
     fp = 0
     tp = 0

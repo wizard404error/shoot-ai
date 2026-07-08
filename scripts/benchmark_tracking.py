@@ -42,7 +42,12 @@ def _gt_tracks_to_dict(gt_match: Any) -> dict[int, list[tuple[int, float, float]
     for prefix, player_tracks in (("home", gt_match.home_tracks), ("away", gt_match.away_tracks)):
         for label, track in player_tracks.items():
             tid = hash(f"{prefix}:{label}") % 10_000_000
-            tracks[tid] = [(f.frame, f.x, f.y) for f in track.frames]
+            positions = []
+            for f in track.frames:
+                if not (f.x != f.x or f.y != f.y):  # NaN check via self-inequality
+                    positions.append((f.frame, f.x, f.y))
+            if positions:
+                tracks[tid] = positions
     return tracks
 
 
@@ -71,7 +76,7 @@ def run_benchmark(data_dir: Path) -> dict[str, Any]:
     # Self-comparison: ground-truth against itself gives the baseline ceiling
     # for MOT metrics (perfect MOTA=1.0, MOTP=0.0, IDF1=1.0) and validates that
     # the metric pipeline is wired correctly.
-    mot_metrics = compute_mot_metrics(gt_tracks, gt_tracks)
+    mot_metrics = compute_mot_metrics(gt_tracks, gt_tracks, is_normalized=True)
 
     # Build a synthetic track_summary dict that evaluate_tracking's
     # compute_fragmentation expects.
