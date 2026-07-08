@@ -112,7 +112,7 @@ class BallTracker:
                 self.kalman.predict()
                 self.kalman.correct(meas)
                 self.confidence = CONFIDENCE_VISIBLE
-            state = self.kalman.statePost
+            state = self.kalman.statePost.ravel()
             x, y, r = float(state[0]), float(state[1]), float(state[2])
             det = BallDetection(
                 frame=frame_number, timestamp=timestamp,
@@ -121,7 +121,7 @@ class BallTracker:
             )
         elif self.initialized and self.missed_frames < MISSED_FRAME_LIMIT:
             self.missed_frames += 1
-            pred = self.kalman.predict()
+            pred = self.kalman.predict().ravel()
             x, y, r = float(pred[0]), float(pred[1]), float(pred[2])
             decay = max(0.1, 1.0 - self.missed_frames / MISSED_FRAME_LIMIT)
             self.confidence = CONFIDENCE_PREDICTED * decay

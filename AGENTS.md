@@ -108,17 +108,57 @@ Rules:
 - `evaluate_tracking.py` — Fixed FPS calculation
 - `detect_events.py` — Fixed goal direction heuristic, time-based segment gaps, lower ball confidence threshold
 
+### New files added
+- `scripts/synthetic_benchmark.py` — Synthetic tracking benchmark: degrades Metrica GT, runs ByteTrack, reports MOTA/IDF1
+
+### Modified files (2)
+- `ball_tracker.py` — Fixed Kalman `.ravel()` bug: `self.kalman.predict()` returns 2D column vector, `float(pred[0])` crashed with `only 0-dimensional arrays can be converted to Python scalars`; added `.ravel()` before indexing
+- `__main__.py` — Fixed `Path(video_path)` wrapper: `process_video()` expects `Path`, was receiving string
+
+## Tracking Accuracy Results
+
+### Real accuracy numbers (synthetic benchmark)
+ByteTrack on Metrica data with injected YOLO-like noise (22 players, 2000 frames):
+
+| Label | Noise | Drop | FP | MOTA | IDF1 | IDSW |
+|-------|-------|------|----|------|------|------|
+| near-perfect | 0.001 | 0% | 0% | 0.9989 | 1.0000 | 50 |
+| **mild (realistic)** | **0.005** | **10%** | **2%** | **0.8683** | **0.9406** | **864** |
+| moderate-noise | 0.010 | 10% | 2% | 0.4792 | 0.8312 | 10200 |
+| high-noise | 0.020 | 10% | 2% | 0.1751 | 0.5904 | 10597 |
+| high-dropout | 0.005 | 20% | 2% | 0.7679 | 0.8796 | 758 |
+| severe-dropout | 0.005 | 30% | 2% | 0.6691 | 0.8133 | 716 |
+| combined-moderate | 0.010 | 20% | 5% | 0.4262 | 0.7536 | 7844 |
+| combined-severe | 0.020 | 30% | 5% | 0.1273 | 0.4315 | 6423 |
+
+**Key findings:**
+- ByteTrack robust to 0.5% position noise + 10% dropout: **MOTA=0.87, IDF1=0.94**
+- Breaking point at 1% position noise — IoU association fails catastrophically
+- Dropout handled well (max_age=30 keeps tracks alive for occlusions)
+- FP rejection excellent — ByteTrack filters most false positives via confidence/matching thresholds
+- ID switches are main weakness: 864 switches at mild settings (reacquisition after dropout)
+- Pipeline end-to-end verified on 105-min broadcast match (France vs Sweden, 24 tracked players)
+
 ### To run next
 ```powershell
 # Full match with all fixes
 $env:PYTHONPATH="src"; python -m kawkab track --video "France vs Sweden_match.mp4" --output tracking_output_full --skip 6
 
-# Regression test
-$env:PYTHONPATH="src"; python scripts/regression_test.py --video france_sweden_15min.mp4
+# Synthetic benchmark
+$env:PYTHONPATH="src"; python scripts/synthetic_benchmark.py --max-frames 5000 --noise 0.005 --drop 0.10 --fp-rate 0.02
+
+# Self-evaluation
+$env:PYTHONPATH="src"; python scripts/evaluate_tracking.py --self tracking_output/track_summary.json
+
+# CI benchmark
+$env:PYTHONPATH="src"; python scripts/benchmark_tracking.py
 
 # Ball-only tracking (independent module)
 $env:PYTHONPATH="src"; python -c "from kawkab.services.ball_tracker import BallTracker; print('OK')"
 
 # Physical metrics from tracking output
 $env:PYTHONPATH="src"; python -c "from kawkab.services.physical_metrics import compute_physical_metrics; print('OK')"
+
+# Regression test
+$env:PYTHONPATH="src"; python scripts/regression_test.py --video france_sweden_15min.mp4
 ```

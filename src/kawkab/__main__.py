@@ -154,7 +154,7 @@ async def _process_single_video(video_path: str, output_dir: str, skip: int, tra
     svc = CVService(model_size="m", gpu_enabled=True, tracker_type=tracker)
     await svc.initialize()
     try:
-        match_data = await svc.process_video(video_path, frame_skip=skip)
+        match_data = await svc.process_video(Path(video_path), frame_skip=skip)
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         tracks = []
@@ -182,6 +182,8 @@ async def _process_single_video(video_path: str, output_dir: str, skip: int, tra
         print(f"  OK: {Path(video_path).name} -> {out / 'track_summary.json'} ({len(tracks)} tracks)")
         return {"video": Path(video_path).name, "status": "ok", "tracks": len(tracks)}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"  FAIL: {Path(video_path).name}: {e}")
         return {"video": Path(video_path).name, "status": "failed", "error": str(e)}
     finally:
