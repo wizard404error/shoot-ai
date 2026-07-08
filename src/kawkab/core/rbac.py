@@ -96,11 +96,12 @@ def get_rbac() -> RBACMiddleware:
     return rbac
 
 
-def require_permission(permission: str, resource_team: str = ""):
+def require_permission(permission: str, resource_team: str = "", allow_anonymous: bool = False):
     """FastAPI dependency factory — checks current user has required permission.
-    
-    Falls back to viewer-level access when no auth credentials are provided
-    (local desktop mode without cloud server)."""
+
+    By default (allow_anonymous=False), missing or invalid credentials return 401.
+    Set allow_anonymous=True for endpoints that should work without auth
+    (e.g. health checks, local desktop mode)."""
     from fastapi import Depends, HTTPException, status as http_status
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
     from kawkab.cloud.auth import decode_token
@@ -126,11 +127,17 @@ def require_permission(permission: str, resource_team: str = ""):
                         current_user = dict(row)
                 except Exception:
                     pass
-        
+
         if current_user is None:
+            if not allow_anonymous:
+                raise HTTPException(
+                    status_code=http_status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             current_user = {"id": 0, "username": "anonymous", "role": "viewer",
                             "role_level": 30, "email": "", "team": ""}
-        
+
         user_role = current_user.get("role", "viewer")
         try:
             role_enum = Role(user_role)
