@@ -37,6 +37,8 @@ dependencies = [
     "motmetrics>=1.4.0",
     "EasySoccerData>=0.0.8",
     "playwright>=1.60.0",
+    "cryptography>=42.0.0",
+    "keyring>=24.0",
 ]
 
 [project.optional-dependencies]

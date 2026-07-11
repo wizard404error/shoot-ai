@@ -228,6 +228,60 @@ class HomographyService:
             logger.error(f"Failed to load calibration: {e}")
             return None
 
+    def save_segment_calibration(
+        self, match_id: int, segment_index: int, matrix: HomographyMatrix
+    ) -> None:
+        """Save per-segment homography calibration for a match."""
+        paths = get_paths()
+        calib_dir = paths.appdata / "calibrations"
+        calib_dir.mkdir(parents=True, exist_ok=True)
+
+        seg_path = calib_dir / f"match_{match_id}_segments.json"
+        segments = {}
+        if seg_path.exists():
+            try:
+                with open(seg_path) as f:
+                    segments = json.load(f)
+            except Exception:
+                segments = {}
+
+        segments[str(segment_index)] = {
+            "matrix": matrix.matrix,
+            "pitch_length_m": matrix.pitch_length_m,
+            "pitch_width_m": matrix.pitch_width_m,
+            "source": matrix.source,
+            "confidence": matrix.confidence,
+            "error_px": matrix.error_px,
+        }
+
+        with open(seg_path, "w") as f:
+            json.dump(segments, f, indent=2)
+        logger.info(f"Segment {segment_index} calibration saved for match {match_id}")
+
+    def load_segment_calibrations(self, match_id: int) -> dict[int, HomographyMatrix]:
+        """Load all per-segment calibrations for a match."""
+        paths = get_paths()
+        seg_path = paths.appdata / "calibrations" / f"match_{match_id}_segments.json"
+        if not seg_path.exists():
+            return {}
+        try:
+            with open(seg_path) as f:
+                data = json.load(f)
+            result = {}
+            for seg_idx, cal_data in data.items():
+                result[int(seg_idx)] = HomographyMatrix(
+                    matrix=cal_data["matrix"],
+                    pitch_length_m=cal_data.get("pitch_length_m", 105.0),
+                    pitch_width_m=cal_data.get("pitch_width_m", 68.0),
+                    source=cal_data.get("source", "unknown"),
+                    confidence=cal_data.get("confidence", 0.0),
+                    error_px=cal_data.get("error_px", 0.0),
+                )
+            return result
+        except Exception as e:
+            logger.error(f"Failed to load segment calibrations: {e}")
+            return {}
+
     def transform_track_positions(
         self,
         pixel_positions: list[tuple[float, float, float]],

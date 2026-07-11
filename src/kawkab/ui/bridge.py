@@ -169,6 +169,14 @@ class Bridge(QObject):
     async def get_homography(self, match_id: int) -> str:
         return await self._analysis.get_homography(match_id)
 
+    @Slot(int, int, str, float, float, result=str)
+    async def save_segment_homography(self, match_id: int, segment_index: int, corners_json: str, pitch_length_m: float = 105.0, pitch_width_m: float = 68.0) -> str:
+        return await self._analysis.save_segment_homography(match_id, segment_index, corners_json, pitch_length_m, pitch_width_m)
+
+    @Slot(int, result=str)
+    async def get_segment_homographies(self, match_id: int) -> str:
+        return await self._analysis.get_segment_homographies(match_id)
+
     @Slot(str, str, result=int)
     async def save_match(self, name: str, video_path: str) -> int:
         return await self._analysis.save_match(name, video_path)

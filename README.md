@@ -2,7 +2,7 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> 📊 **Current state:** 140+ services, 8 external data sources, 3800+ unit tests, full Arabic+English support.
+> 📊 **Current state:** 100+ services, 8 external data sources, 4500+ unit tests, full Arabic+English support.
 > 🚧 **Status:** Production-aiming. See [STATUS.md](STATUS.md) for the full report.
 
 [![Tests](https://github.com/user-attachments/assets/4e7f3e3a-1e0e-4f0f-8f0f-3e3a1e0e4f0f)](.github/workflows/ci.yml)
@@ -38,7 +38,7 @@
 ## ⚠️ Status
 
 This project is under active development toward production quality.
-- 50+ backend services, 200+ unit tests, full Arabic+English UI
+- 100+ backend services, 4500+ unit tests, full Arabic+English UI
 - Multi-phase roadmap: ✅ Phase 1 (test coverage), 🚧 Phase 2 (real-time), Phase 3 (pro analytics), Phase 4 (UX polish)
 
 **What works:**
@@ -65,6 +65,21 @@ This project is under active development toward production quality.
 - ⚠️ **Bundle is 1.75 GB**: Way too big for amateur adoption.
 
 **Read [STATUS.md](STATUS.md) for the full honest assessment.**
+
+---
+
+### Tracking Accuracy
+
+Evaluated on 15min broadcast clip (`france_sweden_15min.mp4`, 3600 frames) using pseudo-ground-truth (YOLO at conf>0.5) vs pipeline (YOLO at conf>0.4 + ByteTrack):
+
+| Metric | Value |
+|--------|-------|
+| MOTA | 0.538 |
+| Precision | 92.5% |
+| Recall | 58.6% |
+| F1 | 0.717 |
+
+Precision is strong (pipeline rarely hallucinates players). Recall bottleneck is broadcast camerawork (frequent cuts, close-ups), not detector quality. Amateur footage untested — see [known limitations](#%EF%B8%8F-status).
 
 ---
 
@@ -138,7 +153,7 @@ uv run python -m kawkab
 
 | Feature | Status | Notes |
 |---|---|---|
-| YOLOv11 + BoT-SORT + Top-N filter | ✅ "Excellent" | 28 tracks, 1.27x of expected |
+| YOLOv11 + BoT-SORT + Top-N filter | ✅ Working | Precision 92.5%, Recall 58.6% (pseudo-GT) |
 | Homography UI + integration | ✅ Working | Real meters for distance/formations |
 | Team color clustering | ✅ Working | K-means auto home/away |
 | SQLite storage | ✅ Working | Tested with SQLite |
@@ -177,19 +192,21 @@ uv run python -m kawkab
 ```
 Kawkab AI Desktop (1.75 GB bundle, 66 MB exe)
 │
-├── 13 Services (async)
-│   ├── CVService              (YOLOv11l + BoT-SORT + top-N filter + pitch mask)
-│   ├── HomographyService      (manual 4-corner calibration, meters-based)
-│   ├── VRAMManager            (sequential model loading, GPU budget)
-│   ├── EnhancementService     (FFmpeg filters)
-│   ├── AnalysisService        (formations, PPDA, xG, xT in meters)
-│   ├── ReasoningService       (22-rule tactical diagnosis)
-│   ├── TrainingPlanGenerator  (4-week progressive plans)
-│   ├── ClipExtractionService  (FFmpeg evidence clips)
-│   ├── KnowledgeService       (22 rules + 19 drills)
-│   ├── LLMService             (Ollama local, EN+AR)
-│   ├── AudioService           (Whisper, whistle)
-│   └── StorageService         (SQLite)
+├── Core Services
+│   ├── CVService               (YOLOv11l + BoT-SORT + top-N filter + pitch mask)
+│   ├── HomographyService       (manual 4-corner calibration, meters-based)
+│   ├── LightGlueHomographyService  (auto keypoint detection)
+│   ├── VRAMManager             (sequential model loading, GPU budget)
+│   ├── EnhancementService      (FFmpeg filters)
+│   ├── AnalysisService         (formations, PPDA, xG, xT in meters)
+│   ├── CameraCutDetector       (shot boundary detection)
+│   ├── ReasoningService        (22-rule tactical diagnosis)
+│   ├── TrainingPlanGenerator   (4-week progressive plans)
+│   ├── ClipExtractionService   (FFmpeg evidence clips)
+│   ├── KnowledgeService        (22 rules + 19 drills)
+│   ├── LLMService              (Ollama local, EN+AR)
+│   ├── AudioService            (Whisper, whistle)
+│   └── StorageService          (SQLite)
 │
 ├── GPU: RTX 4070 (CUDA 12.1, PyTorch 2.5.1)
 ├── LLM: Ollama + Ministral/Qwen/Gemma (local, free)
@@ -222,7 +239,7 @@ kawkab-ai/
 ├── src/kawkab/
 │   ├── app.py                  # Main PySide6 window
 │   ├── core/                   # Config, logging, paths
-│   ├── services/               # 12 async services
+│   ├── services/               # 100+ async services
 │   │   ├── cv_service.py       # YOLO + BoT-SORT (v2: smart filters)
 │   │   ├── homography_service.py  # ⭐ NEW: pixel->pitch conversion
 │   │   ├── vram_manager.py     # ⭐ NEW: GPU memory management
@@ -278,7 +295,7 @@ MIT License — see [LICENSE](LICENSE)
 
 ## Bottom Line
 
-This is a **viable technical architecture** with **real domain knowledge** in the knowledge base, and at v0.8.3 is on the path toward a real product. The next phases need to focus on:
+This is a **viable technical architecture** with **real domain knowledge** in the knowledge base, and at v0.12.0 is on the path toward a real product. The next phases need to focus on:
 
 1. **Validating tracking accuracy** on real amateur footage (currently tuned for broadcast)
 2. **Integrating SoccerNet/tracklab** for football-tuned ReID

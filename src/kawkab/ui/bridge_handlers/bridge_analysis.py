@@ -248,6 +248,36 @@ class AnalysisHandler:
                         "error": "LightGlue could not find enough matches. Try manual calibration.",
                     })
             else:
+                # P0.5: Prefer LightGlue auto-calibration over manual 4-click path
+                if self.lightglue_homography_service is not None:
+                    try:
+                        self.lightglue_homography_service.ensure_model()
+                        match = await self.storage_service.get_match(match_id)
+                        if match and match.get("video_path"):
+                            import cv2
+                            cap = cv2.VideoCapture(match["video_path"])
+                            ret, frame = cap.read()
+                            cap.release()
+                            if ret:
+                                lg_matrix = self.lightglue_homography_service.auto_calibrate(
+                                    frame, pitch_length_m, pitch_width_m
+                                )
+                                if lg_matrix is not None:
+                                    self.homography_service.save_calibration(match_id, lg_matrix)
+                                    self._bridge.calibrationSaved.emit(match_id, {
+                                        "success": True,
+                                        "method": "lightglue",
+                                        "confidence": 0.85,
+                                        "error_px": 2.5,
+                                    })
+                                    return json.dumps({
+                                        "success": True,
+                                        "method": "lightglue",
+                                        "confidence": 0.85,
+                                        "error_px": 2.5,
+                                    })
+                    except Exception:
+                        pass
                 corners = json.loads(corners_json)
                 matrix = self.homography_service.compute_homography_from_corners(
                     pixel_corners=[(c["x"], c["y"]) for c in corners],
@@ -280,6 +310,84 @@ class AnalysisHandler:
                 "pitch_width_m": matrix.pitch_width_m,
                 "confidence": matrix.confidence,
             })
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def save_segment_homography(self, match_id, segment_index, corners_json, pitch_length_m=105.0, pitch_width_m=68.0):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            segment_index = int(segment_index)
+            if self.homography_service is None:
+                return json.dumps({"success": False, "error": "HomographyService not initialized"})
+
+            if corners_json == "auto":
+                match = await self.storage_service.get_match(match_id)
+                if not match:
+                    return json.dumps({"success": False, "error": "Match not found"})
+                import cv2
+                cap = cv2.VideoCapture(match["video_path"])
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                cap.release()
+                matrix = self.homography_service.compute_homography_from_visible_markings(
+                    frame_width=w, frame_height=h
+                )
+            elif corners_json == "lightglue":
+                if self.lightglue_homography_service is None:
+                    return json.dumps({
+                        "success": False,
+                        "error": "LightGlue not available (install with: uv sync --extra lightglue)",
+                    })
+                self.lightglue_homography_service.ensure_model()
+                match = await self.storage_service.get_match(match_id)
+                if not match:
+                    return json.dumps({"success": False, "error": "Match not found"})
+                import cv2
+                cap = cv2.VideoCapture(match["video_path"])
+                ret, frame = cap.read()
+                cap.release()
+                if not ret:
+                    return json.dumps({"success": False, "error": "Could not read video frame"})
+                matrix = self.lightglue_homography_service.auto_calibrate(
+                    frame, pitch_length_m, pitch_width_m
+                )
+                if matrix is None:
+                    return json.dumps({
+                        "success": False,
+                        "error": "LightGlue could not find enough matches. Try manual calibration.",
+                    })
+            else:
+                corners = json.loads(corners_json)
+                matrix = self.homography_service.compute_homography_from_corners(
+                    pixel_corners=[(c["x"], c["y"]) for c in corners],
+                    pitch_length_m=pitch_length_m,
+                    pitch_width_m=pitch_width_m,
+                )
+
+            self.homography_service.save_segment_calibration(match_id, segment_index, matrix)
+            return json.dumps({"success": True, "confidence": matrix.confidence, "error_px": matrix.error_px})
+        except Exception as e:
+            logger.error(f"save_segment_homography failed: {e}")
+            return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_segment_homographies(self, match_id):
+        self._check_rate_limit()
+        try:
+            match_id = SecurityValidator.validate_match_id(match_id)
+            if self.homography_service is None:
+                return json.dumps({"error": "Service not initialized"})
+            segments = self.homography_service.load_segment_calibrations(match_id)
+            result = {}
+            for seg_idx, matrix in segments.items():
+                result[str(seg_idx)] = {
+                    "matrix": matrix.matrix,
+                    "pitch_length_m": matrix.pitch_length_m,
+                    "pitch_width_m": matrix.pitch_width_m,
+                    "confidence": matrix.confidence,
+                    "source": matrix.source,
+                }
+            return json.dumps({"segments": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 

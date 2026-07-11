@@ -187,6 +187,7 @@ class FinalThirdReport:
 def analyze_final_third_entries(
     events: list[dict[str, Any]],
     pitch: PitchConfig = STANDARD_PITCH,
+    attacking_direction: str = "right",
 ) -> FinalThirdReport:
     """Analyze how teams enter the final third of the pitch.
 
@@ -216,7 +217,11 @@ def analyze_final_third_entries(
         start_x = ev.get("start_x", 0)
 
         # Ball entered final third
-        if start_x < final_third_x <= end_x:
+        if attacking_direction == "left":
+            entered = end_x < pitch.length_m - final_third_x <= start_x
+        else:
+            entered = start_x < final_third_x <= end_x
+        if entered:
             # Classify entry method
             entry_type = "pass"
             if etype == "carry":
@@ -268,7 +273,7 @@ def analyze_final_third_entries(
 _ACTION_TYPES = {"tackle", "interception", "pressure", "foul", "block"}
 
 
-def compute_ppda(events: list[dict], team: str) -> dict:
+def compute_ppda(events: list[dict], team: str, attacking_direction: str = "right") -> dict:
     """Compute PPDA (Passes Per Defensive Action) for a team.
 
     PPDA measures pressing intensity: how many opponent passes are allowed
@@ -277,12 +282,15 @@ def compute_ppda(events: list[dict], team: str) -> dict:
     Args:
         events: List of event dicts.
         team: Team name to compute PPDA for ("home" or "away").
+        attacking_direction: Direction of attack ("right" or "left").
 
     Returns:
         dict with ppda, defensive_actions, opponent_passes.
     """
     pitch_length = 105.0
     press_x_threshold = pitch_length * 0.4  # attacking 60%
+    if attacking_direction == "left":
+        press_x_threshold = pitch_length - press_x_threshold
     opponent = "away" if team == "home" else "home"
 
     def_actions = 0
@@ -311,17 +319,18 @@ def compute_ppda(events: list[dict], team: str) -> dict:
     }
 
 
-def compute_ppda_both_teams(events: list[dict]) -> dict:
+def compute_ppda_both_teams(events: list[dict], attacking_direction: str = "right") -> dict:
     """Compute PPDA for both teams.
 
     Args:
         events: List of event dicts.
+        attacking_direction: Direction of attack ("right" or "left").
 
     Returns:
         dict with home_ppda, away_ppda.
     """
-    home = compute_ppda(events, "home")
-    away = compute_ppda(events, "away")
+    home = compute_ppda(events, "home", attacking_direction)
+    away = compute_ppda(events, "away", attacking_direction)
     return {
         "success": True,
         "home_ppda": home["ppda"],

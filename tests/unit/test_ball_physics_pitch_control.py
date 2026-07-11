@@ -49,10 +49,10 @@ class TestBallArrivalTime:
         assert t == pytest.approx(5.0, rel=0.1)
 
     def test_kicked_faster_than_rolling(self):
-        ctrl = BallPhysicsPitchControl(ball_speed_kick=20.0, ball_speed_roll=10.0)
-        t_kicked = ctrl._ball_arrival_time(0, 34, 50, 34, is_kicked=True)
-        t_roll = ctrl._ball_arrival_time(0, 34, 50, 34, is_kicked=False)
-        assert t_kicked < t_roll
+        ctrl = BallPhysicsPitchControl(ball_speed_kick=30.0, ball_speed_roll=10.0, lift_angle=0.25)
+        t_kicked = ctrl._ball_arrival_time(0, 34, 25, 34, is_kicked=True)
+        t_roll = ctrl._ball_arrival_time(0, 34, 25, 34, is_kicked=False)
+        assert t_kicked < t_roll, f"kicked={t_kicked} roll={t_roll}"
 
 
 class TestComputeFrameControl:

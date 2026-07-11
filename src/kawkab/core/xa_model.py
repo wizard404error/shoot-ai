@@ -115,12 +115,14 @@ class ExpectedAssistModel:
         pitch_length: float = 105.0,
         pitch_width: float = 68.0,
         xg_model: EnhancedXgModel | None = None,
+        attacking_direction: str = "right",
     ) -> None:
         self.rows = rows
         self.cols = cols
         self.pitch_length = pitch_length
         self.pitch_width = pitch_width
         self.xg_model = xg_model or EnhancedXgModel()
+        self.attacking_direction = attacking_direction
 
         # Shot arrival probability grid
         self._arrival_grid = np.array(_SHOT_ARRIVAL_RATES[:rows], dtype=np.float64)
@@ -139,6 +141,8 @@ class ExpectedAssistModel:
                     self._xg_grid[r, c] = _SHOT_XG_BY_ZONE[r][c]
 
     def _zone_from_position(self, x: float, y: float) -> tuple[int, int]:
+        if self.attacking_direction == "left":
+            x = self.pitch_length - x
         atk_x = x if x > self.pitch_length / 2 else self.pitch_length - x
         col = min(self.cols - 1, max(0, int(atk_x / (self.pitch_length / 2) * self.cols)))
         row = min(self.rows - 1, max(0, int((self.pitch_width - y) / self.pitch_width * self.rows)))

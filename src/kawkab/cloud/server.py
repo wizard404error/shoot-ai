@@ -42,9 +42,10 @@ app = FastAPI(title="Kawkab AI Cloud", version="0.1.0")
 
 app.include_router(api_v1_router)
 
+_cors_origins = os.environ.get("KAWKAB_CORS_ORIGINS", "https://app.kawkab.ai").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

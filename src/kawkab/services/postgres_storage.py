@@ -260,8 +260,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
                 count += 1
             return count
 
-    async def get_match_events(self, match_id: int) -> list[dict]:
-        rows = await self.fetch("SELECT * FROM events WHERE match_id = $1 ORDER BY timestamp", match_id)
+    async def get_match_events(self, match_id: int, limit: int = 200, offset: int = 0) -> list[dict]:
+        rows = await self.fetch("SELECT * FROM events WHERE match_id = $1 ORDER BY timestamp LIMIT $2 OFFSET $3", match_id, limit, offset)
         result = []
         for r in rows:
             ev = dict(r)
@@ -289,8 +289,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
         )
         return len(tuples)
 
-    async def get_match_players(self, match_id: int) -> list[dict]:
-        return await self.fetch("SELECT * FROM players WHERE match_id = $1 ORDER BY track_id", match_id)
+    async def get_match_players(self, match_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+        return await self.fetch("SELECT * FROM players WHERE match_id = $1 ORDER BY track_id LIMIT $2 OFFSET $3", match_id, limit, offset)
 
     # ── Match updates ──
 
@@ -412,8 +412,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
             )
             return row["id"] if row else 0
 
-    async def get_all_player_profiles(self) -> list[dict]:
-        return await self.fetch("SELECT * FROM player_profiles ORDER BY name")
+    async def get_all_player_profiles(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        return await self.fetch("SELECT * FROM player_profiles ORDER BY name LIMIT $1 OFFSET $2", limit, offset)
 
     async def update_player_profile_face(self, profile_id: int, face_path: str) -> bool:
         if not self._pool:
@@ -474,10 +474,10 @@ CREATE TABLE IF NOT EXISTS coding_tags (
             )
             return row["id"] if row else 0
 
-    async def get_reports(self, match_id: int, language: str = "") -> list[dict]:
+    async def get_reports(self, match_id: int, language: str = "", limit: int = 20, offset: int = 0) -> list[dict]:
         if language:
-            return await self.fetch("SELECT * FROM reports WHERE match_id = $1 AND language = $2 ORDER BY created_at DESC", match_id, language)
-        return await self.fetch("SELECT * FROM reports WHERE match_id = $1 ORDER BY created_at DESC", match_id)
+            return await self.fetch("SELECT * FROM reports WHERE match_id = $1 AND language = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4", match_id, language, limit, offset)
+        return await self.fetch("SELECT * FROM reports WHERE match_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", match_id, limit, offset)
 
     # ── Benchmarks ──
 
@@ -496,8 +496,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
             )
             return row["id"] if row else 0
 
-    async def get_recent_benchmarks(self, limit: int = 10) -> list[dict]:
-        return await self.fetch("SELECT * FROM benchmark_results ORDER BY created_at DESC LIMIT $1", limit)
+    async def get_recent_benchmarks(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        return await self.fetch("SELECT * FROM benchmark_results ORDER BY created_at DESC LIMIT $1 OFFSET $2", limit, offset)
 
     # ── Validation ──
 
@@ -517,8 +517,8 @@ CREATE TABLE IF NOT EXISTS coding_tags (
                     ids.append(row["id"])
         return ids
 
-    async def get_validation_results(self, match_id: int) -> list[dict]:
-        return await self.fetch("SELECT * FROM validation_results WHERE match_id = $1 ORDER BY created_at DESC", match_id)
+    async def get_validation_results(self, match_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
+        return await self.fetch("SELECT * FROM validation_results WHERE match_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", match_id, limit, offset)
 
     # ── Feedback / Issues ──
 

@@ -28,7 +28,6 @@ WHITE_UPPER = (180, 30, 255)
 DARK_LOWER = (0, 0, 0)
 DARK_UPPER = (180, 255, 50)
 MISSED_FRAME_LIMIT = 30
-KALMAN_DT = 1.0 / 24.0
 CONFIDENCE_VISIBLE = 0.9
 CONFIDENCE_PREDICTED = 0.3
 
@@ -58,8 +57,9 @@ class BallTracker:
             [0, 0, 0, 0, 1, 0],
             [0, 0, 0, 0, 0, 1],
         ], dtype=np.float32)
-        self.kalman.processNoiseCov = np.eye(6, dtype=np.float32) * 1e-2
-        self.kalman.measurementNoiseCov = np.eye(3, dtype=np.float32) * 1e-1
+        dt_scale = max(self.dt / (1.0 / 24.0), 0.01)
+        self.kalman.processNoiseCov = np.eye(6, dtype=np.float32) * (1e-2 * dt_scale)
+        self.kalman.measurementNoiseCov = np.eye(3, dtype=np.float32) * (1e-1 / dt_scale)
         self.kalman.errorCovPost = np.eye(6, dtype=np.float32)
         self.initialized = False
         self.missed_frames = 0

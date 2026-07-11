@@ -76,17 +76,18 @@ def hungarian(cost_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
             j1 = way[j0]
             p[j0] = p[j1]
             j0 = j1
-    row_ind = np.zeros(n_max, dtype=np.intp)
-    col_ind = np.zeros(n_max, dtype=np.intp)
-    for j in range(1, n_max + 1):
-        if p[j] != 0 and j <= m and p[j] <= n:
-            row_ind[p[j] - 1] = j - 1
-            col_ind[j - 1] = p[j] - 1
-    valid = (col_ind < n) & (np.arange(n_max) < m)
-    assigned_rows = np.where(valid)[0]
-    assigned_cols = col_ind[valid]
-    total_cost = float(cost_matrix[assigned_rows, assigned_cols].sum()) if len(assigned_rows) > 0 else 0.0
-    return assigned_rows, assigned_cols, total_cost
+    row_list: list[int] = []
+    col_list: list[int] = []
+    for j in range(1, m + 1):
+        if p[j] != 0 and p[j] <= n:
+            row_list.append(p[j] - 1)
+            col_list.append(j - 1)
+    if len(row_list) == 0:
+        return np.array([], dtype=np.intp), np.array([], dtype=np.intp), 0.0
+    row_ind = np.array(row_list, dtype=np.intp)
+    col_ind = np.array(col_list, dtype=np.intp)
+    total_cost = float(cost_matrix[row_ind, col_ind].sum())
+    return row_ind, col_ind, total_cost
 
 
 def hungarian_match(

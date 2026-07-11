@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 
+from kawkab.core.encryption import decrypt_dict, encrypt_dict
+
 
 class RehabPhase(str, Enum):
     INITIAL = "initial"
@@ -64,9 +66,11 @@ class RehabService:
     def create_plan(self, injury_id: int, start_date: str = "") -> RehabPlan:
         if not start_date:
             start_date = datetime.now().isoformat()
+        milestones_text = json.dumps(REHAB_MILESTONES["initial"])
+        encrypted_milestones = encrypt_dict({"milestones": milestones_text}, ["milestones"], in_place=False)["milestones"]
         cur = self._db.execute(
             "INSERT INTO rehab_plans (injury_id, phase, start_date, milestones, status) VALUES (?, ?, ?, ?, ?)",
-            (injury_id, "initial", start_date, json.dumps(REHAB_MILESTONES["initial"]), "active"),
+            (injury_id, "initial", start_date, encrypted_milestones, "active"),
         )
         self._db.commit()
         return RehabPlan(
@@ -74,13 +78,16 @@ class RehabService:
             start_date=start_date, milestones=list(REHAB_MILESTONES["initial"]),
         )
 
+    def _decrypt_rehab(self, row: dict) -> dict:
+        d = decrypt_dict(dict(row), ["milestones", "notes"])
+        d["milestones"] = json.loads(d.get("milestones", "[]"))
+        return d
+
     def get_plan(self, plan_id: int) -> Optional[dict]:
         row = self._db.execute("SELECT * FROM rehab_plans WHERE id = ?", (plan_id,)).fetchone()
         if row is None:
             return None
-        result = dict(row)
-        result["milestones"] = json.loads(result.get("milestones", "[]"))
-        return result
+        return self._decrypt_rehab(row)
 
     def get_plan_by_injury(self, injury_id: int) -> Optional[dict]:
         row = self._db.execute(
@@ -89,9 +96,7 @@ class RehabService:
         ).fetchone()
         if row is None:
             return None
-        result = dict(row)
-        result["milestones"] = json.loads(result.get("milestones", "[]"))
-        return result
+        return self._decrypt_rehab(row)
 
     def advance_phase(self, plan_id: int) -> Optional[dict]:
         plan = self.get_plan(plan_id)
@@ -103,9 +108,10 @@ class RehabService:
             return plan
         next_phase = phases[current_idx + 1].value
         milestones = REHAB_MILESTONES.get(next_phase, [])
+        encrypted = encrypt_dict({"milestones": json.dumps(milestones)}, ["milestones"], in_place=False)["milestones"]
         self._db.execute(
             "UPDATE rehab_plans SET phase = ?, milestones = ?, updated_at = datetime('now') WHERE id = ?",
-            (next_phase, json.dumps(milestones), plan_id),
+            (next_phase, encrypted, plan_id),
         )
         self._db.commit()
         plan["phase"] = next_phase
@@ -125,9 +131,10 @@ class RehabService:
         ms = list(plan.get("milestones", []))
         if milestone in ms:
             ms.remove(milestone)
+        encrypted = encrypt_dict({"milestones": json.dumps(ms)}, ["milestones"], in_place=False)["milestones"]
         self._db.execute(
             "UPDATE rehab_plans SET milestones = ?, updated_at = datetime('now') WHERE id = ?",
-            (json.dumps(ms), plan_id),
+            (encrypted, plan_id),
         )
         self._db.commit()
         plan["milestones"] = ms
@@ -153,9 +160,4 @@ class RehabService:
             rows = self._db.execute(
                 "SELECT * FROM rehab_plans WHERE status = 'active' ORDER BY created_at DESC",
             ).fetchall()
-        results = []
-        for r in rows:
-            d = dict(r)
-            d["milestones"] = json.loads(d.get("milestones", "[]"))
-            results.append(d)
-        return results
+        return [self._decrypt_rehab(r) for r in rows]

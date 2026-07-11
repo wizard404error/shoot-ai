@@ -26,6 +26,9 @@
     let videoFrame = null;
     let videoFrameWidth = 1280;
     let videoFrameHeight = 720;
+    let cameraSegments = [];
+    let selectedSegment = 0;
+    let segmentCalibrations = {};
 
     function init() {
         if (!canvas) return;
@@ -39,6 +42,65 @@
         if (typeof bridge !== 'undefined' && bridge) {
             loadFirstFrame();
         }
+    }
+
+    async function loadSegments() {
+        const listEl = document.getElementById('segment-list');
+        if (!listEl) return;
+        try {
+            if (typeof bridge !== 'undefined' && bridge.get_tactical_periods) {
+                const periods = await bridge.get_tactical_periods(currentMatchId);
+                if (periods && periods.segments) {
+                    cameraSegments = periods.segments;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load segments:', e);
+        }
+        if (!cameraSegments.length) {
+            cameraSegments = [{id: 0, label: 'Main Camera', frame_start: 0, frame_end: 0}];
+        }
+        try {
+            if (typeof bridge !== 'undefined' && bridge.get_segment_homographies) {
+                const result = await bridge.get_segment_homographies(currentMatchId);
+                if (result && result.segments) {
+                    segmentCalibrations = {};
+                    Object.keys(result.segments).forEach(function(k) {
+                        segmentCalibrations[k] = {method: result.segments[k].source || 'manual', confidence: result.segments[k].confidence || 0.5};
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load segment calibrations:', e);
+        }
+        renderSegmentList(listEl);
+        renderSummary();
+    }
+
+    function renderSegmentList(listEl) {
+        listEl.innerHTML = '';
+        cameraSegments.forEach((seg, idx) => {
+            const item = document.createElement('div');
+            item.className = 'segment-item' + (idx === selectedSegment ? ' active' : '');
+            item.innerHTML =
+                '<span class="segment-label">' + (seg.label || 'Segment ' + (idx + 1)) + '</span>' +
+                '<span class="segment-status">' + (segmentCalibrations[idx] ? 'Calibrated' : 'Not set') + '</span>' +
+                '<button class="btn btn-secondary segment-calibrate" data-idx="' + idx + '">Calibrate</button>';
+            item.querySelector('.segment-calibrate').addEventListener('click', function(e) {
+                e.stopPropagation();
+                selectedSegment = parseInt(this.dataset.idx);
+                renderSegmentList(listEl);
+                if (statusEl) statusEl.textContent = 'Calibrating: ' + cameraSegments[selectedSegment].label;
+                resetCalibration();
+                loadFirstFrame();
+            });
+            item.addEventListener('click', function() {
+                selectedSegment = idx;
+                renderSegmentList(listEl);
+                resetCalibration();
+            });
+            listEl.appendChild(item);
+        });
     }
 
     async function loadFirstFrame() {
@@ -163,18 +225,29 @@
         redraw();
     }
 
-    async function saveCalibration() {
-        if (clicks.length !== 4) return;
-        try {
-            const result = await bridge.save_homography(
+    function saveToBackend(cornersValue, method) {
+        if (typeof bridge !== 'undefined' && bridge.save_segment_homography) {
+            return bridge.save_segment_homography(
                 currentMatchId,
-                JSON.stringify(clicks),
+                selectedSegment,
+                cornersValue,
                 105.0,
                 68.0
             );
+        }
+        return bridge.save_homography(currentMatchId, cornersValue, 105.0, 68.0);
+    }
+
+    async function saveCalibration() {
+        if (clicks.length !== 4) return;
+        try {
+            const result = await saveToBackend(JSON.stringify(clicks), 'manual');
             if (result && result.success) {
+                segmentCalibrations[selectedSegment] = {method: 'manual', confidence: result.confidence || 0.5};
+                renderSegmentList(document.getElementById('segment-list'));
+                renderSummary();
                 if (statusEl) {
-                    statusEl.textContent = `Saved! Confidence: ${(result.confidence * 100).toFixed(0)}%`;
+                    statusEl.textContent = 'Saved! Confidence: ' + ((result.confidence || 0.5) * 100).toFixed(0) + '%';
                 }
                 if (window.showNotification) {
                     window.showNotification('Camera calibration saved', 'success');
@@ -188,13 +261,11 @@
 
     async function skipCalibration() {
         try {
-            const result = await bridge.save_homography(
-                currentMatchId,
-                'auto',
-                105.0,
-                68.0
-            );
+            const result = await saveToBackend('auto', 'auto');
             if (result && result.success) {
+                segmentCalibrations[selectedSegment] = {method: 'auto', confidence: result.confidence || 0.3};
+                renderSegmentList(document.getElementById('segment-list'));
+                renderSummary();
                 if (statusEl) {
                     statusEl.textContent = 'Using estimated calibration (no clicks)';
                 }
@@ -210,13 +281,11 @@
             lightglueBtn.textContent = 'Running AI matching...';
         }
         try {
-            const result = await bridge.save_homography(
-                currentMatchId,
-                'lightglue',
-                105.0,
-                68.0
-            );
+            const result = await saveToBackend('lightglue', 'lightglue');
             if (result && result.success) {
+                segmentCalibrations[selectedSegment] = {method: 'lightglue', confidence: result.confidence || 0.85};
+                renderSegmentList(document.getElementById('segment-list'));
+                renderSummary();
                 if (statusEl) {
                     statusEl.textContent = 'LightGlue calibration saved! Confidence: ' +
                         (result.confidence * 100).toFixed(0) + '%';
@@ -241,6 +310,31 @@
         }
     }
 
+    function renderSummary() {
+        const container = document.getElementById('calibration-segment-cards');
+        const summary = document.getElementById('calibration-summary');
+        if (!container || !summary) return;
+        const keys = Object.keys(segmentCalibrations);
+        if (!keys.length) {
+            summary.classList.add('hidden');
+            return;
+        }
+        summary.classList.remove('hidden');
+        container.innerHTML = '';
+        keys.forEach(function(k) {
+            const cal = segmentCalibrations[k];
+            const seg = cameraSegments[parseInt(k)];
+            if (!seg) return;
+            const card = document.createElement('div');
+            card.className = 'segment-card';
+            card.innerHTML =
+                '<span class="card-label">' + (seg.label || 'Segment ' + (parseInt(k) + 1)) + '</span>' +
+                '<span class="card-detail">Method: ' + (cal.method || 'manual') + '</span>' +
+                '<span class="card-detail">Confidence: ' + (cal.confidence ? (cal.confidence * 100).toFixed(0) + '%' : 'N/A') + '</span>';
+            container.appendChild(card);
+        });
+    }
+
     function showCalibrationSection(matchId) {
         currentMatchId = matchId;
         const section = document.getElementById('calibration-section');
@@ -249,6 +343,8 @@
             section.scrollIntoView({ behavior: 'smooth' });
             resetCalibration();
             loadFirstFrame();
+            loadSegments();
+            renderSummary();
         }
     }
 

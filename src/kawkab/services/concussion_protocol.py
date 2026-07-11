@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 
+from kawkab.core.encryption import decrypt_dict, encrypt_dict
+
 
 class ConcussionClearance(str, Enum):
     NOT_CLEARED = "not_cleared"
@@ -62,13 +64,14 @@ class ConcussionProtocolService:
         self._db = db
 
     def record_assessment(self, assessment: SCAT5Assessment) -> int:
+        encrypted_notes = encrypt_dict({"notes": assessment.notes}, ["notes"], in_place=False)["notes"]
         cur = self._db.execute(
             """INSERT INTO concussion_assessments
                (player_id, match_id, symptoms_score, cognitive_score, balance_score, clearance_status, notes)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (assessment.player_id, assessment.match_id, assessment.symptoms_score,
              assessment.cognitive_score, assessment.balance_score,
-             assessment.clearance_status, assessment.notes),
+             assessment.clearance_status, encrypted_notes),
         )
         self._db.commit()
         return cur.lastrowid
@@ -78,7 +81,7 @@ class ConcussionProtocolService:
             "SELECT * FROM concussion_assessments WHERE player_id = ? ORDER BY assessment_date DESC",
             (player_id,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [decrypt_dict(dict(r), ["notes"]) for r in rows]
 
     def advance_clearance(self, assessment_id: int, cleared_by: str = "") -> Optional[dict]:
         row = self._db.execute(
@@ -86,7 +89,7 @@ class ConcussionProtocolService:
         ).fetchone()
         if row is None:
             return None
-        current = dict(row)
+        current = decrypt_dict(dict(row), ["notes"])
         stages = [s.value for s in ConcussionClearance]
         try:
             idx = stages.index(current["clearance_status"])
@@ -95,14 +98,17 @@ class ConcussionProtocolService:
         if idx >= len(stages) - 1:
             return current
         next_status = stages[idx + 1]
+        appended = current.get("notes", "") + f" | Advanced to {next_status}"
+        encrypted = encrypt_dict({"notes": appended}, ["notes"], in_place=False)["notes"]
         self._db.execute(
             """UPDATE concussion_assessments
-               SET clearance_status = ?, cleared_by = COALESCE(?, cleared_by), notes = notes || ' | Advanced to ' || ?
+               SET clearance_status = ?, cleared_by = COALESCE(?, cleared_by), notes = ?
                WHERE id = ?""",
-            (next_status, cleared_by, next_status, assessment_id),
+            (next_status, cleared_by, encrypted, assessment_id),
         )
         self._db.commit()
         current["clearance_status"] = next_status
+        current["notes"] = appended
         return current
 
     def get_clearance_status(self, player_id: int) -> dict:
@@ -112,7 +118,7 @@ class ConcussionProtocolService:
         ).fetchone()
         if row is None:
             return {"player_id": player_id, "clearance_status": "not_cleared", "has_assessment": False}
-        r = dict(row)
+        r = decrypt_dict(dict(row), ["notes"])
         r["has_assessment"] = True
         r["stage_description"] = STAGE_DESCRIPTIONS.get(r["clearance_status"], "")
         return r

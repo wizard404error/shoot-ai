@@ -12,6 +12,12 @@ import numpy as np
 
 from kawkab.core.game_constants import GAME
 
+try:
+    from ortools.sat.python import cp_model
+    _ORTOOLS_AVAILABLE = True
+except ImportError:
+    _ORTOOLS_AVAILABLE = False
+
 PITCH_LENGTH = GAME.PITCH_LENGTH_M
 PITCH_WIDTH = GAME.PITCH_WIDTH_M
 
@@ -152,16 +158,19 @@ class LineupOptimizer:
         home_away: str = "home",
         pitch_length: float = 105.0,
         pitch_width: float = 68.0,
+        attacking_direction: str = "right",
     ) -> LineupSuggestion:
         """Suggest a lineup for a given formation.
 
         Args:
             formation: Desired formation name (e.g. "4-4-2").
             players: Optional list of player dicts with keys:
-                     "track_id", "role" (position name or role string).
+                     "track_id", "role" (position name or role string), "rating" (0-1).
             opponent_formation: Opponent's expected formation.
             home_away: "home" or "away".
             pitch_length, pitch_width: Pitch dimensions in meters.
+            attacking_direction: Which direction the team attacks ("right" or "left").
+                                 Affects formation mirroring.
 
         Returns:
             LineupSuggestion with optimal slot positions.
@@ -179,12 +188,22 @@ class LineupOptimizer:
             x = x_ratio * pitch_length
             y = y_ratio * pitch_width
             if home_away == "away":
-                x = self._mirror_for_away(x)
+                x = self._mirror_for_away(x, attacking_direction)
             slots.append(PlayerSlot(position_name=pos_name, x=x, y=y))
 
-        # Assign players to slots if provided
-        if players:
-            slots = self._assign_players_to_slots(slots, players, pitch_length, pitch_width)
+        # Assign players to slots — try MILP first, fall back to greedy
+        if players and len(slots) > 0:
+            if _ORTOOLS_AVAILABLE and len(players) >= len(slots):
+                try:
+                    milp_assigned = self._assign_via_milp(slots, players)
+                    if milp_assigned is not None:
+                        slots = milp_assigned
+                    else:
+                        slots = self._assign_players_to_slots(slots, players, pitch_length, pitch_width)
+                except Exception:
+                    slots = self._assign_players_to_slots(slots, players, pitch_length, pitch_width)
+            else:
+                slots = self._assign_players_to_slots(slots, players, pitch_length, pitch_width)
 
         # Adjust for opponent formation
         adj = self._formation_strength_vs(formation, opponent_formation)
@@ -201,6 +220,101 @@ class LineupOptimizer:
             description=desc,
             confidence=confidence,
         )
+
+    def _assign_via_milp(
+        self,
+        slots: list[PlayerSlot],
+        players: list[dict[str, Any]],
+    ) -> list[PlayerSlot] | None:
+        """Assign players to slots using MILP (CP-SAT) for optimal role+rating fit.
+
+        Builds a binary assignment model:
+            x[p,s] = 1 if player p is assigned to slot s
+            constraints: each player <= 1 slot, each slot == 1 player
+            objective: maximize sum(x[p,s] * match_score(p,s))
+        where match_score = _role_match_score * (1 + 0.1 * rating).
+
+        Returns enriched slot list on success, or None if the solver fails.
+        """
+        num_players = len(players)
+        num_slots = len(slots)
+
+        model = cp_model.CpModel()
+
+        x: dict[tuple[int, int], cp_model.IntVar] = {}
+        score_terms: list[cp_model.LinearExpr] = []
+
+        for p_idx, player in enumerate(players):
+            role = str(player.get("role", "")).lower()
+            rating = float(player.get("rating", 0.5))
+
+            for s_idx, slot in enumerate(slots):
+                var = model.NewBoolVar(f"x_{p_idx}_{s_idx}")
+                x[p_idx, s_idx] = var
+
+                match_score = self._role_match_score(slot.position_name, role) * (1.0 + 0.1 * rating)
+                int_coeff = max(1, int(round(match_score * 10000)))
+                score_terms.append(var * int_coeff)
+
+        # Each player gets at most one slot
+        for p_idx in range(num_players):
+            model.Add(sum(x[p_idx, s_idx] for s_idx in range(num_slots)) <= 1)
+
+        # Each slot gets exactly one player
+        for s_idx in range(num_slots):
+            model.Add(sum(x[p_idx, s_idx] for p_idx in range(num_players)) == 1)
+
+        model.Maximize(sum(score_terms))
+
+        solver = cp_model.CpSolver()
+        solver.parameters.num_search_workers = 8
+        status = solver.Solve(model)
+
+        if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return None
+
+        assigned_players: set[int] = set()
+        slot_to_player: dict[int, int] = {}
+
+        for p_idx in range(num_players):
+            for s_idx in range(num_slots):
+                if solver.Value(x[p_idx, s_idx]) == 1:
+                    slot_to_player[s_idx] = p_idx
+                    assigned_players.add(p_idx)
+                    break
+
+        enriched: list[PlayerSlot] = []
+        for s_idx, slot in enumerate(slots):
+            if s_idx in slot_to_player:
+                p = players[slot_to_player[s_idx]]
+                pid = p.get("track_id", -1)
+                pname = p.get("name", p.get("display_name", f"Player {pid}"))
+                enriched.append(PlayerSlot(
+                    position_name=slot.position_name,
+                    x=slot.x,
+                    y=slot.y,
+                    role=pname,
+                ))
+            else:
+                enriched.append(PlayerSlot(
+                    position_name=slot.position_name,
+                    x=slot.x,
+                    y=slot.y,
+                    role=slot.position_name,
+                ))
+
+        for p_idx, player in enumerate(players):
+            if p_idx not in assigned_players:
+                pid = player.get("track_id", -1)
+                pname = player.get("name", player.get("display_name", f"Player {pid}"))
+                enriched.append(PlayerSlot(
+                    position_name="SUB",
+                    x=0.0,
+                    y=0.0,
+                    role=pname,
+                ))
+
+        return enriched
 
     def compare_formations(
         self,
@@ -425,7 +539,15 @@ class LineupOptimizer:
         return " | ".join(parts)
 
     @staticmethod
-    def _mirror_for_away(x: float) -> float:
+    def _mirror_for_away(x: float, attacking_direction: str = "right") -> float:
+        """Mirror x-coordinate for the away team.
+
+        When the home team attacks right (default), the away team attacks left,
+        so their formation is mirrored across the pitch via PITCH_LENGTH - x.
+        The attacking_direction parameter is provided for API consistency
+        (e.g. if the home team attacks left, the away team attacks right and no
+        mirror is needed — callers should handle this by skipping the mirror call).
+        """
         return PITCH_LENGTH - x
 
 

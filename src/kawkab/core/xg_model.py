@@ -20,11 +20,17 @@ for backward compatibility. The EnhancedXgModel provides the improved model.
 from __future__ import annotations
 
 import functools
+import json
+import logging
 import math
 from dataclasses import dataclass, field, fields
+from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy.stats import beta
+
+logger = logging.getLogger(__name__)
 
 from kawkab.core.coordinate_validator import CoordinateValidator, ValidationResult
 from kawkab.core.perf_timing import timed
@@ -96,6 +102,33 @@ ENHANCED_COEFFICIENTS: dict[str, float] = {
     "angle_deg_sq_sin": -0.3,
 }
 
+
+# ── Trained coefficients (auto-loaded from disk, fallback to enhanced) ──────
+
+TRAINED_COEFFICIENTS: dict[str, float] = dict(ENHANCED_COEFFICIENTS)
+_TRAINED_COEFF_PATH = Path(__file__).parent / "trained_xg_coefficients.json"
+if _TRAINED_COEFF_PATH.exists():
+    try:
+        with open(_TRAINED_COEFF_PATH) as _f:
+            _trained = json.load(_f)
+        _trained_clean = {k: v for k, v in _trained.items() if isinstance(v, (int, float)) and not k.startswith("_")}
+        if _trained_clean:
+            TRAINED_COEFFICIENTS.update(_trained_clean)
+    except Exception:
+        pass
+
+
+def _validate_trained_coefficients() -> None:
+    """Check TRAINED_COEFFICIENTS has all ENHANCED_COEFFICIENTS keys; warn on mismatch."""
+    missing = set(ENHANCED_COEFFICIENTS) - set(TRAINED_COEFFICIENTS)
+    extra = set(TRAINED_COEFFICIENTS) - set(ENHANCED_COEFFICIENTS)
+    if missing:
+        logger.warning("TRAINED_COEFFICIENTS missing keys: %s", missing)
+    if extra:
+        logger.warning("TRAINED_COEFFICIENTS has extra keys not in ENHANCED_COEFFICIENTS: %s", extra)
+
+
+_validate_trained_coefficients()
 
 # ── Legacy functions (backward compatible) ──────────────────────────────────
 
@@ -274,7 +307,7 @@ class EnhancedXgModel:
 
     def __init__(self, coefficients: dict[str, float] | None = None,
                  coeffs_source: str = "heuristic"):
-        self.coef = coefficients or ENHANCED_COEFFICIENTS
+        self.coef = coefficients or TRAINED_COEFFICIENTS
         self.coeffs_source = coeffs_source
 
     @classmethod
@@ -469,3 +502,33 @@ def compute_xg_enhanced(
         gk_distance_m=gk_distance_m,
     )
     return EnhancedXgModel().compute_single(features)
+
+
+def compute_xg_with_ci(
+    distance_m: float,
+    angle_deg: float,
+    *,
+    body_part: str = "right_foot",
+    shot_type: str = "open_play",
+    confidence_level: float = 0.95,
+) -> dict[str, float]:
+    """Compute xG with Beta-conjugate credible interval.
+
+    Uses a Beta(1,1) uniform prior updated with effective observed data
+    derived from the xG model output.
+    """
+    xg_val = compute_xg(distance_m, angle_deg, body_part=body_part, shot_type=shot_type)
+    effective_shots = 100.0
+    goals = xg_val * effective_shots
+    n_shots = effective_shots
+    alpha_post = goals + 1.0
+    beta_post = n_shots - goals + 1.0
+    mean = alpha_post / (alpha_post + beta_post)
+    lower = beta.ppf((1.0 - confidence_level) / 2.0, alpha_post, beta_post)
+    upper = beta.ppf(1.0 - (1.0 - confidence_level) / 2.0, alpha_post, beta_post)
+    return {
+        "xg": round(mean, 4),
+        "ci_lower": round(float(lower), 4),
+        "ci_upper": round(float(upper), 4),
+        "confidence_level": confidence_level,
+    }

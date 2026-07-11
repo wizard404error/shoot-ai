@@ -19,6 +19,7 @@
     "playwright": "^1.49.0"
   },
   "dependencies": {
+    "esbuild": "^0.28.1",
     "three": "^0.185.1"
   }
 }

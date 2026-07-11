@@ -7,6 +7,7 @@ and survival-based event valuation.
 from __future__ import annotations
 
 import math
+import random
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -275,6 +276,7 @@ def compute_vaep(
     events: list[dict[str, Any]],
     frames: list[dict[str, Any]] | None = None,
     lookahead: float = LOOKAHEAD_SECONDS,
+    attacking_direction: str = "right",
 ) -> list[dict[str, Any]]:
     """Compute VAEP using possession-phase survival model.
 
@@ -328,7 +330,10 @@ def compute_vaep(
 
     for i, ev in enumerate(sorted_ev):
         ts = ev.get("timestamp", 0.0)
-        zx, zy = _to_zone(ev.get("x", 52.5), ev.get("y", 34.0))
+        ev_x = ev.get("x", 52.5)
+        if attacking_direction == "left":
+            ev_x = PITCH_LENGTH - ev_x
+        zx, zy = _to_zone(ev_x, ev.get("y", 34.0))
         team = ev.get("team", "home")
         zone = (zx, zy)
         pid = phase_map.get(i, -1)
@@ -379,7 +384,10 @@ def compute_vaep(
                     next_pos = (nxt.get("x", 52.5), nxt.get("y", 34.0))
                     break
             if next_pos:
-                nzx, nzy = _to_zone(next_pos[0], next_pos[1])
+                nxt_x = next_pos[0]
+                if attacking_direction == "left":
+                    nxt_x = PITCH_LENGTH - nxt_x
+                nzx, nzy = _to_zone(nxt_x, next_pos[1])
                 nzone = (nzx, nzy)
                 if team == "home":
                     next_atk = home_attack_rate.get(nzone, 0.001) * adj_score
@@ -424,22 +432,194 @@ def compute_vaep(
     return [r.to_dict() for r in results]
 
 
+def compute_vaep_with_ci(
+    events: list[dict[str, Any]],
+    frames: list[dict[str, Any]] | None = None,
+    lookahead: float = LOOKAHEAD_SECONDS,
+    n_bootstrap: int = 100,
+) -> list[dict[str, Any]]:
+    """Compute VAEP with block-bootstrap confidence intervals.
+
+    Resamples possession phases (blocks) with replacement to preserve
+    temporal dependence, then computes per-event CIs from the bootstrap
+    distribution.
+
+    Args:
+        events: Sorted list of event dicts.
+        frames: Optional — passed through to compute_vaep.
+        lookahead: Lookahead window in seconds.
+        n_bootstrap: Number of bootstrap iterations.
+
+    Returns:
+        List of VAEP result dicts with added ci_lower and ci_upper keys.
+    """
+    if not events:
+        return []
+
+    sorted_ev = sorted(events, key=lambda e: e.get("timestamp", 0))
+    phases = _identify_possession_phases(sorted_ev)
+    phase_ids = list(range(len(phases)))
+
+    point_results = compute_vaep(sorted_ev, frames, lookahead)
+
+    per_event_values: dict[int, list[float]] = {}
+    for r in point_results:
+        per_event_values[r["event_index"]] = [r["vaep_value"]]
+
+    for _ in range(n_bootstrap):
+        sampled_ids = random.choices(phase_ids, k=len(phase_ids))
+        temp_pairs: list[tuple[float, int, dict[str, Any]]] = []
+        for pid in sampled_ids:
+            start, end, _ = phases[pid]
+            for idx in range(start, end + 1):
+                ev = sorted_ev[idx]
+                temp_pairs.append((ev.get("timestamp", 0.0), idx, ev))
+
+        temp_pairs.sort(key=lambda x: x[0])
+        sorted_indices = [p[1] for p in temp_pairs]
+        sampled_events_list = [p[2] for p in temp_pairs]
+
+        resampled = compute_vaep(sampled_events_list, frames, lookahead)
+        for r in resampled:
+            idx = r["event_index"]
+            if idx < len(sorted_indices):
+                orig_idx = sorted_indices[idx]
+                if orig_idx in per_event_values:
+                    per_event_values[orig_idx].append(r["vaep_value"])
+
+    final_results: list[dict[str, Any]] = []
+    for r in point_results:
+        idx = r["event_index"]
+        vals = per_event_values.get(idx, [r["vaep_value"]])
+        if len(vals) < 2:
+            ci_lower = r["vaep_value"]
+            ci_upper = r["vaep_value"]
+        else:
+            ci_lower = float(np.percentile(vals, 2.5))
+            ci_upper = float(np.percentile(vals, 97.5))
+        final_results.append({
+            **r,
+            "ci_lower": round(ci_lower, 4),
+            "ci_upper": round(ci_upper, 4),
+            "n_bootstrap": n_bootstrap,
+        })
+
+    return final_results
+
+
 def compute_vaep_v2(
     events: list[dict[str, Any]],
     frames: list[dict[str, Any]] | None = None,
     lookahead: float = LOOKAHEAD_SECONDS,
 ) -> list[dict[str, Any]]:
-    """Compute VAEP 2.0 with player-relative spatiotemporal features.
+    """Compute VAEP 2.0 using frame-level tracking data.
 
-    Wraps compute_vaep with enhanced player-relative features
-    for more accurate event valuation.
+    Unlike v1 which uses possession-phase survival probability,
+    v2 computes per-frame pitch control and values events by
+    the change in home/away control probability before and after.
 
     Args:
-        events: Sorted list of event dicts.
-        frames: Optional tracking data for future frame-based refinement.
-        lookahead: Seconds to look ahead for goal probability.
+        events: Sorted list of event dicts with timestamps.
+        frames: List of tracking frame dicts, each with:
+            - timestamp: float
+            - home_positions: list of [x, y] per home player
+            - away_positions: list of [x, y] per away player
+            - ball_x, ball_y: float
+        lookahead: Seconds to look ahead for scoring probability.
 
     Returns:
-        List of enhanced VaepepResult dicts with spatiotemporal features.
+        List of enhanced VaepepResult dicts with frame-based valuation.
     """
-    return compute_vaep(events, frames, lookahead)
+    if not frames:
+        return compute_vaep(events, None, lookahead)
+
+    from kawkab.core.pitch_control import WeightedPitchControl
+    from kawkab.core.xg_model import compute_xg
+
+    results = []
+    pc_model = WeightedPitchControl()
+
+    for i, ev in enumerate(events):
+        ts = ev.get("timestamp", 0.0)
+        team = ev.get("team", "home")
+
+        frame = _find_closest_frame(frames, ts)
+        if frame is None:
+            results.append({
+                "timestamp": ts,
+                "team": team,
+                "type": ev.get("type", "unknown"),
+                "vaep": 0.0,
+                "method": "fallback",
+            })
+            continue
+
+        home_pos = frame.get("home_positions", [])
+        away_pos = frame.get("away_positions", [])
+        ball_x = frame.get("ball_x", 52.5)
+        ball_y = frame.get("ball_y", 34.0)
+
+        pre_control = pc_model.compute_frame_control(
+            home_positions=home_pos,
+            away_positions=away_pos,
+            ball_pos=(ball_x, ball_y),
+            pitch_length=PITCH_LENGTH,
+            pitch_width=PITCH_WIDTH,
+        )
+
+        next_frame = _find_closest_frame(frames, ts + 2.0)
+        if next_frame:
+            post_control = pc_model.compute_frame_control(
+                home_positions=next_frame.get("home_positions", home_pos),
+                away_positions=next_frame.get("away_positions", away_pos),
+                ball_pos=(next_frame.get("ball_x", ball_x), next_frame.get("ball_y", ball_y)),
+                pitch_length=PITCH_LENGTH,
+                pitch_width=PITCH_WIDTH,
+            )
+
+            delta_home = post_control.home_control_pct - pre_control.home_control_pct
+            delta_away = post_control.away_control_pct - pre_control.away_control_pct
+
+            dist_to_goal = math.sqrt(
+                (PITCH_LENGTH - ball_x) ** 2 + (PITCH_WIDTH / 2 - ball_y) ** 2
+            )
+            angle_to_goal = math.degrees(
+                math.atan2(PITCH_WIDTH / 2 - ball_y, PITCH_LENGTH - ball_x)
+            )
+            scoring_prob = compute_xg(
+                distance_m=dist_to_goal, angle_deg=abs(angle_to_goal)
+            )
+
+            vaep = (delta_home - delta_away) * scoring_prob
+        else:
+            vaep = 0.0
+
+        results.append({
+            "timestamp": ts,
+            "team": team,
+            "type": ev.get("type", "unknown"),
+            "vaep": round(vaep, 4),
+            "method": "frame_based",
+            "pre_home_control": round(pre_control.home_control_pct, 1),
+            "pre_away_control": round(pre_control.away_control_pct, 1),
+        })
+
+    return results
+
+
+def _find_closest_frame(
+    frames: list[dict[str, Any]],
+    target_ts: float,
+) -> dict[str, Any] | None:
+    """Find the frame closest to the given timestamp."""
+    if not frames:
+        return None
+    best = None
+    best_dist = float("inf")
+    for f in frames:
+        dist = abs(f.get("timestamp", 0.0) - target_ts)
+        if dist < best_dist:
+            best_dist = dist
+            best = f
+    return best
+

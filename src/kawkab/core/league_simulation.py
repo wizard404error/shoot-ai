@@ -65,6 +65,14 @@ def _simulate_season(
     return points
 
 
+def _simulate_season_tracked(
+    fixtures: list[dict],
+    team_points: dict[str, int],
+) -> dict[str, int]:
+    """Simulate one season, returns dict of team -> points (same as _simulate_season)."""
+    return _simulate_season(fixtures, team_points)
+
+
 def simulate_league(
     fixtures: list[dict],
     current_table: list[dict],
@@ -94,11 +102,14 @@ def simulate_league(
     title_count: dict[str, int] = defaultdict(int)
     top4_count: dict[str, int] = defaultdict(int)
     relegation_count: dict[str, int] = defaultdict(int)
+    per_sim_positions: list[dict[str, int]] = []
 
     for _ in range(n_simulations):
         final_pts = _simulate_season(fixtures, team_points_init)
         sorted_teams = sorted(final_pts.items(), key=lambda x: (-x[1], all_teams.index(x[0])))
+        sim_position: dict[str, int] = {}
         for pos, (tid, pts) in enumerate(sorted_teams):
+            sim_position[tid] = pos + 1
             all_point_histories[tid].append(pts)
             if pos == 0:
                 title_count[tid] += 1
@@ -106,12 +117,15 @@ def simulate_league(
                 top4_count[tid] += 1
             if pos >= len(sorted_teams) - relegation_spots:
                 relegation_count[tid] += 1
+        per_sim_positions.append(sim_position)
 
     standings: list[dict] = []
     for tid in all_teams:
         pts_list = all_point_histories.get(tid, [0])
         avg_pts = round(sum(pts_list) / len(pts_list), 1)
-        median_pos = _median_pos(all_teams, all_point_histories, tid)
+        positions_for_team = [sim.get(tid, len(all_teams)) for sim in per_sim_positions]
+        positions_for_team.sort()
+        median_pos = float(positions_for_team[len(positions_for_team) // 2]) if positions_for_team else 0.0
         standings.append({
             "team_id": tid,
             "avg_points": avg_pts,
@@ -147,20 +161,4 @@ def simulate_league(
     )
 
 
-def _median_pos(
-    all_teams: list[str],
-    histories: dict[str, list[int]],
-    team_id: str,
-) -> float:
-    pts_list = histories.get(team_id, [0])
-    sorted_pts = sorted(pts_list, reverse=True)
-    n = len(sorted_pts)
-    if n == 0:
-        return 0.0
-    median_pts = sorted_pts[n // 2]
-    positions = []
-    for pt in pts_list:
-        pos = 1 + sum(1 for t in all_teams if t != team_id and max(histories.get(t, [0])) > pt)
-        positions.append(pos)
-    positions.sort()
-    return float(positions[len(positions) // 2]) if positions else 0.0
+

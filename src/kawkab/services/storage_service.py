@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sqlite3
 from dataclasses import asdict
 from datetime import datetime
@@ -79,11 +80,27 @@ class StorageService:
 
         self._conn = sqlite3.connect(str(self._db_path))
         self._conn.row_factory = sqlite3.Row
-        logger.info("StorageService initialized with migrations")
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=NORMAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        logger.info("StorageService initialized with migrations (WAL mode + FK enforced)")
 
     def _create_tables(self) -> None:
         """DEPRECATED: Migrations now handle schema creation."""
         logger.debug("_create_tables is deprecated; migrations handle schema")
+
+    async def ensure_team(self, name: str) -> int:
+        """Get-or-create a team by name, returning its ID."""
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT id FROM teams WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        if row:
+            return row["id"]
+        cursor.execute("INSERT INTO teams (name, short_name) VALUES (?, ?)", (name, name[:3].upper()))
+        self._conn.commit()
+        return cursor.lastrowid or 0
 
     async def save_match(
         self,
@@ -92,16 +109,18 @@ class StorageService:
         home_team: str | None = None,
         away_team: str | None = None,
     ) -> int:
-        """Save a new match and return its ID."""
+        """Save a new match and return its ID. Creates/looks up teams."""
         if self._conn is None:
             return 0
+        home_team_id = await self.ensure_team(home_team) if home_team else None
+        away_team_id = await self.ensure_team(away_team) if away_team else None
         cursor = self._conn.cursor()
         cursor.execute(
             """
-            INSERT INTO matches (name, video_path, home_team, away_team)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, video_path, home_team, away_team),
+            (name, video_path, home_team, away_team, home_team_id, away_team_id),
         )
         self._conn.commit()
         return cursor.lastrowid or 0
@@ -279,14 +298,14 @@ class StorageService:
         self._conn.commit()
         return cursor.lastrowid or 0
 
-    async def get_reports(self, match_id: int, language: str) -> list[dict]:
+    async def get_reports(self, match_id: int, language: str, limit: int = 20, offset: int = 0) -> list[dict]:
         """Get saved reports for a match."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT * FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC",
-            (match_id, language),
+            "SELECT id, match_id, report_type, language, content, created_at FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (match_id, language, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -430,6 +449,7 @@ class StorageService:
                    bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id,
                    apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id
             FROM matches
+            WHERE (is_deleted IS NULL OR is_deleted=0)
             ORDER BY created_at DESC
             """
         )
@@ -441,18 +461,42 @@ class StorageService:
         if self._conn is None:
             return None
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM matches WHERE id = ?", (match_id,))
+        cursor.execute(
+            "SELECT id, name, video_path, duration, fps, total_frames, home_team_id, away_team_id, home_score, away_score, season_id, match_date, match_type, status, metadata, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+            (match_id,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    async def get_match_events(self, match_id: int) -> list[dict]:
-        """Get all events for a match."""
+    async def hard_delete_match(self, match_id: int) -> bool:
+        """Permanently delete a match by ID. Returns True if deleted."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def restore_match(self, match_id: int) -> bool:
+        """Restore a soft-deleted match by ID. Returns True if updated."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE matches SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+            (match_id,),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def get_match_events(self, match_id: int, limit: int = 200, offset: int = 0) -> list[dict]:
+        """Get events for a match with pagination."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT * FROM events WHERE match_id = ? ORDER BY timestamp",
-            (match_id,),
+            "SELECT id, match_id, timestamp, event_type, x, y, from_track_id, to_track_id, team_id, xg, xa, xt, vaep, metadata FROM events WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY timestamp LIMIT ? OFFSET ?",
+            (match_id, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -483,11 +527,35 @@ class StorageService:
         return cursor.rowcount > 0
 
     async def delete_event(self, event_id: int) -> bool:
-        """Delete an event by ID. Returns True if row deleted."""
+        """Soft-delete an event by ID. Returns True if row updated."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE events SET is_deleted=1, deleted_at=datetime('now') WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+            (event_id,),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def hard_delete_event(self, event_id: int) -> bool:
+        """Permanently delete an event by ID. Returns True if row deleted."""
         if self._conn is None:
             return False
         cursor = self._conn.cursor()
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def restore_event(self, event_id: int) -> bool:
+        """Restore a soft-deleted event by ID. Returns True if row updated."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE events SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+            (event_id,),
+        )
         self._conn.commit()
         return cursor.rowcount > 0
 
@@ -535,18 +603,19 @@ class StorageService:
         self._conn.commit()
         return cursor.lastrowid or 0
 
-    async def get_recent_benchmarks(self, limit: int = 10) -> list[dict]:
-        """Get recent benchmark results."""
+    async def get_recent_benchmarks(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        """Get recent benchmark results with pagination."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
             """
-            SELECT * FROM benchmark_results
+            SELECT id, match_id, model_name, gpu_name, model_size, avg_fps, avg_latency_ms, created_at
+            FROM benchmark_results
             ORDER BY created_at DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (limit,),
+            (limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -583,14 +652,14 @@ class StorageService:
         self._conn.commit()
         return ids
 
-    async def get_validation_results(self, match_id: int) -> list[dict]:
-        """Get validation results for a match."""
+    async def get_validation_results(self, match_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
+        """Get validation results for a match with pagination."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT * FROM validation_results WHERE match_id = ? ORDER BY created_at DESC",
-            (match_id,),
+            "SELECT id, match_id, metric_name, metric_value, created_at FROM validation_results WHERE match_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (match_id, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -787,12 +856,15 @@ class StorageService:
         cursor.execute("SELECT * FROM clip_playlists ORDER BY created_at DESC")
         return [dict(row) for row in cursor.fetchall()]
 
-    async def get_all_player_profiles(self) -> list[dict]:
-        """Get all player profiles from the DB."""
+    async def get_all_player_profiles(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        """Get player profiles from the DB with pagination."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM player_profiles WHERE is_active = 1")
+        cursor.execute(
+            "SELECT id, global_id, name, team, position, jersey_number, date_of_birth, nationality, foot, is_active, created_at FROM player_profiles WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     async def update_player_profile_face(
@@ -843,13 +915,37 @@ class StorageService:
             self._conn.rollback()
             return 0
 
-    async def get_match_players(self, match_id: int) -> list[dict]:
-        """Get all players for a match."""
+    async def get_match_players(self, match_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Get players for a match with pagination."""
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM players WHERE match_id = ?", (match_id,))
+        cursor.execute(
+            "SELECT id, match_id, track_id, team, jersey_number, name, confidence FROM players WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY id LIMIT ? OFFSET ?",
+            (match_id, limit, offset),
+        )
         return [dict(row) for row in cursor.fetchall()]
+
+    async def hard_delete_player(self, player_id: int) -> bool:
+        """Permanently delete a player by ID. Returns True if deleted."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM players WHERE id = ?", (player_id,))
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def restore_player(self, player_id: int) -> bool:
+        """Restore a soft-deleted player by ID. Returns True if updated."""
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE players SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+            (player_id,),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
 
     async def save_players_bulk(self, match_id: int, players: list[dict]) -> int:
         """Save multiple players in a single transaction. Returns count saved."""
@@ -1044,7 +1140,23 @@ class StorageService:
             return False
 
     async def delete_coding_tag(self, tag_id: int) -> bool:
-        """Delete a coding tag by ID. Returns True if deleted."""
+        """Soft-delete a coding tag by ID. Returns True if updated."""
+        if self._conn is None:
+            return False
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE coding_tags SET is_deleted=1, deleted_at=datetime('now') WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+                (tag_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"delete_coding_tag failed: {e}")
+            return False
+
+    async def hard_delete_coding_tag(self, tag_id: int) -> bool:
+        """Permanently delete a coding tag by ID. Returns True if deleted."""
         if self._conn is None:
             return False
         try:
@@ -1053,7 +1165,23 @@ class StorageService:
             self._conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
-            logger.warning(f"delete_coding_tag failed: {e}")
+            logger.warning(f"hard_delete_coding_tag failed: {e}")
+            return False
+
+    async def restore_coding_tag(self, tag_id: int) -> bool:
+        """Restore a soft-deleted coding tag by ID. Returns True if updated."""
+        if self._conn is None:
+            return False
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE coding_tags SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+                (tag_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"restore_coding_tag failed: {e}")
             return False
 
     async def get_coding_tag_stats(self, match_id: int) -> dict:
@@ -1084,6 +1212,215 @@ class StorageService:
         except Exception as e:
             logger.warning(f"get_coding_tag_stats failed: {e}")
             return {"total": 0, "by_type": {}, "by_player": {}}
+
+    # ── Backup / Restore ─────────────────────────────────────────────────
+
+    def backup(self) -> str:
+        if self._conn is None:
+            return ""
+        try:
+            self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception as e:
+            logger.warning(f"backup: wal_checkpoint failed: {e}")
+
+        from kawkab.core.paths import get_paths
+        backup_dir = get_paths().appdata / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = str(backup_dir / f"kawkab_backup_{timestamp}.db")
+
+        try:
+            backup_conn = sqlite3.connect(backup_path)
+            self._conn.backup(backup_conn)
+            backup_conn.close()
+            logger.info(f"Database backed up to {backup_path}")
+            return backup_path
+        except Exception as e:
+            logger.error(f"backup failed: {e}")
+            return ""
+
+    def restore(self, backup_path: str) -> bool:
+        if self._conn is None:
+            return False
+
+        backup_file = Path(backup_path)
+        if not backup_file.exists():
+            logger.error(f"restore: backup file not found: {backup_path}")
+            return False
+
+        try:
+            self._conn.close()
+            self._conn = None
+
+            shutil.copy2(backup_file, self._db_path)
+
+            self._conn = sqlite3.connect(str(self._db_path))
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA synchronous=NORMAL")
+            self._conn.execute("PRAGMA foreign_keys=ON")
+
+            from kawkab.core.migration_manager import MigrationManager
+            from kawkab.core.paths import get_paths
+            mgr = MigrationManager(self._db_path, get_paths().migrations)
+            mgr.migrate()
+
+            logger.info(f"Database restored from {backup_path}")
+            return True
+        except Exception as e:
+            logger.error(f"restore failed: {e}")
+            return False
+
+    def auto_backup(self) -> str:
+        result = self.backup()
+        if result:
+            logger.info("Auto-backup completed before migration")
+        else:
+            logger.warning("Auto-backup skipped or failed before migration")
+        return result
+
+    # ── Team management ──────────────────────────────────────────────────
+
+    async def save_team(self, name: str, short_name: str = "", home_color: str = "#1e7e34", away_color: str = "#ffffff") -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO teams (name, short_name, home_color, away_color) VALUES (?, ?, ?, ?)",
+                (name, short_name, home_color, away_color),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_team failed: {e}")
+            return 0
+
+    async def get_team_by_name(self, name: str) -> dict | None:
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT * FROM teams WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    async def get_all_teams(self) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT * FROM teams ORDER BY name")
+        return [dict(row) for row in cursor.fetchall()]
+
+    # ── Tracking frames ──────────────────────────────────────────────────
+
+    async def save_tracking_frame(self, match_id: int, frame_number: int, timestamp: float,
+                                   player_detections: list[dict], ball_detections: list[dict]) -> bool:
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT OR REPLACE INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections) VALUES (?, ?, ?, ?, ?)",
+                (match_id, frame_number, timestamp, json.dumps(player_detections), json.dumps(ball_detections)),
+            )
+            self._conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(f"save_tracking_frame failed: {e}")
+            return False
+
+    async def save_tracking_frames_bulk(self, match_id: int, frames: list[dict]) -> int:
+        if self._conn is None:
+            return 0
+        if not frames:
+            return 0
+        cursor = self._conn.cursor()
+        rows = []
+        for f in frames:
+            try:
+                rows.append((
+                    match_id,
+                    f.get("frame_number", 0),
+                    f.get("timestamp", 0.0),
+                    json.dumps(f.get("player_detections", [])),
+                    json.dumps(f.get("ball_detections", [])),
+                ))
+            except Exception as e:
+                logger.warning(f"save_tracking_frames_bulk frame {f.get('frame_number')} failed: {e}")
+        if not rows:
+            return 0
+        cursor.executemany(
+            "INSERT OR REPLACE INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections) VALUES (?, ?, ?, ?, ?)",
+            rows,
+        )
+        self._conn.commit()
+        return len(rows)
+
+    async def get_tracking_frames(self, match_id: int, start_frame: int = 0, end_frame: int | None = None, limit: int = 1000) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        if end_frame is not None:
+            cursor.execute(
+                "SELECT * FROM tracking_frames WHERE match_id = ? AND frame_number >= ? AND frame_number <= ? ORDER BY frame_number LIMIT ?",
+                (match_id, start_frame, end_frame, limit),
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM tracking_frames WHERE match_id = ? AND frame_number >= ? ORDER BY frame_number LIMIT ?",
+                (match_id, start_frame, limit),
+            )
+        rows = []
+        for row in cursor.fetchall():
+            d = dict(row)
+            d["player_detections"] = json.loads(d.get("player_detections", "[]"))
+            d["ball_detections"] = json.loads(d.get("ball_detections", "[]"))
+            rows.append(d)
+        return rows
+
+    async def get_tracking_frame_count(self, match_id: int) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT COUNT(*) AS cnt FROM tracking_frames WHERE match_id = ?", (match_id,))
+        row = cursor.fetchone()
+        return row["cnt"] if row else 0
+
+    async def delete_tracking_frames(self, match_id: int) -> bool:
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM tracking_frames WHERE match_id = ?", (match_id,))
+        self._conn.commit()
+        return True
+
+    # ── Encryption key management ────────────────────────────────────────
+
+    async def get_encryption_key(self, key_name: str = "medical_v1") -> str | None:
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT key_value FROM encryption_keys WHERE key_name = ?", (key_name,))
+        row = cursor.fetchone()
+        return row["key_value"] if row else None
+
+    async def rotate_encryption_key(self, key_name: str = "medical_v1") -> str | None:
+        if self._conn is None:
+            return None
+        import os
+        new_key = os.urandom(32).hex()
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE encryption_keys SET key_value = ?, rotated_at = datetime('now') WHERE key_name = ?",
+            (new_key, key_name),
+        )
+        self._conn.commit()
+        if cursor.rowcount > 0:
+            from kawkab.core.encryption import init_fernet
+            init_fernet(new_key)
+            return new_key
+        return None
 
     async def close(self) -> None:
         """Close database connection."""

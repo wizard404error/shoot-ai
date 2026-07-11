@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import asyncio
+import os
 
 import cv2
 import numpy as np
@@ -113,7 +114,7 @@ class PipelineCheckpoint:
     """
 
     _CHECKPOINT_DIR = ".checkpoints"
-    _CHECKPOINT_SECRET = b"kawkab-pipeline-ckpt-v2"
+    _CHECKPOINT_SECRET = os.environ.get("KAWKAB_CKPT_SECRET", "kawkab-pipeline-ckpt-v2").encode()
 
     def __init__(self, video_path: Path, frame_skip: int, interval: int = 500):
         self.video_path = video_path.resolve()
@@ -270,6 +271,7 @@ class CVService:
         tracker_type: str = "deepocsort",
         cfg: Any = None,
         use_track_smoother: bool = False,
+        lightglue_service=None,
     ) -> None:
         # If a TrackingConfigRoot is provided, use its values over defaults
         if cfg is not None:
@@ -325,6 +327,7 @@ class CVService:
         self._model_manager = model_manager
         self._boxmot_tracker: Any | None = None
         self._ball_tracker: Any | None = None
+        self._lightglue = lightglue_service
         gpu_tier = detect_gpu_tier()
         self._use_boxmot = (
             model_size == "auto"
@@ -436,8 +439,8 @@ class CVService:
             tracker = DeepOcSort(
                 reid_model=reid_arg,
                 det_thresh=self.confidence_threshold * 0.8,
-                max_age=30,
-                min_hits=3,
+                max_age=90,
+                min_hits=1,
                 iou_threshold=self.iou_threshold,
                 w_association_emb=0.75,
                 embedding_off=False,
@@ -448,10 +451,10 @@ class CVService:
             from boxmot.trackers.bbox.strongsort.strongsort import StrongSort
             reid_arg = reid_model.model if reid_model else None
             tracker = StrongSort(
-                reid_model=reid_arg,
+                reid_arg=reid_arg,
                 det_thresh=self.confidence_threshold * 0.8,
-                max_age=30,
-                min_hits=3,
+                max_age=90,
+                min_hits=1,
                 iou_threshold=self.iou_threshold,
                 per_class=True,
             )
@@ -794,6 +797,8 @@ class CVService:
         enable_team_detection: bool = True,
         checkpoint_interval: int = 0,
         resume_checkpoint: dict | None = None,
+        storage_service=None,
+        match_id: int = 0,
     ) -> MatchTrackData:
         """Process a full video with smart track filtering (v2).
 
@@ -963,38 +968,59 @@ class CVService:
                         for cf in camera_cuts
                     )
                     if cut_hit or (frame_number == 0 and len(camera_cuts) > 0):
-                        if self._boxmot_tracker is not None:
-                            try:
-                                self._boxmot_tracker = self._init_boxmot_tracker(self.tracker_type)
-                                logger.debug(f"Boxmot reset on camera cut at frame {frame_number}")
-                            except Exception as e:
-                                logger.warning(f"Boxmot reset failed at frame {frame_number}: {e}")
-                                # Keep old tracker — detect_frame will skip if None
+                        # P1.7: Don't reset tracker on cuts — let max_age handle transitions.
+                        # Post-hoc track stitching merges fragments across segments.
                         current_segment += 1
                         # Cache homography per camera segment (only once per angle)
                         if current_segment not in segment_homography:
-                            try:
-                                from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
-                                from kawkab.services.homography_service import HomographyService
-                                pd = _PitchDetector()
-                                guess = pd.detect(frame)
-                                if guess.confidence >= 0.15 and len(guess.corners) >= 4:
-                                    required_keys = ("tl", "tr", "bl", "br")
-                                    if not all(k in guess.corners for k in required_keys):
-                                        logger.warning(f"Missing corner keys in calibration guess: {set(required_keys) - set(guess.corners)}")
-                                        segment_homography[current_segment] = homography_matrix_auto
-                                    else:
-                                        corners_ordered = [
-                                            guess.corners["tl"], guess.corners["tr"],
-                                            guess.corners["br"], guess.corners["bl"],
-                                        ]
+                            # Try LightGlue auto-calibration first
+                            lightglue_used = False
+                            if self._lightglue is not None:
+                                try:
+                                    lg_matrix = self._lightglue.auto_calibrate(frame, 105.0, 68.0)
+                                    if lg_matrix is not None:
+                                        segment_homography[current_segment] = lg_matrix.matrix
+                                        logger.debug(f"Segment {current_segment} homography via LightGlue")
+                                        lightglue_used = True
+                                except Exception:
+                                    pass
+                            if not lightglue_used:
+                                # P2.12: Try persisted per-segment calibrations second
+                                loaded = False
+                                if match_id is not None:
+                                    try:
+                                        from kawkab.services.homography_service import HomographyService
                                         hs = HomographyService()
-                                        hm = hs.compute_homography_from_corners(corners_ordered)
-                                        segment_homography[current_segment] = hm.matrix
-                                        logger.debug(f"Segment {current_segment} homography cached (conf={guess.confidence:.2f})")
-                            except Exception as e:
-                                logger.debug(f"Segment {current_segment} homography failed: {e}")
-                                segment_homography[current_segment] = homography_matrix_auto
+                                        seg_cals = hs.load_segment_calibrations(match_id)
+                                        if current_segment in seg_cals:
+                                            segment_homography[current_segment] = seg_cals[current_segment].matrix
+                                            logger.debug(f"Segment {current_segment} homography loaded from persisted calibration")
+                                            loaded = True
+                                    except Exception:
+                                        pass
+                                if not loaded:
+                                    try:
+                                        from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
+                                        from kawkab.services.homography_service import HomographyService
+                                        pd = _PitchDetector()
+                                        guess = pd.detect(frame)
+                                        if guess.confidence >= 0.15 and len(guess.corners) >= 4:
+                                            required_keys = ("tl", "tr", "bl", "br")
+                                            if not all(k in guess.corners for k in required_keys):
+                                                logger.warning(f"Missing corner keys in calibration guess: {set(required_keys) - set(guess.corners)}")
+                                                segment_homography[current_segment] = homography_matrix_auto
+                                            else:
+                                                corners_ordered = [
+                                                    guess.corners["tl"], guess.corners["tr"],
+                                                    guess.corners["br"], guess.corners["bl"],
+                                                ]
+                                                hs = HomographyService()
+                                                hm = hs.compute_homography_from_corners(corners_ordered)
+                                                segment_homography[current_segment] = hm.matrix
+                                                logger.debug(f"Segment {current_segment} homography cached (conf={guess.confidence:.2f})")
+                                    except Exception as e:
+                                        logger.debug(f"Segment {current_segment} homography failed: {e}")
+                                        segment_homography[current_segment] = homography_matrix_auto
 
                     try:
                         frame_det = await self.detect_frame(
@@ -1205,8 +1231,8 @@ class CVService:
         stitched_count = len(first_pass_tracks)
         if frag_ratio > 0.2 and stitched_count > self.expected_player_count:
             # Broadcast: keep tracks with high segment coverage OR high frame coverage
-            min_segments = 2
-            min_pct = 0.15
+            min_segments = 1
+            min_pct = 0.08
             valid_player_tracks = set()
             segment_tracks = sorted(
                 first_pass_tracks,
@@ -1501,8 +1527,42 @@ class CVService:
             except Exception as e:
                 logger.warning(f"Physical metrics computation failed: {e}", exc_info=True)
 
+        # Persist tracking frames if storage_service provided
+        if storage_service is not None and match_id > 0 and frames:
+            try:
+                batch = []
+                for fdet in frames:
+                    player_list = [
+                        {
+                            "track_id": d.track_id,
+                            "class_name": d.class_name,
+                            "confidence": round(d.confidence, 3),
+                            "bbox": [round(v, 1) for v in d.bbox],
+                        }
+                        for d in fdet.detections if d.track_id is not None
+                    ]
+                    ball_list = [
+                        {
+                            "track_id": d.track_id,
+                            "class_name": d.class_name,
+                            "confidence": round(d.confidence, 3),
+                            "bbox": [round(v, 1) for v in d.bbox],
+                        }
+                        for d in fdet.detections if d.class_name == "sports ball"
+                    ]
+                    batch.append({
+                        "frame_number": fdet.frame_number,
+                        "timestamp": fdet.timestamp,
+                        "player_detections": player_list,
+                        "ball_detections": ball_list,
+                    })
+                saved = await storage_service.save_tracking_frames_bulk(match_id, batch)
+                logger.info(f"Persisted {saved}/{len(batch)} tracking frames to DB (match_id={match_id})")
+            except Exception as e:
+                logger.warning(f"Tracking frame persistence failed: {e}")
+
         return MatchTrackData(
-            match_id=0,
+            match_id=match_id or 0,
             fps=fps,
             total_frames=frame_number,
             duration_seconds=duration,

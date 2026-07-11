@@ -15,13 +15,17 @@ from __future__ import annotations
 
 import functools
 import math
+import random
 from collections import defaultdict
 from typing import Any
 
 import numpy as np
 
 from kawkab.core.coordinate_validator import CoordinateValidator
+from kawkab.core.game_constants import GAME
 from kawkab.core.perf_timing import timed
+
+PITCH_LENGTH = GAME.PITCH_LENGTH_M
 
 
 class ExpectedThreatModel:
@@ -45,12 +49,14 @@ class ExpectedThreatModel:
         pitch_length: float = 105.0,
         pitch_width: float = 68.0,
         gamma: float = 0.9,
+        attacking_direction: str = "right",
     ) -> None:
         self.rows = rows
         self.cols = cols
         self.pitch_length = pitch_length
         self.pitch_width = pitch_width
         self.gamma = gamma
+        self.attacking_direction = attacking_direction
         self._transition = None
         self._ze_values: np.ndarray | None = None
 
@@ -58,6 +64,8 @@ class ExpectedThreatModel:
     def _zone_from_position(
         self, x: float, y: float
     ) -> tuple[int, int]:
+        if self.attacking_direction == "left":
+            x = PITCH_LENGTH - x
         col = min(self.cols - 1, max(0, int(x / self.pitch_length * self.cols)))
         row = min(self.rows - 1, max(0, int(y / self.pitch_width * self.rows)))
         return (row, col)
@@ -165,6 +173,59 @@ class ExpectedThreatModel:
         end_val = self._ze_values[end_zone[0], end_zone[1]]
         return max(0.0, end_val - start_val)
 
+    def compute_action_xt_with_ci(
+        self,
+        events: list[dict[str, Any]],
+        action_event: dict[str, Any],
+        n_bootstrap: int = 100,
+    ) -> dict[str, float]:
+        """Compute action xT with bootstrap confidence interval.
+
+        Args:
+            events: Full event list for bootstrap resampling.
+            action_event: Dict with start_x, start_y, end_x, end_y keys.
+            n_bootstrap: Number of bootstrap iterations.
+
+        Returns:
+            Dict with xt, ci_lower, ci_upper, n_bootstrap.
+        """
+        self.build_transition_matrix(events)
+        point_estimate = self.compute_action_xt(
+            action_event.get("start_x", 0.0),
+            action_event.get("start_y", 34.0),
+            action_event.get("end_x", 0.0),
+            action_event.get("end_y", 34.0),
+        )
+
+        if n_bootstrap < 2:
+            return {
+                "xt": round(point_estimate, 4),
+                "ci_lower": round(point_estimate, 4),
+                "ci_upper": round(point_estimate, 4),
+                "n_bootstrap": n_bootstrap,
+            }
+
+        xt_values: list[float] = []
+        for _ in range(n_bootstrap):
+            sample = random.choices(events, k=len(events))
+            self.build_transition_matrix(sample)
+            xt = self.compute_action_xt(
+                action_event.get("start_x", 0.0),
+                action_event.get("start_y", 34.0),
+                action_event.get("end_x", 0.0),
+                action_event.get("end_y", 34.0),
+            )
+            xt_values.append(xt)
+
+        lower = float(np.percentile(xt_values, 2.5))
+        upper = float(np.percentile(xt_values, 97.5))
+        return {
+            "xt": round(point_estimate, 4),
+            "ci_lower": round(lower, 4),
+            "ci_upper": round(upper, 4),
+            "n_bootstrap": n_bootstrap,
+        }
+
     @functools.lru_cache(maxsize=128)
     def _get_zone_value(self, row: int, col: int) -> float:
         if self._ze_values is None:
@@ -211,3 +272,14 @@ class ExpectedThreatModel:
             "home": round(home_xt, 4),
             "away": round(away_xt, 4),
         }
+
+
+def compute_action_xt(
+    start_x: float,
+    start_y: float,
+    end_x: float,
+    end_y: float,
+    attacking_direction: str = "right",
+) -> float:
+    model = ExpectedThreatModel(attacking_direction=attacking_direction)
+    return model.compute_action_xt(start_x, start_y, end_x, end_y)

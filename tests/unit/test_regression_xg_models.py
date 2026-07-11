@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 import glob
+import os
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,13 @@ from kawkab.core.dl_xg_model import predict_dl_xg
 
 GT_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "ground_truth" / "statsbomb"
 EVENT_DIR = GT_DIR / "events"
+
+_has_shots = EVENT_DIR.is_dir() and len(list(EVENT_DIR.glob("*.json"))) > 0
+
+_need_shots = pytest.mark.skipif(
+    not _has_shots,
+    reason="StatsBomb ground truth not found. Conftest should auto-fetch on pytest_configure.",
+)
 
 PITCH_LENGTH = 105.0
 PITCH_WIDTH = 68.0
@@ -133,19 +141,32 @@ class TestXgRegression:
 
     def test_enhanced_model_mae_within_tolerance(self, all_shots):
         errors = []
+        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
+        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
         for s in all_shots:
-            pred = compute_xg_enhanced(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                                       is_header=(s["body_part"] == "head"),
-                                       shot_type=s["shot_type"])
+            pred = em.compute_single(EnhancedXgFeatures(
+                distance_m=s["distance_m"], angle_deg=s["angle_deg"],
+                is_header=(s["body_part"] == "head"),
+                is_volley=(s["shot_type"] in ("volley", "half_volley")),
+                is_free_kick=(s["shot_type"] == "free_kick"),
+                is_penalty=(s["shot_type"] == "penalty"),
+            ))
             errors.append(abs(pred - s["statsbomb_xg"]))
         mae = sum(errors) / len(errors)
         assert mae < TOLERANCE_MAE + 0.03, f"Enhanced MAE {mae:.4f} >= {TOLERANCE_MAE + 0.03}"
 
     def test_enhanced_model_rmse_within_tolerance(self, all_shots):
-        errors = [(compute_xg_enhanced(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                                       is_header=(s["body_part"] == "head"),
-                                       shot_type=s["shot_type"])
-                   - s["statsbomb_xg"]) for s in all_shots]
+        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
+        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
+        errors = [(em.compute_single(EnhancedXgFeatures(
+            distance_m=s["distance_m"], angle_deg=s["angle_deg"],
+            is_header=(s["body_part"] == "head"),
+            is_volley=(s["shot_type"] in ("volley", "half_volley")),
+            is_free_kick=(s["shot_type"] == "free_kick"),
+            is_penalty=(s["shot_type"] == "penalty"),
+        )) - s["statsbomb_xg"]) for s in all_shots]
         rmse = math.sqrt(sum(e * e for e in errors) / len(errors))
         assert rmse < TOLERANCE_RMSE + 0.03, f"Enhanced RMSE {rmse:.4f} >= {TOLERANCE_RMSE + 0.03}"
 

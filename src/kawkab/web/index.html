@@ -6,8 +6,6 @@
     <title>Kawkab AI - Football Coach</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/accessibility.css">
-    <script defer src="js/kawkab_polish.js"></script>
-    <script defer src="js/calibration_v2.js"></script>
     <link rel="alternate" hreflang="en" href="?lang=en" />
     <link rel="alternate" hreflang="ar" href="?lang=ar" />
     <meta name="description" content="Kawkab AI - Offline Arabic and English football coach for amateur teams">
@@ -15,6 +13,8 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
@@ -102,31 +102,53 @@
         </div>
 
         <nav class="nav-tabs" role="navigation" aria-label="Main navigation">
-            <button class="nav-tab active" data-route="dashboard" data-i18n="tab_dashboard">📊 Dashboard</button>
-            <button class="nav-tab" data-route="upload" data-i18n="tab_upload">📤 Upload</button>
-            <button class="nav-tab" data-route="history" data-i18n="tab_history">📚 History</button>
-            <button class="nav-tab" data-route="professional" data-i18n="tab_professional">🏆 Analytics</button>
-            <button class="nav-tab" data-route="coding" data-i18n="tab_coding">🎬 Coding</button>
-            <button class="nav-tab" data-route="review" data-i18n="tab_review">🔍 Review</button>
-            <button class="nav-tab" data-route="tactics" data-i18n="tab_tactics">🧠 Tactics</button>
-            <button class="nav-tab" data-route="tacticsknowledge" data-i18n="tab_tacticsknowledge">📚 Tactical Know-How</button>
-            <button class="nav-tab" data-route="ai" data-i18n="tab_ai">🤖 AI</button>
-            <button class="nav-tab" data-route="squad" data-i18n="tab_squad">👥 Squad</button>
-            <button class="nav-tab" data-route="season" data-i18n="tab_season">📅 Season</button>
-            <button class="nav-tab" data-route="training" data-i18n="tab_training">🏋️ Training</button>
-            <button class="nav-tab" data-route="scout" data-i18n="tab_scout">🔎 Scout</button>
-            <button class="nav-tab" data-route="feedback" data-i18n="tab_feedback">💬 Feedback</button>
-            <button class="nav-tab" data-route="multiangle" data-i18n="tab_multiangle">🎬 Multi-Angle</button>
-            <button class="nav-tab" data-route="physiology" data-i18n="tab_physiology">❤️ Physiology</button>
-            <button class="nav-tab" data-route="collaboration" data-i18n="tab_collaboration">👥 Team<span class="nav-notification-dot hidden" id="collab-mention-dot"></span></button>
-            <button class="nav-tab" data-route="livetagging" data-i18n="tab_livetagging">⚡ Live</button>
-            <button class="nav-tab" data-route="scoutcamera" data-i18n="tab_scoutcamera">📱 Scout Camera</button>
-            <button class="nav-tab" data-route="livestream" data-i18n="tab_livestream">📡 Live</button>
-            <button class="nav-tab" data-route="cloud" data-i18n="tab_cloud">☁️ Cloud</button>
-            <button class="nav-tab" data-route="opponent" data-i18n="tab_opponent">📋 Opponents</button>
-            <button class="nav-tab" data-route="marketplace" data-i18n="tab_marketplace">🏪 Market</button>
-            <button class="nav-tab" data-route="highlight" data-i18n="tab_highlight">🎬 Reel Builder</button>
-            <button class="nav-tab" data-route="pitch3d" data-i18n="tab_pitch3d">🏟️ 3D Pitch</button>
+          <div class="nav-group">
+            <span class="nav-group-title">Dashboard</span>
+            <a href="#dashboard-section" class="nav-item" data-section="dashboard-section"><span data-i18n="navDashboard">Dashboard</span></a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-group-title">Analysis</span>
+            <a href="#timeline-section" class="nav-item" data-section="timeline-section"><span data-i18n="navTimeline">Timeline</span></a>
+            <a href="#xg-section" class="nav-item" data-section="xg-section">xG</a>
+            <a href="#xt-section" class="nav-item" data-section="xt-section">xT</a>
+            <a href="#vaep-section" class="nav-item" data-section="vaep-section">VAEP</a>
+            <a href="#charts-section" class="nav-item" data-section="charts-section">Charts</a>
+            <a href="#heatmap-section" class="nav-item" data-section="heatmap-section">Heatmap</a>
+            <a href="#pass-network-section" class="nav-item" data-section="pass-network-section">Pass Network</a>
+            <a href="#momentum-section" class="nav-item" data-section="momentum-section">Momentum</a>
+            <a href="#transitions-section" class="nav-item" data-section="transitions-section">Transitions</a>
+            <a href="#finishing-section" class="nav-item" data-section="finishing-section">Finishing</a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-group-title">Tactics</span>
+            <a href="#tactics-section" class="nav-item" data-section="tactics-section">Formations</a>
+            <a href="#set-piece-section" class="nav-item" data-section="set-piece-section">Set Pieces</a>
+            <a href="#phases-section" class="nav-item" data-section="phases-section">Phases</a>
+            <a href="#tactics-report-section" class="nav-item" data-section="tactics-report-section">Report</a>
+            <a href="#game-plan-section" class="nav-item" data-section="game-plan-section">Game Plan</a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-group-title">Coding</span>
+            <a href="#coding-section" class="nav-item" data-section="coding-section"><span data-i18n="navCoding">Coding</span></a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-group-title">Squad</span>
+            <a href="#squad-section" class="nav-item" data-section="squad-section"><span data-i18n="navSquad">Squad</span></a>
+            <a href="#player-compare-section" class="nav-item" data-section="player-compare-section">Compare</a>
+            <a href="#shortlist-section" class="nav-item" data-section="shortlist-section">Shortlist</a>
+            <a href="#contracts-section" class="nav-item" data-section="contracts-section">Contracts</a>
+            <a href="#recruitment-section" class="nav-item" data-section="recruitment-section">Recruitment</a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-group-title">Admin</span>
+            <a href="#settings-section" class="nav-item" data-section="settings-section"><span data-i18n="navSettings">Settings</span></a>
+            <a href="#calibration-section" class="nav-item" data-section="calibration-section">Calibration</a>
+            <a href="#search-section" class="nav-item" data-section="search-section">Search</a>
+            <a href="#import-section" class="nav-item" data-section="import-section">Import</a>
+            <a href="#data-export-section" class="nav-item" data-section="data-export-section">Data</a>
+            <a href="#ai-section" class="nav-item" data-section="ai-section">AI Coach</a>
+            <a href="#tactical-sandbox-section" class="nav-item" data-section="tactical-sandbox-section">Sandbox</a>
+          </div>
         </nav>
 
         <main class="app-main" id="main-content" role="main">
@@ -969,23 +991,36 @@
             <section id="calibration-section" class="section hidden">
                 <h2 data-i18n="calibrationTitle">Camera Calibration</h2>
                 <p data-i18n="calibrationDesc">Set up the camera-to-pitch transformation for accurate spatial stats.</p>
-                <div class="calibration-area">
-                    <canvas id="calibration-canvas"></canvas>
-                    <div class="calibration-info">
-                        <p><span data-i18n="calibrationClicksLabel">Clicks: </span><span id="clicks-count">0</span><span data-i18n="calibrationClicksDivider">/4</span></p>
-                        <p id="calibration-status" data-i18n="calibrationStep1">Click corner 1: Top-Left of Pitch</p>
-                        <div class="calibration-buttons">
-                            <button id="calibration-save" class="btn btn-primary" disabled data-i18n="calibrationSaveBtn">Save Calibration</button>
-                            <button id="calibration-skip" class="btn btn-secondary" data-i18n="calibrationEstimateBtn">Auto Estimate</button>
-                            <button id="calibration-lightglue" class="btn btn-secondary" data-i18n="calibrationAiBtn">Auto via AI Matching</button>
-                            <button id="calibration-reset" class="btn btn-secondary" data-i18n="calibrationResetBtn">Reset</button>
+                <div class="calibration-layout">
+                    <div class="calibration-segments">
+                        <h3 data-i18n="segmentsTitle">Camera Segments</h3>
+                        <div id="segment-list" class="segment-list">
+                            <div class="segment-empty" data-i18n="segmentsEmpty">No segments detected. Process a match first.</div>
                         </div>
                     </div>
+                    <div class="calibration-area">
+                        <canvas id="calibration-canvas"></canvas>
+                        <div class="calibration-info">
+                            <p><span data-i18n="calibrationClicksLabel">Clicks: </span><span id="clicks-count">0</span><span data-i18n="calibrationClicksDivider">/4</span></p>
+                            <p id="calibration-status" data-i18n="calibrationStep1">Click corner 1: Top-Left of Pitch</p>
+                            <div class="calibration-buttons">
+                                <button id="calibration-save" class="btn btn-primary" disabled data-i18n="calibrationSaveBtn">Save Calibration</button>
+                                <button id="calibration-skip" class="btn btn-secondary" data-i18n="calibrationEstimateBtn">Auto Estimate</button>
+                                <button id="calibration-lightglue" class="btn btn-secondary" data-i18n="calibrationAiBtn">Auto via AI Matching</button>
+                                <button id="calibration-reset" class="btn btn-secondary" data-i18n="calibrationResetBtn">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="calibration-summary" class="calibration-summary hidden">
+                    <h3 data-i18n="calibrationSummaryTitle">Calibration Summary</h3>
+                    <div id="calibration-segment-cards" class="segment-cards"></div>
                 </div>
             </section>
 
             <section id="report-section" class="section hidden" aria-live="polite">
                 <h2 data-i18n="reportTitle">Coach Report</h2>
+                <button id="export-pdf-btn" class="btn btn-secondary" onclick="window.print()"><span data-i18n="exportPdf">Export PDF</span></button>
                 <div id="report-content" class="report-content"></div>
             </section>
 
@@ -2756,28 +2791,31 @@
     <script type="module" src="js/app-3d.js"></script>
     <script src="js/qwebchannel.js"></script>
     <script src="vendor/popmotion.min.js"></script>
-    <script src="js/kawkab_animations.js"></script>
-    <script src="js/calibration.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/app-perf.js"></script>
-    <script src="js/app-ux.js"></script>
-    <script src="js/app-error-boundary.js"></script>
-    <script src="js/app-router.js"></script>
-    <script src="js/app-skeletons.js"></script>
-    <script src="js/app-tooltips.js"></script>
-    <script src="js/app-charts.js"></script>
-    <script src="js/app-sparklines.js"></script>
-    <script src="js/app-coding.js"></script>
-    <script src="js/app-squad.js"></script>
-    <script src="js/app-tactics.js"></script>
-    <script src="js/app-scout.js"></script>
-    <script src="js/app-ai.js"></script>
-    <script src="js/app-opponent.js"></script>
-    <script src="js/app-marketplace.js"></script>
-    <script src="js/app-highlight.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/app-data-providers.js"></script>
-    <script src="js/tactical_sandbox.js"></script>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  <script defer src="dist/app.bundle.min.js"></script>
 </body>
 </html>

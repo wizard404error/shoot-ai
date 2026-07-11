@@ -72,12 +72,14 @@ class CarryXTMatchReport:
 def compute_carry_xt(
     events: list[dict[str, Any]],
     xt_model: ExpectedThreatModel | None = None,
+    attacking_direction: str = "right",
 ) -> CarryXTMatchReport:
     """Compute carry-based expected threat from match events.
 
     Args:
         events: List of event dicts with type, team, start_x, start_y, end_x, end_y.
         xt_model: Optional pre-built ExpectedThreatModel. Builds one if not provided.
+        attacking_direction: Direction the home team attacks ("right" or "left").
 
     Returns:
         CarryXTMatchReport with per-team carry xT stats.
@@ -109,7 +111,10 @@ def compute_carry_xt(
         xt_gained = xt_model.compute_action_xt(sx, sy, ex, ey)
         carry_distance = math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2)
 
-        forward_distance = ex - sx if team == "home" else sx - ex
+        if attacking_direction == "left":
+            forward_distance = sx - ex if team == "home" else ex - sx
+        else:
+            forward_distance = ex - sx if team == "home" else sx - ex
         progressive = xt_gained > 0.0 or forward_distance > 5.0
 
         res = CarryXTResult(
@@ -154,6 +159,7 @@ def compute_carry_xt_from_tracking(
     frames: list[dict[str, Any]],
     events: list[dict[str, Any]],
     xt_model: ExpectedThreatModel | None = None,
+    attacking_direction: str = "right",
 ) -> CarryXTMatchReport:
     """Compute carry xT from tracking data where carry events are detected.
 
@@ -161,6 +167,7 @@ def compute_carry_xt_from_tracking(
         frames: Tracking frames with player positions and ball position.
         events: Detected events (must include "carry" type events).
         xt_model: Optional pre-built ExpectedThreatModel.
+        attacking_direction: Direction the home team attacks ("right" or "left").
 
     Returns:
         CarryXTMatchReport with per-team carry xT stats.
@@ -172,17 +179,6 @@ def compute_carry_xt_from_tracking(
     carry_events = [ev for ev in events if ev.get("type") == "carry"]
     if not carry_events:
         return CarryXTMatchReport()
-
-    carry_frames: list[dict[str, Any]] = []
-    frame_idx = 0
-    for ev in carry_events:
-        ts = ev.get("timestamp", 0.0)
-        while frame_idx < len(frames) and frames[frame_idx].get("timestamp", 0.0) < ts:
-            frame_idx += 1
-        if frame_idx < len(frames):
-            carry_frames.append(frames[frame_idx])
-        else:
-            carry_frames.append({})
 
     home_total = 0.0
     away_total = 0.0
@@ -203,7 +199,10 @@ def compute_carry_xt_from_tracking(
         xt_gained = xt_model.compute_action_xt(sx, sy, ex, ey)
         carry_distance = math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2)
 
-        forward_distance = ex - sx if team == "home" else sx - ex
+        if attacking_direction == "left":
+            forward_distance = sx - ex if team == "home" else ex - sx
+        else:
+            forward_distance = ex - sx if team == "home" else sx - ex
         progressive = xt_gained > 0.0 or forward_distance > 5.0
 
         res = CarryXTResult(

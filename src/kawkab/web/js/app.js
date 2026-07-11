@@ -845,7 +845,7 @@
         const matchFacesBtn = document.getElementById('match-faces-btn');
         if (matchFacesBtn) matchFacesBtn.addEventListener('click', matchFacesInMatch);
 
-        // v0.8.3: PDF Export, Clip Export, Swap Teams, Visualizations
+        // v0.12.0: PDF Export, Clip Export, Swap Teams, Visualizations
         const exportPdfBtn = document.getElementById('export-pdf-btn');
         if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportPdfReport);
 
@@ -2119,7 +2119,7 @@
         });
     }
 
-    // --- v0.8.3: PDF Export, Clip Export, Swap Teams, Visualizations ---
+    // --- v0.12.0: PDF Export, Clip Export, Swap Teams, Visualizations ---
 
     async function exportPdfReport() {
         if (!bridge || !currentMatchId) return;

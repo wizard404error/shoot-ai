@@ -1,9 +1,9 @@
-"""Ball-physics pitch control — simulates ball trajectory to determine control.
+"""Ball-physics pitch control — simulates 3D ball trajectory to determine control.
 
 Models which team can reach each point on the pitch first, accounting for:
 - Player positions and velocities
-- Ball travel time (ball speed, air resistance)
-- Player acceleration/deceleration
+- Ball travel time (3D trajectory via RK4 integration with drag and Magnus force)
+- Player acceleration/deceleration with proper kinematic limits
 - First-touch control radius
 
 This is the most physically accurate pitch control model,
@@ -16,6 +16,55 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+
+
+def _rk4_ball_trajectory(
+    x0: float, y0: float, z0: float,
+    vx0: float, vy0: float, vz0: float,
+    dt: float = 0.01, max_t: float = 5.0,
+    rho: float = 1.225,
+    Cd: float = 0.47,
+    A: float = 0.038,
+    m: float = 0.43,
+    omega_x: float = 0.0,
+    omega_y: float = 0.0,
+    omega_z: float = 0.0,
+    g: float = 9.81,
+) -> tuple[list[float], list[float]]:
+    """RK4 integration of 3D ball trajectory with drag and Magnus.
+
+    Returns (times, z_positions) for the flight until z < 0 (ground).
+    The ball position post-bounce is not modeled (stops at ground).
+    """
+    pos = np.array([x0, y0, z0], dtype=np.float64)
+    vel = np.array([vx0, vy0, vz0], dtype=np.float64)
+    omega = np.array([omega_x, omega_y, omega_z], dtype=np.float64)
+    times = [0.0]
+    zs = [z0]
+    t = 0.0
+    while t < max_t and pos[2] > 0:
+        def derivatives(state):
+            p, v = state[:3], state[3:]
+            speed = np.linalg.norm(v)
+            drag = -0.5 * rho * Cd * A * speed * v / m if speed > 0 else np.zeros(3)
+            S = 4.1e-4
+            magnus = S * np.cross(omega, v) if speed > 0 else np.zeros(3)
+            gravity = np.array([0.0, 0.0, -g])
+            accel = drag + magnus + gravity
+            return np.concatenate([v, accel])
+
+        state = np.concatenate([pos, vel])
+        k1 = derivatives(state)
+        k2 = derivatives(state + 0.5 * dt * k1)
+        k3 = derivatives(state + 0.5 * dt * k2)
+        k4 = derivatives(state + dt * k3)
+        state = state + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        pos, vel = state[:3], state[3:]
+        t += dt
+        if t >= len(times) * 0.05:
+            times.append(t)
+            zs.append(float(pos[2]))
+    return times, zs
 
 
 @dataclass
@@ -52,12 +101,14 @@ class PhysicsPitchControlMatch:
 
 
 class BallPhysicsPitchControl:
-    """Physics-based pitch control using ball trajectory simulation.
+    """Physics-based pitch control using 3D ball trajectory simulation.
 
     For each point on the grid, computes which player can reach it first
     by simulating:
-    1. Player movement: time = f(position, velocity, max_accel)
-    2. Ball travel: time = distance / ball_speed (with optional decay)
+    1. Player movement: time = f(position, velocity, max_accel) with proper
+       acceleration-limited kinematics.
+    2. Ball travel: RK4 3D trajectory integration with drag and Magnus force
+       for kicked balls; distance/speed approximation for rolling balls.
 
     The player with the shortest arrival time controls the point.
 
@@ -69,6 +120,7 @@ class BallPhysicsPitchControl:
         ball_speed_kick: Ball speed when kicked in m/s.
         ball_speed_roll: Ball speed when rolling in m/s.
         reaction_time: Player reaction time in seconds.
+        lift_angle: Launch angle in radians for kicked balls (~15 deg default).
     """
 
     def __init__(
@@ -80,6 +132,7 @@ class BallPhysicsPitchControl:
         ball_speed_kick: float = 20.0,
         ball_speed_roll: float = 10.0,
         reaction_time: float = 0.3,
+        lift_angle: float = 0.26,
     ):
         self.grid_rows = grid_rows
         self.grid_cols = grid_cols
@@ -88,20 +141,25 @@ class BallPhysicsPitchControl:
         self.ball_speed_kick = ball_speed_kick
         self.ball_speed_roll = ball_speed_roll
         self.reaction_time = reaction_time
+        self.lift_angle = lift_angle
 
     def _player_arrival_time(
         self,
-        px: float, py: float,
-        vx: float, vy: float,
-        tx: float, ty: float,
+        px: np.ndarray | float,
+        py: np.ndarray | float,
+        vx: np.ndarray | float,
+        vy: np.ndarray | float,
+        tx: np.ndarray | float,
+        ty: np.ndarray | float,
         max_speed: float | None = None,
         max_accel: float | None = None,
-    ) -> float:
+    ) -> np.ndarray | float:
         """Compute time for a player to reach target point (tx, ty).
 
-        Uses kinematic equation: d = v*t + 0.5*a*t**2
-        Simplified to: t = reaction + (distance / max_speed)
-        More sophisticated version accounts for initial velocity direction.
+        Uses acceleration-limited kinematic model: the player accelerates at
+        max_accel until reaching max_speed, then cruises. For short distances
+        where full speed is not reached, solves the quadratic
+        d = v0*t + 0.5*a*t**2.
 
         Args:
             px, py: Player position.
@@ -113,8 +171,9 @@ class BallPhysicsPitchControl:
         Returns:
             Arrival time in seconds.
         """
-        max_speed = max_speed or self.max_player_speed
-        max_accel = max_accel or self.max_player_accel
+        max_speed = max_speed if max_speed is not None else self.max_player_speed
+        max_accel = max_accel if max_accel is not None else self.max_player_accel
+        max_accel = max(max_accel, 0.01)
 
         distance = np.sqrt((tx - px) ** 2 + (ty - py) ** 2)
         dx = tx - px
@@ -124,34 +183,122 @@ class BallPhysicsPitchControl:
             (vx * dx + vy * dy), distance,
             out=np.zeros_like(distance), where=distance > 0,
         )
-        effective_speed = np.maximum(vel_toward, 0.0) + max_accel * self.reaction_time
-        effective_speed = np.minimum(effective_speed, max_speed)
-        travel_time = np.divide(
-            distance, np.maximum(effective_speed, 0.5),
-            out=np.zeros_like(distance), where=distance > 0,
+        v0 = np.maximum(vel_toward, 0.0)
+
+        t_acc = np.divide(
+            max_speed - v0, max_accel,
+            out=np.zeros_like(v0), where=v0 < max_speed,
         )
+        t_acc = np.maximum(t_acc, 0.0)
+
+        d_acc = v0 * t_acc + 0.5 * max_accel * t_acc ** 2
+
+        travel_time_cruise = t_acc + (distance - d_acc) / max_speed
+        travel_time_quad = (
+            -v0 + np.sqrt(v0 ** 2 + 2 * max_accel * distance)
+        ) / max_accel
+        where_cruise = (distance > d_acc) & (distance > 0)
+        travel_time = np.where(where_cruise, travel_time_cruise, travel_time_quad)
+        travel_time = np.where(distance > 0, travel_time, 0.0)
 
         return self.reaction_time + travel_time
 
     def _ball_arrival_time(
         self,
         bx: float, by: float,
-        tx: float, ty: float,
+        tx: np.ndarray | float,
+        ty: np.ndarray | float,
         is_kicked: bool = False,
-    ) -> float:
+    ) -> np.ndarray | float:
         """Compute time for ball to reach target point.
+
+        For kicked balls, uses RK4 3D trajectory integration with drag and
+        Magnus force. Builds a distance-vs-time lookup from the simulated
+        flight path and interpolates arrival times. Points beyond the
+        landing range receive infinite arrival time.
+
+        For rolling balls, uses distance / ball_speed.
 
         Args:
             bx, by: Ball position.
-            tx, ty: Target grid point.
-            is_kicked: If True, use kick speed; otherwise rolling speed.
+            tx, ty: Target grid point(s).
+            is_kicked: If True, use 3D trajectory; otherwise rolling speed.
 
         Returns:
-            Ball arrival time in seconds.
+            Ball arrival time(s) in seconds.
         """
-        distance = np.sqrt((tx - bx) ** 2 + (ty - by) ** 2)
-        ball_speed = self.ball_speed_kick if is_kicked else self.ball_speed_roll
-        return distance / max(ball_speed, 1.0)
+        is_scalar = np.isscalar(tx)
+        if is_scalar:
+            tx_arr = np.array([tx], dtype=np.float64)
+            ty_arr = np.array([ty], dtype=np.float64)
+        else:
+            tx_arr = np.asarray(tx, dtype=np.float64)
+            ty_arr = np.asarray(ty, dtype=np.float64)
+
+        distance = np.sqrt((tx_arr - bx) ** 2 + (ty_arr - by) ** 2)
+
+        if not is_kicked:
+            result = distance / max(self.ball_speed_roll, 1.0)
+            return result.item() if is_scalar else result
+
+        if np.all(distance < 0.5):
+            result = distance / max(self.ball_speed_kick, 1.0)
+            return result.item() if is_scalar else result
+
+        v_h = self.ball_speed_kick * np.cos(self.lift_angle)
+        vz0 = self.ball_speed_kick * np.sin(self.lift_angle)
+        z_init = 0.11
+
+        dt = 0.01
+        max_t = 5.0
+        rho = 1.225
+        Cd = 0.25
+        A = 0.038
+        m = 0.43
+        g = 9.81
+        S = 4.1e-4
+
+        pos = np.array([0.0, 0.0, z_init], dtype=np.float64)
+        vel = np.array([v_h, 0.0, vz0], dtype=np.float64)
+        omega = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+
+        def derivatives(state):
+            _p, v = state[:3], state[3:]
+            speed = np.linalg.norm(v)
+            drag = -0.5 * rho * Cd * A * speed * v / m if speed > 0 else np.zeros(3)
+            magnus = S * np.cross(omega, v) if speed > 0 else np.zeros(3)
+            return np.concatenate([v, drag + magnus + np.array([0.0, 0.0, -g])])
+
+        rk_times = [0.0]
+        rk_xs = [0.0]
+        rk_zs = [z_init]
+        t = 0.0
+
+        while t < max_t and pos[2] > 0:
+            state = np.concatenate([pos, vel])
+            k1 = derivatives(state)
+            k2 = derivatives(state + 0.5 * dt * k1)
+            k3 = derivatives(state + 0.5 * dt * k2)
+            k4 = derivatives(state + dt * k3)
+            state = state + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+            pos, vel = state[:3], state[3:]
+            t += dt
+            if t >= len(rk_times) * 0.05:
+                rk_times.append(t)
+                rk_xs.append(float(pos[0]))
+                rk_zs.append(float(pos[2]))
+
+        rk_times = np.array(rk_times)
+        horiz_dists = np.abs(np.array(rk_xs))
+
+        sort_idx = np.argsort(horiz_dists)
+        sd = horiz_dists[sort_idx]
+        st = rk_times[sort_idx]
+
+        result = np.interp(distance, sd, st, left=0.0, right=float(st[-1]))
+        result[distance > sd[-1]] = np.inf
+
+        return result.item() if is_scalar else result
 
     def compute_frame_control(
         self,
@@ -215,16 +362,25 @@ class BallPhysicsPitchControl:
             dot, dist,
             out=np.zeros_like(dist), where=dist > 0,
         )
-        effective_speed = (
-            np.maximum(vel_toward, 0.0)
-            + self.max_player_accel * self.reaction_time
-        )
-        effective_speed = np.minimum(effective_speed, self.max_player_speed)
+        v0 = np.maximum(vel_toward, 0.0)
 
-        travel_time = np.divide(
-            dist, np.maximum(effective_speed, 0.5),
-            out=np.zeros_like(dist), where=dist > 0,
+        max_accel = max(self.max_player_accel, 0.01)
+        t_acc = np.divide(
+            self.max_player_speed - v0, max_accel,
+            out=np.zeros_like(v0), where=v0 < self.max_player_speed,
         )
+        t_acc = np.maximum(t_acc, 0.0)
+
+        d_acc = v0 * t_acc + 0.5 * max_accel * t_acc ** 2
+
+        travel_cruise = t_acc + (dist - d_acc) / self.max_player_speed
+        travel_quad = (
+            -v0 + np.sqrt(v0 ** 2 + 2 * max_accel * dist)
+        ) / max_accel
+        where_cruise = (dist > d_acc) & (dist > 0)
+        travel_time = np.where(where_cruise, travel_cruise, travel_quad)
+        travel_time = np.where(dist > 0, travel_time, 0.0)
+
         player_arrival = self.reaction_time + travel_time
 
         if n_home > 0:
