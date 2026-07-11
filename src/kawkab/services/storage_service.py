@@ -462,7 +462,7 @@ class StorageService:
             return None
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, name, video_path, duration, fps, total_frames, home_team_id, away_team_id, home_score, away_score, season_id, match_date, match_type, status, metadata, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+            "SELECT id, name, video_path, duration_seconds AS duration, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
             (match_id,),
         )
         row = cursor.fetchone()
@@ -495,7 +495,16 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, match_id, timestamp, event_type, x, y, from_track_id, to_track_id, team_id, xg, xa, xt, vaep, metadata FROM events WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY timestamp LIMIT ? OFFSET ?",
+            """SELECT id, match_id, timestamp, event_type, from_track_id, to_track_id, team,
+                     completed, confidence, metadata, user_corrected,
+                     json_extract(metadata, '$.x') AS x,
+                     json_extract(metadata, '$.y') AS y,
+                     json_extract(metadata, '$.xg') AS xg,
+                     json_extract(metadata, '$.xa') AS xa,
+                     json_extract(metadata, '$.xt') AS xt,
+                     json_extract(metadata, '$.vaep') AS vaep
+              FROM events WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0)
+              ORDER BY timestamp LIMIT ? OFFSET ?""",
             (match_id, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -702,7 +711,7 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM coach_feedback ORDER BY created_at DESC")
+        cursor.execute("SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC")
         return [dict(row) for row in cursor.fetchall()]
 
     async def save_issue(self, issue: dict) -> int:
@@ -740,7 +749,7 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM issue_reports ORDER BY created_at DESC")
+        cursor.execute("SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC")
         return [dict(row) for row in cursor.fetchall()]
 
     async def save_usage_session(self, session: dict) -> int:
@@ -816,7 +825,7 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT * FROM video_clips WHERE match_id = ? ORDER BY created_at DESC",
+            "SELECT id, match_id, event_type, start_seconds, end_seconds, duration_seconds, source_video_path, output_path, thumbnail_path, player_id, description, created_at FROM video_clips WHERE match_id = ? ORDER BY created_at DESC",
             (match_id,),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -853,7 +862,7 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM clip_playlists ORDER BY created_at DESC")
+        cursor.execute("SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC")
         return [dict(row) for row in cursor.fetchall()]
 
     async def get_all_player_profiles(self, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -1075,7 +1084,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM coding_tags WHERE match_id = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? ORDER BY video_time",
                 (match_id,),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1090,7 +1099,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM coding_tags WHERE match_id = ? AND event_type = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND event_type = ? ORDER BY video_time",
                 (match_id, event_type),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1105,7 +1114,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM coding_tags WHERE match_id = ? AND player_track_id = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND player_track_id = ? ORDER BY video_time",
                 (match_id, player_track_id),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1301,7 +1310,7 @@ class StorageService:
         if self._conn is None:
             return None
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM teams WHERE name = ?", (name,))
+        cursor.execute("SELECT id, name, short_name, home_color, away_color, created_at FROM teams WHERE name = ?", (name,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -1309,7 +1318,7 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM teams ORDER BY name")
+        cursor.execute("SELECT id, name, short_name, home_color, away_color, created_at FROM teams ORDER BY name")
         return [dict(row) for row in cursor.fetchall()]
 
     # ── Tracking frames ──────────────────────────────────────────────────
@@ -1363,12 +1372,12 @@ class StorageService:
         cursor = self._conn.cursor()
         if end_frame is not None:
             cursor.execute(
-                "SELECT * FROM tracking_frames WHERE match_id = ? AND frame_number >= ? AND frame_number <= ? ORDER BY frame_number LIMIT ?",
+                "SELECT id, match_id, frame_number, timestamp, player_detections, ball_detections, created_at FROM tracking_frames WHERE match_id = ? AND frame_number >= ? AND frame_number <= ? ORDER BY frame_number LIMIT ?",
                 (match_id, start_frame, end_frame, limit),
             )
         else:
             cursor.execute(
-                "SELECT * FROM tracking_frames WHERE match_id = ? AND frame_number >= ? ORDER BY frame_number LIMIT ?",
+                "SELECT id, match_id, frame_number, timestamp, player_detections, ball_detections, created_at FROM tracking_frames WHERE match_id = ? AND frame_number >= ? ORDER BY frame_number LIMIT ?",
                 (match_id, start_frame, limit),
             )
         rows = []

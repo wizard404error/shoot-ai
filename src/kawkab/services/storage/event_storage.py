@@ -5,8 +5,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import re
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import BaseStorage
+
+def _sanitize_column_name(name: str) -> str | None:
+    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+        return name
+    return None
 
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
@@ -106,7 +112,7 @@ class EventStorage(BaseStorage):
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM events WHERE match_id = ? ORDER BY timestamp",
+                "SELECT id, match_id, event_type, timestamp, from_track_id, to_track_id, team, completed, confidence, metadata, user_corrected FROM events WHERE match_id = ? ORDER BY timestamp",
                 (match_id,),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -124,7 +130,7 @@ class EventStorage(BaseStorage):
             sets = []
             vals = []
             for key, val in updates.items():
-                if key in allowed:
+                if key in allowed and _sanitize_column_name(key):
                     col = key
                     if key == "event_type":
                         SecurityValidator.validate_event_type(val)

@@ -72,7 +72,7 @@ class ClipStorage(BaseStorage):
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM video_clips WHERE match_id = ? ORDER BY created_at DESC",
+                "SELECT id, match_id, event_type, start_seconds, end_seconds, duration_seconds, source_video_path, output_path, thumbnail_path, player_id, description, created_at FROM video_clips WHERE match_id = ? ORDER BY created_at DESC",
                 (match_id,),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -114,7 +114,7 @@ class ClipStorage(BaseStorage):
             return []
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT * FROM clip_playlists ORDER BY created_at DESC")
+            cursor.execute("SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC")
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             self._log_error("get_playlists", e)

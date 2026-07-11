@@ -61,7 +61,7 @@ class ProfileStorage(BaseStorage):
             return []
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT * FROM player_profiles WHERE is_active = 1")
+            cursor.execute("SELECT id, global_id, display_name, jersey_number, preferred_position, height_cm, weight_kg, dominant_foot, date_of_birth, nationality, photo_path, team, is_active, face_embedding, face_confidence, created_at, updated_at FROM player_profiles WHERE is_active = 1")
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             self._log_error("get_all_player_profiles", e)

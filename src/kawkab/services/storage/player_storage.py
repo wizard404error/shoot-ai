@@ -109,7 +109,7 @@ class PlayerStorage(BaseStorage):
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT * FROM players WHERE match_id = ? ORDER BY track_id",
+                "SELECT id, match_id, track_id, jersey_number, name, team, position, distance_covered_m, max_speed_kmh, avg_speed_kmh, passes_attempted, passes_completed, shots, tackles FROM players WHERE match_id = ? ORDER BY track_id",
                 (match_id,),
             )
             return [dict(row) for row in cursor.fetchall()]

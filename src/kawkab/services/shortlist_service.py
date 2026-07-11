@@ -8,21 +8,21 @@ from typing import Any
 
 
 class ShortlistService:
-    def __init__(self, db_path: str | Path | None = None) -> None:
+    def __init__(self, db_path: str | Path | None = None, conn: sqlite3.Connection | None = None) -> None:
         self._db_path = Path(db_path) if db_path else None
-        self._conn: sqlite3.Connection | None = None
+        self._conn: sqlite3.Connection | None = conn
 
     @property
     def conn(self) -> sqlite3.Connection | None:
         if self._conn is None and self._db_path is not None:
             self._conn = sqlite3.connect(str(self._db_path))
             self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA foreign_keys=ON")
         return self._conn
 
     def set_connection(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    def add_player(
         self,
         player_id: str,
         player_name: str,

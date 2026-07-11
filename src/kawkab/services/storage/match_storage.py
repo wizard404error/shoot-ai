@@ -5,8 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+import re
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import BaseStorage
+
+def _sanitize_column_name(name: str) -> str | None:
+    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+        return name
+    return None
 
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
@@ -82,7 +88,7 @@ class MatchStorage(BaseStorage):
             return None
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT * FROM matches WHERE id = ?", (match_id,))
+            cursor.execute("SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at FROM matches WHERE id = ?", (match_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
         except Exception as e:

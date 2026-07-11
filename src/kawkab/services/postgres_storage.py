@@ -362,13 +362,26 @@ CREATE TABLE IF NOT EXISTS coding_tags (
             )
             return row["id"] if row else 0
 
+    @staticmethod
+    def _sanitize_column_name(name: str) -> str | None:
+        cleaned = re.sub(r'[^a-zA-Z0-9_]', '', name)
+        if cleaned and cleaned[0].isalpha() or cleaned.startswith('_'):
+            return cleaned
+        return None
+
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._pool:
             return False
+        allowed = {"event_type", "team", "from_track_id", "to_track_id",
+                    "completed", "confidence", "metadata", "x", "y", "end_x", "end_y", "is_goal"}
         sets = []
         args = []
         for k, v in updates.items():
-            col = k.replace(" ", "_")
+            if k not in allowed:
+                continue
+            col = self._sanitize_column_name(k)
+            if col is None:
+                continue
             sets.append(f"{col} = ${len(args) + 1}")
             args.append(v)
         if not sets:

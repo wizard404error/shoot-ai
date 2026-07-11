@@ -69,7 +69,7 @@ class FeedbackStorage(BaseStorage):
             return []
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT * FROM coach_feedback ORDER BY created_at DESC")
+            cursor.execute("SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC")
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             self._log_error("get_all_feedback", e)
@@ -112,7 +112,7 @@ class FeedbackStorage(BaseStorage):
             return []
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT * FROM issue_reports ORDER BY created_at DESC")
+            cursor.execute("SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC")
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             self._log_error("get_all_issues", e)
