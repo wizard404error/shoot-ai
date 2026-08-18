@@ -78,6 +78,8 @@ class StorageService:
         migrations_dir = get_paths().migrations
         migrations_dir.mkdir(parents=True, exist_ok=True)
 
+        self.auto_backup()
+
         mgr = MigrationManager(self._db_path, migrations_dir)
         mgr.migrate()
 
@@ -1285,12 +1287,40 @@ class StorageService:
             return False
 
     def auto_backup(self) -> str:
-        result = self.backup()
-        if result:
-            logger.info("Auto-backup completed before migration")
-        else:
-            logger.warning("Auto-backup skipped or failed before migration")
-        return result
+        """Snapshot the raw DB file before migrations run.
+
+        Never actually reachable before this fix: it delegated to
+        backup(), which requires self._conn to already be open -- but
+        initialize() only opens self._conn *after* migrations succeed
+        (migrations run against the file directly via a MigrationManager-
+        owned connection). Every call site logged "Auto-backup completed
+        before migration" as if it worked; it always hit backup()'s
+        `if self._conn is None: return ""` guard and silently no-op'd.
+
+        This does a plain file copy instead (+ -wal/-shm sidecars if
+        present from an unclean previous shutdown) rather than the
+        sqlite3 `.backup()` API backup() uses, since that needs a live
+        connection this method is specifically meant to run before.
+        No-ops (not an error) if the DB doesn't exist yet -- nothing to
+        back up on a brand-new install.
+        """
+        if self._use_postgres or self._db_path is None or not self._db_path.exists():
+            return ""
+        try:
+            backup_dir = get_paths().appdata / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest = backup_dir / f"kawkab_pre_migration_{timestamp}.db"
+            shutil.copy2(self._db_path, dest)
+            for suffix in ("-wal", "-shm"):
+                sidecar = self._db_path.with_name(self._db_path.name + suffix)
+                if sidecar.exists():
+                    shutil.copy2(sidecar, Path(str(dest) + suffix))
+            logger.info(f"Auto-backup completed before migration: {dest}")
+            return str(dest)
+        except Exception as e:
+            logger.warning(f"Auto-backup skipped or failed before migration: {e}")
+            return ""
 
     # ── Team management ──────────────────────────────────────────────────
 
