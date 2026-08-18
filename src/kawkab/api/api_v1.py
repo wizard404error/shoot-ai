@@ -185,7 +185,7 @@ async def get_pressing(match_id: int, _user: dict = Depends(require_permission("
 
 
 @router.get("/matches/{match_id}/analysis/report", response_model=MatchReportOut)
-async def get_match_report(match_id: int):
+async def get_match_report(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.tactical_report import TacticalReportGenerator
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -197,7 +197,7 @@ async def get_match_report(match_id: int):
 # ── AI / LLM ──
 
 @router.post("/matches/{match_id}/ai/ask", response_model=LlmQueryOut)
-async def ask_llm(match_id: int, body: LlmQueryIn):
+async def ask_llm(match_id: int, body: LlmQueryIn, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.services.llm_service import LLMService
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -210,7 +210,7 @@ async def ask_llm(match_id: int, body: LlmQueryIn):
 # ── Player Ratings ──
 
 @router.get("/matches/{match_id}/ratings", response_model=list[SquadSummaryOut])
-async def get_player_ratings(match_id: int):
+async def get_player_ratings(match_id: int, _user: dict = Depends(require_permission("player:read"))):
     from kawkab.services.rating_service import RatingService
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -237,7 +237,7 @@ async def get_player_ratings(match_id: int):
 # ── Calibration & Model Comparison ──
 
 @router.get("/matches/{match_id}/calibration", response_model=CalibrationOut)
-async def get_calibration(match_id: int):
+async def get_calibration(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.calibration import ModelCalibrator
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -256,7 +256,7 @@ async def get_calibration(match_id: int):
 
 
 @router.post("/model-comparison", response_model=ModelComparisonOut)
-async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10)):
+async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10), _user: dict = Depends(require_permission("analysis:run"))):
     from kawkab.core.model_comparison import compare_xg_models
     report = compare_xg_models(shots, n_folds=n_folds, compute_feature_importance=True)
     return ModelComparisonOut(
@@ -269,7 +269,7 @@ async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10)
 # ── Fitness / Wearables ──
 
 @router.get("/players/{track_id}/fitness", response_model=FitnessOut)
-async def get_player_fitness(track_id: int, match_id: int = Query(..., description="Match ID")):
+async def get_player_fitness(track_id: int, match_id: int = Query(..., description="Match ID"), _user: dict = Depends(require_permission("medical:read"))):
     from kawkab.services.physical_load_service import PhysicalLoadService
     from kawkab.services.workload_service import WorkloadService
     svc = _get_storage()
@@ -337,7 +337,7 @@ async def get_shortlist(_user: dict = Depends(require_permission("recruitment:re
 # ── Game Plan ──
 
 @router.get("/game-plan/{match_id}/vs/{opponent}", response_model=GamePlanOut)
-async def get_game_plan(match_id: int, opponent: str):
+async def get_game_plan(match_id: int, opponent: str, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.game_plan import GamePlanGenerator
     svc = _get_storage()
     events = await svc.get_match_events(match_id)
@@ -349,14 +349,14 @@ async def get_game_plan(match_id: int, opponent: str):
 # ── Monitoring ──
 
 @router.get("/monitoring/dashboard", response_model=MonitoringDashboardOut)
-async def get_monitoring_dashboard():
+async def get_monitoring_dashboard(_user: dict = Depends(require_permission("admin:settings"))):
     monitor = _get_monitor()
     dashboard = monitor.get_monitoring_dashboard()
     return MonitoringDashboardOut(**dashboard)
 
 
 @router.get("/monitoring/drift")
-async def get_drift_alerts():
+async def get_drift_alerts(_user: dict = Depends(require_permission("admin:settings"))):
     monitor = _get_monitor()
     alerts = monitor.monitor.detect_drift()
     return {
@@ -401,7 +401,7 @@ async def delete_webhook(webhook_id: int, _user: dict = Depends(require_permissi
 # ── Season Summary ──
 
 @router.get("/season/summary")
-async def get_season_summary():
+async def get_season_summary(_user: dict = Depends(require_permission("match:read"))):
     from kawkab.core.season_aggregator import SeasonAggregator
     aggregator = SeasonAggregator()
     return aggregator.aggregate_team_season([])
@@ -414,6 +414,7 @@ async def get_coding_tags(
     match_id: int,
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("tag:read")),
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
@@ -421,13 +422,13 @@ async def get_coding_tags(
     return _paginate(tags, page, per_page)
 
 @router.get("/matches/{match_id}/coding/tags/stats")
-async def get_coding_stats(match_id: int):
+async def get_coding_stats(match_id: int, _user: dict = Depends(require_permission("tag:read"))):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
     return svc.get_coding_tag_stats(match_id)
 
 @router.get("/matches/{match_id}/coding/tags/type/{tag_type}")
-async def get_coding_tags_by_type(match_id: int, tag_type: str):
+async def get_coding_tags_by_type(match_id: int, tag_type: str, _user: dict = Depends(require_permission("tag:read"))):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
     return svc.get_coding_tags_by_type(match_id, tag_type)
@@ -451,22 +452,22 @@ async def get_squad_injury_report(team_id: int, _user: dict = Depends(require_pe
 # ── Streaming ──
 
 @router.get("/streaming/status")
-async def get_streaming_status():
+async def get_streaming_status(_user: dict = Depends(require_permission("match:read"))):
     return {"status": "idle"}
 
 @router.post("/streaming/start")
-async def start_streaming(source: str = ""):
+async def start_streaming(source: str = "", _user: dict = Depends(require_permission("analysis:run"))):
     return {"status": "started", "source": source}
 
 @router.post("/streaming/stop")
-async def stop_streaming():
+async def stop_streaming(_user: dict = Depends(require_permission("analysis:run"))):
     return {"status": "stopped"}
 
 
 # ── Collaboration ──
 
 @router.get("/collaboration/sessions")
-async def get_collab_sessions():
+async def get_collab_sessions(_user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.cloud.server import connected_clients
     return {
         "sessions": [
@@ -500,6 +501,7 @@ async def get_model_card(name: str):
 async def get_all_feedback(
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("admin:settings")),
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
@@ -511,6 +513,7 @@ async def get_all_feedback(
 async def get_all_issues(
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("admin:settings")),
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
@@ -522,6 +525,7 @@ async def get_all_issues(
 async def get_playlists(
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("match:read")),
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
@@ -535,6 +539,7 @@ async def get_reports(
     language: str = Query(""),
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    _user: dict = Depends(require_permission("analysis:read")),
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()

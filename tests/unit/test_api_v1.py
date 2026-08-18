@@ -82,7 +82,7 @@ class TestApiMatches:
 
 class TestApiModelComparison:
     def test_compare_models_empty(self):
-        resp = client.post("/api/v1/model-comparison?n_folds=0", json=[])
+        resp = client.post("/api/v1/model-comparison?n_folds=0", json=[], headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
         assert "models" in data
@@ -94,7 +94,7 @@ class TestApiModelComparison:
             {"xg_heuristic": 0.05, "is_goal": False, "distance_m": 30.0, "angle_deg": 45.0},
             {"xg_heuristic": 0.3, "is_goal": True, "distance_m": 12.0, "angle_deg": 10.0},
         ]
-        resp = client.post("/api/v1/model-comparison?n_folds=2", json=shots)
+        resp = client.post("/api/v1/model-comparison?n_folds=2", json=shots, headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["models"]) >= 1
@@ -121,14 +121,14 @@ class TestApiWebhooks:
 
 class TestApiMonitoring:
     def test_monitoring_dashboard(self):
-        resp = client.get("/api/v1/monitoring/dashboard")
+        resp = client.get("/api/v1/monitoring/dashboard", headers=_admin_headers())
         assert resp.status_code == 200
         data = resp.json()
         assert "models" in data
         assert "total_evaluations" in data
 
     def test_drift_alerts(self):
-        resp = client.get("/api/v1/monitoring/drift")
+        resp = client.get("/api/v1/monitoring/drift", headers=_admin_headers())
         assert resp.status_code == 200
         assert "alerts" in resp.json()
 
@@ -154,7 +154,7 @@ class TestApiRecruitment:
 
 class TestApiGamePlan:
     def test_game_plan(self):
-        resp = client.get("/api/v1/game-plan/1/vs/Barcelona")
+        resp = client.get("/api/v1/game-plan/1/vs/Barcelona", headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
         assert "opponent" in data
@@ -163,5 +163,5 @@ class TestApiGamePlan:
 
 class TestApiSeason:
     def test_season_summary(self):
-        resp = client.get("/api/v1/season/summary")
+        resp = client.get("/api/v1/season/summary", headers=_analyst_headers())
         assert resp.status_code == 200
