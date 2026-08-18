@@ -132,8 +132,15 @@ def login(body: UserLogin):
     row = db.execute("SELECT * FROM users WHERE email = ?", (body.email,)).fetchone()
     if not row or not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(row["id"], role=row.get("role", "analyst"))
+    # row.get(...) used to be called directly on `row` here. On the SQLite
+    # backend `row` is a sqlite3.Row, which supports row["role"] but has no
+    # .get() method at all -- so every login on the default (non-Postgres)
+    # backend raised AttributeError -> HTTP 500, with no test covering
+    # /auth/login anywhere to catch it. Converting to a plain dict first
+    # works identically on both backends (_ResultRow on Postgres already
+    # is a dict subclass).
     user = dict(row)
+    token = create_access_token(user["id"], role=user.get("role", "analyst"))
     del user["password_hash"]
     return TokenResponse(access_token=token, user=UserOut(**user))
 

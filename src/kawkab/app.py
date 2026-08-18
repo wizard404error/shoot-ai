@@ -12,6 +12,7 @@ try:
 except Exception:
     pass
 
+import asyncio
 import sys
 from pathlib import Path
 
@@ -88,6 +89,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{self.settings.app_name} v{self.settings.app_version}")
         self.setMinimumSize(QSize(1280, 800))
 
+        # Set by the tray "Quit" action so closeEvent() knows this is a
+        # real exit, not a click on the window's X button (which should
+        # minimize to tray, matching closeEvent()'s existing behavior).
+        self._quitting = False
+
         self._init_services()
         self._init_ui()
         self.profiler = Profiler()
@@ -102,6 +108,31 @@ class MainWindow(QMainWindow):
         logger.info("Initializing services...")
 
         self.storage = StorageService()
+        # StorageService() only records a path/DSN -- the actual connection
+        # and migration run happen in the async initialize(). Every call
+        # site of initialize() used to be in tests/scripts only; the GUI
+        # never called it, so self.storage._conn stayed None forever and
+        # every save_* method's `if self._conn is None: return 0` guard
+        # silently discarded all data with no error surfaced anywhere.
+        # initialize() does no actual awaiting internally (sqlite3 is
+        # synchronous), so running it via asyncio.run() here -- before the
+        # Qt event loop starts -- is safe and matches how the rest of this
+        # codebase invokes async service methods from sync call sites.
+        try:
+            asyncio.run(self.storage.initialize())
+        except Exception:
+            db_location = "(postgres, see KAWKAB_DB_URL)"
+            try:
+                if not self.storage._use_postgres:
+                    db_location = str(self.storage._db_path)
+            except Exception:
+                pass
+            logger.exception(
+                "StorageService.initialize() failed -- the app cannot "
+                "persist any data (matches, events, players, ...) this "
+                f"session. Check that the database path is writable: {db_location}"
+            )
+            raise
 
         self.model_manager = ModelManager()
 
@@ -291,10 +322,23 @@ class MainWindow(QMainWindow):
         show_action = tray_menu.addAction("Show")
         show_action.triggered.connect(self.show)
         quit_action = tray_menu.addAction("Quit")
-        quit_action.triggered.connect(self.close)
+        quit_action.triggered.connect(self._quit_from_tray)
         self.tray_icon.setContextMenu(tray_menu)
 
         self.tray_icon.show()
+
+    def _quit_from_tray(self) -> None:
+        """Actually exit, rather than closeEvent()'s default minimize-to-tray.
+
+        Previously this action called self.close() directly, but with a
+        visible tray icon closeEvent() always chose the "minimize to tray"
+        branch -- so the tray menu's "Quit" item just re-hid the window
+        instead of exiting. There was no UI path that ever reached a real
+        quit, which is also why shutdown() (closing the DB, releasing the
+        CV model) was dead code with no caller.
+        """
+        self._quitting = True
+        self.close()
 
     def _init_bridge(self) -> None:
         """Initialize the QWebChannel bridge (will be attached to page after load)."""
@@ -346,8 +390,8 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event) -> None:
-        """Handle window close - minimize to tray."""
-        if hasattr(self, "tray_icon") and self.tray_icon.isVisible():
+        """Handle window close - minimize to tray, unless this is a real quit."""
+        if not self._quitting and hasattr(self, "tray_icon") and self.tray_icon.isVisible():
             self.tray_icon.showMessage(
                 self.settings.app_name,
                 "Still running in system tray. Right-click to quit.",
@@ -356,8 +400,17 @@ class MainWindow(QMainWindow):
             )
             self.hide()
             event.ignore()
-        else:
-            event.accept()
+            return
+
+        # Real exit: release the CV model and close the DB connection.
+        # shutdown() does its own awaiting internally (unlike initialize()),
+        # but there's no asyncio loop running here either, so asyncio.run()
+        # is again the right tool -- same reasoning as _init_services().
+        try:
+            asyncio.run(self.shutdown())
+        except Exception:
+            logger.exception("Error during shutdown (continuing to close)")
+        event.accept()
 
     async def shutdown(self) -> None:
         """Graceful shutdown of all services."""

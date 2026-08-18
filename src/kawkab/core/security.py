@@ -188,6 +188,142 @@ class SecurityValidator:
         return sanitized
 
     @staticmethod
+    def validate_int(value: Any) -> int:
+        """Validate and convert a generic ID-like input to a safe integer.
+
+        For inputs that are IDs but not specifically a match (player_id,
+        session_id, ...) -- same bounds as validate_match_id.
+
+        Args:
+            value: Any input claiming to be a non-negative integer ID
+
+        Returns:
+            Validated integer
+
+        Raises:
+            ValueError: If input is not a valid non-negative integer
+        """
+        try:
+            v = int(value)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid integer: {value!r}") from e
+
+        if v < 0:
+            raise ValueError(f"Value must be non-negative, got {v}")
+        if v > 999_999_999:
+            raise ValueError(f"Value too large: {v}")
+
+        return v
+
+    @staticmethod
+    def validate_track_id(track_id: Any) -> int:
+        """Validate and convert a player tracking ID to a safe integer.
+
+        Args:
+            track_id: Any input claiming to be a player track ID
+
+        Returns:
+            Validated integer track_id
+
+        Raises:
+            ValueError: If input is not a valid non-negative integer
+        """
+        try:
+            tid = int(track_id)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid track_id: {track_id!r}") from e
+
+        if tid < 0:
+            raise ValueError(f"track_id must be non-negative, got {tid}")
+
+        return tid
+
+    @staticmethod
+    def validate_positive_float(value: Any, field_name: str = "value") -> float:
+        """Validate a numeric input and clamp it to a non-negative float.
+
+        Args:
+            value: Any input claiming to be a non-negative measurement
+                (distance, speed, count, ...)
+            field_name: Name used in the error message on invalid input
+
+        Returns:
+            Validated float, clamped to >= 0.0
+
+        Raises:
+            ValueError: If input cannot be converted to a float
+        """
+        try:
+            v = float(value)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid {field_name}: {value!r}") from e
+
+        return max(0.0, v)
+
+    @staticmethod
+    def validate_float_range(value: Any, lo: float, hi: float, field_name: str = "value") -> float:
+        """Validate a numeric input and clamp it to an inclusive [lo, hi] range.
+
+        Args:
+            value: Any input claiming to be a number in [lo, hi] (e.g. a
+                1-5 coach rating)
+            lo: Lower bound (inclusive)
+            hi: Upper bound (inclusive)
+            field_name: Name used in the error message on invalid input
+
+        Returns:
+            Validated float, clamped to [lo, hi]
+
+        Raises:
+            ValueError: If input cannot be converted to a float
+        """
+        try:
+            v = float(value)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid {field_name}: {value!r}") from e
+
+        return max(float(lo), min(float(hi), v))
+
+    @staticmethod
+    def validate_event_type(event_type: Any) -> str:
+        """Validate and sanitize a match event type string.
+
+        Args:
+            event_type: Any input claiming to be an event type (e.g. "pass")
+
+        Returns:
+            Sanitized event type string
+
+        Raises:
+            ValueError: If input is empty after sanitization
+        """
+        sanitized = SecurityValidator.sanitize_string(str(event_type), max_length=50)
+        if not sanitized:
+            raise ValueError(f"Invalid event_type: {event_type!r}")
+        return sanitized
+
+    @staticmethod
+    def validate_event_dict(event: dict) -> dict:
+        """Validate that an event dict has the fields save_event requires.
+
+        Args:
+            event: Event data about to be persisted
+
+        Returns:
+            The same event dict, unchanged
+
+        Raises:
+            ValueError: If event is missing the required "type" or
+                "timestamp" keys
+        """
+        if not isinstance(event, dict):
+            raise ValueError(f"Event must be a dict, got {type(event).__name__}")
+        missing = [k for k in ("type", "timestamp") if k not in event]
+        if missing:
+            raise ValueError(f"Event dict missing required field(s): {', '.join(missing)}")
+        return event
+
+    @staticmethod
     def check_rate_limit(operation: str, key: str = "global") -> bool:
         """Check whether an operation is allowed under its rate limit.
 

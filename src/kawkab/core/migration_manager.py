@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -54,11 +53,15 @@ class MigrationManager:
         """Get all migration files sorted by version number."""
         if not self.migrations_dir.exists():
             return []
-        files = sorted(
-            self.migrations_dir.glob("*.sql"),
-            key=lambda p: int(p.stem.split("_")[0]),
-        )
-        return files
+        all_files = list(self.migrations_dir.glob("*.sql"))
+        numeric_files = []
+        for f in all_files:
+            stem = f.stem
+            parts = stem.split("_")
+            if parts and parts[0].isdigit():
+                numeric_files.append((int(parts[0]), f))
+        numeric_files.sort(key=lambda x: x[0])
+        return [f for _, f in numeric_files]
 
     def migrate(self) -> None:
         """Apply all pending migrations."""

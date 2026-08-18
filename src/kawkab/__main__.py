@@ -1,6 +1,8 @@
-﻿"""CLI entry point for the tracking pipeline.
+"""CLI entry point for Kawkab AI — desktop app launcher + tracking pipeline.
 
 Usage:
+    python -m kawkab                     # launch the desktop app (default, same as `gui`)
+    python -m kawkab gui                 # launch the desktop app explicitly
     python -m kawkab track --video match.mp4 [--output tracking_output] [--skip 6]
     python -m kawkab track --pattern "*.mp4" --input-dir videos/ [--output-dir tracking_output]
     python -m kawkab batch --pattern "*.mp4" --input-dir videos/ [--output-dir batches] [--skip 6]
@@ -27,6 +29,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # gui (default when no subcommand is given)
+    subparsers.add_parser("gui", help="Launch the Kawkab AI desktop application (default)")
 
     # track
     track_p = subparsers.add_parser("track", help="Run tracking on video(s)")
@@ -118,9 +123,8 @@ def main():
                         help="Output directory for YOLO-format dataset")
 
     args = parser.parse_args()
-    if args.command is None:
-        parser.print_help()
-        sys.exit(1)
+    if args.command is None or args.command == "gui":
+        sys.exit(_run_gui())
 
     if args.command == "track":
         asyncio.run(_run_tracking(args))
@@ -146,10 +150,24 @@ def main():
         _run_prepare_data(args)
 
 
+def _run_gui() -> int:
+    """Launch the Kawkab AI desktop application.
+
+    This is the default action when `python -m kawkab` is run with no
+    subcommand (and also available explicitly as `python -m kawkab gui`).
+    The import is lazy so the lighter CLI subcommands (track/evaluate/
+    benchmark/...) don't pay the cost of importing PySide6 + QtWebEngine.
+    """
+    from kawkab.app import run_app
+
+    return run_app()
+
+
 async def _process_single_video(video_path: str, output_dir: str, skip: int, tracker: str) -> dict:
     """Run tracking on one video and write summary. Returns result dict."""
-    from kawkab.services.cv_service import CVService
     import json
+
+    from kawkab.services.cv_service import CVService
 
     svc = CVService(model_size="m", gpu_enabled=True, tracker_type=tracker)
     await svc.initialize()
@@ -191,7 +209,6 @@ async def _process_single_video(video_path: str, output_dir: str, skip: int, tra
 
 
 async def _run_tracking(args):
-    import json
 
     if args.video:
         # Single-video mode
@@ -228,7 +245,8 @@ async def _run_tracking(args):
 async def _run_batch(args):
     """Batch process: glob videos, create BatchJob per video, run tracking, log results."""
     import json
-    from kawkab.services.batch_service import BatchService, BatchJob, BatchStatus
+
+    from kawkab.services.batch_service import BatchJob, BatchService, BatchStatus
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -423,6 +441,7 @@ def _run_possession(args):
 
 def _run_link_players(args):
     import asyncio
+
     from kawkab.services.storage_service import StorageService
 
     storage = StorageService()
@@ -450,7 +469,7 @@ def _run_link_players(args):
 
 def _run_train_yolo(args):
     """Wire into scripts.fine_tune_yolo training subcommand."""
-    from scripts.fine_tune_yolo import run_training, prepare_soccer_net_annotations
+    from scripts.fine_tune_yolo import prepare_soccer_net_annotations, run_training
 
     if args.prepare:
         print("Running data preparation first...")
@@ -735,9 +754,9 @@ def _run_benchmark(args):
     output_path = args.output
 
     from tests.unit.test_performance_benchmarks import (
-        BenchmarkRunner,
         MODULES_TO_BENCHMARK,
         N_EVENTS_DEFAULT,
+        BenchmarkRunner,
     )
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tests"))

@@ -4,9 +4,7 @@ import hashlib
 import hmac
 import os
 import secrets
-import time
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -15,6 +13,7 @@ from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBea
 from kawkab.cloud.database import get_cloud_db
 
 _jwt_secret: str | None = None
+MIN_JWT_SECRET_LENGTH = 32  # bytes; matches HS256's recommended minimum HMAC key length
 
 def _get_jwt_secret() -> str:
     global _jwt_secret
@@ -26,6 +25,13 @@ def _get_jwt_secret() -> str:
             "KAWKAB_JWT_SECRET environment variable is not set. "
             "Generate a strong secret (e.g., `python -c \"import secrets; print(secrets.token_hex(32))\"`) "
             "and export KAWKAB_JWT_SECRET before starting the cloud server."
+        )
+    if len(val) < MIN_JWT_SECRET_LENGTH:
+        raise RuntimeError(
+            f"KAWKAB_JWT_SECRET is only {len(val)} characters -- HS256 needs at least "
+            f"{MIN_JWT_SECRET_LENGTH} to resist brute-force forgery of session tokens. "
+            "Generate a strong secret (e.g., `python -c \"import secrets; print(secrets.token_hex(32))\"`) "
+            "and export it as KAWKAB_JWT_SECRET before starting the cloud server."
         )
     _jwt_secret = val
     return val
@@ -52,11 +58,11 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def create_access_token(user_id: int, role: str = "analyst") -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     return jwt.encode({"sub": str(user_id), "role": role, "exp": expire}, _get_jwt_secret(), algorithm=ALGORITHM)
 
 
-def decode_token(token: str) -> Optional[dict]:
+def decode_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, _get_jwt_secret(), algorithms=[ALGORITHM])
     except jwt.PyJWTError:
@@ -64,7 +70,7 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> dict:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -134,8 +140,8 @@ _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def get_current_user_or_api_key(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    api_key: Optional[str] = Depends(_api_key_header),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    api_key: str | None = Depends(_api_key_header),
 ) -> dict:
     if credentials:
         payload = decode_token(credentials.credentials)
