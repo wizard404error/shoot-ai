@@ -9,6 +9,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from kawkab.core.logging import get_logger
+from kawkab.core.paths import get_paths
 from kawkab.core.security import ErrorSanitizer
 
 logger = get_logger(__name__)
@@ -47,7 +48,17 @@ class AuthHandler:
         return self._services.get("storage_service")
 
     def _ensure_admin(self):
-        """Create default admin on first run if no users exist."""
+        """Create default admin on first run if no users exist.
+
+        Previously created a fixed, publicly-documented "admin"/"admin123"
+        account and logged that literal credential to the app's own log
+        file -- anyone who read the source (or the log) had a standing
+        admin login for every install. Now generates a random password,
+        forces a reset on first use (must_reset_password=True -- login()
+        surfaces this so the caller can't silently keep using it), and
+        writes the one-time password only to a dedicated file the coach
+        has to go look up, never to the rotating log.
+        """
         if self._default_admin_created:
             return
         svc = self.storage_service
@@ -57,9 +68,30 @@ class AuthHandler:
             import asyncio
             user = asyncio.run(svc.get_user_by_username("admin"))
             if user is None:
-                pwd_hash = _hash_password("admin123")
-                asyncio.run(svc.create_user("admin", pwd_hash, "admin", "admin@kawkab.ai", "Admin"))
-                logger.info("Created default admin user (admin/admin123)")
+                initial_password = secrets.token_urlsafe(16)
+                pwd_hash = _hash_password(initial_password)
+                asyncio.run(svc.create_user(
+                    "admin", pwd_hash, "admin", "admin@kawkab.ai", "Admin",
+                    must_reset_password=True,
+                ))
+                creds_file = get_paths().appdata / "FIRST_RUN_ADMIN_PASSWORD.txt"
+                creds_file.write_text(
+                    "Kawkab AI -- one-time admin credential\n"
+                    "========================================\n"
+                    "username: admin\n"
+                    f"password: {initial_password}\n\n"
+                    "You will be required to set a new password on first login.\n"
+                    "Delete this file once you've logged in.\n",
+                    encoding="utf-8",
+                )
+                try:
+                    os.chmod(creds_file, 0o600)
+                except OSError:
+                    pass  # best-effort on platforms without POSIX permissions (Windows)
+                logger.info(
+                    "Created default admin user; one-time password written to "
+                    f"{creds_file} (not logged; password reset required on first login)"
+                )
             self._default_admin_created = True
         except Exception as e:
             logger.warning(f"Could not create default admin: {e}")
@@ -78,7 +110,25 @@ class AuthHandler:
                 return json.dumps({"error": "Invalid username or password"})
 
             if user.get("is_locked"):
-                return json.dumps({"error": "Account locked. Try again later."})
+                # record_failed_login() promises "try again in 1 hour" via
+                # locked_until, but nothing previously read it back -- the
+                # only unlock path was update_user_login(), reachable only
+                # via a successful login, which is_locked blocked in the
+                # first place. Auto-clear once locked_until has passed
+                # instead of leaving the account locked forever.
+                locked_until = user.get("locked_until")
+                still_locked = True
+                if locked_until:
+                    try:
+                        until_dt = datetime.fromisoformat(locked_until.replace(" ", "T"))
+                        still_locked = datetime.now(UTC).replace(tzinfo=None) < until_dt
+                    except ValueError:
+                        pass
+                if still_locked:
+                    return json.dumps({"error": "Account locked. Try again later."})
+                asyncio.run(svc.clear_expired_lock(user["id"]))
+                user["is_locked"] = 0
+
             if not user.get("is_active"):
                 return json.dumps({"error": "Account deactivated."})
 
@@ -99,6 +149,7 @@ class AuthHandler:
 
             return json.dumps({
                 "success": True,
+                "must_reset_password": bool(user.get("must_reset_password")),
                 "token": token_raw,
                 "user": {
                     "id": user["id"],
@@ -159,8 +210,10 @@ class AuthHandler:
                 return json.dumps({"error": "User not found"})
             if not _verify_password(old_password, full.get("password_hash", "")):
                 return json.dumps({"error": "Current password is incorrect"})
-            if len(new_password) < 6:
-                return json.dumps({"error": "New password must be at least 6 characters"})
+            if len(new_password) < 8:
+                # Matches the cloud backend's minimum (cloud/models.py
+                # UserRegister.password) -- local auth used to allow 6.
+                return json.dumps({"error": "New password must be at least 8 characters"})
             new_hash = _hash_password(new_password)
             asyncio.run(svc.change_password(user["id"], new_hash))
             asyncio.run(svc.audit_log(user["id"], user["username"], "change_password", "auth", "password"))

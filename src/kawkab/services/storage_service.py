@@ -1439,14 +1439,15 @@ class StorageService:
     async def create_user(
         self, username: str, password_hash: str, role: str = "analyst",
         email: str = "", display_name: str = "",
+        must_reset_password: bool = False,
     ) -> int:
         if self._conn is None:
             return 0
         cursor = self._conn.cursor()
         cursor.execute(
-            """INSERT INTO users (username, email, display_name, password_hash, role)
-               VALUES (?, ?, ?, ?, ?)""",
-            (username, email, display_name, password_hash, role),
+            """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (username, email, display_name, password_hash, role, int(must_reset_password)),
         )
         self._conn.commit()
         return cursor.lastrowid or 0
@@ -1456,7 +1457,7 @@ class StorageService:
             return None
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, username, email, display_name, role, team, is_active, is_locked, password_hash, must_reset_password, last_login FROM users WHERE username = ?",
+            "SELECT id, username, email, display_name, role, team, is_active, is_locked, locked_until, password_hash, must_reset_password, last_login FROM users WHERE username = ?",
             (username,),
         )
         row = cursor.fetchone()
@@ -1467,11 +1468,31 @@ class StorageService:
             return None
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, username, email, display_name, role, team, is_active, is_locked, password_hash, must_reset_password, last_login FROM users WHERE id = ?",
+            "SELECT id, username, email, display_name, role, team, is_active, is_locked, locked_until, password_hash, must_reset_password, last_login FROM users WHERE id = ?",
             (user_id,),
         )
         row = cursor.fetchone()
         return dict(row) if row else None
+
+    async def clear_expired_lock(self, user_id: int) -> None:
+        """Reset is_locked/failed_attempts once locked_until has passed.
+
+        record_failed_login() sets is_locked=1 + locked_until='+1 hour', but
+        the only other place that clears is_locked was update_user_login()
+        -- called only on a SUCCESSFUL login, which is unreachable while
+        is_locked=1 blocks login() first. Without this, a lockout was
+        permanent: the promised "try again in 1 hour" never actually
+        un-blocked the account. Deliberately doesn't touch last_login
+        (unlike update_user_login) since no successful auth happened yet.
+        """
+        if self._conn is None:
+            return
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE users SET is_locked=0, failed_attempts=0, locked_until=NULL WHERE id=?",
+            (user_id,),
+        )
+        self._conn.commit()
 
     async def update_user_login(self, user_id: int) -> None:
         if self._conn is None:
@@ -1518,10 +1539,13 @@ class StorageService:
         if self._conn is None:
             return None
         cursor = self._conn.cursor()
+        # u.is_locked=0 added: previously a session created before a lockout
+        # stayed valid through it -- locking an account did not invalidate
+        # its live sessions, only blocked *new* logins.
         cursor.execute(
             """SELECT u.id, u.username, u.role, u.team, u.display_name
                FROM user_sessions s JOIN users u ON s.user_id = u.id
-               WHERE s.token_hash=? AND s.expires_at > datetime('now') AND u.is_active=1""",
+               WHERE s.token_hash=? AND s.expires_at > datetime('now') AND u.is_active=1 AND u.is_locked=0""",
             (token_hash,),
         )
         row = cursor.fetchone()

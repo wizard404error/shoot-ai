@@ -265,7 +265,7 @@ def test_change_password_via_auth(storage):
     auth = _make_auth(storage)
     login_resp = json.loads(auth.login("changepwduser", "oldpwd"))
     token = login_resp["token"]
-    result = json.loads(auth.change_password(token, "oldpwd", "newpwd6"))
+    result = json.loads(auth.change_password(token, "oldpwd", "newpassword6"))
     assert result.get("success") is True
 
 
