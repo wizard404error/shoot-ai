@@ -289,6 +289,33 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
             "SELECT version, data FROM projects WHERE id = ? AND owner_id = ?",
             (op.entity_id, user["id"]),
         ).fetchone()
+
+        # `existing` above is scoped to *this user's own* rows, so it comes
+        # back None both for "brand new project id" and for "a project with
+        # this id exists but is owned by someone else" -- previously those
+        # two cases were indistinguishable. A cross-user id collision on
+        # create/update fell through to the ON CONFLICT(id) DO UPDATE below,
+        # which has no owner check at all: any authenticated user submitting
+        # someone else's real project id got their data/version silently
+        # written over the victim's project (owner_id itself wasn't
+        # touched, but the content was destroyed). Distinguish the two
+        # cases explicitly before ever reaching the upsert.
+        if existing is None and op.op in ("create", "update"):
+            owned_by_other = db.execute(
+                "SELECT owner_id FROM projects WHERE id = ? AND owner_id != ?",
+                (op.entity_id, user["id"]),
+            ).fetchone()
+            if owned_by_other is not None:
+                conflicts.append(ConflictRecord(
+                    entity_type=op.entity_type,
+                    entity_id=op.entity_id,
+                    local_version=int(op.data.get("_version", 0)),
+                    remote_version=-1,
+                    local_data=op.data,
+                    remote_data={"error": "This id belongs to a project you do not own."},
+                ))
+                continue
+
         if existing and op.op == "update":
             local_ver = int(op.data.get("_version", 0))
             if local_ver < existing["version"]:
@@ -309,8 +336,15 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
         elif op.op in ("create", "update"):
             data_json = json.dumps(op.data, ensure_ascii=False)
             new_ver = existing["version"] + 1 if existing else 1
+            # The WHERE on DO UPDATE is defense-in-depth on top of the
+            # explicit ownership check above: even if that check were ever
+            # bypassed or buggy, SQLite itself refuses to apply the update
+            # when the existing row's owner_id doesn't match, rather than
+            # silently overwriting another user's row.
             db.execute("""INSERT INTO projects (id, name, owner_id, data, version)
-                          VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=datetime('now')""",
+                          VALUES (?,?,?,?,?)
+                          ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=datetime('now')
+                          WHERE projects.owner_id = excluded.owner_id""",
                        (op.entity_id, op.data.get("name", "Untitled"), user["id"], data_json, new_ver))
             db.execute("INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
                        (user["id"], payload.device_id, op.entity_type, op.entity_id, op.op))
