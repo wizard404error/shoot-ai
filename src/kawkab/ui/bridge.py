@@ -1247,9 +1247,14 @@ class Bridge(QObject):
     async def updater_check(self) -> str:
         return await self._analysis.updater_check()
 
-    @Slot(str, result=str)
-    async def updater_download(self, url: str) -> str:
-        return await self._analysis.updater_download(url)
+    @Slot(str, str, result=str)
+    async def updater_download(self, url: str, expected_digest: str) -> str:
+        # expected_digest: pass "" if check_for_update()'s "digest" field
+        # was empty for this asset. No Python default here -- PySide6's
+        # meta-object system needs the Qt-visible signature to be exact,
+        # not something a Python-level default silently satisfies from
+        # the JS/QWebChannel call site.
+        return await self._analysis.updater_download(url, expected_digest)
 
     @Slot(str, result=str)
     async def updater_apply(self, path: str) -> str:

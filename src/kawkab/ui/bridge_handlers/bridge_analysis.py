@@ -3314,12 +3314,12 @@ class AnalysisHandler:
             logger.error(f"updater_check failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def updater_download(self, url):
+    async def updater_download(self, url, expected_digest=""):
         try:
             svc = self._services.get("auto_updater_service")
             if svc is None:
                 return json.dumps({"error": "No updater service"})
-            return svc.download_update(url)
+            return svc.download_update(url, expected_digest)
         except Exception as e:
             logger.error(f"updater_download failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
