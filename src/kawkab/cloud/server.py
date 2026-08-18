@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from kawkab.cloud.auth import (
     create_access_token,
+    decode_token,
     get_current_user,
     hash_password,
     verify_password,
@@ -431,8 +432,64 @@ def share_project(body: SharedProject, user: dict = Depends(get_current_user)):
 
 connected_clients: dict[str, list[WebSocket]] = {}
 
+
+def _authorize_project_access(db, project_id: str, user_id: int) -> bool:
+    """True if user_id may join a collaboration session for project_id.
+
+    Authorized if the user owns the project outright, or the project is
+    marked shared and the user belongs to the team it's shared with.
+    """
+    project = db.execute(
+        "SELECT owner_id, team_id, is_shared FROM projects WHERE id = ?", (project_id,)
+    ).fetchone()
+    if project is None:
+        return False
+    if project["owner_id"] == user_id:
+        return True
+    if project["is_shared"] and project["team_id"] is not None:
+        member = db.execute(
+            "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?",
+            (project["team_id"], user_id),
+        ).fetchone()
+        return member is not None
+    return False
+
+
 @app.websocket("/ws/{project_id}")
-async def ws_endpoint(websocket: WebSocket, project_id: str):
+async def ws_endpoint(websocket: WebSocket, project_id: str, token: str = Query(...)):
+    """Real-time collaboration channel for one project.
+
+    Previously had no authentication at all -- no token, no origin
+    check, no project-membership check. Any internet client could
+    connect to any project_id, read every collaborator's live edits,
+    and inject arbitrary messages into their session. Browsers can't
+    set a custom Authorization header on a WebSocket handshake, so the
+    JWT is passed as a query parameter instead (matches how most
+    WebSocket APIs handle this); everything is rejected with an explicit
+    close code *before* accept() so a rejected client never enters the
+    broadcast group.
+    """
+    origin = websocket.headers.get("origin")
+    if origin is not None and origin not in _cors_origins and "*" not in _cors_origins:
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
+
+    payload = decode_token(token)
+    if payload is None:
+        await websocket.close(code=1008, reason="Invalid or missing token")
+        return
+    user_id = int(payload["sub"])
+
+    db = get_cloud_db()
+    user_row = db.execute("SELECT is_active FROM users WHERE id = ?", (user_id,)).fetchone()
+    if user_row is None or not user_row["is_active"]:
+        await websocket.close(code=1008, reason="User not found or inactive")
+        return
+
+    if not _authorize_project_access(db, project_id, user_id):
+        await websocket.close(code=1008, reason="Not authorized for this project")
+        return
+
     await websocket.accept()
     if project_id not in connected_clients:
         connected_clients[project_id] = []
