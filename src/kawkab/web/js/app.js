@@ -512,13 +512,13 @@
         container.innerHTML = matches.map(match => {
             let badge = '';
             if (match.api_match_id) {
-                badge += '<span class="match-badge verified" title="football-data.org match #' + match.api_match_id + '">FD</span>';
+                badge += '<span class="match-badge verified" title="football-data.org match #' + escapeHtml(match.api_match_id) + '">FD</span>';
             }
             if (match.bzzoiro_event_id) {
-                badge += '<span class="match-badge verified" title="Bzzoiro event #' + match.bzzoiro_event_id + '">BZ</span>';
+                badge += '<span class="match-badge verified" title="Bzzoiro event #' + escapeHtml(match.bzzoiro_event_id) + '">BZ</span>';
             }
             if (match.apifb_fixture_id) {
-                badge += '<span class="match-badge verified" title="API-Football fixture #' + match.apifb_fixture_id + '">AF</span>';
+                badge += '<span class="match-badge verified" title="API-Football fixture #' + escapeHtml(match.apifb_fixture_id) + '">AF</span>';
             }
             return `
             <div class="match-item" data-match-id="${match.id}">
@@ -558,8 +558,46 @@
             }
             document.getElementById('results-section').classList.remove('hidden');
             setTimeout(loadEventTimeline, 200);
+            updateCalibrationBanner(matchId);
         } catch (e) {
             console.error('Failed to load match:', e);
+        }
+    }
+
+    // Without homography calibration, every spatial stat shown on this
+    // page (xG, xT, distances, formations, PPDA) is computed from raw
+    // pixel positions, not real-world meters -- they look like normal
+    // numbers but aren't measuring what they claim to. This banner makes
+    // that distinction impossible to miss instead of a silent assumption
+    // (see README's own "known limitations" and CLAUDE.md).
+    async function updateCalibrationBanner(matchId) {
+        var banner = document.getElementById('calibration-status-banner');
+        if (!banner || !bridge) return;
+        try {
+            var data = JSON.parse(await bridge.get_homography(matchId));
+            var icon = banner.querySelector('.calibration-banner-icon');
+            var text = banner.querySelector('.calibration-banner-text');
+            var actionBtn = document.getElementById('calibration-banner-action');
+            banner.classList.remove('hidden', 'calibration-ok', 'calibration-missing');
+            if (data && !data.error && data.matrix) {
+                banner.classList.add('calibration-ok');
+                icon.textContent = '✅';
+                text.textContent = t('calibratedNotice') || 'Calibrated — spatial stats are in real meters.';
+                actionBtn.classList.add('hidden');
+            } else {
+                banner.classList.add('calibration-missing');
+                icon.textContent = '⚠️';
+                text.textContent = t('notCalibratedNotice') ||
+                    'Not calibrated — xG, xT, distances, and formations below reflect raw pixel positions, not real meters, until you calibrate this match.';
+                actionBtn.classList.remove('hidden');
+                actionBtn.onclick = function () {
+                    window.location.hash = 'calibration';
+                    if (window.showCalibrationSection) window.showCalibrationSection(matchId);
+                };
+            }
+        } catch (e) {
+            console.error('Failed to load calibration status:', e);
+            banner.classList.add('hidden');
         }
     }
 
@@ -714,6 +752,38 @@
             document.getElementById('dash-away-count').textContent = formatNumber(awayMatchCount, 0);
             document.getElementById('dash-home-detail').textContent = formatNumber(homeMatchCount, 0) + ' ' + t('homeGames').toLowerCase();
             document.getElementById('dash-away-detail').textContent = formatNumber(awayMatchCount, 0) + ' ' + t('awayGames').toLowerCase();
+
+            // Recent form (streak, last-5 results, points-per-game)
+            try {
+                var formContent = document.getElementById('dashboard-form-content');
+                if (formContent && totalMatches > 0) {
+                    var formJson = await bridge.get_season_form();
+                    var form = JSON.parse(formJson);
+                    if (form && !form.error && form.last_5_results) {
+                        var badgeColor = { W: '#16a34a', D: '#d97706', L: '#dc2626' };
+                        // last_5_results/streak_type only ever contain "W"/"D"/"L"
+                        // (FormAnalyzer._result_from_match's closed output set) --
+                        // escaped anyway for defense-in-depth, matching this
+                        // codebase's convention of never trusting bridge JSON blindly.
+                        var badges = form.last_5_results.split('').map(function (r) {
+                            return '<span class="form-badge" style="background:' + (badgeColor[r] || '#64748b') + '">' + escapeHtml(r) + '</span>';
+                        }).join('');
+                        var streakLabel = form.streak_length > 0
+                            ? form.streak_length + ' ' + escapeHtml(form.streak_type) + (form.streak_length > 1 ? 's' : '')
+                            : '-';
+                        formContent.classList.remove('dashboard-empty');
+                        formContent.innerHTML =
+                            '<div class="form-badges">' + badges + '</div>' +
+                            '<div class="form-stats-row">' +
+                            '<div class="form-stat"><span class="form-stat-value">' + streakLabel + '</span><span class="form-stat-label">' + t('currentStreak') + '</span></div>' +
+                            '<div class="form-stat"><span class="form-stat-value">' + form.ppg_last_5.toFixed(2) + '</span><span class="form-stat-label">' + t('ppgLast5') + '</span></div>' +
+                            '<div class="form-stat"><span class="form-stat-value">' + form.total_points + '</span><span class="form-stat-label">' + t('totalPoints') + '</span></div>' +
+                            '</div>';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load season form:', e);
+            }
 
         } catch (e) {
             console.error('Failed to load dashboard:', e);
@@ -984,6 +1054,8 @@
         renderPossession(result.home_team.possession, result.away_team.possession);
         renderTeamStats('home-stats', result.home_team, 'Home');
         renderTeamStats('away-stats', result.away_team, 'Away');
+        loadXaReport(matchId);
+        loadPressingReport(matchId);
 
         const confidenceValue = document.getElementById('confidence-value');
         const confidenceBar = document.getElementById('confidence-bar');
@@ -1074,6 +1146,41 @@
             <div class="stat-item"><span>Shots:</span><span>${stats.shots}</span></div>
             <div class="stat-item"><span>Possession:</span><span>${stats.possession.toFixed(1)}%</span></div>
         `;
+    }
+
+    function loadXaReport(matchId) {
+        if (!bridge || !bridge.get_xa_report) return;
+        bridge.get_xa_report(String(matchId), function(result) {
+            try {
+                const data = JSON.parse(result);
+                if (data.error) return;
+                const homeEl = document.querySelector('#home-stats');
+                const awayEl = document.querySelector('#away-stats');
+                if (homeEl) {
+                    homeEl.insertAdjacentHTML('beforeend',
+                        `<div class="stat-item"><span data-i18n="statXa">xA:</span><span>${data.home.toFixed(2)}</span></div>`);
+                }
+                if (awayEl) {
+                    awayEl.insertAdjacentHTML('beforeend',
+                        `<div class="stat-item"><span data-i18n="statXa">xA:</span><span>${data.away.toFixed(2)}</span></div>`);
+                }
+            } catch (e) {}
+        });
+    }
+
+    function loadPressingReport(matchId) {
+        if (!bridge || !bridge.get_pressing_report) return;
+        bridge.get_pressing_report(String(matchId), function(result) {
+            try {
+                const data = JSON.parse(result);
+                if (data.error) return;
+                const homeEl = document.querySelector('#home-stats');
+                const awayEl = document.querySelector('#away-stats');
+                const row = (t) => `<div class="stat-item"><span data-i18n="statPressConversion">Press → Shot:</span><span>${((t.conversion_rate || 0) * 100).toFixed(0)}%</span></div>`;
+                if (homeEl && data.home) homeEl.insertAdjacentHTML('beforeend', row(data.home));
+                if (awayEl && data.away) awayEl.insertAdjacentHTML('beforeend', row(data.away));
+            } catch (e) {}
+        });
     }
 
     async function loadProfilerStatus() {
@@ -1867,8 +1974,8 @@
 
         try {
             var resultA, resultB;
-            if (bridge.comparePlayers) {
-                var json = await bridge.comparePlayers(playerAId, playerBId);
+            if (bridge.compare_players) {
+                var json = await bridge.compare_players(playerAId, playerBId);
                 var data = JSON.parse(json);
                 resultA = data.player_a;
                 resultB = data.player_b;
@@ -2081,7 +2188,7 @@
             window.KawkabSkeletons.showAll();
             const stats = JSON.parse(await bridge.get_feedback_stats());
             if (stats.error) {
-                document.getElementById('feedback-stats').innerHTML = `<p class="hint">${stats.error}</p>`;
+                document.getElementById('feedback-stats').innerHTML = `<p class="hint">${escapeHtml(stats.error)}</p>`;
                 return;
             }
             const html = `
@@ -4302,11 +4409,6 @@
         } catch (e) {}
     }
 
-    function escapeHtml(str) {
-        if (typeof str !== 'string') str = String(str || '');
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
     function formatNumber(n, d) {
         if (n == null) return '0';
         if (d === undefined) d = 0;
@@ -5095,6 +5197,10 @@
         router.register('squad', 'squad-section', function() {
             saveFilterState();
             initSquadWorkspace();
+        });
+        router.register('briefing', 'briefing-section', function() {
+            saveFilterState();
+            initBriefingWorkspace();
         });
 
         // Initialize PWA on load
