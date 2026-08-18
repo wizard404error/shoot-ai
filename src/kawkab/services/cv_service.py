@@ -108,13 +108,44 @@ class MatchTrackData:
 class PipelineCheckpoint:
     """Periodic pipeline state save for crash recovery.
 
-    Writes an atomic HMAC-signed pickle checkpoint every N detection frames.
+    Writes an atomic HMAC-signed JSON checkpoint every N detection frames.
     On resume, loads the latest checkpoint and fast-forwards past
     already-processed frames, preserving all tracking state.
+
+    Uses JSON, not pickle: the checkpoint dir lives under the video's own
+    directory (a network share, a synced folder, anywhere the source
+    video came from), so anyone who can write there can supply a forged
+    checkpoint file. HMAC verification alone doesn't help if the signing
+    key is guessable -- and a fixed source-code default is about as
+    guessable as it gets. With JSON, even a signature-forged file (e.g.
+    if the key were ever compromised) can only inject bad *data* into a
+    resumed run, never execute code -- this changes what a compromised
+    key can do, not just how hard it is to compromise.
     """
 
     _CHECKPOINT_DIR = ".checkpoints"
-    _CHECKPOINT_SECRET = os.environ.get("KAWKAB_CKPT_SECRET", "kawkab-pipeline-ckpt-v2").encode()
+    _cached_secret: bytes | None = None
+
+    @classmethod
+    def _checkpoint_secret(cls) -> bytes:
+        """HMAC key: KAWKAB_CKPT_SECRET env var if set, else a random
+        per-installation key generated once and persisted via
+        core.secrets (never a fixed, source-code default -- see the
+        class docstring)."""
+        if cls._cached_secret is not None:
+            return cls._cached_secret
+        env_override = os.environ.get("KAWKAB_CKPT_SECRET")
+        if env_override:
+            cls._cached_secret = env_override.encode()
+            return cls._cached_secret
+        from kawkab.core.secrets import get_api_key, set_api_key
+        key = get_api_key("checkpoint_hmac")
+        if not key:
+            import secrets as _stdlib_secrets
+            key = _stdlib_secrets.token_hex(32)
+            set_api_key("checkpoint_hmac", key)
+        cls._cached_secret = key.encode()
+        return cls._cached_secret
 
     def __init__(self, video_path: Path, frame_skip: int, interval: int = 500):
         self.video_path = video_path.resolve()
@@ -192,10 +223,11 @@ class PipelineCheckpoint:
             "track_first_px": {str(k): v for k, v in track_first_px.items()},
         }
         try:
-            import hashlib, hmac, pickle as _pk
-            # HMAC sign for integrity verification
-            payload = _pk.dumps(state, protocol=_pk.HIGHEST_PROTOCOL)
-            signature = hmac.new(self._CHECKPOINT_SECRET, payload, hashlib.sha256).hexdigest()
+            import hashlib, hmac, json as _json
+            # HMAC sign for integrity/tamper detection (not for code-exec
+            # safety -- JSON can't execute code on load regardless).
+            payload = _json.dumps(state).encode("utf-8")
+            signature = hmac.new(self._checkpoint_secret(), payload, hashlib.sha256).hexdigest()
             with open(self._tmp_file, "wb") as f:
                 f.write(signature.encode("utf-8") + b"\n" + payload)
             self._tmp_file.rename(self._ckpt_file) if not self._ckpt_file.exists() else (self._ckpt_file.unlink(), self._tmp_file.rename(self._ckpt_file))
@@ -208,7 +240,7 @@ class PipelineCheckpoint:
     @staticmethod
     def latest(video_path: Path) -> dict | None:
         """Return checkpoint state dict if a resume is possible."""
-        import hashlib, hmac, pickle as _pk
+        import hashlib, hmac, json as _json
         ckpt_dir = video_path.resolve().parent / PipelineCheckpoint._CHECKPOINT_DIR
         ckpt_file = ckpt_dir / f"{video_path.stem}.ckpt"
         if not ckpt_file.exists():
@@ -221,11 +253,11 @@ class PipelineCheckpoint:
                 return None
             stored_sig = raw[:sep].decode("utf-8")
             payload = raw[sep + 1:]
-            expected_sig = hmac.new(PipelineCheckpoint._CHECKPOINT_SECRET, payload, hashlib.sha256).hexdigest()
+            expected_sig = hmac.new(PipelineCheckpoint._checkpoint_secret(), payload, hashlib.sha256).hexdigest()
             if not hmac.compare_digest(stored_sig, expected_sig):
                 logger.warning("Checkpoint HMAC mismatch — tampered or corrupted file")
                 return None
-            state = _pk.loads(payload)
+            state = _json.loads(payload)
             ver = state.get("version", 0)
             if ver < 2:
                 logger.warning(f"Checkpoint version {ver} too old, ignoring")
@@ -889,12 +921,19 @@ class CVService:
             homography_matrix_auto = rc.get("homography_matrix_auto")
             resumed_from_checkpoint = True
             ckpt_mgr._last_save_det = det_idx
-            # Restore track dicts
-            track_appearances.update(rc["track_appearances"])
-            track_first_frame.update(rc["track_first_frame"])
-            track_last_frame.update(rc["track_last_frame"])
-            track_confidence_sum.update(rc["track_confidence_sum"])
-            track_is_person.update(rc["track_is_person"])
+            # Restore track dicts. Track IDs are ints everywhere else in
+            # this module, but JSON only has string object keys -- int(k)
+            # here undoes that on every dict, matching the pattern the
+            # other four already used (track_first_px, track_color_samples,
+            # track_face_embeddings, track_reid_embeddings below). Before
+            # this fix these five were merged in with their keys still as
+            # strings, silently mixing str/int keys in dicts every other
+            # call site indexes by int track_id.
+            track_appearances.update({int(k): v for k, v in rc["track_appearances"].items()})
+            track_first_frame.update({int(k): v for k, v in rc["track_first_frame"].items()})
+            track_last_frame.update({int(k): v for k, v in rc["track_last_frame"].items()})
+            track_confidence_sum.update({int(k): v for k, v in rc["track_confidence_sum"].items()})
+            track_is_person.update({int(k): v for k, v in rc["track_is_person"].items()})
             track_first_px.update({int(k): v for k, v in rc["track_first_px"].items()})
             track_color_samples.update({int(k): v for k, v in rc["track_color_samples"].items()})
             track_face_embeddings.update({int(k): [np.array(e) for e in v] for k, v in rc["track_face_embeddings"].items()})
