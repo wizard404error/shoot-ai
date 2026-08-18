@@ -621,8 +621,8 @@ class CVService:
             norm = np.linalg.norm(emb)
             if norm > 1e-8:
                 return emb / norm
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Histogram embedding failed: {e}")
         return None
 
     async def detect_frame(
@@ -982,8 +982,8 @@ class CVService:
                                         segment_homography[current_segment] = lg_matrix.matrix
                                         logger.debug(f"Segment {current_segment} homography via LightGlue")
                                         lightglue_used = True
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug(f"Segment {current_segment} LightGlue auto-calibration failed: {e}")
                             if not lightglue_used:
                                 # P2.12: Try persisted per-segment calibrations second
                                 loaded = False
@@ -996,8 +996,8 @@ class CVService:
                                             segment_homography[current_segment] = seg_cals[current_segment].matrix
                                             logger.debug(f"Segment {current_segment} homography loaded from persisted calibration")
                                             loaded = True
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        logger.debug(f"Segment {current_segment} persisted calibration load failed: {e}")
                                 if not loaded:
                                     try:
                                         from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
@@ -1082,8 +1082,8 @@ class CVService:
                                 emb = face_svc.get_embedding(torso)
                                 if emb is not None and len(track_face_embeddings[det.track_id]) < 36:
                                     track_face_embeddings[det.track_id].append(emb)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Face embedding extraction failed for track {det.track_id}: {e}")
                     # Collect ReID body embeddings every 30 detection frames
                     # (not every frame — batch/sample strategy saves 30x compute)
                     collect_reid = _BOXMOT_AVAILABLE and det_idx % 30 == 0
@@ -1098,8 +1098,8 @@ class CVService:
                                 emb = self._get_reid_embedding(frame, det.bbox)
                                 if emb is not None and emb.size > 0:
                                     track_reid_embeddings[tid].append(emb)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"ReID embedding extraction failed for track {tid}: {e}")
                     det_idx += 1
                     prev_det_frame = frame_number
                 else:

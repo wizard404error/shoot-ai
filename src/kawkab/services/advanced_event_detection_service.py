@@ -23,10 +23,9 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from typing import Any
 
 from kawkab.core.logging import get_logger
-from kawkab.services.cv_service import MatchTrackData, FrameDetections
+from kawkab.services.cv_service import MatchTrackData
 
 logger = get_logger(__name__)
 
@@ -144,13 +143,24 @@ class AdvancedEventDetectionService:
                 bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2 if ball_det else 0
                 by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2 if ball_det else 0
 
+                pitch_space_ok = True
                 if homography_matrix is not None:
                     try:
                         bx, by = homography_matrix.pixel_to_pitch(bx, by)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # dribble distance below is reported as "distance_m" and
+                        # compared against a meters threshold -- silently keeping
+                        # bx/by in raw pixel space here would make that number
+                        # wrong by orders of magnitude while still looking like a
+                        # real measurement. Reset the chain instead of mixing
+                        # pixel- and pitch-space points within it.
+                        logger.debug(f"pixel_to_pitch failed, resetting possession chain: {e}")
+                        pitch_space_ok = False
 
-                possession_chain.append((frame.timestamp, closest_player.track_id, bx, by))
+                if pitch_space_ok:
+                    possession_chain.append((frame.timestamp, closest_player.track_id, bx, by))
+                else:
+                    possession_chain = []
             else:
                 possession_chain = []
 
@@ -303,8 +313,16 @@ class AdvancedEventDetectionService:
             if homography_matrix is not None:
                 try:
                     pitch_x, pitch_y = homography_matrix.pixel_to_pitch(bx, by)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # speed below is reported as "speed_mps" and compared
+                    # against the clearance detection threshold -- silently
+                    # keeping pitch_x/pitch_y in raw pixel space here would
+                    # make both wrong by orders of magnitude while still
+                    # looking like real measurements. Drop this frame from
+                    # the history instead of mixing pixel- and pitch-space
+                    # points within it.
+                    logger.debug(f"pixel_to_pitch failed, skipping ball position: {e}")
+                    continue
 
             ball_history.append((frame.timestamp, pitch_x, pitch_y))
             if len(ball_history) > 5:
@@ -470,8 +488,10 @@ class AdvancedEventDetectionService:
             if homography_matrix is not None:
                 try:
                     pitch_x, pitch_y = homography_matrix.pixel_to_pitch(bx, by)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # pitch_x/pitch_y stay at the -1,-1 sentinel; already
+                    # correctly guarded downstream (`>= 0` checks) before use.
+                    logger.debug(f"pixel_to_pitch failed: {e}")
             ball_trail.append((frame.timestamp, bx, by, pitch_x, pitch_y))
             if len(ball_trail) > 30:
                 ball_trail.pop(0)
@@ -514,8 +534,10 @@ class AdvancedEventDetectionService:
             if homography_matrix is not None:
                 try:
                     pitch_x, pitch_y = homography_matrix.pixel_to_pitch(bx, by)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # pitch_x/pitch_y stay at the -1,-1 sentinel; already
+                    # correctly guarded downstream (`>= 0` check) before use.
+                    logger.debug(f"pixel_to_pitch failed: {e}")
 
             if prev_ball_center is not None:
                 dist = math.sqrt((bx - prev_ball_center[0]) ** 2 + (by - prev_ball_center[1]) ** 2)
@@ -631,8 +653,10 @@ class AdvancedEventDetectionService:
             if homography_matrix is not None:
                 try:
                     pitch_x, pitch_y = homography_matrix.pixel_to_pitch(bx, by)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # pitch_x/pitch_y stay at the -1,-1 sentinel; already
+                    # correctly guarded downstream (`>= 0` checks) before use.
+                    logger.debug(f"pixel_to_pitch failed: {e}")
             ball_trail.append((frame.timestamp, bx, by, pitch_x, pitch_y))
             if len(ball_trail) > 30:
                 ball_trail.pop(0)
@@ -831,12 +855,30 @@ class AdvancedEventDetectionService:
     def _detect_progressive_actions(
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
-        """Tag progressive passes and carries (ball advances >10m toward opponent goal)."""
+        """Tag progressive passes and carries (ball advances meaningfully
+        toward the opponent's goal).
+
+        The progressive/not-progressive decision is delegated to
+        core.progressive_actions's individually-importable helpers --
+        ratio-of-remaining-distance-to-goal + attacking-third check for
+        passes, an absolute-metres threshold for carries, both driven by
+        game_constants.py (the project's unified source of truth for these
+        thresholds, per the Sprint 11 pitch-constants-unification work) --
+        instead of this method's own flat 10m-absolute-progress rule,
+        which had no zone awareness and used a magic number duplicated
+        nowhere else. This keeps its own output shape (individual tagged
+        events merged into the live detection pipeline's stream), since
+        that's a different job from core.progressive_actions's
+        analyze_progressive_passes(), which produces a team-level summary
+        report from a differently-shaped input and isn't a fit here.
+        """
+        from kawkab.core.progressive_actions import _is_progressive_carry, _is_progressive_pass
+
         events = []
-        progressive_threshold = 10.0  # meters
 
         for event in base_events:
-            if event.get("type") not in ("pass", "dribble", "carry"):
+            ev_type = event.get("type")
+            if ev_type not in ("pass", "dribble", "carry"):
                 continue
 
             meta = event.get("metadata", {})
@@ -845,22 +887,29 @@ class AdvancedEventDetectionService:
 
             start_x = meta.get("start_x", 0)
             end_x = meta.get("end_x", 0)
+            start_y = meta.get("start_y", 0)
+            end_y = meta.get("end_y", 0)
             team = event.get("team", "home")
-
             # Toward opponent goal: if home, x increases; if away, x decreases
-            if team == "home":
-                progress = end_x - start_x
-            else:
-                progress = start_x - end_x
+            attacking_direction = 1 if team == "home" else -1
+            progress = (end_x - start_x) * attacking_direction
 
-            if progress >= progressive_threshold:
-                # Mark as progressive
+            if ev_type == "pass":
+                is_progressive = _is_progressive_pass(
+                    start_x, end_x, start_y, end_y, self.pitch_length, attacking_direction
+                )
+            else:  # dribble or carry
+                is_progressive = _is_progressive_carry(
+                    start_x, end_x, abs(progress), attacking_direction
+                )
+
+            if is_progressive:
                 event["is_progressive"] = True
                 event["progress_m"] = round(progress, 1)
                 events.append({
                     "type": "progressive_action",
                     "timestamp": event["timestamp"],
-                    "original_type": event.get("type"),
+                    "original_type": ev_type,
                     "team": team,
                     "progress_m": round(progress, 1),
                     "confidence": event.get("confidence", 0.5),
@@ -927,18 +976,7 @@ class AdvancedEventDetectionService:
                 team = event.get("team", "unknown")
 
                 # Check if lost in attacking area
-                if team == "home" and start_x > high_turnover_line:
-                    events.append({
-                        "type": "high_turnover",
-                        "timestamp": event["timestamp"],
-                        "team": team,
-                        "confidence": event.get("confidence", 0.5),
-                        "metadata": {
-                            "lost_in_final_third": True,
-                            "position_x": start_x,
-                        },
-                    })
-                elif team == "away" and start_x < (self.pitch_length - high_turnover_line):
+                if team == "home" and start_x > high_turnover_line or team == "away" and start_x < (self.pitch_length - high_turnover_line):
                     events.append({
                         "type": "high_turnover",
                         "timestamp": event["timestamp"],

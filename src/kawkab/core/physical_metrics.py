@@ -13,13 +13,11 @@ All numpy-only, no external dependencies beyond numpy.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-
 
 # Speed zones in m/s (from professional sports science conventions)
 SPEED_ZONES = {
@@ -43,15 +41,15 @@ class PlayerPhysicalMetrics:
 
     track_id: int = 0
     total_distance_m: float = 0.0
-    distance_by_zone: dict[str, float] = field(default_factory=lambda: {z: 0.0 for z in SPEED_ZONES})
+    distance_by_zone: dict[str, float] = field(default_factory=lambda: dict.fromkeys(SPEED_ZONES, 0.0))
     max_speed_ms: float = 0.0
     avg_speed_ms: float = 0.0
     sprint_count: int = 0
     sprint_distance_m: float = 0.0
     high_intensity_runs: int = 0
     high_intensity_distance_m: float = 0.0
-    acceleration_count: int = 0  # >3 m/sÂ²
-    deceleration_count: int = 0  # <-3 m/sÂ²
+    acceleration_count: int = 0  # >3 m/s²
+    deceleration_count: int = 0  # <-3 m/s²
     metabolic_power_avg_w_kg: float = 0.0
     metabolic_power_peak_w_kg: float = 0.0
     player_load: float = 0.0  # Arbitrary workload units
@@ -116,7 +114,7 @@ class PhysicalMetricsAnalyzer:
 
     SPRINT_THRESHOLD_MS = 7.0  # 25 km/h
     HIGH_INTENSITY_THRESHOLD_MS = 5.5  # 20 km/h
-    ACCEL_THRESHOLD = 3.0  # m/sÂ²
+    ACCEL_THRESHOLD = 3.0  # m/s²
 
     def analyze_player(
         self,
@@ -165,7 +163,7 @@ class PhysicalMetricsAnalyzer:
         duration = float(ts[-1] - ts[0])
 
         # Distance by speed zone
-        dist_by_zone = {z: 0.0 for z in SPEED_ZONES}
+        dist_by_zone = dict.fromkeys(SPEED_ZONES, 0.0)
         for i, speed in enumerate(speeds_smooth):
             for zone_name, (lo, hi) in SPEED_ZONES.items():
                 if lo <= speed < hi:

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
-
 import re
+from datetime import datetime
+
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import BaseStorage
+
 
 def _sanitize_column_name(name: str) -> str | None:
     if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
@@ -88,7 +88,7 @@ class MatchStorage(BaseStorage):
             return None
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at FROM matches WHERE id = ?", (match_id,))
+            cursor.execute("SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data FROM matches WHERE id = ?", (match_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
         except Exception as e:

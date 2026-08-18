@@ -163,6 +163,8 @@ class BzzoiroService:
         if data is None:
             return None
         event = data.get("event", data) if isinstance(data, dict) else data
+        if not isinstance(event, dict):
+            return None
         return {
             "id": event.get("id"),
             "home_team": event.get("home_team", ""),

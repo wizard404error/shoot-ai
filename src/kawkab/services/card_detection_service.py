@@ -198,7 +198,7 @@ class CardDetectionService:
         except Exception:
             return AudioCardSignal(False, False, False, 0.0)
         whistle_mask = (freqs >= 1000) & (freqs <= 3500)
-        whistle_energy = float(Sxx[whistle_mask_mask].mean()) if whistle_mask.any() else 0.0
+        whistle_energy = float(Sxx[whistle_mask].mean()) if whistle_mask.any() else 0.0
         has_whistle = whistle_energy > 0.001
         if len(audio_chunk) > sample_rate // 2:
             rms = float(np.sqrt(np.mean(audio_chunk ** 2)))

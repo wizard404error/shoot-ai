@@ -11,13 +11,16 @@ import os
 import re
 import shutil
 import sqlite3
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
+
+if TYPE_CHECKING:
+    from kawkab.services.benchmark_service import BenchmarkResult
+    from kawkab.services.validation_service import ValidationReport
 
 logger = get_logger(__name__)
 
@@ -304,7 +307,7 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, match_id, report_type, language, content, created_at FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT id, match_id, report_text, language, llm_provider, created_at FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (match_id, language, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -462,7 +465,7 @@ class StorageService:
             return None
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, name, video_path, duration_seconds AS duration, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+            "SELECT id, name, video_path, duration_seconds, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
             (match_id,),
         )
         row = cursor.fetchone()
@@ -568,7 +571,7 @@ class StorageService:
         self._conn.commit()
         return cursor.rowcount > 0
 
-    async def save_benchmark(self, result: "BenchmarkResult") -> int:
+    async def save_benchmark(self, result: BenchmarkResult) -> int:
         """Save a benchmark result to the database."""
         if self._conn is None:
             return 0
@@ -619,7 +622,7 @@ class StorageService:
         cursor = self._conn.cursor()
         cursor.execute(
             """
-            SELECT id, match_id, model_name, gpu_name, model_size, avg_fps, avg_latency_ms, created_at
+            SELECT id, match_id, video_path, video_duration_seconds, total_frames, total_time_seconds, realtime_ratio, fps_effective, stage_tracking_seconds, peak_memory_mb, gpu_name, cpu_name, model_size, created_at
             FROM benchmark_results
             ORDER BY created_at DESC
             LIMIT ? OFFSET ?
@@ -628,7 +631,7 @@ class StorageService:
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    async def save_validation_result(self, report: "ValidationReport") -> list[int]:
+    async def save_validation_result(self, report: ValidationReport) -> list[int]:
         """Save a validation report to the database."""
         if self._conn is None:
             return []
@@ -667,7 +670,7 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, match_id, metric_name, metric_value, created_at FROM validation_results WHERE match_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT id, match_id, metric_name, computed_value, created_at FROM validation_results WHERE match_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (match_id, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -871,7 +874,7 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, global_id, name, team, position, jersey_number, date_of_birth, nationality, foot, is_active, created_at FROM player_profiles WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?",
+            "SELECT id, global_id, display_name, preferred_position AS position, team, jersey_number, is_active, face_embedding, face_confidence, updated_at, created_at FROM player_profiles WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?",
             (limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -1084,7 +1087,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
                 (match_id,),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1099,7 +1102,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND event_type = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND event_type = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
                 (match_id, event_type),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1114,7 +1117,7 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND player_track_id = ? ORDER BY video_time",
+                "SELECT id, match_id, event_type, sub_type, video_time, player_track_id, player_name, team, period, notes, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = ? AND player_track_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
                 (match_id, player_track_id),
             )
             return [dict(row) for row in cursor.fetchall()]
@@ -1200,19 +1203,19 @@ class StorageService:
         try:
             cursor = self._conn.cursor()
             cursor.execute(
-                "SELECT event_type, COUNT(*) as cnt FROM coding_tags WHERE match_id = ? GROUP BY event_type",
+                "SELECT event_type, COUNT(*) as cnt FROM coding_tags WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) GROUP BY event_type",
                 (match_id,),
             )
             by_type = {row["event_type"]: row["cnt"] for row in cursor.fetchall()}
 
             cursor.execute(
-                "SELECT player_name, COUNT(*) as cnt FROM coding_tags WHERE match_id = ? AND player_name != '' GROUP BY player_name",
+                "SELECT player_name, COUNT(*) as cnt FROM coding_tags WHERE match_id = ? AND player_name != '' AND (is_deleted IS NULL OR is_deleted=0) GROUP BY player_name",
                 (match_id,),
             )
             by_player = {row["player_name"]: row["cnt"] for row in cursor.fetchall()}
 
             cursor.execute(
-                "SELECT COUNT(*) as total FROM coding_tags WHERE match_id = ?",
+                "SELECT COUNT(*) as total FROM coding_tags WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0)",
                 (match_id,),
             )
             total = cursor.fetchone()["total"]
@@ -1430,6 +1433,303 @@ class StorageService:
             init_fernet(new_key)
             return new_key
         return None
+
+    # ── User / Auth ───────────────────────────────────────────────────────────
+
+    async def create_user(
+        self, username: str, password_hash: str, role: str = "analyst",
+        email: str = "", display_name: str = "",
+    ) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """INSERT INTO users (username, email, display_name, password_hash, role)
+               VALUES (?, ?, ?, ?, ?)""",
+            (username, email, display_name, password_hash, role),
+        )
+        self._conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_user_by_username(self, username: str) -> dict | None:
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, username, email, display_name, role, team, is_active, is_locked, password_hash, must_reset_password, last_login FROM users WHERE username = ?",
+            (username,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    async def get_user_by_id(self, user_id: int) -> dict | None:
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, username, email, display_name, role, team, is_active, is_locked, password_hash, must_reset_password, last_login FROM users WHERE id = ?",
+            (user_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    async def update_user_login(self, user_id: int) -> None:
+        if self._conn is None:
+            return
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE users SET last_login=datetime('now'), failed_attempts=0, is_locked=0 WHERE id=?",
+            (user_id,),
+        )
+        self._conn.commit()
+
+    async def record_failed_login(self, username: str) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT id, failed_attempts, is_locked FROM users WHERE username=?", (username,))
+        row = cursor.fetchone()
+        if not row:
+            return 0
+        uid = row["id"]
+        attempts = (row["failed_attempts"] or 0) + 1
+        if attempts >= 5:
+            cursor.execute(
+                "UPDATE users SET failed_attempts=?, is_locked=1, locked_until=datetime('now','+1 hour') WHERE id=?",
+                (attempts, uid),
+            )
+        else:
+            cursor.execute("UPDATE users SET failed_attempts=? WHERE id=?", (attempts, uid))
+        self._conn.commit()
+        return 5 - attempts
+
+    async def save_session(self, user_id: int, token_hash: str, expires_at: str) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+            (user_id, token_hash, expires_at),
+        )
+        self._conn.commit()
+        return cursor.lastrowid or 0
+
+    async def validate_session(self, token_hash: str) -> dict | None:
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT u.id, u.username, u.role, u.team, u.display_name
+               FROM user_sessions s JOIN users u ON s.user_id = u.id
+               WHERE s.token_hash=? AND s.expires_at > datetime('now') AND u.is_active=1""",
+            (token_hash,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    async def delete_session(self, token_hash: str) -> bool:
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM user_sessions WHERE token_hash=?", (token_hash,))
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def audit_log(
+        self, user_id: int, username: str, action: str,
+        resource_type: str = "", resource_id: str = "", details: dict | None = None,
+    ) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user_id, username, action, resource_type, resource_id, json.dumps(details or {})),
+        )
+        self._conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_audit_log(self, limit: int = 50, offset: int = 0) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, user_id, username, action, resource_type, resource_id, details, created_at FROM audit_events_local ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def get_all_users(self) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, username, email, display_name, role, team, is_active, is_locked, last_login, created_at FROM users ORDER BY id"
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def change_password(self, user_id: int, new_hash: str) -> bool:
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "UPDATE users SET password_hash=?, must_reset_password=0, updated_at=datetime('now') WHERE id=?",
+            (new_hash, user_id),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    # ── GPS / Physical Data ────────────────────────────────────────────────────
+
+    async def save_gps_session(
+        self, match_id: int, player_id: int, session_type: str, vendor: str,
+    ) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """INSERT INTO gps_sessions (match_id, player_id, session_type, vendor)
+               VALUES (?, ?, ?, ?)""",
+            (match_id, player_id, session_type, vendor),
+        )
+        self._conn.commit()
+        return cursor.lastrowid or 0
+
+    async def update_gps_session_stats(
+        self, session_id: int, summary: dict,
+    ) -> None:
+        if self._conn is None:
+            return
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """UPDATE gps_sessions SET duration_seconds=?, total_distance_m=?,
+               max_speed_kmh=?, avg_speed_kmh=?, player_load=?
+               WHERE id=?""",
+            (
+                summary.get("duration_s"),
+                summary.get("total_distance_m"),
+                summary.get("max_speed_kmh"),
+                summary.get("avg_speed_kmh"),
+                summary.get("total_player_load"),
+                session_id,
+            ),
+        )
+        self._conn.commit()
+
+    async def save_gps_samples_bulk(
+        self, session_id: int, samples: list[dict],
+    ) -> int:
+        if self._conn is None or not samples:
+            return 0
+        cursor = self._conn.cursor()
+        count = 0
+        for s in samples:
+            cursor.execute(
+                """INSERT INTO gps_samples (session_id, timestamp, lat, lon, speed_ms,
+                   acceleration, accel_x, accel_y, accel_z, heart_rate, distance,
+                   player_load, metabolic_power, speed_zone, x_m, y_m)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    session_id,
+                    s.get("timestamp", 0.0),
+                    s.get("lat"),
+                    s.get("lon"),
+                    s.get("speed_ms"),
+                    s.get("acceleration"),
+                    s.get("accel_x"),
+                    s.get("accel_y"),
+                    s.get("accel_z"),
+                    s.get("heart_rate"),
+                    s.get("distance"),
+                    s.get("player_load"),
+                    s.get("metabolic_power"),
+                    s.get("speed_zone"),
+                    s.get("x_m"),
+                    s.get("y_m"),
+                ),
+            )
+            count += 1
+        self._conn.commit()
+        return count
+
+    async def get_gps_sessions(self, match_id: int) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT id, player_id, session_type, vendor, start_time, end_time,
+               duration_seconds, total_distance_m, max_speed_kmh, avg_speed_kmh,
+               player_load FROM gps_sessions
+               WHERE match_id=? AND (is_deleted IS NULL OR is_deleted=0)
+               ORDER BY id""",
+            (match_id,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def get_gps_samples(self, session_id: int) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT timestamp, speed_ms, acceleration, heart_rate, distance,
+               player_load, metabolic_power, speed_zone, x_m, y_m
+               FROM gps_samples WHERE session_id=?
+               ORDER BY timestamp""",
+            (session_id,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def save_acwr(
+        self, player_id: int, date: str, acute: float, chronic: float, acwr: float,
+    ) -> int:
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cat = "normal"
+        if acwr > 1.5:
+            cat = "very_high"
+        elif acwr > 1.3:
+            cat = "high"
+        elif acwr < 0.8:
+            cat = "low"
+        cursor.execute(
+            """INSERT OR REPLACE INTO acwr_daily
+               (player_id, date, acute_load_7d, chronic_load_28d, acwr, load_category)
+               VALUES (?,?,?,?,?,?)""",
+            (player_id, date, acute, chronic, acwr, cat),
+        )
+        self._conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_player_acwr(
+        self, player_id: int, limit: int = 30,
+    ) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT date, acute_load_7d, chronic_load_28d, acwr, load_category
+               FROM acwr_daily WHERE player_id=?
+               ORDER BY date DESC LIMIT ?""",
+            (player_id, limit),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def get_player_gps_summary(
+        self, player_id: int, limit: int = 10,
+    ) -> list[dict]:
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT id, session_type, vendor, start_time, duration_seconds,
+               total_distance_m, max_speed_kmh, avg_speed_kmh, player_load
+               FROM gps_sessions WHERE player_id=?
+               ORDER BY id DESC LIMIT ?""",
+            (player_id, limit),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
     async def close(self) -> None:
         """Close database connection."""

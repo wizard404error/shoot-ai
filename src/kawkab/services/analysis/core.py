@@ -6,32 +6,23 @@ import math
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
 
-from kawkab.core.game_constants import GAME
-from kawkab.core.logging import get_logger
 from kawkab.core.events import (
-    AssistType,
     BaseEvent,
-    BodyPart,
     CarryEvent,
-    EventType,
     PassEvent,
     PassType,
     PressureContext,
     ShotEvent,
-    ShotType,
-    TackleType,
 )
-from kawkab.core.xg_model import compute_xg, compute_xg_from_shot_event
-from kawkab.core.pitch_control import VoronoiPitchControl, MatchPitchControl
+from kawkab.core.game_constants import GAME
+from kawkab.core.logging import get_logger
+from kawkab.core.pitch_control import MatchPitchControl, VoronoiPitchControl
 from kawkab.core.player_rating import (
-    PlayerPosition,
     PlayerRating,
-    compute_rating,
-    _infer_position_from_x,
 )
-from kawkab.services.cv_service import FrameDetections, MatchTrackData
+from kawkab.core.xg_model import compute_xg_from_shot_event
+from kawkab.services.cv_service import MatchTrackData
 
 logger = get_logger(__name__)
 
@@ -153,7 +144,7 @@ class AnalysisServiceCore:
         events = self._detect_events(track_data, homography_matrix)
         team_stats = self._compute_team_stats(players, events, track_data, homography_matrix)
         possession = self._compute_possession(track_data, homography_matrix)
-        pass_network = self._compute_pass_network(events)
+        pass_network = self._compute_pass_network(events, track_data.player_teams)
 
         home = TeamStats(team_name="Home")
         away = TeamStats(team_name="Away")

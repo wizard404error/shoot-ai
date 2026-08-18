@@ -143,7 +143,16 @@ class PlayerProfileService:
         profile_id = cursor.lastrowid or 0
 
         logger.info(f"Created player profile: {display_name} (ID: {profile_id})")
-        return await self.get_profile(profile_id)
+        profile = await self.get_profile(profile_id)
+        if profile is None:
+            # get_profile() is Optional (a lookup can legitimately miss);
+            # this method's return type promises a real PlayerProfile since
+            # the row was just inserted in this same call. Fail with a
+            # clear message instead of letting None silently satisfy a
+            # non-Optional return type -- callers here index straight into
+            # profile.id without a None-check.
+            raise RuntimeError(f"Failed to retrieve newly created player profile {profile_id}")
+        return profile
 
     async def get_profile(self, profile_id: int) -> PlayerProfile | None:
         """Get a player profile by ID."""

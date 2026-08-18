@@ -23,6 +23,8 @@ class ShortlistService:
 
     def set_connection(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+
+    def add_to_shortlist(
         self,
         player_id: str,
         player_name: str,
@@ -127,7 +129,9 @@ class ShortlistService:
         clause = (" WHERE " + " AND ".join(where)) if where else ""
         cursor = self.conn.cursor()
         cursor.execute(
-            f"SELECT * FROM player_shortlist{clause} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?",
+            f"SELECT id, player_id, player_name, position, team, league, added_date, "
+            f"priority, status, notes, scout_rating, estimated_value, age, nationality, "
+            f"last_updated FROM player_shortlist{clause} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?",
             (*params, limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -137,7 +141,10 @@ class ShortlistService:
             return None
         cursor = self.conn.cursor()
         cursor.execute(
-            "SELECT * FROM player_shortlist WHERE player_id = ? AND status != 'archived' ORDER BY added_date DESC LIMIT 1",
+            "SELECT id, player_id, player_name, position, team, league, added_date, "
+            "priority, status, notes, scout_rating, estimated_value, age, nationality, "
+            "last_updated FROM player_shortlist WHERE player_id = ? AND status != 'archived' "
+            "ORDER BY added_date DESC LIMIT 1",
             (player_id,),
         )
         row = cursor.fetchone()
