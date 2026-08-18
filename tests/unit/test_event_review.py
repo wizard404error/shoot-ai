@@ -18,30 +18,41 @@ from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
-from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 from kawkab.services.storage_service import StorageService
+from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
 EVENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    short_name TEXT
+);
 CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL, video_path TEXT NOT NULL,
     home_team TEXT, away_team TEXT,
+    home_team_id INTEGER, away_team_id INTEGER,
     match_date TEXT, duration_seconds REAL,
     fps REAL, total_frames INTEGER,
+    is_deleted INTEGER DEFAULT 0,
     analyzed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     match_id INTEGER NOT NULL,
-    timestamp REAL NOT NULL,
     event_type TEXT NOT NULL,
-    team TEXT DEFAULT '',
-    player_track_id INTEGER DEFAULT 0,
-    completed INTEGER DEFAULT 0,
-    confidence REAL DEFAULT 0.0,
-    user_corrected INTEGER DEFAULT 0,
-    metadata TEXT DEFAULT '{}',
+    timestamp REAL NOT NULL,
+    from_track_id INTEGER,
+    to_track_id INTEGER,
+    team TEXT,
+    completed BOOLEAN,
+    confidence REAL,
+    metadata TEXT,
+    user_corrected BOOLEAN DEFAULT 0,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS user_corrections (
@@ -235,8 +246,8 @@ async def test_submit_correction_reject(handler, svc):
     assert result["success"] is True
     assert result["action"] == "deleted"
 
-    row = svc._conn.execute("SELECT COUNT(*) FROM events WHERE id=?", (event_id,)).fetchone()
-    assert row[0] == 0
+    row = svc._conn.execute("SELECT is_deleted FROM events WHERE id=?", (event_id,)).fetchone()
+    assert row[0] == 1
 
 
 @pytest.mark.asyncio

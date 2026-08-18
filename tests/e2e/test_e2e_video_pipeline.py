@@ -93,6 +93,21 @@ class TestVideoStructure:
 class TestFullPipeline:
     """Full CV pipeline test. Requires ultralytics + torch + boxmot."""
 
+    @pytest.fixture(autouse=True)
+    def _ensure_real_cv_service(self, monkeypatch):
+        # Several other test files replace sys.modules
+        # ["kawkab.services.cv_service"] with a stub CVService (no
+        # constructor override -> "takes no arguments") and don't always
+        # restore it; under pytest-xdist, if one of those files shares this
+        # worker process, the `from ... import CVService` below could
+        # silently bind to that stub. monkeypatch.delitem (unlike a bare
+        # sys.modules.pop) auto-restores whatever was there right after
+        # this test, so it doesn't itself become a new source of leakage
+        # for some other file relying on that entry persisting.
+        import sys
+        monkeypatch.delitem(sys.modules, "kawkab.services.cv_service", raising=False)
+        yield
+
     @pytest.mark.asyncio
     async def test_cv_service_initializes(self):
         from kawkab.services.cv_service import CVService

@@ -36,7 +36,9 @@ def _install_cv2_stub() -> None:
     cv2_stub.CAP_PROP_FPS = 5
     cv2_stub.CAP_PROP_FRAME_COUNT = 7
     for fn in ("cvtColor", "inRange", "morphologyEx", "findContours",
-               "contourArea", "drawContours", "VideoCapture",
+               "contourArea", "drawContours", "calcHist",
+               "GaussianBlur", "countNonZero",
+               "VideoCapture",
                "setUseOptimized", "useOptimized"):
         setattr(cv2_stub, fn, MagicMock())
     # Add cv2.ocl sub-module
@@ -52,8 +54,11 @@ def _install_sklearn_stub() -> None:
     """Minimal sklearn stub so @patch('sklearn.cluster.KMeans') resolves."""
     if "sklearn" in sys.modules:
         return
+    from importlib.machinery import ModuleSpec
     sk_mod = types.ModuleType("sklearn")
+    sk_mod.__spec__ = ModuleSpec("sklearn", None)
     sk_cluster = types.ModuleType("sklearn.cluster")
+    sk_cluster.__spec__ = ModuleSpec("sklearn.cluster", None)
     sk_cluster.KMeans = MagicMock()
     sk_mod.cluster = sk_cluster
     sys.modules["sklearn"] = sk_mod
@@ -202,11 +207,13 @@ class TestComputePitchMask:
             patch("cv2.morphologyEx") as mock_morph,
             patch("cv2.findContours") as mock_find,
             patch("cv2.contourArea") as mock_area,
+            patch("cv2.countNonZero") as mock_count,
             patch("cv2.drawContours") as mock_draw,
         ):
             mock_cvt.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
             mock_inrange.return_value = np.zeros((100, 100), dtype=np.uint8)
             mock_morph.return_value = np.zeros((100, 100), dtype=np.uint8)
+            mock_count.return_value = 5000
             cnt = np.array([[[0, 0]], [[0, 99]], [[99, 99]], [[99, 0]]],
                            dtype=np.int32)
             mock_find.return_value = ([cnt], None)
@@ -214,6 +221,7 @@ class TestComputePitchMask:
 
             service = cv_mod.CVService(model_size="n")
             service._initialized = True
+            service._pitch_hsv_range = (np.array([40, 40, 40]), np.array([80, 255, 255]))
             mask = service._compute_pitch_mask(
                 np.zeros((100, 100, 3), dtype=np.uint8)
             )
@@ -611,7 +619,17 @@ def _mock_video_capture(n_frames=90, fps=30.0, height=100, width=100):
         lambda prop: fps if prop == 5 else n_frames
     )
     mock_cap.read.side_effect = frames
-    return vc_patcher
+
+    # Patch camera cut detector to prevent consuming the shared mock
+    cc_patcher = _patch("kawkab.services.camera_cut_detector.CameraCutDetector.detect_cuts_fast")
+    cc_mock = cc_patcher.start()
+    cc_mock.return_value = []
+
+    class _CombinedPatcher:
+        def stop(self):
+            cc_patcher.stop()
+            vc_patcher.stop()
+    return _CombinedPatcher()
 
 
 # ===================================================================

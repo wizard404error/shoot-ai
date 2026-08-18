@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 import json
-import sys
-import tempfile
-import types
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -121,7 +117,20 @@ class TestMultiMatchAnalysisService:
         svc = mm_mod.MultiMatchAnalysisService()
         svc = self._mock_db(svc, {
             "FROM seasons WHERE id = ?": {"id": 1, "name": "2024 Season"},
-            "FROM matches": [{"matches": 10, "gf": 25, "ga": 12, "avg_poss": 55.5, "avg_passes": 400.0, "avg_shots": 12.0}],
+            "FROM matches": [
+                {"matches": 10, "gf": 25, "ga": 12, "avg_poss": 55.5, "avg_passes": 400.0, "avg_shots": 12.0,
+                 "score_home": 3, "score_away": 1},
+                {"score_home": 2, "score_away": 2},
+                {"score_home": 1, "score_away": 0},
+                {"score_home": 0, "score_away": 2},
+                {"score_home": 2, "score_away": 1},
+                {"score_home": 1, "score_away": 1},
+                {"score_home": 3, "score_away": 0},
+                {"score_home": 2, "score_away": 3},
+                {"score_home": 4, "score_away": 1},
+                {"score_home": 1, "score_away": 2},
+            ],
+            "JOIN matches m ON e.match_id = m.id": [{"avg_acc": 0.85}],
             "FROM analysis_results ar": [
                 {"full_data": json.dumps({"formations": {"home": {"formation": "4-3-3"}, "away": {"formation": "4-4-2"}}})},
             ],
@@ -137,7 +146,8 @@ class TestMultiMatchAnalysisService:
         svc = mm_mod.MultiMatchAnalysisService()
         svc = self._mock_db(svc, {
             "FROM seasons WHERE id = ?": None,
-            "FROM matches": [{"matches": 0, "gf": None, "ga": None, "avg_poss": None, "avg_passes": None, "avg_shots": None}],
+            "FROM matches": [{"matches": 0, "gf": None, "ga": None, "avg_poss": None, "avg_passes": None, "avg_shots": None,
+                              "score_home": 0, "score_away": 0}],
             "FROM analysis_results ar": [],
         })
         result = await svc.get_season_summary(999)
@@ -149,7 +159,9 @@ class TestMultiMatchAnalysisService:
         svc = mm_mod.MultiMatchAnalysisService()
         svc = self._mock_db(svc, {
             "FROM seasons WHERE id = ?": {"id": 1, "name": "S1"},
-            "FROM matches": [{"matches": 5, "gf": 10, "ga": 5, "avg_poss": 50.0, "avg_passes": 300.0, "avg_shots": 8.0}],
+            "FROM matches": [{"matches": 5, "gf": 10, "ga": 5, "avg_poss": 50.0, "avg_passes": 300.0, "avg_shots": 8.0,
+                              "score_home": 2, "score_away": 1}],
+            "JOIN matches m ON e.match_id = m.id": [{"avg_acc": 0.75}],
             "FROM analysis_results ar": [{"full_data": "not valid json"}],
         })
         result = await svc.get_season_summary(1)

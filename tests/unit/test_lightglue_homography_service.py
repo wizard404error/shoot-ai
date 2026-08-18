@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import sys
-import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -196,7 +194,7 @@ class TestComputeHomography:
             mock_persp.return_value = np.zeros((1, 1, 2))
             H = svc.compute_homography(sample_image, sample_image)
         assert H is not None
-        assert isinstance(H, HomographyMatrixStub)
+        assert isinstance(H, _mod.HomographyMatrix)
         assert H.source == "lightglue"
         assert H.pitch_length_m == 105.0
 

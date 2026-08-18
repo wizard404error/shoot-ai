@@ -19,13 +19,31 @@ install_kawkab_stubs()
 # YAML stub (PyYAML may not be in test env)
 # ---------------------------------------------------------------------------
 
+_PREV_YAML: types.ModuleType | None = None
+_PREV_YAML_SAFE_LOAD = None
+
+
 def _install_yaml_stub():
+    global _PREV_YAML, _PREV_YAML_SAFE_LOAD
     if "yaml" in sys.modules:
+        _PREV_YAML = sys.modules["yaml"]
+        _PREV_YAML_SAFE_LOAD = getattr(_PREV_YAML, "safe_load", None)
         return
+    _PREV_YAML = None
     yaml_mod = types.ModuleType("yaml")
     from unittest.mock import MagicMock
     yaml_mod.safe_load = MagicMock(return_value={})
     sys.modules["yaml"] = yaml_mod
+
+
+def _restore_yaml() -> None:
+    global _PREV_YAML, _PREV_YAML_SAFE_LOAD
+    if _PREV_YAML is not None:
+        _PREV_YAML.safe_load = _PREV_YAML_SAFE_LOAD
+        sys.modules["yaml"] = _PREV_YAML
+    else:
+        sys.modules.pop("yaml", None)
+    _PREV_YAML = None
 
 
 def _patch_paths_with_knowledge_base():
@@ -49,6 +67,12 @@ def _patch_paths_with_knowledge_base():
 _install_yaml_stub()
 _patch_paths_with_knowledge_base()
 
+
+@pytest.fixture(autouse=True, scope="module")
+def _cleanup_yaml_after_module():
+    yield
+    _restore_yaml()
+
 _mod = load_service_module("know_test", "knowledge_service.py")
 
 TacticalRule = _mod.TacticalRule
@@ -66,10 +90,10 @@ def kb_paths(tmp_path):
     kb_root = tmp_path / "knowledge_base"
     (kb_root / "tactics").mkdir(parents=True, exist_ok=True)
     (kb_root / "drills").mkdir(parents=True, exist_ok=True)
-    from kawkab.core.paths import get_paths
-    orig = get_paths()
-    orig.knowledge_base = kb_root
-    with patch("know_test.get_paths", return_value=orig):
+
+    class _FakePaths:
+        knowledge_base = kb_root
+    with patch("know_test.get_paths", return_value=_FakePaths()):
         yield kb_root
 
 
@@ -248,10 +272,9 @@ class TestInitialize:
 
     @pytest.mark.asyncio
     async def test_missing_directories(self, tmp_path):
-        from kawkab.core.paths import get_paths
-        orig = get_paths()
-        orig.knowledge_base = tmp_path / "nonexistent"
-        with patch("know_test.get_paths", return_value=orig):
+        class FakePaths:
+            knowledge_base = tmp_path / "nonexistent"
+        with patch("know_test.get_paths", return_value=FakePaths()):
             ks = KnowledgeService()
             await ks.initialize()
             assert len(ks._rules) == 0

@@ -6,19 +6,14 @@ existing test files exercise. Each class targets one module.
 
 from __future__ import annotations
 
-import math
 import platform
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
 # ── Module 1: fatigue_model ────────────────────────────────────────────────
-
 from kawkab.core.fatigue_model import (
     PlayerFatigueProfile,
-    SubstitutionImpact,
-    FatigueReport,
     compute_fatigue,
 )
 
@@ -115,7 +110,7 @@ class TestFatigueModelExtras:
 
 # ── Module 2: game_state ──────────────────────────────────────────────────
 
-from kawkab.core.game_state import analyze_game_state, GameStateReport, GameStateMetrics
+from kawkab.core.game_state import GameStateMetrics, analyze_game_state
 
 
 class TestGameStateExtras:
@@ -204,7 +199,7 @@ class TestLoggingExtras:
 
 # ── Module 4: match_timeline ──────────────────────────────────────────────
 
-from kawkab.core.match_timeline import compute_xg_timeline, XGFlowReport, TimelinePoint
+from kawkab.core.match_timeline import compute_xg_timeline
 
 
 class TestMatchTimelineExtras:
@@ -259,8 +254,7 @@ class TestMatchTimelineExtras:
 
 # ── Module 5: pass_flow ────────────────────────────────────────────────────
 
-from kawkab.core.pass_flow import compute_pass_flow, PassFlowLink
-from kawkab.core.coords import STANDARD_PITCH
+from kawkab.core.pass_flow import compute_pass_flow
 
 
 class TestPassFlowExtras:
@@ -317,7 +311,7 @@ class TestPassFlowExtras:
 
 # ── Module 6: pass_sonars ──────────────────────────────────────────────────
 
-from kawkab.core.pass_sonars import compute_pass_sonars, PassSonarSector
+from kawkab.core.pass_sonars import compute_pass_sonars
 
 
 class TestPassSonarsExtras:
@@ -376,7 +370,19 @@ class TestPassSonarsExtras:
 
 # ── Module 7: paths ────────────────────────────────────────────────────────
 
+import importlib.util as _iu
+
 import kawkab.core.paths as _paths_mod
+
+# conftest may have stubbed kawkab.core.paths — load real module attrs
+_src_pkg = Path(__file__).resolve().parent.parent.parent / "src"
+_src_paths = _src_pkg / "kawkab" / "core" / "paths.py"
+_spec = _iu.spec_from_file_location("kawkab.core.paths.real", str(_src_paths))
+_real_paths = _iu.module_from_spec(_spec)
+_spec.loader.exec_module(_real_paths)
+# Copy real functions into the module reference used here
+for _attr in ("_get_appdata_dir", "_get_localappdata_dir", "_get_documents_dir", "Paths", "get_paths"):
+    setattr(_paths_mod, _attr, getattr(_real_paths, _attr))
 
 
 class TestPathsExtras:
@@ -430,13 +436,13 @@ class TestPathsExtras:
 from kawkab.core.pressing_traps import PressingTrap
 from kawkab.core.transitions import PhaseTransition
 from kawkab.core.trap_transition_linkage import (
-    TrapTransitionLink,
     TrapTransitionAnalysis,
+    TrapTransitionLink,
+    _find_trap_recovery_events,
+    _infer_team_for_trap,
+    _zone_midpoint,
     analyze_trap_transitions,
     summarize_trap_transition,
-    _infer_team_for_trap,
-    _find_trap_recovery_events,
-    _zone_midpoint,
 )
 
 

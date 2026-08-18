@@ -92,6 +92,55 @@ class TestMigrationManager:
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
+    def test_full_real_migration_chain_applies_cleanly_to_fresh_db(self):
+        """Every existing test above uses a synthetic migrations_dir with
+        hand-written SQL -- none of them ever run the REAL, FULL
+        001-through-latest chain from src/kawkab/migrations/ against a
+        genuinely empty database. That's exactly the scenario a brand new
+        install (or CI) hits, and it's the one place schema drift between
+        a migration file and the code that queries its tables would
+        surface as a hard failure instead of silently working by
+        coincidence on someone's already-migrated dev database.
+        """
+        real_migrations_dir = Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "migrations"
+        assert real_migrations_dir.exists(), f"expected migrations dir at {real_migrations_dir}"
+        migration_files = sorted(real_migrations_dir.glob("*.sql"))
+        numbered = [f for f in migration_files if f.stem.split("_")[0].isdigit()]
+        assert len(numbered) >= 20, "sanity check: expected the real migration set, not an empty/wrong dir"
+
+        tmpdir = Path(tempfile.mkdtemp())
+        try:
+            db_path = tmpdir / "fresh.db"
+            mgr = MigrationManager(db_path, real_migrations_dir)
+            mgr.migrate()  # must not raise
+
+            conn = _closing_conn(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            tables = {row[0] for row in cursor.fetchall()}
+
+            highest_version = max(int(f.stem.split("_")[0]) for f in numbered)
+            version = mgr._get_current_version(conn)
+            assert version == highest_version
+
+            # Spot-check tables from across the whole chain (earliest,
+            # middle, and the two newest/untracked-until-now migrations)
+            # actually exist -- catches a migration that silently no-ops
+            # (e.g. a typo'd CREATE TABLE IF NOT EXISTS) as well as one
+            # that raises.
+            for expected_table in [
+                "matches", "players", "events",              # 001
+                "coding_tags",                                # 018
+                "player_shortlist", "player_contracts",       # 016, 017
+                "gps_sessions", "gps_samples", "acwr_daily",  # 026
+                "users", "user_sessions", "audit_events_local",  # 027
+            ]:
+                assert expected_table in tables, f"migration chain never created '{expected_table}'"
+
+            conn.close()
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
     def test_migration_015_event_dedup_applies_cleanly(self):
         tmpdir = Path(tempfile.mkdtemp())
         try:

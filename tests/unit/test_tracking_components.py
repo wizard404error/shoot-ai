@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
@@ -38,10 +37,9 @@ def _install_cv2_stub() -> None:
 
 _install_cv2_stub()
 
-from kawkab.services.ball_tracker import BallTracker, BallDetection
-from kawkab.services.track_smoother import TrackSmoother
+from kawkab.services.ball_tracker import BallDetection, BallTracker
 from kawkab.services.camera_cut_detector import CameraCutDetector
-
+from kawkab.services.track_smoother import TrackSmoother
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BallTracker
@@ -88,7 +86,7 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 det = tracker.update(
                     np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
@@ -98,7 +96,7 @@ class TestBallTracker:
         assert det.timestamp == 0.0
         assert det.x == 100.0
         assert det.y == 50.0
-        assert det.conf == 0.9
+        assert det.conf == pytest.approx(0.64)
         assert det.is_prediction is False
         assert tracker.initialized is True
 
@@ -108,7 +106,7 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
@@ -117,7 +115,7 @@ class TestBallTracker:
                 [101.0, 51.0, 8.0, 0.0, 0.0, 0.0], dtype=np.float32)
             mock_kf.predict.return_value = mock_kf.statePost
 
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 det = tracker.update(
                     np.zeros((10, 10, 3), dtype=np.uint8), 1, 0.04)
@@ -132,12 +130,12 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
             mock_kf.reset_mock()
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[]):
                 det = tracker.update(
                     np.zeros((10, 10, 3), dtype=np.uint8), 1, 1.0 / 24.0)
@@ -153,11 +151,11 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[]):
                 det = None
                 for i in range(32):
@@ -171,7 +169,7 @@ class TestBallTracker:
     def test_update_no_candidate_uninitialized_returns_none(self):
         with patch("cv2.KalmanFilter", return_value=self._kalman_mock()):
             tracker = BallTracker()
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[]):
                 det = tracker.update(
                     np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
@@ -185,7 +183,7 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
@@ -208,7 +206,7 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 1, 1.0)
@@ -226,7 +224,7 @@ class TestBallTracker:
             tracker = BallTracker()
             candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
                          "circularity": 0.85, "label": "white"}
-            with patch.object(tracker, "_find_ball_candidates",
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
                               return_value=[candidate]):
                 for i in range(1001):
                     tracker.update(
@@ -379,10 +377,9 @@ class TestCameraCutDetector:
             hists = [np.array([0.1, 0.9]), np.array([0.9, 0.1]),
                      np.array([0.8, 0.2])]
             with patch.object(detector, "_compute_hsv_hist",
-                              side_effect=hists):
-                with patch("cv2.compareHist", side_effect=[0.5, 0.05]):
-                    cuts = detector.detect_cuts(
-                        Path("dummy.mp4"), sample_every_n=1, max_frames=3)
+                              side_effect=hists), patch("cv2.compareHist", side_effect=[0.5, 0.05]):
+                cuts = detector.detect_cuts(
+                    Path("dummy.mp4"), sample_every_n=1, max_frames=3)
 
         assert len(cuts) == 1
         assert cuts[0]["frame"] == 1

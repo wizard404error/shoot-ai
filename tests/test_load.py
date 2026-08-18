@@ -25,13 +25,8 @@ pytestmark = [
 ]
 
 
-def pytest_addoption(parser):
-    parser.addoption(
-        "--run-load",
-        action="store_true",
-        default=False,
-        help="Run load/benchmark tests",
-    )
+# --run-load is registered in tests/conftest.py (pytest_addoption is only
+# recognized there, not in a regular test module).
 
 
 # ── fixtures ──────────────────────────────────────────────────────

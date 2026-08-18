@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 import sys
 import tempfile
@@ -27,6 +26,14 @@ StorageService = _storage_mod.StorageService
 from kawkab.ui.bridge_handlers.bridge_coding import CodingHandler
 
 CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    short_name TEXT,
+    home_color TEXT DEFAULT '#1e7e34',
+    away_color TEXT DEFAULT '#ffffff',
+    created_at TEXT DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -35,7 +42,11 @@ CREATE TABLE IF NOT EXISTS matches (
     match_date TEXT, duration_seconds REAL,
     fps REAL, total_frames INTEGER,
     analyzed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    home_team_id INTEGER REFERENCES teams(id),
+    away_team_id INTEGER REFERENCES teams(id),
+    score_home INTEGER, score_away INTEGER,
+    season_id INTEGER, match_type TEXT DEFAULT 'unknown'
 );
 CREATE TABLE IF NOT EXISTS coding_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +61,9 @@ CREATE TABLE IF NOT EXISTS coding_tags (
     notes TEXT DEFAULT '',
     lead_ms INTEGER DEFAULT 2000,
     lag_ms INTEGER DEFAULT 3000,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS players (
@@ -58,7 +72,11 @@ CREATE TABLE IF NOT EXISTS players (
     team TEXT, position TEXT, distance_covered_m REAL DEFAULT 0,
     max_speed_kmh REAL DEFAULT 0, avg_speed_kmh REAL DEFAULT 0,
     passes_attempted INTEGER DEFAULT 0, passes_completed INTEGER DEFAULT 0,
-    shots INTEGER DEFAULT 0, tackles INTEGER DEFAULT 0
+    shots INTEGER DEFAULT 0, tackles INTEGER DEFAULT 0,
+    confidence REAL DEFAULT 0.0,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT
 );
 """
 
@@ -68,6 +86,8 @@ def svc():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.db"
         s = StorageService()
+        s._pg = None  # Force SQLite mode even if KAWKAB_DB_URL is set
+        s._use_postgres = False
         s._db_path = db_path
         s._conn = sqlite3.connect(str(db_path))
         s._conn.row_factory = sqlite3.Row

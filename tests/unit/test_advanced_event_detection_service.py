@@ -76,6 +76,14 @@ class _FakeHomography:
         return (x * 0.05, y * 0.05)
 
 
+class _FailingHomography:
+    """Always raises -- simulates a homography matrix that exists but
+    whose pixel_to_pitch call fails (e.g. out-of-bounds input, degenerate
+    matrix)."""
+    def pixel_to_pitch(self, x: float, y: float):
+        raise ValueError("simulated homography failure")
+
+
 def _det(bbox: tuple, track_id: int | None = None, class_name: str = "person"):
     return types.SimpleNamespace(
         bbox=bbox, confidence=0.9, class_id=0,
@@ -184,6 +192,40 @@ class TestAdvancedEventDetectionService:
         dribbles = [e for e in result if e["type"] == "dribble"]
         assert len(dribbles) == 0
 
+    @pytest.mark.asyncio
+    async def test_detect_dribbles_no_false_positive_on_homography_failure(self, ae_mod):
+        # Regression test: when pixel_to_pitch raises, the code used to
+        # silently keep bx/by in raw pixel space and still append them to
+        # the possession chain -- reporting a "distance_m" computed from
+        # pixel deltas (tens of "meters" for what's really a few pixels of
+        # ball movement), and comparing pixel-scale distance against the
+        # 1.0m dribble_min_distance threshold, guaranteeing a false-positive
+        # dribble on essentially any ball movement once homography failed.
+        # Same frames as test_detect_dribbles_single_player_chain (which
+        # legitimately detects a dribble with a working homography-free
+        # path), but with a homography that always fails.
+        svc = self._svc(ae_mod)
+        frames = [
+            _frame(1, 0.0, [
+                _det((5, 5, 15, 15), track_id=2, class_name="sports ball"),
+                _det((0, 0, 10, 10), track_id=1),
+            ]),
+            _frame(2, 0.1, [
+                _det((15, 5, 25, 15), track_id=2, class_name="sports ball"),
+                _det((1, 0, 11, 10), track_id=1),
+            ]),
+            _frame(3, 0.2, [
+                _det((25, 5, 35, 15), track_id=2, class_name="sports ball"),
+                _det((2, 0, 12, 10), track_id=1),
+            ]),
+        ]
+        td = _td(frames, player_teams={1: "home", 2: "unknown"})
+        result = await svc.detect_all_advanced_events(
+            td, [], homography_matrix=_FailingHomography()
+        )
+        dribbles = [e for e in result if e["type"] == "dribble"]
+        assert len(dribbles) == 0
+
     # -- tackles --
 
     @pytest.mark.asyncio
@@ -261,6 +303,29 @@ class TestAdvancedEventDetectionService:
         td = _td(frames)
         result = await svc.detect_all_advanced_events(td, [], homography_matrix=homography)
         # Ball barely moves so speed is low -> no clearance
+        clearances = [e for e in result if e["type"] == "clearance"]
+        assert len(clearances) == 0
+
+    @pytest.mark.asyncio
+    async def test_detect_clearances_no_false_positive_on_homography_failure(self, ae_mod):
+        # Regression test: when pixel_to_pitch raises, the code used to
+        # silently fall back to pitch_x/pitch_y = bx/by (raw pixels) and
+        # still append them to ball_history -- reporting a "speed_mps"
+        # computed from pixel deltas (easily hundreds of "m/s" for a few
+        # pixels of frame-to-frame ball movement) and comparing it against
+        # the 8 m/s clearance speed threshold, which pixel-scale deltas
+        # clear trivially. Large, fast pixel movement here would have
+        # falsely triggered a clearance under the old behavior.
+        svc = self._svc(ae_mod)
+        frames = [
+            _frame(i, i * 0.1, [
+                _det((i * 100, 0, i * 100 + 10, 10), track_id=1, class_name="sports ball"),
+            ]) for i in range(5)
+        ]
+        td = _td(frames)
+        result = await svc.detect_all_advanced_events(
+            td, [], homography_matrix=_FailingHomography()
+        )
         clearances = [e for e in result if e["type"] == "clearance"]
         assert len(clearances) == 0
 

@@ -471,8 +471,18 @@ class MockStorage:
 
 
 class TestBridgeQualitySlot:
+    # Regression tests: get_match_quality_score called
+    # self.storage_service.get_match_events(mid) without awaiting it (the
+    # method itself wasn't even `async def`, so it couldn't await). That
+    # returned an un-awaited coroutine instead of the events list, which
+    # detect_anomalies()/compute_data_quality_score() couldn't process --
+    # caught by the handler's own broad except and turned into a permanent
+    # {"level": "error"} response. These tests previously accepted "error"
+    # as a valid outcome for a *good* match, which is exactly how this
+    # went unnoticed: a test that can't fail isn't testing anything.
 
-    def test_get_match_quality_score_returns_json(self):
+    @pytest.mark.asyncio
+    async def test_get_match_quality_score_returns_json(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
         storage = MockStorage([
@@ -480,13 +490,15 @@ class TestBridgeQualitySlot:
             {"type": "shot", "team": "home", "timestamp": 10.0, "x": 80.0, "y": 34.0, "is_goal": False, "xg": 0.05, "id": 2},
         ])
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
-        result_json = handler.get_match_quality_score("1")
+        result_json = await handler.get_match_quality_score("1")
         result = json.loads(result_json)
+        assert "error" not in result, f"Unexpected error: {result.get('error')}"
         assert "score" in result
         assert "level" in result
         assert isinstance(result["score"], (int, float))
 
-    def test_quality_score_good_level(self):
+    @pytest.mark.asyncio
+    async def test_quality_score_good_level(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
         events = [
@@ -497,24 +509,28 @@ class TestBridgeQualitySlot:
         ]
         storage = MockStorage(events)
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
-        result = json.loads(handler.get_match_quality_score("1"))
-        assert result.get("level") in ("good", "fair", "poor", "error")
+        result = json.loads(await handler.get_match_quality_score("1"))
+        assert result.get("level") in ("good", "fair", "poor")
 
-    def test_quality_score_poor_with_anomalies(self):
+    @pytest.mark.asyncio
+    async def test_quality_score_poor_with_anomalies(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
         storage = MockStorage([
             {"type": "pass", "team": "home", "timestamp": 0.0, "x": 200.0, "y": 34.0, "id": 1, "speed_mps": 25.0},
         ])
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
-        result = json.loads(handler.get_match_quality_score("1"))
+        result = json.loads(await handler.get_match_quality_score("1"))
+        assert "error" not in result, f"Unexpected error: {result.get('error')}"
         assert "score" in result
+        assert result["anomaly_count"] > 0
 
-    def test_quality_score_empty_match(self):
+    @pytest.mark.asyncio
+    async def test_quality_score_empty_match(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
         storage = MockStorage([])
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
-        result = json.loads(handler.get_match_quality_score("1"))
+        result = json.loads(await handler.get_match_quality_score("1"))
         assert result["score"] == 0.0
-        assert result["level"] in ("poor", "error")
+        assert result["level"] == "poor"

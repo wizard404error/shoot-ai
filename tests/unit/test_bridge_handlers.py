@@ -23,7 +23,6 @@ from kawkab.ui.bridge_handlers.bridge_lifecycle import LifecycleHandler
 from kawkab.ui.bridge_handlers.bridge_storage import StorageHandler
 from kawkab.ui.bridge_handlers.bridge_video import VideoHandler
 
-
 # ========================================================================
 # Fixtures
 # ========================================================================
@@ -840,11 +839,7 @@ class TestExternalHandler:
             "check_football_data_status", "check_apifootball_status", "check_statsbomb_status",
         ) else MagicMock(side_effect=RuntimeError("boom"))
 
-        if method == "search_football_team":
-            svc.search_team = mock_method
-        elif method == "search_bzzoiro_team":
-            svc.search_team = mock_method
-        elif method == "search_apifootball_team":
+        if method == "search_football_team" or method == "search_bzzoiro_team" or method == "search_apifootball_team":
             svc.search_team = mock_method
         elif method == "get_football_competitions":
             svc.get_competitions = mock_method
@@ -1096,8 +1091,9 @@ class TestVideoHandler:
     def test_reel_from_events(self, video_handler):
         events_json = json.dumps([{"type": "goal", "timestamp": 120, "team": "home"}])
         with patch.object(video_handler._highlight_reel, "make_reel_from_events", return_value='{"path": "/reel.mp4"}') as mock_reel:
-            r = video_handler.reel_from_events(1, events_json, "/v/test.mp4")
-            assert r == '{"path": "/reel.mp4"}'
+            r = json.loads(video_handler.reel_from_events(1, events_json, "/v/test.mp4"))
+            assert r["path"] == "/reel.mp4"
+            assert "reel_id" in r
 
     def test_reel_from_events_bad_json(self, video_handler):
         r = json.loads(video_handler.reel_from_events(1, "bad", "/v/test.mp4"))
