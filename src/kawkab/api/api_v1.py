@@ -235,36 +235,54 @@ async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permi
     _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     analyzer = TacticalShapeAnalyzer()
-    result = analyzer.analyze(events)
-    return TacticalShapesOut(**result)
+    home = analyzer.analyze_shapes(events, team="home")
+    away = analyzer.analyze_shapes(events, team="away")
+    return TacticalShapesOut(
+        formation_home=home.primary_attacking_shape,
+        formation_away=away.primary_attacking_shape,
+        shapes={"home": home.to_dict(), "away": away.to_dict()},
+        support_angles={"home": home.avg_support_angle_coverage, "away": away.avg_support_angle_coverage},
+    )
 
 
 @router.get("/matches/{match_id}/analysis/pressing", response_model=PressingOut)
 async def get_pressing(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
-    from kawkab.core.pressing_classifier import PressingClassifier
+    from kawkab.core.pressing_classifier import classify_pressing_system
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
-    classifier = PressingClassifier()
-    result = classifier.classify(events)
-    return PressingOut(**result)
+    home = classify_pressing_system(events, team="home")
+    away = classify_pressing_system(events, team="away")
+    return PressingOut(
+        home_block=home.primary_block_type,
+        away_block=away.primary_block_type,
+        home_ppda=home.ppda,
+        away_ppda=away.ppda,
+        pressing_triggers=home.trigger_count + away.trigger_count,
+    )
 
 
 @router.get("/matches/{match_id}/analysis/report", response_model=MatchReportOut)
 async def get_match_report(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
-    from kawkab.core.tactical_report import TacticalReportGenerator
+    from kawkab.core.tactical_report import generate_tactical_report
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
-    generator = TacticalReportGenerator()
-    report = generator.generate(events)
-    return MatchReportOut(match_id=match_id, **report)
+    report = generate_tactical_report(
+        events,
+        match_id=match_id,
+        home_team=match.get("home_team") or "Home",
+        away_team=match.get("away_team") or "Away",
+    )
+    # summary/key_moments/areas_for_improvement have no corresponding field on
+    # TacticalReport -- left at their model defaults rather than fabricated.
+    return MatchReportOut(match_id=match_id, tactical_observations=report.key_tactical_observations)
 
 
 # ── AI / LLM ──
@@ -355,25 +373,27 @@ async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10)
 
 @router.get("/players/{track_id}/fitness", response_model=FitnessOut)
 async def get_player_fitness(track_id: int, match_id: int = Query(..., description="Match ID"), _user: dict = Depends(require_permission("medical:read"))):
-    from kawkab.services.physical_load_service import PhysicalLoadService
-    from kawkab.services.workload_service import WorkloadService
+    # PhysicalLoadService/WorkloadService need raw per-frame tracking data and
+    # day-by-day season history respectively -- neither is derivable from
+    # match events. GPS sessions and the acwr_daily table (populated by the
+    # GPS import path) are the only real, already-measured source for this.
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
-    events = await svc.get_match_events(match_id)
-    load_svc = PhysicalLoadService()
-    load_data = load_svc.compute_load(events, player_track_id=track_id)
-    wl_svc = WorkloadService()
-    wl_data = wl_svc.compute_acwr(events, player_track_id=track_id)
+    players = await svc.get_match_players(match_id)
+    player = next((p for p in players if p.get("track_id") == track_id), None)
+    if not player:
+        _not_found(f"Player {track_id} not found in match {match_id}")
+    sessions = await svc.get_gps_sessions(match_id)
+    session = next((s for s in sessions if s.get("player_id") == track_id), None)
+    acwr_history = await svc.get_player_acwr(track_id, limit=1)
     return FitnessOut(
-        player_name=load_data.get("name", f"Player {track_id}"),
-        total_distance=float(load_data.get("total_distance", 0)),
-        max_speed=float(load_data.get("max_speed", 0)),
-        sprints=int(load_data.get("sprints", 0)),
-        high_intensity_distance=float(load_data.get("high_intensity_distance", 0)),
-        workload_score=float(wl_data.get("acwr", 0)),
+        player_name=player.get("name", f"Player {track_id}"),
+        total_distance=float(session.get("total_distance_m", 0)) if session else 0.0,
+        max_speed=float(session.get("max_speed_kmh", 0)) if session else 0.0,
+        workload_score=float(acwr_history[0].get("acwr", 0)) if acwr_history else 0.0,
     )
 
 
@@ -544,14 +564,25 @@ async def get_coding_tags_by_type(match_id: int, tag_type: str, _user: dict = De
 @router.get("/players/{player_id}/injury-risk")
 async def get_player_injury_risk(player_id: int, _user: dict = Depends(require_permission("medical:read"))):
     from kawkab.core.injury_risk import InjuryRiskPredictor
+    svc = _get_storage()
+    acwr_history = await svc.get_player_acwr(player_id, limit=1)
+    if not acwr_history:
+        return {"player_id": player_id, "data_available": False, "reason": "no GPS/workload data on file for this player"}
+    latest = acwr_history[0]
     pred = InjuryRiskPredictor()
-    return pred.predict_risk(player_id)
+    risk = pred.predict_injury_risk({"acwr": latest.get("acwr", 1.0)})
+    return {
+        "player_id": player_id,
+        "data_available": True,
+        "acwr": latest.get("acwr"),
+        "acwr_category": latest.get("load_category"),
+        **risk,
+    }
 
 @router.get("/squad/{team_id}/injury-report")
 async def get_squad_injury_report(team_id: int, _user: dict = Depends(require_permission("medical:read"))):
-    from kawkab.services.storage_service import StorageService
-    svc = StorageService()
-    return svc.get_squad_injury_report(team_id)
+    svc = _get_storage()
+    return await svc.get_squad_injury_report(team_id)
 
 
 # ── Streaming ──

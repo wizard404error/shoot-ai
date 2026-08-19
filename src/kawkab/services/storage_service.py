@@ -1803,6 +1803,36 @@ class StorageService:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    async def get_squad_injury_report(self, team_id: int) -> dict:
+        """Active-injury report for every player linked to a match involving *team_id*.
+
+        Resolves team_id -> player_profile ids via matches.home_team_id/
+        away_team_id and player_match_links (the same join
+        player_profile_service.py already uses for cross-match player
+        identity) -- injuries are recorded against the persistent
+        player_profiles.id, not a match-local track_id, so the two can't be
+        joined directly.
+        """
+        empty: dict[str, Any] = {
+            "total_active": 0, "injuries": [], "by_severity": {}, "by_body_part": {},
+            "high_risk_count": 0, "high_risk_injuries": [], "report_date": datetime.now().isoformat(),
+        }
+        if self._conn is None:
+            return empty
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """SELECT DISTINCT pml.player_id FROM player_match_links pml
+               JOIN matches m ON m.id = pml.match_id
+               WHERE m.home_team_id = ? OR m.away_team_id = ?""",
+            (team_id, team_id),
+        )
+        player_ids = [row["player_id"] for row in cursor.fetchall()]
+        if not player_ids:
+            return empty
+        from kawkab.services.injury_tracker import InjuryTrackerService
+        tracker = InjuryTrackerService(self._conn)
+        return tracker.get_squad_injury_report(player_ids)
+
     async def close(self) -> None:
         """Close database connection."""
         if self._conn:

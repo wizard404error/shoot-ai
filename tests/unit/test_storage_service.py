@@ -1038,3 +1038,86 @@ async def test_gps_uninitialized_conn():
     assert await svc.save_acwr(1, "2026-01-01", 5000, 4500, 1.11) == 0
     assert await svc.get_player_acwr(1) == []
     assert await svc.get_player_gps_summary(1) == []
+
+# ─── Squad Injury Report ────────────────────────────────────────────────────
+# get_squad_injury_report() was a broken api_v1.py call (StorageService had
+# no such method -- the real logic lives on InjuryTrackerService, keyed by
+# player_profiles ids, not a match-local track_id). These tests exercise the
+# new StorageService.get_squad_injury_report() added to fix that: it
+# resolves team_id -> player_profiles ids via matches.home_team_id/
+# away_team_id + player_match_links, then delegates to InjuryTrackerService.
+
+def _create_injury_tables(storage):
+    storage._conn.executescript("""
+        CREATE TABLE IF NOT EXISTS player_match_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL, match_id INTEGER NOT NULL, track_id INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS injuries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL, match_id INTEGER, injury_type TEXT,
+            body_part TEXT, severity TEXT, mechanism TEXT, date_injured TEXT,
+            date_recovered TEXT, status TEXT, notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    storage._conn.commit()
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_no_team_matches_returns_empty_not_all_injuries(storage):
+    # A team with zero linked players must not fall through to
+    # InjuryTrackerService.get_active_injuries' own "falsy team_player_ids
+    # -> return every injury system-wide" branch -- that would leak every
+    # other team's injuries under a team that has none of its own.
+    _create_injury_tables(storage)
+    profile_id = storage._conn.execute(
+        "INSERT INTO player_profiles (display_name) VALUES ('Unrelated Player')"
+    ).lastrowid
+    storage._conn.execute(
+        "INSERT INTO injuries (player_id, injury_type, body_part, severity, status, date_injured) "
+        "VALUES (?, 'sprain', 'ankle', 'moderate', 'active', '2026-01-01')",
+        (profile_id,),
+    )
+    storage._conn.commit()
+
+    report = await storage.get_squad_injury_report(999)
+    assert report["total_active"] == 0
+    assert report["injuries"] == []
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_resolves_team_via_player_match_links(storage):
+    _create_injury_tables(storage)
+    team_id = storage._conn.execute("INSERT INTO teams (name) VALUES ('Real Madrid')").lastrowid
+    match_id = await storage.save_match("Clasico", "/v/c.mp4", "Real Madrid", "Barcelona")
+    storage._conn.execute("UPDATE matches SET home_team_id = ? WHERE id = ?", (team_id, match_id))
+    profile_id = storage._conn.execute(
+        "INSERT INTO player_profiles (display_name) VALUES ('Star Striker')"
+    ).lastrowid
+    storage._conn.execute(
+        "INSERT INTO player_match_links (player_id, match_id, track_id) VALUES (?, ?, ?)",
+        (profile_id, match_id, 9),
+    )
+    storage._conn.execute(
+        "INSERT INTO injuries (player_id, injury_type, body_part, severity, status, date_injured) "
+        "VALUES (?, 'hamstring strain', 'thigh', 'severe', 'active', '2026-01-01')",
+        (profile_id,),
+    )
+    storage._conn.commit()
+
+    report = await storage.get_squad_injury_report(team_id)
+    assert report["total_active"] == 1
+    assert report["injuries"][0]["injury_type"] == "hamstring strain"
+    assert report["by_severity"] == {"severe": 1}
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_uninitialized_conn():
+    svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
+    report = await svc.get_squad_injury_report(1)
+    assert report["total_active"] == 0
+    assert report["injuries"] == []

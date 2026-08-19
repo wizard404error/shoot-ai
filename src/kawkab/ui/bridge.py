@@ -1614,7 +1614,7 @@ class Bridge(QObject):
 
     @Slot(int, result=str)
     async def compute_goals_added(self, match_id: int) -> str:
-        return self._analysis.compute_goals_added(match_id)
+        return await self._analysis.compute_goals_added(match_id)
 
     @Slot(int, result=str)
     async def analyze_finishing(self, match_id: int) -> str:

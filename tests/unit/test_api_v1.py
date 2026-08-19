@@ -199,6 +199,144 @@ class TestApiGamePlan:
         assert data["opponent"] == "Barcelona"
 
 
+def _ensure_storage_ready():
+    """Shared scratch-DB singleton init, mirroring TestApiGamePlan
+    .test_game_plan above (see its comment for why this is needed --
+    _get_storage()'s singleton is never reset between test classes in
+    this file, so whichever test initializes it first wins for the rest
+    of the process)."""
+    import sqlite3
+    from pathlib import Path
+
+    from kawkab.api.api_v1 import _get_storage
+    from kawkab.core.migration_manager import MigrationManager
+    svc = _get_storage()
+    if svc._conn is None:
+        scratch_db = Path(tempfile.gettempdir()) / f"kawkab_test_api_v1_storage_{os.getpid()}.db"
+        MigrationManager(scratch_db, Path("src/kawkab/migrations")).migrate()
+        svc._db_path = scratch_db
+        svc._conn = sqlite3.connect(str(scratch_db), check_same_thread=False)
+        svc._conn.row_factory = sqlite3.Row
+    return svc
+
+
+class TestApiTacticalPressingReport:
+    """get_tactical_shapes/get_pressing/get_match_report each called a
+    nonexistent class or method (PressingClassifier, TacticalReportGenerator,
+    TacticalShapeAnalyzer.analyze instead of .analyze_shapes) -- an instant
+    500 (AttributeError/ImportError) on every call, before the routes' own
+    match-ownership/auth checks even mattered."""
+
+    def _match_with_events(self):
+        import asyncio
+        svc = _ensure_storage_ready()
+        match_id = asyncio.run(svc.save_match(name="Tactical Test Match", video_path="tactical_test.mp4"))
+        events = [
+            {"type": "pass", "timestamp": 1.0, "team": "home", "from_track_id": 1, "to_track_id": 2, "completed": True},
+            {"type": "pass", "timestamp": 5.0, "team": "home", "from_track_id": 2, "to_track_id": 3, "completed": True},
+            {"type": "shot", "timestamp": 10.0, "team": "home", "from_track_id": 3, "completed": True},
+            {"type": "tackle", "timestamp": 15.0, "team": "away", "from_track_id": 8, "completed": True},
+            {"type": "pass", "timestamp": 20.0, "team": "away", "from_track_id": 8, "to_track_id": 9, "completed": True},
+        ]
+        for e in events:
+            asyncio.run(svc.save_event(match_id, e))
+        return match_id
+
+    def test_tactical_shapes_no_longer_500s(self):
+        match_id = self._match_with_events()
+        resp = client.get(f"/api/v1/matches/{match_id}/analysis/tactical-shapes", headers=_analyst_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data["shapes"].keys()) == {"home", "away"}
+
+    def test_pressing_no_longer_500s(self):
+        match_id = self._match_with_events()
+        resp = client.get(f"/api/v1/matches/{match_id}/analysis/pressing", headers=_analyst_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data["home_ppda"], float)
+        assert isinstance(data["pressing_triggers"], int)
+
+    def test_match_report_no_longer_500s(self):
+        match_id = self._match_with_events()
+        resp = client.get(f"/api/v1/matches/{match_id}/analysis/report", headers=_analyst_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["match_id"] == match_id
+        assert isinstance(data["tactical_observations"], list)
+
+
+class TestApiPlayerFitnessAndInjuryRisk:
+    """get_player_fitness/get_player_injury_risk called methods that don't
+    exist anywhere (PhysicalLoadService.compute_load, WorkloadService
+    .compute_acwr, InjuryRiskPredictor.predict_risk) -- an instant 500 on
+    every call. Fixed to use the real, GPS-import-backed data (gps_sessions/
+    acwr_daily) instead, since PhysicalLoadService/WorkloadService need raw
+    per-frame tracking / season-long history this endpoint doesn't have."""
+
+    def _match_with_player(self):
+        import asyncio
+        svc = _ensure_storage_ready()
+        match_id = asyncio.run(svc.save_match(name="Fitness Test Match", video_path="fitness_test.mp4"))
+        asyncio.run(svc.save_players_bulk(match_id, [
+            {"track_id": 501, "name": "Test Player", "team": "home", "position": "FWD", "jersey_number": 9},
+        ]))
+        return match_id
+
+    def test_fitness_without_gps_data_is_honest_not_500(self):
+        match_id = self._match_with_player()
+        resp = client.get(f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_name"] == "Test Player"
+        assert data["total_distance"] == 0.0
+        assert data["workload_score"] == 0.0
+
+    def test_fitness_with_real_gps_and_acwr_data(self):
+        import asyncio
+        match_id = self._match_with_player()
+        svc = _ensure_storage_ready()
+        sid = asyncio.run(svc.save_gps_session(match_id, 501, "match", "catapult"))
+        asyncio.run(svc.update_gps_session_stats(sid, {"total_distance_m": 10800.0, "max_speed_kmh": 31.2}))
+        asyncio.run(svc.save_acwr(501, "2026-08-18", 5000.0, 4500.0, 1.11))
+
+        resp = client.get(f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_distance"] == 10800.0
+        assert data["max_speed"] == 31.2
+        assert data["workload_score"] == 1.11
+
+    def test_injury_risk_without_data_reports_data_unavailable(self):
+        resp = client.get("/api/v1/players/999888/injury-risk", headers=_admin_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data_available"] is False
+
+    def test_injury_risk_with_real_acwr_data(self):
+        import asyncio
+        svc = _ensure_storage_ready()
+        asyncio.run(svc.save_acwr(777, "2026-08-18", 6000.0, 3000.0, 2.0))
+        resp = client.get("/api/v1/players/777/injury-risk", headers=_admin_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data_available"] is True
+        assert data["acwr"] == 2.0
+        assert "risk_score" in data
+
+
+class TestApiSquadInjuryReport:
+    """get_squad_injury_report previously constructed a bare StorageService()
+    (bypassing the module's own _get_storage() singleton) and called a
+    method that didn't exist on the class at all."""
+
+    def test_squad_injury_report_no_longer_500s(self):
+        resp = client.get("/api/v1/squad/999777/injury-report", headers=_admin_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_active"] == 0
+
+
 class TestApiSeason:
     def test_season_summary(self):
         resp = client.get("/api/v1/season/summary", headers=_analyst_headers())

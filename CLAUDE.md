@@ -724,6 +724,111 @@ that masked several of these until tested in isolation.
     local `escapeHtml`, and every site checked via the same heuristic
     search in this pass came back correctly escaped, but not every
     individual site in these files was read by hand.
+- **6 broken API v1 endpoints + `compute_goals_added` fixed** (2026-08-19):
+  the mypy `attr-defined` sweep (see "820 mypy errors remain" below) had
+  already found these calling nonexistent classes/methods — an instant
+  500/`AttributeError` on every call, never caught by
+  `test_bridge_contract.py` (JS-call-vs-slot-name only, doesn't check the
+  handler method one layer down actually exists — see that gap below) or
+  `test_api_v1.py` (14 of 39 routes covered, none of these six). Fixed
+  each by tracing the real API instead of guessing a rename:
+  - `get_tactical_shapes`: `TacticalShapeAnalyzer.analyze` doesn't exist;
+    real method is `analyze_shapes(events, team=...)`, called once per side.
+  - `get_pressing`: `PressingClassifier` class doesn't exist; real API is
+    the module-level `classify_pressing_system(events, team=...)`.
+  - `get_match_report`: `TacticalReportGenerator` class doesn't exist;
+    real API is `generate_tactical_report(events, match_id, home_team,
+    away_team)`, which already populates `key_tactical_observations`
+    internally.
+  - `get_player_fitness`/`get_player_injury_risk`: `PhysicalLoadService
+    .compute_load`/`WorkloadService.compute_acwr`/`InjuryRiskPredictor
+    .predict_risk` don't exist. The first two classes are real but need
+    data these endpoints don't have (raw per-frame tracking, season-long
+    day-by-day load history) — neither is derivable from match events.
+    Rewired both onto the real, GPS-import-backed `gps_sessions`/
+    `acwr_daily` tables (`StorageService.get_gps_sessions`/
+    `get_player_acwr`, already fixed earlier this session's GPS/ACWR
+    bridge work) instead. A player with no GPS import gets
+    `data_available: False` / an honest zero, not a fabricated number —
+    same principle as the `possession_service.py` 50/50 fallback this
+    tier flags elsewhere.
+  - `get_squad/{team_id}/injury-report`: called a `StorageService` method
+    that never existed (and constructed a bare, un-singletoned
+    `StorageService()`, bypassing the file's own `_get_storage()`). The
+    real logic lives on `InjuryTrackerService.get_squad_injury_report
+    (team_player_ids)`, keyed by `player_profiles` ids, not a match-local
+    `track_id` — and no team_id → player-roster resolution existed
+    anywhere. Added `StorageService.get_squad_injury_report(team_id)`,
+    resolving via `matches.home_team_id`/`away_team_id` (migration 022) +
+    `player_match_links` (migration 002, already joined the same way by
+    `player_profile_service.py`) before delegating to
+    `InjuryTrackerService`. An empty resolved player list returns an
+    honest empty report rather than falling through to
+    `InjuryTrackerService.get_active_injuries`'s own
+    falsy-list-means-"no filter" branch, which would otherwise leak every
+    other team's injuries under a team that has none of its own.
+  - `compute_goals_added` (`bridge_analysis.py`): imported a nonexistent
+    `core.goals_added.compute_g_plus` (real: `compute_goals_added
+    (player_id, match_stats, position)`) and was a plain `def` calling
+    `self.storage_service.get_match_events(...)` — an async method —
+    without `await`, so fixing only the import would have left it
+    aggregating over a coroutine object. Made `async def`; `bridge.py`'s
+    slot needed `await` added too (the same sync-calls-async-without-await
+    shape as the `get_match_quality_score` bug documented above).
+    Computes real per-player xG (`core.xg_model.compute_xg_from_dict` over
+    each player's shot events) and a defensive-actions count; `xa`/`xt`/
+    `obv` components are left absent from `match_stats` (the function's
+    own `.get(key, 0.0)` convention for "not measured") rather than
+    fabricated, since none are derivable from raw events without their
+    own dedicated pipelines — `obv` specifically needs the same per-frame
+    tracking data the OBV/EPV gap below already documents as generally
+    unavailable.
+
+  **Found while verifying the above, all fixed in the same pass:**
+  - **`StorageService.get_match_players()` has been broken on every real
+    SQLite deployment**: its `SELECT` includes a `confidence` column that
+    `001_initial.sql`'s `players` table never had, and no later migration
+    ever added — `sqlite3.OperationalError: no such column: confidence`
+    on every call, for every match with players. Postgres was never
+    affected (`pg_schema.sql`'s `players` table already declares it).
+    Invisible to every existing test because the 4 test files with their
+    own hand-written synthetic `players` schema (see the storage-
+    divergence entries above) all happened to already include
+    `confidence` in their own copy — the bug only surfaces against the
+    real migration chain, which is why `test_game_plan` (the one existing
+    test that already runs the real chain) never called
+    `get_match_players` and never tripped it. Added migration 029.
+    Nothing populates the column yet (`save_player`/`save_players_bulk`
+    don't set it) — it stays `NULL` until a real per-player
+    detection-confidence source exists; this migration only stops the
+    crash, it doesn't fabricate a value.
+  - **`core/tactical_shape_analyzer.py`'s `_analyze_window` crashed on any
+    event without spatial metadata**: `ev.get("x", 0.5) * PITCH_LENGTH` —
+    but `get_match_events()` always includes the `"x"` key (via
+    `json_extract` on `metadata`), `None` whenever an event has no
+    spatial data, and `dict.get(key, default)` only uses `default` when
+    the key is *absent* — the same Pydantic-v2-semantics gap already
+    fixed once this session for `MatchOut.fps`. `None * PITCH_LENGTH`
+    raised on every event without pixel coordinates, i.e. any event whose
+    `metadata` wasn't populated with `x`/`y`. Fixed with an explicit
+    `is None` check before multiplying, for both `x` and `y`.
+  - **`AnalysisHandler.get_squad_injury_report` was defined twice** in
+    `bridge_analysis.py` — Python keeps only the second same-named method
+    in a class body, so the first (whose `risk_category`/`key_factors`
+    field names `app-squad.js`'s `renderSquadHealthPlayers` actually
+    reads) was dead code, and the second — fabricating ACWR from a
+    synthetic `100 + (i % 20 - 10)` sawtooth formula, and returning
+    differently-named `risk_level`/`factors` fields the frontend doesn't
+    read — was the one that actually ran. The squad health view has
+    likely shown "low" risk and blank factors for every player since
+    whichever commit introduced the second definition. Merged into one
+    method using the same real `get_player_acwr` GPS data as the
+    `get_player_fitness` fix above, with the frontend's actual field
+    names. Ruff (`--select F811`, run for the first time against this
+    file as part of verifying this fix) found two more instances of the
+    identical duplicate-method pattern in the same class
+    (`get_injury_risk`, `generate_training_plan`) — flagged as a
+    follow-up task rather than fixed in this pass; see Known Gaps.
 
 ## Known gaps (found, understood, deliberately not fixed this session — read before assuming any of these "just work")
 
@@ -1096,6 +1201,15 @@ that masked several of these until tested in isolation.
   and cross-checking each against the real handler classes' method sets —
   more involved than the current JS-string-vs-slot-name regex, not
   attempted this session.
+- **2 more shadowed-duplicate methods in `bridge_analysis.py`**:
+  `get_injury_risk` (lines ~2399 and ~2817) and `generate_training_plan`
+  (lines ~2514 and ~2875) are each defined twice in `AnalysisHandler`,
+  found via `ruff check --select F811` while verifying the
+  `get_squad_injury_report` fix above (which was the same bug). Not fixed
+  this pass — each needs the same investigation (which version has real
+  vs. fabricated data, which field names the frontend actually reads)
+  before merging. `ruff --select F811` against the rest of
+  `ui/bridge_handlers/` hasn't been run; there may be more.
 
 ## Graphify
 

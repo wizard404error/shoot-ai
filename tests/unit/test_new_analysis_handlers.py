@@ -383,3 +383,87 @@ class TestAiV2Conversations:
         listed = json.loads(await handler.ai_v2_list_convs(match_id="7"))
         assert len(listed["conversations"]) == 1
         assert listed["conversations"][0]["title"] == "Match 7 chat"
+
+
+class TestComputeGoalsAdded:
+    """compute_goals_added imported a nonexistent kawkab.core.goals_added
+    .compute_g_plus (the real function is compute_goals_added(player_id,
+    match_stats, position)) and was itself a plain `def` calling
+    self.storage_service.get_match_events(...) -- an async method --
+    without await, so even fixing the import alone would have left it
+    aggregating over a coroutine object instead of a list of events."""
+
+    @pytest.mark.asyncio
+    async def test_computes_real_per_player_goals_added(self):
+        events = [
+            {"event_type": "shot", "team": "home", "from_track_id": 7, "timestamp": 10.0},
+            {"event_type": "tackle", "team": "home", "from_track_id": 7, "timestamp": 20.0},
+        ]
+        players = [{"track_id": 7, "position": "FWD"}]
+        storage = MockStorageService(events_by_match={1: events}, players_by_match={1: players})
+        handler = _handler(storage)
+        result = json.loads(await handler.compute_goals_added(1))
+        assert result["success"] is True
+        assert result["count"] == 1
+        report = result["result"]["7"]
+        assert report["total_g_plus"] > 0
+        assert report["components"]["xg_contribution"] > 0
+        assert report["components"]["defensive_contribution"] > 0
+
+    @pytest.mark.asyncio
+    async def test_no_players_returns_empty_not_error(self):
+        handler = _handler(MockStorageService())
+        result = json.loads(await handler.compute_goals_added(1))
+        assert result == {"success": True, "result": {}, "count": 0}
+
+
+def _acwr_stub(history):
+    """An async storage_service.get_player_acwr replacement -- production
+    code awaits this call, so a plain lambda returning a list (as the other
+    Mock*/lambda stubs in this file use for sync handler methods) won't
+    work here; this returns a real coroutine."""
+    async def _get(track_id, limit=1):
+        return history
+    return _get
+
+
+class TestSquadInjuryReportBridgeHandler:
+    """AnalysisHandler defined get_squad_injury_report twice -- Python keeps
+    only the second, same-named method in a class body, so the first
+    (whose risk_category/key_factors field names app-squad.js actually
+    reads) was silently dead code, and the second -- fabricating ACWR from
+    a synthetic sawtooth formula and returning differently-named
+    risk_level/factors fields instead -- was the one that actually ran.
+    Merged into one method using real GPS-backed ACWR data
+    (storage_service.get_player_acwr); these tests pin the field names the
+    frontend depends on and the honest no-data path."""
+
+    @pytest.mark.asyncio
+    async def test_player_without_acwr_data_is_honest_not_fabricated(self):
+        players = [{"track_id": 7, "team": "home", "name": "No Data Player", "position": "MID"}]
+        storage = MockStorageService(players_by_match={1: players})
+        storage.get_player_acwr = _acwr_stub([])
+        handler = _handler(storage)
+        result = json.loads(await handler.get_squad_injury_report(1))
+        assert result["success"] is True
+        entry = result["home_players"][0]
+        assert entry["risk_category"] == "insufficient_data"
+        assert entry["key_factors"] == []
+        assert entry["acwr"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_player_with_real_acwr_uses_the_frontends_field_names(self):
+        players = [{"track_id": 7, "team": "home", "name": "Real Data Player", "position": "MID"}]
+        storage = MockStorageService(players_by_match={1: players})
+        storage.get_player_acwr = _acwr_stub([{"acwr": 1.8, "date": "2026-08-18", "load_category": "high"}])
+        handler = _handler(storage)
+        result = json.loads(await handler.get_squad_injury_report(1))
+        entry = result["home_players"][0]
+        # app-squad.js reads risk_category/key_factors, not risk_level/factors
+        # (see renderSquadHealthPlayers in app-squad.js) -- the shadowed,
+        # live version before this fix returned the wrong names.
+        assert entry["acwr"] == 1.8
+        assert "risk_category" in entry
+        assert "key_factors" in entry
+        assert "risk_level" not in entry
+        assert "factors" not in entry

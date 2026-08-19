@@ -2442,12 +2442,17 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_squad_injury_report(self, match_id):
+        # Real per-player workload comes from GPS imports (storage_service
+        # .get_player_acwr, backed by the acwr_daily table) -- the
+        # workload_d1..28 player fields this used to read are never
+        # populated anywhere in the codebase, and always evaluated to a
+        # constant. A player with no GPS import gets an honest
+        # "insufficient_data" category instead of a fabricated ACWR.
         self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
             players = await self.storage_service.get_match_players(match_id)
             predictor = self.injury_risk_predictor
-            events = await self.storage_service.get_match_events(match_id)
             home_players = []
             away_players = []
             total_risk_home = 0.0
@@ -2458,40 +2463,34 @@ class AnalysisHandler:
                 if tid is None:
                     continue
                 team = p.get("team", "unknown")
-                p_events = [e for e in events if e.get("from_track_id") == tid or e.get("player_track_id") == tid]
-                sprint_count = sum(1 for e in p_events if e.get("event_type") == "sprint")
-                workload = [float(p.get(f"workload_d{i}", 0)) for i in range(1, 29)]
-                fatigue = float(p.get("fatigue_index", 0))
-                days_rest = int(p.get("days_since_last_rest", 0))
                 position = str(p.get("position", "MID"))
-                dist_km = float(p.get("distance_covered_m", 0)) / 1000.0
-                profile = {
-                    "acwr": 1.0, "recent_sprint_count": sprint_count,
-                    "recent_distance_km": dist_km, "fatigue_index": fatigue,
-                    "position": position, "days_since_last_rest": days_rest,
-                }
-                acwr_result = predictor.compute_acwr_overload(workload) if len(workload) >= 7 else {"acwr": 1.0, "risk_level": "moderate", "recommendation": "insufficient data"}
-                profile["acwr"] = acwr_result["acwr"]
-                risk = predictor.predict_injury_risk(profile)
-                rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
-                entry = {
-                    "track_id": tid,
-                    "name": p.get("name", f"Player #{tid}"),
-                    "jersey": p.get("jersey_number", ""),
-                    "position": position,
-                    "risk_score": risk["risk_score"],
-                    "risk_category": risk["risk_category"],
-                    "acwr": round(acwr_result["acwr"], 3),
-                    "recovery_recommendation": rec,
-                    "key_factors": risk["key_risk_factors"],
-                }
+                name = p.get("name", f"Player #{tid}")
+                jersey = p.get("jersey_number", "")
+                acwr_history = await self.storage_service.get_player_acwr(tid, limit=1)
+                if not acwr_history:
+                    entry = {
+                        "track_id": tid, "name": name, "jersey": jersey, "position": position,
+                        "risk_score": 0.0, "risk_category": "insufficient_data", "acwr": 0.0,
+                        "recovery_recommendation": "No GPS/workload data on file for this player",
+                        "key_factors": [],
+                    }
+                else:
+                    acwr = float(acwr_history[0].get("acwr", 1.0))
+                    risk = predictor.predict_injury_risk({"acwr": acwr, "position": position})
+                    rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
+                    entry = {
+                        "track_id": tid, "name": name, "jersey": jersey, "position": position,
+                        "risk_score": risk["risk_score"], "risk_category": risk["risk_category"],
+                        "acwr": round(acwr, 3), "recovery_recommendation": rec,
+                        "key_factors": risk["key_risk_factors"],
+                    }
                 if team in ("home", "Home", "HOME"):
                     home_players.append(entry)
-                    total_risk_home += risk["risk_score"]
+                    total_risk_home += entry["risk_score"]
                 else:
                     away_players.append(entry)
-                    total_risk_away += risk["risk_score"]
-                if risk["risk_category"] in ("high", "critical"):
+                    total_risk_away += entry["risk_score"]
+                if entry["risk_category"] in ("high", "critical"):
                     high_risk_count += 1
             avg_home = round(total_risk_home / len(home_players), 3) if home_players else 0
             avg_away = round(total_risk_away / len(away_players), 3) if away_players else 0
@@ -2867,83 +2866,6 @@ class AnalysisHandler:
             })
         except Exception as e:
             logger.error(f"get_injury_risk failed: {e}")
-            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
-
-    async def get_squad_injury_report(self, match_id):
-        self._check_rate_limit()
-        try:
-            match_id = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(match_id)
-            players = await self.storage_service.get_match_players(match_id)
-
-            home_players = []
-            away_players = []
-            all_risks = []
-
-            from kawkab.core.injury_risk import InjuryRiskPredictor
-            predictor = InjuryRiskPredictor()
-
-            for p in (players or []):
-                tid = p.get("track_id", p.get("id", 0))
-                team = p.get("team", "home")
-                name = p.get("name", f"Player #{tid}")
-
-                p_events = [e for e in events if e.get("from_track_id") == tid or e.get("player_track_id") == tid]
-                sprints = sum(1 for e in p_events if e.get("event_type") in ("sprint", "run") and e.get("completed", True))
-                dist = sum(abs(e.get("end_x", 0) - e.get("start_x", 0)) + abs(e.get("end_y", 0) - e.get("start_y", 0)) for e in p_events if "start_x" in e) / 100.0
-                pos = p.get("position", "MID")
-                fatigue = min(len(p_events) / 50.0, 1.0)
-
-                acwr_data = [100 + (i % 20 - 10) for i in range(28)]
-                for ev in p_events:
-                    intensity = ev.get("intensity", 0.5) if isinstance(ev.get("intensity"), (int, float)) else 0.5
-                    acwr_data.append(50 + intensity * 100)
-
-                acwr_result = predictor.compute_acwr_overload(acwr_data)
-                acwr = acwr_result.get("acwr", 1.0)
-
-                profile = {
-                    "acwr": acwr,
-                    "recent_sprint_count": sprints,
-                    "recent_distance_km": dist,
-                    "fatigue_index": fatigue * 30,
-                    "position": pos,
-                    "days_since_last_rest": getattr(p, "days_since_rest", 3) if hasattr(p, "days_since_rest") else 3,
-                }
-                risk = predictor.predict_injury_risk(profile)
-                recovery = predictor.compute_recovery_recommendation(risk["risk_score"], pos)
-                all_risks.append(risk["risk_score"])
-
-                entry = {
-                    "track_id": tid,
-                    "name": name,
-                    "position": pos,
-                    "jersey": p.get("jersey_number", ""),
-                    "risk_score": risk["risk_score"],
-                    "acwr": acwr,
-                    "risk_level": risk["risk_category"],
-                    "recovery_recommendation": recovery,
-                    "factors": risk["key_risk_factors"],
-                }
-                if team == "home":
-                    home_players.append(entry)
-                else:
-                    away_players.append(entry)
-
-            high_risk_count = sum(1 for r in all_risks if r >= 0.4)
-            avg_home = round(sum(r["risk_score"] for r in home_players) / max(len(home_players), 1), 3)
-            avg_away = round(sum(r["risk_score"] for r in away_players) / max(len(away_players), 1), 3)
-
-            return json.dumps({
-                "home_players": home_players,
-                "away_players": away_players,
-                "avg_risk_home": avg_home,
-                "avg_risk_away": avg_away,
-                "high_risk_count": high_risk_count,
-                "total_players": len(home_players) + len(away_players),
-            })
-        except Exception as e:
-            logger.error(f"get_squad_injury_report failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     # ================================================================
@@ -4428,13 +4350,34 @@ class AnalysisHandler:
 
     # ── Advanced analysis modules (Sprint 12+) ────────────────────
 
-    def compute_goals_added(self, match_id: int) -> str:
+    async def compute_goals_added(self, match_id: int) -> str:
         try:
-            from kawkab.core.goals_added import compute_g_plus
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = compute_g_plus(events)
+            from kawkab.core.goals_added import compute_goals_added
+            from kawkab.core.xg_model import compute_xg_from_dict
+            events = await self.storage_service.get_match_events(match_id) if self.storage_service else []
+            players = await self.storage_service.get_match_players(match_id) if self.storage_service else []
+            defensive_types = {"tackle", "interception", "clearance"}
+            result = {}
+            for p in players:
+                tid = p.get("track_id")
+                if tid is None:
+                    continue
+                p_events = [e for e in events if e.get("from_track_id") == tid]
+                xg = 0.0
+                for e in p_events:
+                    if e.get("event_type") != "shot":
+                        continue
+                    try:
+                        xg += compute_xg_from_dict(e)
+                    except Exception:
+                        continue
+                defensive_actions = sum(1 for e in p_events if e.get("event_type") in defensive_types)
+                match_stats = [{"match_id": match_id, "xg": xg, "defensive_actions": defensive_actions, "minutes": 90}]
+                report = compute_goals_added(str(tid), match_stats, str(p.get("position", "MID")))
+                result[str(tid)] = report.__dict__
             return json.dumps({"success": True, "result": result, "count": len(result)})
         except Exception as e:
+            logger.error(f"compute_goals_added failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def analyze_finishing(self, match_id: int) -> str:
