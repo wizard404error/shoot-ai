@@ -141,7 +141,7 @@ def login(body: UserLogin):
     # works identically on both backends (_ResultRow on Postgres already
     # is a dict subclass).
     user = dict(row)
-    token = create_access_token(user["id"], role=user.get("role", "analyst"))
+    token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=user.get("token_version", 0))
     del user["password_hash"]
     return TokenResponse(access_token=token, user=UserOut(**user))
 
@@ -152,13 +152,20 @@ def me(user: dict = Depends(get_current_user)):
 @app.post("/auth/change-password")
 def change_password(body: PasswordChange, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    row = db.execute("SELECT password_hash, token_version FROM users WHERE id = ?", (user["id"],)).fetchone()
     if not verify_password(body.old_password, row["password_hash"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    db.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
-               (hash_password(body.new_password), user["id"]))
+    # Bumping token_version invalidates every token issued before this
+    # change -- including the one used to make this very request -- which
+    # is the whole point: a stolen token shouldn't survive its victim
+    # changing their password. A fresh token is returned below so the
+    # caller isn't forced to immediately log back in.
+    new_token_version = row["token_version"] + 1
+    db.execute("UPDATE users SET password_hash = ?, token_version = ?, updated_at = datetime('now') WHERE id = ?",
+               (hash_password(body.new_password), new_token_version, user["id"]))
     db.commit()
-    return {"ok": True}
+    new_token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=new_token_version)
+    return {"ok": True, "access_token": new_token}
 
 
 # ── OAuth ──
@@ -213,8 +220,12 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
             (access_token, tokens.get("refresh_token"), row["user_id"]),
         )
         db.commit()
-        user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
-        jwt_token = create_access_token(user["id"])
+        user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
+        # token_version must come from the DB, not default to 0: a
+        # returning OAuth user may have had it bumped since (e.g. a
+        # password change on a linked local-auth account), and minting a
+        # token with the wrong version would lock them out immediately.
+        jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
         return TokenResponse(access_token=jwt_token, user=UserOut(**user))
     existing_user = None
     if email:
@@ -239,8 +250,8 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
         (user_id, provider, provider_user_id, access_token, tokens.get("refresh_token")),
     )
     db.commit()
-    user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
-    jwt_token = create_access_token(user_id)
+    user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    jwt_token = create_access_token(user_id, token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
 @app.post("/auth/link-oauth")

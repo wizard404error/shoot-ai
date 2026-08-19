@@ -318,6 +318,18 @@ def _sqlite_migrate(db: _SqliteConnection) -> None:
     except Exception:
         db.rollback()
 
+    # Migration 5: token_version column -- JWTs carry a "tv" claim checked
+    # against this on every request (see cloud/auth.py get_current_user).
+    # Bumping it (e.g. on password change) instantly invalidates every
+    # previously-issued token for that user without needing a shared
+    # denylist -- 30-day JWTs previously had no revocation path at all.
+    try:
+        db.execute("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0")
+        db.execute("INSERT OR IGNORE INTO schema_version VALUES (5)")
+        db.commit()
+    except Exception:
+        db.rollback()
+
 
 PG_CLOUD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -331,6 +343,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name TEXT DEFAULT '',
     is_active BOOLEAN DEFAULT TRUE,
     role TEXT DEFAULT 'analyst',
+    token_version INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -413,3 +426,11 @@ CREATE TABLE IF NOT EXISTS api_keys (
 def _pg_migrate(db: _PostgresConnection) -> None:
     """Create auth tables in PostgreSQL with idempotent migrations."""
     db.executescript(PG_CLOUD_SCHEMA)
+    # PG_CLOUD_SCHEMA's users table is CREATE TABLE IF NOT EXISTS, which is
+    # a no-op against a database that already has a users table from
+    # before token_version existed -- ADD COLUMN IF NOT EXISTS (Postgres-
+    # only syntax, unlike SQLite) covers that upgrade path too.
+    try:
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0")
+    except Exception:
+        pass

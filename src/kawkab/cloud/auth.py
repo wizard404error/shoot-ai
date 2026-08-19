@@ -57,9 +57,17 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, role: str = "analyst") -> str:
+def create_access_token(user_id: int, role: str = "analyst", token_version: int = 0) -> str:
     expire = datetime.now(UTC) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "role": role, "exp": expire}, _get_jwt_secret(), algorithm=ALGORITHM)
+    # "tv" (token_version) lets a 30-day token be revoked before it
+    # naturally expires: get_current_user() below rejects any token whose
+    # tv doesn't match the user's *current* token_version in the DB.
+    # Bumping that column (e.g. on password change) instantly invalidates
+    # every token issued before the bump, with no denylist to maintain.
+    return jwt.encode(
+        {"sub": str(user_id), "role": role, "tv": token_version, "exp": expire},
+        _get_jwt_secret(), algorithm=ALGORITHM,
+    )
 
 
 def decode_token(token: str) -> dict | None:
@@ -78,9 +86,15 @@ async def get_current_user(
     if payload is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     db = get_cloud_db()
-    user = db.execute("SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?", (int(payload["sub"]),)).fetchone()
+    user = db.execute("SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?", (int(payload["sub"]),)).fetchone()
     if user is None or not user["is_active"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+    # A token minted before create_access_token() carried "tv" (e.g. one
+    # issued before this fix shipped) has no "tv" claim at all -- treat
+    # that as version 0 rather than erroring, so already-issued tokens
+    # for users who've never had their token_version bumped keep working.
+    if payload.get("tv", 0) != user["token_version"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked, please log in again")
     return dict(user)
 
 
@@ -148,10 +162,10 @@ async def get_current_user_or_api_key(
         if payload:
             db = get_cloud_db()
             user = db.execute(
-                "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+                "SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?",
                 (int(payload["sub"]),),
             ).fetchone()
-            if user and user["is_active"]:
+            if user and user["is_active"] and payload.get("tv", 0) == user["token_version"]:
                 return dict(user)
     if api_key:
         key_data = APIKeyManager.validate_api_key(api_key)
