@@ -78,6 +78,14 @@ CREATE TABLE IF NOT EXISTS matches (
     is_deleted          INTEGER DEFAULT 0,
     deleted_at          TIMESTAMPTZ,
     deleted_by          TEXT DEFAULT '',
+    -- No FK to users/teams: in SQLite mode the cloud auth DB and this DB
+    -- are separate files, so ownership is validated at the application
+    -- layer (api_v1.py) rather than enforced by the schema -- see
+    -- migrations/028_add_match_ownership.sql for the SQLite side and the
+    -- full rationale.
+    owner_id            INTEGER,
+    team_id             INTEGER,
+    is_shared           INTEGER DEFAULT 0,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW(),
     analyzed_at         TIMESTAMPTZ

@@ -64,6 +64,15 @@ class PostgresStorageAdapter:
             async with self._pool.acquire() as conn:
                 await conn.execute(self._SCHEMA_SQL)
             logger.info("PostgreSQL schema applied from inline DDL")
+        # CREATE TABLE IF NOT EXISTS matches(...) above is a no-op against
+        # an already-existing matches table from before match ownership
+        # was added -- ADD COLUMN IF NOT EXISTS (Postgres-only syntax)
+        # covers that upgrade path, matching the same pattern used for
+        # cloud/database.py's users.token_version.
+        async with self._pool.acquire() as conn:
+            await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS owner_id INTEGER")
+            await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_id INTEGER")
+            await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS is_shared INTEGER DEFAULT 0")
 
     async def close(self):
         if self._pool:
@@ -2025,6 +2034,7 @@ class PostgresStorageAdapter:
         analysis_json JSONB DEFAULT '{}', football_data_json JSONB DEFAULT '{}',
         apifootball_json JSONB DEFAULT '{}', bzzoiro_json JSONB DEFAULT '{}',
         is_deleted INTEGER DEFAULT 0, deleted_at TIMESTAMPTZ, deleted_by TEXT DEFAULT '',
+        owner_id INTEGER, team_id INTEGER, is_shared INTEGER DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), analyzed_at TIMESTAMPTZ
     );
     CREATE TABLE IF NOT EXISTS players (

@@ -70,7 +70,10 @@ CREATE TABLE IF NOT EXISTS matches (
     bzzoiro_competition_code TEXT, prediction_data TEXT,
     is_deleted INTEGER DEFAULT 0,
     deleted_at TEXT,
-    deleted_by TEXT
+    deleted_by TEXT,
+    owner_id INTEGER,
+    team_id INTEGER,
+    is_shared INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

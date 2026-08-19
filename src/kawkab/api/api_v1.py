@@ -47,6 +47,47 @@ def _not_found(msg: str):
     raise HTTPException(status_code=404, detail=msg)
 
 
+def _get_user_team_ids(user_id: int) -> set[int]:
+    """Team IDs *user_id* belongs to, per the cloud auth DB's team_members
+    table. Used by _check_match_access() below -- matches and users/teams
+    live in genuinely separate databases in SQLite mode, so this is a
+    deliberate cross-database lookup, not something StorageService itself
+    could resolve on its own."""
+    from kawkab.cloud.database import get_cloud_db
+    db = get_cloud_db()
+    rows = db.execute("SELECT team_id FROM team_members WHERE user_id = ?", (user_id,)).fetchall()
+    return {row["team_id"] for row in rows}
+
+
+def _check_match_access(match: dict, user: dict) -> None:
+    """Enforce match ownership: every /api/v1 route previously scoped
+    match-related queries by match_id alone, never by who the requesting
+    user is -- any authenticated user (registration is open, defaulting
+    to the analyst role) could read every match, player, event, and
+    report in the deployment. A match with owner_id=None (every match
+    created via the existing desktop pipeline, which has no per-user
+    concept at all, plus every match that existed before this check was
+    added) is treated as visible to all -- this does not retroactively
+    hide data that was previously unrestricted. A match WITH an owner is
+    visible only to that owner, or to members of the team it's been
+    explicitly shared with (is_shared + team_id, the same pattern
+    projects/share already uses).
+
+    Raises 404, not 403, for both "doesn't exist" and "exists but isn't
+    yours" -- returning 403 would confirm a match id exists to someone
+    who can't see it.
+    """
+    owner_id = match.get("owner_id")
+    if owner_id is None:
+        return
+    if owner_id == user.get("id"):
+        return
+    if match.get("is_shared") and match.get("team_id") is not None:
+        if match["team_id"] in _get_user_team_ids(user["id"]):
+            return
+    _not_found(f"Match {match.get('id')} not found")
+
+
 def _paginate(items: list, page: int, per_page: int) -> dict:
     total = len(items)
     pages = math.ceil(total / per_page) if per_page > 0 else 1
@@ -71,7 +112,14 @@ async def list_matches(
 ):
     svc = _get_storage()
     matches_list = await svc.get_all_matches()
-    matches = [MatchOut(**m) for m in matches_list]
+    team_ids = _get_user_team_ids(_user["id"])
+    visible = [
+        m for m in matches_list
+        if m.get("owner_id") is None
+        or m.get("owner_id") == _user["id"]
+        or (m.get("is_shared") and m.get("team_id") in team_ids)
+    ]
+    matches = [MatchOut(**m) for m in visible]
     return _paginate(matches, page, per_page)
 
 
@@ -81,6 +129,7 @@ async def get_match(match_id: int, _user: dict = Depends(require_permission("mat
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     return MatchOut(**match)
 
 
@@ -94,6 +143,10 @@ async def get_match_events(
     _user: dict = Depends(require_permission("event:read")),
 ):
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     if event_type:
         events = [e for e in events if e.get("type") == event_type]
@@ -118,6 +171,10 @@ async def get_match_players(
     _user: dict = Depends(require_permission("player:read")),
 ):
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     players = await svc.get_match_players(match_id)
     items = [PlayerOut(
         track_id=p.get("track_id", 0),
@@ -134,6 +191,10 @@ async def get_match_players(
 @router.get("/matches/{match_id}/analysis/shots", response_model=ShotAnalysisOut)
 async def analyze_shots(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     shots = [e for e in events if e.get("type") == "shot"]
     from kawkab.core.xg_model import compute_xg_from_dict
@@ -168,6 +229,10 @@ async def analyze_shots(match_id: int, _user: dict = Depends(require_permission(
 async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     analyzer = TacticalShapeAnalyzer()
     result = analyzer.analyze(events)
@@ -178,6 +243,10 @@ async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permi
 async def get_pressing(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.pressing_classifier import PressingClassifier
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     classifier = PressingClassifier()
     result = classifier.classify(events)
@@ -188,6 +257,10 @@ async def get_pressing(match_id: int, _user: dict = Depends(require_permission("
 async def get_match_report(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.tactical_report import TacticalReportGenerator
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     generator = TacticalReportGenerator()
     report = generator.generate(events)
@@ -200,6 +273,10 @@ async def get_match_report(match_id: int, _user: dict = Depends(require_permissi
 async def ask_llm(match_id: int, body: LlmQueryIn, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.services.llm_service import LLMService
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     context = json.dumps({"match_id": match_id, "events_count": len(events)}, indent=2)
     llm = LLMService()
@@ -213,6 +290,10 @@ async def ask_llm(match_id: int, body: LlmQueryIn, _user: dict = Depends(require
 async def get_player_ratings(match_id: int, _user: dict = Depends(require_permission("player:read"))):
     from kawkab.services.rating_service import RatingService
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     players = await svc.get_match_players(match_id)
     rating_svc = RatingService()
@@ -240,6 +321,10 @@ async def get_player_ratings(match_id: int, _user: dict = Depends(require_permis
 async def get_calibration(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.calibration import ModelCalibrator
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     calibrator = ModelCalibrator()
     report = calibrator.generate_calibration_report(events)
@@ -273,6 +358,10 @@ async def get_player_fitness(track_id: int, match_id: int = Query(..., descripti
     from kawkab.services.physical_load_service import PhysicalLoadService
     from kawkab.services.workload_service import WorkloadService
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     load_svc = PhysicalLoadService()
     load_data = load_svc.compute_load(events, player_track_id=track_id)
@@ -340,6 +429,10 @@ async def get_shortlist(_user: dict = Depends(require_permission("recruitment:re
 async def get_game_plan(match_id: int, opponent: str, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.game_plan import GamePlanGenerator
     svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     generator = GamePlanGenerator()
     plan = generator.generate(events, opponent=opponent)
@@ -418,6 +511,10 @@ async def get_coding_tags(
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     tags = svc.get_coding_tags(match_id)
     return _paginate(tags, page, per_page)
 
@@ -425,12 +522,20 @@ async def get_coding_tags(
 async def get_coding_stats(match_id: int, _user: dict = Depends(require_permission("tag:read"))):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     return svc.get_coding_tag_stats(match_id)
 
 @router.get("/matches/{match_id}/coding/tags/type/{tag_type}")
 async def get_coding_tags_by_type(match_id: int, tag_type: str, _user: dict = Depends(require_permission("tag:read"))):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     return svc.get_coding_tags_by_type(match_id, tag_type)
 
 
@@ -543,6 +648,10 @@ async def get_reports(
 ):
     from kawkab.services.storage_service import StorageService
     svc = StorageService()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
     reports = await svc.get_reports(match_id, language)
     return _paginate(reports, page, per_page)
 

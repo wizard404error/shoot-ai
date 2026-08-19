@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS matches (
     season_id INTEGER, competition TEXT, round TEXT,
     score_home INTEGER, score_away INTEGER,
     match_type TEXT DEFAULT 'unknown',
-    home_team_id INTEGER, away_team_id INTEGER
+    home_team_id INTEGER, away_team_id INTEGER,
+    owner_id INTEGER, team_id INTEGER, is_shared INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

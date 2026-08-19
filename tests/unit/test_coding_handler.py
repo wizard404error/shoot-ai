@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS matches (
     home_team_id INTEGER REFERENCES teams(id),
     away_team_id INTEGER REFERENCES teams(id),
     score_home INTEGER, score_away INTEGER,
-    season_id INTEGER, match_type TEXT DEFAULT 'unknown'
+    season_id INTEGER, match_type TEXT DEFAULT 'unknown',
+    owner_id INTEGER, team_id INTEGER, is_shared INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS coding_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

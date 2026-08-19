@@ -113,8 +113,17 @@ class StorageService:
         video_path: str,
         home_team: str | None = None,
         away_team: str | None = None,
+        owner_id: int | None = None,
     ) -> int:
-        """Save a new match and return its ID. Creates/looks up teams."""
+        """Save a new match and return its ID. Creates/looks up teams.
+
+        owner_id is None by default, matching the existing desktop
+        pipeline's calling convention (no per-user concept at all -- a
+        NULL owner is treated as "visible to everyone" by api_v1.py's
+        access checks, the same as the pre-existing behavior for every
+        match created before ownership existed). A cloud-side caller that
+        knows the requesting user's id should pass it explicitly.
+        """
         if self._conn is None:
             return 0
         home_team_id = await self.ensure_team(home_team) if home_team else None
@@ -122,10 +131,10 @@ class StorageService:
         cursor = self._conn.cursor()
         cursor.execute(
             """
-            INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (name, video_path, home_team, away_team, home_team_id, away_team_id),
+            (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id),
         )
         self._conn.commit()
         return cursor.lastrowid or 0
@@ -442,7 +451,14 @@ class StorageService:
         self._conn.commit()
 
     async def get_all_matches(self) -> list[dict]:
-        """Get all matches from the database."""
+        """Get all matches from the database.
+
+        Returns owner_id/team_id/is_shared alongside the rest so callers
+        that need to apply per-user access control (api_v1.py) can --
+        this method itself applies no such filtering, matching its
+        existing contract as a plain, unfiltered listing used by the
+        single-user desktop bridge too.
+        """
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
@@ -452,7 +468,8 @@ class StorageService:
                    duration_seconds, analyzed_at, created_at,
                    api_match_id, competition_code,
                    bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id,
-                   apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id
+                   apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id,
+                   owner_id, team_id, is_shared
             FROM matches
             WHERE (is_deleted IS NULL OR is_deleted=0)
             ORDER BY created_at DESC
@@ -462,12 +479,13 @@ class StorageService:
         return [dict(row) for row in rows]
 
     async def get_match(self, match_id: int) -> dict | None:
-        """Get a single match by ID."""
+        """Get a single match by ID. Includes owner_id/team_id/is_shared
+        so callers needing access control (api_v1.py) can apply it."""
         if self._conn is None:
             return None
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, name, video_path, duration_seconds, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
+            "SELECT id, name, video_path, duration_seconds, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data, owner_id, team_id, is_shared, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
             (match_id,),
         )
         row = cursor.fetchone()

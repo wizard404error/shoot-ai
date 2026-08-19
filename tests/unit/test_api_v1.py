@@ -76,8 +76,14 @@ class TestApiMatches:
         assert resp.status_code == 404
 
     def test_get_match_players_not_found(self):
+        # get_match_players() previously never checked the match itself
+        # existed before listing its players -- a nonexistent match_id
+        # silently returned 200 with an empty list, inconsistent with
+        # test_get_match_not_found just above (same fake id, correctly
+        # 404). Fixed as part of adding match-ownership checks (every
+        # match-scoped route now fetches and validates the match first).
         resp = client.get("/api/v1/matches/999999/players", headers=_analyst_headers())
-        assert resp.status_code == 200
+        assert resp.status_code == 404
 
 
 class TestApiModelComparison:
@@ -154,7 +160,39 @@ class TestApiRecruitment:
 
 class TestApiGamePlan:
     def test_game_plan(self):
-        resp = client.get("/api/v1/game-plan/1/vs/Barcelona", headers=_analyst_headers())
+        # get_game_plan() previously never checked the match existed
+        # before generating a plan for it -- this test relied on match
+        # id 1 happening to already exist in whatever ambient local DB
+        # _get_storage() resolves to, which is what let it pass before
+        # match-ownership checks required a real match record. Create one
+        # explicitly instead of assuming pre-existing state.
+        import asyncio
+        import sqlite3
+        from pathlib import Path
+        from kawkab.core.migration_manager import MigrationManager
+        from kawkab.api.api_v1 import _get_storage
+        svc = _get_storage()
+        if svc._conn is None:
+            # _get_storage()'s module-level singleton is never initialized
+            # anywhere else in this test file either -- every other test
+            # that reads via it (e.g. test_list_matches) has been passing
+            # against an empty, uninitialized store, not real data.
+            # Point it at a scratch DB rather than the real ~/KawkabAI
+            # database this process would otherwise share with an actual
+            # desktop app install. Migrated and connected manually (not
+            # via svc.initialize()) with check_same_thread=False: this
+            # connection is created here on the test's own thread, but
+            # TestClient runs the app -- and every subsequent request
+            # using this same singleton -- on its own dedicated thread.
+            scratch_db = Path(tempfile.gettempdir()) / f"kawkab_test_api_v1_storage_{os.getpid()}.db"
+            MigrationManager(scratch_db, Path("src/kawkab/migrations")).migrate()
+            svc._db_path = scratch_db
+            svc._conn = sqlite3.connect(str(scratch_db), check_same_thread=False)
+            svc._conn.row_factory = sqlite3.Row
+        match_id = asyncio.run(svc.save_match(name="Game Plan Test Match", video_path="gameplan_test.mp4"))
+        assert match_id != 0, "save_match returned 0 -- storage not initialized?"
+
+        resp = client.get(f"/api/v1/game-plan/{match_id}/vs/Barcelona", headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
         assert "opponent" in data
