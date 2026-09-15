@@ -26,6 +26,10 @@ class SecurityValidator:
     # Allowed video file extensions
     ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
 
+    # Allowed data-file extensions for vendor imports (elite interop path):
+    # event/tracking feeds arrive as JSON, XML (Opta/EPTS), or CSV (Metrica)
+    ALLOWED_DATA_EXTENSIONS = {".json", ".xml", ".csv"}
+
     # Max file size (2 GB)
     MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024
 
@@ -99,6 +103,77 @@ class SecurityValidator:
                 f"Path traversal denied: {resolved} is not within {docs}. "
                 f"Only files in the KawkabAI videos directory are allowed."
             )
+
+        return resolved
+
+    @staticmethod
+    def validate_data_file_path(file_path: str | Path) -> Path:
+        """Validate a vendor data-file path (JSON/XML/CSV) for safety.
+
+        Same protections as validate_video_path (allowlist directory,
+        extension allowlist, traversal denial) but for the data feeds the
+        vendor-import endpoints consume. Kept separate from
+        validate_video_path so neither allowlist is silently widened.
+
+        Note: the StatsBomb import endpoint previously called
+        validate_video_path on .json feeds — every local-file StatsBomb
+        import was rejected with "Unsupported file type" before this
+        validator existed.
+        """
+        path = Path(file_path)
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid path: {file_path}") from e
+
+        if resolved.suffix.lower() not in SecurityValidator.ALLOWED_DATA_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported data file type: {resolved.suffix}. "
+                f"Allowed: {', '.join(sorted(SecurityValidator.ALLOWED_DATA_EXTENSIONS))}"
+            )
+
+        from kawkab.core.paths import get_paths
+        docs = get_paths().documents.resolve()
+        try:
+            resolved.relative_to(docs)
+        except ValueError:
+            logger.error(f"Data file outside KawkabAI directory: {resolved}")
+            raise ValueError(
+                f"Path traversal denied: {resolved} is not within {docs}. "
+                f"Only files in the KawkabAI directory are allowed."
+            )
+
+        return resolved
+
+    @staticmethod
+    def validate_directory_path(dir_path: str | Path) -> Path:
+        """Validate a vendor data *directory* for season-scale imports.
+
+        Same protections as validate_data_file_path (documents-dir
+        allowlist, traversal denial) but for directories: no extension
+        check (a directory has none) plus an explicit must-be-a-dir
+        check. Kept separate so the file-validator semantics are not
+        silently widened to accept directories.
+        """
+        path = Path(dir_path)
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid path: {dir_path}") from e
+
+        from kawkab.core.paths import get_paths
+        docs = get_paths().documents.resolve()
+        try:
+            resolved.relative_to(docs)
+        except ValueError:
+            logger.error(f"Directory outside KawkabAI directory: {resolved}")
+            raise ValueError(
+                f"Path traversal denied: {resolved} is not within {docs}. "
+                f"Only directories in the KawkabAI directory are allowed."
+            )
+
+        if not resolved.is_dir():
+            raise ValueError(f"not a directory: {resolved}")
 
         return resolved
 

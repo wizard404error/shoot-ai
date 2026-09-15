@@ -17,7 +17,11 @@ class TestPostgresStorageAdapter:
     def test_not_available_without_dsn(self, adapter):
         assert adapter.available is False
 
-    def test_initialize_no_dsn(self, adapter):
+    def test_initialize_no_dsn(self, adapter, monkeypatch):
+        # Hermetic: this test must pass even when the suite runs WITH
+        # KAWKAB_DB_URL exported (opt-in PG mode) -- it pins the "no DSN
+        # -> not available" contract, so the env var is removed locally.
+        monkeypatch.delenv("KAWKAB_DB_URL", raising=False)
         import asyncio
         asyncio.run(adapter.initialize())
         assert adapter.available is False
@@ -82,8 +86,8 @@ class TestPostgresStorageAdapter:
 
 
 @pytest.mark.skipif(
-    not os.environ.get("KAWKAB_DB_URL"),
-    reason="KAWKAB_DB_URL not set — integration tests skipped",
+    not (os.environ.get("KAWKAB_DB_URL") and os.environ.get("KAWKAB_PG_TESTS") == "1"),
+    reason="set KAWKAB_DB_URL + KAWKAB_PG_TESTS=1 to run against a real Postgres — integration tests skipped",
 )
 class TestPostgresStorageIntegration:
     @pytest.fixture
@@ -153,7 +157,9 @@ class TestPostgresStorageIntegration:
 
         saved = await pg.get_match_events(mid)
         assert len(saved) >= 2
-        types = {e["type"] for e in saved}
+        # Adapter contract matches SQLite: rows expose `event_type` (the
+        # column name), not `type`.
+        types = {e["event_type"] for e in saved}
         assert "pass" in types
         assert "shot" in types
 
@@ -307,3 +313,64 @@ class TestPostgresStorageIntegration:
         await pg.save_player_profile({"track_id": 201, "height_cm": 180, "weight_kg": 75})
         all_profiles = await pg.get_all_player_profiles()
         assert isinstance(all_profiles, list)
+
+    # ── Elite-readiness behavioral round-trips (migration 031 path) ────────
+
+    async def test_external_id_roundtrip(self, pg):
+        """register -> lookup -> idempotent re-register on a REAL Postgres."""
+        mid = await pg.save_match("ExtID Match", "/videos/extid.mp4")
+        try:
+            created = await pg.register_match_external_id(mid, "statsbomb", "rt-777")
+            assert created is True
+            found = await pg.get_match_by_external_id("statsbomb", "rt-777")
+            assert found == mid
+            # Re-register must NOT create a second mapping
+            again = await pg.register_match_external_id(mid, "statsbomb", "rt-777")
+            assert again is False
+            assert await pg.get_match_by_external_id("statsbomb", "rt-777") == mid
+            assert await pg.get_match_by_external_id("statsbomb", "missing") is None
+        finally:
+            await pg.execute("DELETE FROM matches WHERE id = $1", mid)
+
+    async def test_update_match_context_roundtrip(self, pg):
+        mid = await pg.save_match("Ctx Match", "/videos/ctx.mp4")
+        try:
+            await pg.update_match_context(
+                mid, competition="LaLiga", season_id=42, match_date="2026-08-15"
+            )
+            row = await pg.fetchrow(
+                "SELECT competition, season_id, match_date::date AS d FROM matches WHERE id = $1",
+                mid,
+            )
+            assert row["competition"] == "LaLiga"
+            assert row["season_id"] == 42
+            assert str(row["d"]) == "2026-08-15"
+            # Partial update must not clobber the other columns
+            await pg.update_match_context(mid, competition="Copa del Rey")
+            row = await pg.fetchrow(
+                "SELECT competition, season_id FROM matches WHERE id = $1", mid
+            )
+            assert row["competition"] == "Copa del Rey"
+            assert row["season_id"] == 42
+        finally:
+            await pg.execute("DELETE FROM matches WHERE id = $1", mid)
+
+    async def test_tracking_import_roundtrip(self, pg):
+        mid = await pg.save_match("TrackImport Match", "/videos/ti.mp4")
+        try:
+            iid = await pg.save_tracking_import(
+                mid, "skillcorner",
+                source_path="/tmp/sc.json", checksum="abc",
+                fps=10.0, frame_count=150000,
+                pitch_length_m=105.0, pitch_width_m=68.0,
+                metadata={"detection_rate": 0.97},
+            )
+            assert iid > 0
+            rows = await pg.get_tracking_imports(mid)
+            assert len(rows) == 1
+            rec = rows[0]
+            assert rec["vendor"] == "skillcorner"
+            assert rec["frame_count"] == 150000
+            assert rec["metadata"]["detection_rate"] == 0.97
+        finally:
+            await pg.execute("DELETE FROM matches WHERE id = $1", mid)

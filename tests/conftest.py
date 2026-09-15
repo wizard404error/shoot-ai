@@ -190,8 +190,11 @@ def _make_migration_manager_stub() -> types.ModuleType:
     return mod
 
 def install_kawkab_stubs() -> None:
-    # Isolate from PostgreSQL — all tests use SQLite
-    os.environ.pop("KAWKAB_DB_URL", None)
+    # Isolate from PostgreSQL — all tests use SQLite by default.
+    # Opt in to the real-Postgres integration tests by setting BOTH
+    # KAWKAB_DB_URL and KAWKAB_PG_TESTS=1 (see test_postgres_storage.py).
+    if os.environ.get("KAWKAB_PG_TESTS") != "1":
+        os.environ.pop("KAWKAB_DB_URL", None)
 
     install_loguru_stub()
     install_httpx_stub()

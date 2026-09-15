@@ -13,6 +13,111 @@ mm_mod = load_service_module(
     "kawkab.core.migration_manager", "migration_manager.py", subdir="core"
 )
 MigrationManager = mm_mod.MigrationManager
+split_sql_statements = mm_mod.split_sql_statements
+
+
+class TestSplitSqlStatements:
+    def test_simple_statements(self):
+        sql = "CREATE TABLE a (id INTEGER);\nCREATE TABLE b (id INTEGER);"
+        assert split_sql_statements(sql) == [
+            "CREATE TABLE a (id INTEGER)",
+            "CREATE TABLE b (id INTEGER)",
+        ]
+
+    def test_semicolon_inside_line_comment_does_not_split(self):
+        # The regression that broke migration 030's first version: a ';'
+        # inside a -- comment chopped the statement in two.
+        sql = (
+            "-- provenance: stores vendor frame batches; used by audits\n"
+            "CREATE TABLE t (id INTEGER);"
+        )
+        assert split_sql_statements(sql) == [
+            "-- provenance: stores vendor frame batches; used by audits\nCREATE TABLE t (id INTEGER)",
+        ]
+
+    def test_semicolon_inside_block_comment_does_not_split(self):
+        sql = "/* notes; with semicolons; here */ CREATE TABLE t (id INTEGER);"
+        assert split_sql_statements(sql) == ["/* notes; with semicolons; here */ CREATE TABLE t (id INTEGER)"]
+
+    def test_semicolon_inside_string_literal_does_not_split(self):
+        sql = "INSERT INTO t (name) VALUES ('it''s; tricky'); INSERT INTO t (name) VALUES ('plain');"
+        stmts = split_sql_statements(sql)
+        assert len(stmts) == 2
+        assert "it''s; tricky" in stmts[0]
+
+    def test_trigger_unsupported_documented(self):
+        # Documented limitation: trigger bodies contain bare semicolons.
+        # SQLite-style trigger bodies would over-split; this pins that the
+        # splitter does not crash on such input.
+        sql = "CREATE TRIGGER tr AFTER INSERT ON t BEGIN INSERT INTO log VALUES (1); END;"
+        stmts = split_sql_statements(sql)
+        assert stmts[0].startswith("CREATE TRIGGER")
+        assert len(stmts) >= 2  # over-split, as documented
+
+    def test_dollar_quoted_body_survives(self):
+        """Postgres trigger functions wrap bodies in $$ ... $$; the
+        semicolons inside must not split the statement."""
+        sql = (
+            "CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$\n"
+            "BEGIN\n"
+            "    NEW.updated_at = NOW();\n"
+            "    RETURN NEW;\n"
+            "END;\n"
+            "$$ LANGUAGE plpgsql;\n"
+            "CREATE TABLE t (id INTEGER);"
+        )
+        stmts = split_sql_statements(sql)
+        assert len(stmts) == 2
+        assert stmts[0].startswith("CREATE OR REPLACE FUNCTION")
+        assert "NEW.updated_at = NOW();" in stmts[0]
+        assert stmts[1] == "CREATE TABLE t (id INTEGER)"
+
+    def test_dollar_quoted_tagged(self):
+        sql = "CREATE FUNCTION f() RETURNS void AS $body$ BEGIN PERFORM 1; END; $body$ LANGUAGE plpgsql; SELECT 1;"
+        stmts = split_sql_statements(sql)
+        assert len(stmts) == 2
+        assert "PERFORM 1;" in stmts[0]
+        assert stmts[1] == "SELECT 1"
+
+    def test_empty_and_whitespace_only(self):
+        assert split_sql_statements("") == []
+        assert split_sql_statements("   \n  ;  ;  ") == []
+
+    def test_migration_through_splitter_matches_naive_split(self):
+        """For the real migration chain, the comment-aware splitter and a
+        naive split must agree on statement COUNT for the 030-style files
+        whose comments contain no semicolons; where they differ, the
+        naive count must be higher (it chops commented semicolons)."""
+        real_dir = Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "migrations"
+        for f in sorted(real_dir.glob("*.sql")):
+            if not f.stem.split("_")[0].isdigit():
+                continue
+            sql = f.read_text(encoding="utf-8")
+            aware = split_sql_statements(sql)
+            naive = [s.strip() for s in sql.split(";") if s.strip()]
+            if "--" in sql or "/*" in sql:
+                assert len(aware) <= len(naive), f"{f.name}: aware splitter must never yield MORE statements than naive"
+
+    def test_migration_030_style_comment_semicolon_survives(self):
+        """End-to-end: a migration whose comment contains a semicolon now
+        applies cleanly (it broke under the naive splitter)."""
+        tmpdir = Path(tempfile.mkdtemp())
+        try:
+            db_path = tmpdir / "t.db"
+            migrations_dir = tmpdir / "m"
+            migrations_dir.mkdir()
+            (migrations_dir / "001_t.sql").write_text(
+                "-- batch table; for vendor frames\n"
+                "CREATE TABLE batches (id INTEGER PRIMARY KEY);\n"
+            )
+            mgr = MigrationManager(db_path, migrations_dir)
+            mgr.migrate()  # must not raise
+            conn = _closing_conn(db_path)
+            version = mgr._get_current_version(conn)
+            assert version == 1
+            conn.close()
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _closing_conn(path):

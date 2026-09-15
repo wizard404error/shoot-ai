@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS matches (
     analyzed_at         TIMESTAMPTZ
 );
 
+DROP TRIGGER IF EXISTS trg_matches_updated_at ON matches;
 CREATE TRIGGER trg_matches_updated_at
     BEFORE UPDATE ON matches FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -234,6 +235,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_player_profiles_updated_at ON player_profiles;
 CREATE TRIGGER trg_player_profiles_updated_at
     BEFORE UPDATE ON player_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -646,6 +648,7 @@ CREATE TABLE IF NOT EXISTS wearable_sessions (
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_wearable_sessions_updated_at ON wearable_sessions;
 CREATE TRIGGER trg_wearable_sessions_updated_at
     BEFORE UPDATE ON wearable_sessions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -666,6 +669,7 @@ CREATE TABLE IF NOT EXISTS injuries (
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_injuries_updated_at ON injuries;
 CREATE TRIGGER trg_injuries_updated_at
     BEFORE UPDATE ON injuries FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -751,7 +755,9 @@ CREATE INDEX IF NOT EXISTS idx_matches_deleted ON matches(is_deleted);
 -- events
 CREATE INDEX IF NOT EXISTS idx_events_match ON events(match_id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-CREATE INDEX IF NOT EXISTS idx_events_dedup ON events(match_id, timestamp, event_type, from_track_id);
+-- UNIQUE mirrors SQLite migration 015: save_events_bulk's ON CONFLICT
+-- (match_id, timestamp, event_type, from_track_id) requires it.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_dedup ON events(match_id, timestamp, event_type, from_track_id);
 CREATE INDEX IF NOT EXISTS idx_events_deleted ON events(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_events_match_type ON events(match_id, event_type);
 CREATE INDEX IF NOT EXISTS idx_events_match_time ON events(match_id, timestamp);
@@ -905,33 +911,174 @@ ALTER TABLE IF EXISTS collab_comments ENABLE ROW LEVEL SECURITY;
 --       away_team = current_setting('app.tenant_team')
 --     );
 
-CREATE POLICY IF NOT EXISTS all_access ON matches
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON events
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON players
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON player_profiles
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON reports
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON coding_tags
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON player_shortlist
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON player_contracts
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON injuries
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON concussion_assessments
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON medical_history
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON wearable_sessions
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON tracking_frames
-    FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS all_access ON collab_comments
-    FOR ALL USING (true);
+-- 'CREATE POLICY IF NOT EXISTS' is not valid Postgres syntax; the
+-- idempotent pattern is DROP IF EXISTS then CREATE, run in one DO block.
+DO $$
+DECLARE t text;
+BEGIN
+    FOREACH t IN ARRAY ARRAY[
+        'matches', 'events', 'players', 'player_profiles', 'reports',
+        'coding_tags', 'player_shortlist', 'player_contracts', 'injuries',
+        'concussion_assessments', 'medical_history', 'wearable_sessions',
+        'tracking_frames', 'collab_comments'
+    ]
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS all_access ON %I', t);
+        EXECUTE format('CREATE POLICY all_access ON %I FOR ALL USING (true)', t);
+    END LOOP;
+END
+$$;
+
+-- ── 43. tracking_imports (elite interop: vendor tracking provenance) ────
+CREATE TABLE IF NOT EXISTS tracking_imports (
+    id SERIAL PRIMARY KEY,
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    vendor TEXT NOT NULL,
+    source_path TEXT NOT NULL DEFAULT '',
+    checksum TEXT NOT NULL DEFAULT '',
+    fps DOUBLE PRECISION,
+    frame_count INTEGER NOT NULL DEFAULT 0,
+    pitch_length_m DOUBLE PRECISION,
+    pitch_width_m DOUBLE PRECISION,
+    coordinate_system TEXT NOT NULL DEFAULT 'kawkab_meters',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    imported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_tracking_imports_match ON tracking_imports(match_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_imports_checksum ON tracking_imports(match_id, vendor, checksum);
+
+-- ── 44. event_frame_links (event<->frame alignment bridge) ─────────────
+CREATE TABLE IF NOT EXISTS event_frame_links (
+    id SERIAL PRIMARY KEY,
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    frame_number INTEGER NOT NULL,
+    frame_offset INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(match_id, event_id, frame_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_frame_links_match ON event_frame_links(match_id);
+CREATE INDEX IF NOT EXISTS idx_event_frame_links_event ON event_frame_links(event_id);
+
+-- ── 45. users / sessions / local audit (mirrors SQLite migration 027) ──
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT,
+    display_name TEXT DEFAULT '',
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'analyst',
+    team TEXT DEFAULT '',
+    is_active INTEGER DEFAULT 1,
+    is_locked INTEGER DEFAULT 0,
+    failed_attempts INTEGER DEFAULT 0,
+    locked_until TEXT,
+    must_reset_password INTEGER DEFAULT 0,
+    last_login TEXT,
+    created_at TEXT DEFAULT (TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')),
+    updated_at TEXT DEFAULT (TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT (TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pg_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_pg_sessions_token ON user_sessions(token_hash);
+
+CREATE TABLE IF NOT EXISTS audit_events_local (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    username TEXT,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    details TEXT DEFAULT '{}',
+    ip_address TEXT,
+    created_at TEXT DEFAULT (TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pg_audit_user ON audit_events_local(user_id);
+CREATE INDEX IF NOT EXISTS idx_pg_audit_action ON audit_events_local(action);
+CREATE INDEX IF NOT EXISTS idx_pg_audit_time ON audit_events_local(created_at);
+
+-- ── 46. GPS / ACWR (mirrors SQLite migration 026) ──────────────────────
+CREATE TABLE IF NOT EXISTS gps_sessions (
+    id SERIAL PRIMARY KEY,
+    match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+    player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+    session_type TEXT NOT NULL DEFAULT 'match',
+    vendor TEXT NOT NULL DEFAULT 'catapult',
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    duration_seconds DOUBLE PRECISION,
+    total_distance_m DOUBLE PRECISION,
+    max_speed_kmh DOUBLE PRECISION,
+    avg_speed_kmh DOUBLE PRECISION,
+    player_load DOUBLE PRECISION,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS gps_samples (
+    id SERIAL PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES gps_sessions(id) ON DELETE CASCADE,
+    timestamp DOUBLE PRECISION NOT NULL,
+    lat DOUBLE PRECISION,
+    lon DOUBLE PRECISION,
+    speed_ms DOUBLE PRECISION,
+    acceleration DOUBLE PRECISION,
+    accel_x DOUBLE PRECISION,
+    accel_y DOUBLE PRECISION,
+    accel_z DOUBLE PRECISION,
+    heart_rate INTEGER,
+    distance DOUBLE PRECISION,
+    player_load DOUBLE PRECISION,
+    metabolic_power DOUBLE PRECISION,
+    speed_zone INTEGER,
+    x_m DOUBLE PRECISION,
+    y_m DOUBLE PRECISION
+);
+
+CREATE INDEX IF NOT EXISTS idx_pg_gps_samples_session ON gps_samples(session_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_pg_gps_sessions_match ON gps_sessions(match_id);
+CREATE INDEX IF NOT EXISTS idx_pg_gps_sessions_player ON gps_sessions(player_id);
+
+CREATE TABLE IF NOT EXISTS acwr_daily (
+    id SERIAL PRIMARY KEY,
+    player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    acute_load_7d DOUBLE PRECISION,
+    chronic_load_28d DOUBLE PRECISION,
+    acwr DOUBLE PRECISION,
+    load_category TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(player_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pg_acwr_player_date ON acwr_daily(player_id, date);
+
+-- Migration 031: match external-ID registry (season-scale vendor imports).
+-- UNIQUE(source, external_id) makes vendor re-import dedup a lookup.
+CREATE TABLE IF NOT EXISTS matches_external_ids (
+    id SERIAL PRIMARY KEY,
+    match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    source TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source, external_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_matches_external_ids_match ON matches_external_ids(match_id);
+CREATE INDEX IF NOT EXISTS idx_matches_competition ON matches(competition);
+CREATE INDEX IF NOT EXISTS idx_matches_season ON matches(season_id);
 
 COMMIT;

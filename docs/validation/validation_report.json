@@ -1,0 +1,247 @@
+{
+  "generated_at": "2026-09-15T06:50:28.700552+00:00",
+  "corpus_dir": "data/statsbomb_corpus",
+  "sections": [
+    {
+      "name": "model_cards",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "registered": 17,
+        "cards": [
+          {
+            "name": "xG",
+            "version": "2.0.0",
+            "model_type": "Logistic Regression (heuristic coefficients)",
+            "training_data": "StatsBomb-like distribution \u2014 coefficients hand-tuned to approximate published xG models",
+            "test_count": 29,
+            "known_limitations": 4
+          },
+          {
+            "name": "xT",
+            "version": "2.0.0",
+            "model_type": "Grid valuation (20\u00d732 zones with calibrated values)",
+            "training_data": "StatsBomb event data \u2014 calibrated zone values from published methodology",
+            "test_count": 165,
+            "known_limitations": 3
+          },
+          {
+            "name": "VAEP",
+            "version": "2.0.0",
+            "model_type": "Spatiotemporal probability estimation with player-relative features",
+            "training_data": "Self-generated from tracking data \u2014 post_score_prob recalculated from next event",
+            "test_count": 77,
+            "known_limitations": 3
+          },
+          {
+            "name": "Pitch Control",
+            "version": "2.0.0",
+            "model_type": "Voronoi tessellation + RK4 ball trajectory",
+            "training_data": "Theoretical model \u2014 no training data required",
+            "test_count": 41,
+            "known_limitations": 3
+          },
+          {
+            "name": "Win Probability",
+            "version": "1.0.0",
+            "model_type": "Monte Carlo (10,000 simulations, Poisson goal generation)",
+            "training_data": "No external training \u2014 Poisson assumption with team xG rates",
+            "test_count": 6,
+            "known_limitations": 3
+          },
+          {
+            "name": "Injury Risk",
+            "version": "1.0.0",
+            "model_type": "Heuristic with ACWR threshold bands",
+            "training_data": "Hulin & Gabbett published reference models \u2014 not fitted on own data",
+            "test_count": 12,
+            "known_limitations": 3
+          },
+          {
+            "name": "Formation Analysis",
+            "version": "1.0.0",
+            "model_type": "K-means (k=10) with silhouette scoring for optimal k",
+            "training_data": "No training data \u2014 unsupervised clustering on match positions",
+            "test_count": 11,
+            "known_limitations": 3
+          },
+          {
+            "name": "PSxG",
+            "version": "2.0.0",
+            "model_type": "Logistic regression (trained) with hand-tuned fallback",
+            "training_data": "Fitted from 2,768 StatsBomb open-data on-target shots (2026-09-07); heuristic fallback otherwise",
+            "test_count": 0,
+            "known_limitations": 3
+          },
+          {
+            "name": "xA",
+            "version": "1.0.0",
+            "model_type": "xG application to shot-assisting passes",
+            "training_data": "Reuses the StatsBomb-trained xG model on the shot the pass created",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "PPDA",
+            "version": "1.0.0",
+            "model_type": "Ratio computation over opponent passes vs own defensive actions",
+            "training_data": "No training data \u2014 definitional metric",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "Pass Network",
+            "version": "1.0.0",
+            "model_type": "Weighted directed graph + centrality algorithms",
+            "training_data": "No training data \u2014 graph construction from completed passes",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "Goals Added",
+            "version": "1.0.0",
+            "model_type": "Zone-transition value tables per action type",
+            "training_data": "Zone values derived from league-average transition outcomes (StatsBomb-corpus-calibrated)",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "OBV",
+            "version": "1.0.0",
+            "model_type": "Pre/post-action possession-value differential (VAEP family)",
+            "training_data": "Self-generated from tracking/event streams \u2014 post-action value from the following state",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "EPV",
+            "version": "1.0.0",
+            "model_type": "Pitch-grid value surface driven by ball position and control",
+            "training_data": "Reference surface calibrated from StatsBomb-corpus possession outcomes",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "Momentum",
+            "version": "1.0.0",
+            "model_type": "Time-weighted action aggregation",
+            "training_data": "No training data \u2014 weighted aggregation of match actions",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "Progressive Actions",
+            "version": "1.0.0",
+            "model_type": "Ratio-of-remaining-distance + attacking-third zone rule (StatsBomb-style)",
+            "training_data": "No training data \u2014 definitional rule from game_constants.py",
+            "test_count": 0,
+            "known_limitations": 2
+          },
+          {
+            "name": "Set Piece xT",
+            "version": "1.0.0",
+            "model_type": "xT grid applied to set-piece end locations with delivery-type priors",
+            "training_data": "xT reference grid trained on StatsBomb corpus (297 matches)",
+            "test_count": 0,
+            "known_limitations": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "xg_calibration",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "n_shots": 128,
+        "n_matches": 5,
+        "brier": 0.0874,
+        "roc_auc": 0.7717,
+        "mae_vs_statsbomb_xg": 0.0489,
+        "mean_predicted_xg": 0.1063,
+        "mean_actual_goal_rate": 0.1172
+      }
+    },
+    {
+      "name": "psxg_calibration",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "n_shots": 114,
+        "brier": 0.0768
+      }
+    },
+    {
+      "name": "xt_grid",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "shape": [
+          20,
+          32
+        ],
+        "min": 0.0134,
+        "max": 0.8966,
+        "all_nonnegative": true,
+        "max_in_attacking_third": true
+      }
+    },
+    {
+      "name": "pitch_control",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "frames_evaluated": 80,
+        "avg_home_control_pct": 42.2903,
+        "avg_away_control_pct": 57.7097,
+        "sums_to_100": 100.0,
+        "all_in_percent_range": true,
+        "home_third_control_pct": 85.9349,
+        "away_third_control_pct": 3.0167
+      }
+    },
+    {
+      "name": "ball_recovery",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "recovery_events": 248,
+        "home_recoveries": 135,
+        "away_recoveries": 113,
+        "home_zones_used": 25,
+        "away_zones_used": 24,
+        "recoveries_leading_to_shot": 13,
+        "zones_spread": true
+      }
+    },
+    {
+      "name": "carry_xt",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "carries": 265,
+        "home_total_xt": 0.0,
+        "away_total_xt": 0.5108,
+        "home_progressive": 0,
+        "away_progressive": 2,
+        "xt_nonnegative": true
+      }
+    },
+    {
+      "name": "physical_load",
+      "status": "evaluated",
+      "reason": "",
+      "metrics": {
+        "players": 22,
+        "window_seconds": 79.8,
+        "median_avg_speed_mps": 2.42,
+        "within_sanity_band_1p8_2p6_mps": true
+      }
+    }
+  ],
+  "summary": {
+    "sections_evaluated": 8,
+    "sections_skipped": 0,
+    "model_cards_registered": 17
+  }
+}

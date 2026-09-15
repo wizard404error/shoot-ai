@@ -18,8 +18,11 @@ from kawkab.ui.bridge_handlers import (
     CodingHandler,
     ExportHandler,
     ExternalHandler,
+    ImportHandler,
     LifecycleHandler,
     ProviderHandler,
+    ProAnalyticsHandler,
+    SeasonAnalyticsHandler,
     StorageHandler,
     VideoHandler,
 )
@@ -39,6 +42,7 @@ class Bridge(QObject):
     analysisError = Signal(str)
     matchSaved = Signal(int)
     calibrationSaved = Signal(int, dict)
+    importProgress = Signal(float, str)  # season import: files done, current file
 
     def __init__(
         self,
@@ -156,6 +160,34 @@ class Bridge(QObject):
         self._lifecycle = LifecycleHandler(self, services, rate_limiter=self._rate_limiter)
         self._auth = AuthHandler(self, services, rate_limiter=self._rate_limiter)
         self._provider = ProviderHandler(self, services, rate_limiter=self._rate_limiter)
+        self._pro_analytics = ProAnalyticsHandler(self, services, rate_limiter=self._rate_limiter)
+        self._season_analytics = SeasonAnalyticsHandler(self, services, rate_limiter=self._rate_limiter)
+        self._import = ImportHandler(self, services, rate_limiter=self._rate_limiter)
+
+    # ================================================================
+    # Vendor data import (season / tracking / events)
+    # ================================================================
+
+    @Slot(str, str, int, int, result=str)
+    async def import_season_directory(self, directory: str, competition: str = "", season_id: int = 0, max_matches: int = 0) -> str:
+        return await self._import.import_season_directory(
+            directory, competition,
+            season_id=season_id or None,
+            max_matches=max_matches or None,
+        )
+
+    @Slot(str, str, str, str, str, str, result=str)
+    async def import_tracking_file(self, path: str, vendor: str = "", away_csv: str = "", match_name: str = "", home_team: str = "", away_team: str = "") -> str:
+        return await self._import.import_tracking_file(
+            path, vendor, away_csv, match_name, home_team, away_team,
+        )
+
+    @Slot(str, str, str, str, str, result=str)
+    async def import_event_file(self, path: str, f7_path: str = "", match_name: str = "", home_team: str = "", away_team: str = "") -> str:
+        return await self._import.import_event_file(
+            path, f7_path, match_name, home_team, away_team,
+        )
+
 
         logger.info("Bridge initialized with handler delegation")
 
@@ -1084,6 +1116,19 @@ class Bridge(QObject):
     @Slot(str, result=str)
     async def get_pressing_report(self, match_id: str) -> str:
         return await self._analysis.get_pressing_report(match_id)
+
+    @Slot(int, result=str)
+    async def get_pro_analytics_report(self, match_id: int) -> str:
+        """Aggregated elite-analytics report (OBV, EPV, pass flow, pressing
+        clusters, duels, ball recovery, box entries, switches, crossing, set
+        pieces, through balls, off-ball) with honest data_available flags."""
+        return await self._pro_analytics.get_pro_analytics_report(match_id)
+
+    @Slot(result=str)
+    async def get_season_pro_report(self) -> str:
+        """Cross-match season analytics: formation trends, discipline/suspension
+        risk, fixture difficulty over the stored match list."""
+        return await self._season_analytics.get_season_pro_report()
 
     # ================================================================
     # Wave E — Scout Portal

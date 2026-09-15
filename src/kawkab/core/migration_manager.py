@@ -9,12 +9,86 @@ Migration files: src/kawkab/migrations/001_initial.sql, 002_add_seasons.sql, etc
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def split_sql_statements(sql: str) -> list[str]:
+    """Split a SQL script into individual statements, comment- and
+    string-literal-aware.
+
+    A naive ``sql.split(";")`` corrupts any script containing a semicolon
+    inside a ``--`` line comment, a ``/* ... */`` block comment, or a
+    string literal ('it''s; here' with SQLite's doubled-quote escaping):
+    the semicolon chops one real statement into two broken ones. This
+    scanner treats those regions as opaque, so a ``;`` there never splits.
+    Postgres dollar-quoted bodies (``$$ ... $$``, e.g. trigger functions)
+    are also treated as opaque, which is what lets a function body full of
+    semicolons survive as ONE statement.
+
+    Scope note: this is NOT a full SQLite parser. ``CREATE TRIGGER ...
+    BEGIN ... END;`` bodies still contain bare semicolons and are not
+    supported (no migration file in this project uses one -- if that
+    changes, this function needs to grow trigger-body awareness).
+    """
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        nxt = sql[i + 1] if i + 1 < n else ""
+        if ch == "-" and nxt == "-":  # line comment: opaque until newline
+            j = sql.find("\n", i)
+            j = n if j == -1 else j
+            buf.append(sql[i:j])
+            i = j
+        elif ch == "/" and nxt == "*":  # block comment: opaque until */
+            j = sql.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+            buf.append(sql[i:j])
+            i = j
+        elif ch == "$":  # Postgres dollar-quoted body ($$...$$ or $tag$...$tag$)
+            m = re.match(r"\$[A-Za-z_]*\$", sql[i:])
+            if m:
+                tag = m.group(0)
+                j = sql.find(tag, i + len(tag))
+                j = n if j == -1 else j + len(tag) - 1
+                buf.append(sql[i : j + 1])
+                i = j + 1
+            else:
+                buf.append(ch)
+                i += 1
+        elif ch == "'" or ch == '"':  # string literal / quoted identifier
+            quote = ch
+            j = i + 1
+            while j < n:
+                if sql[j] == quote:
+                    if j + 1 < n and sql[j + 1] == quote:  # doubled = escaped
+                        j += 2
+                        continue
+                    break
+                j += 1
+            buf.append(sql[i : j + 1])
+            i = j + 1
+        elif ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+        else:
+            buf.append(ch)
+            i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
 
 
 class MigrationManager:
@@ -89,13 +163,12 @@ class MigrationManager:
         TABLE that had already succeeded. The app was permanently bricked
         with no rollback path.
 
-        Statements are now split and executed individually inside a
-        manual transaction (conn.isolation_level = None -- see below).
-        Splitting on ";" is safe here specifically because none of the
-        numbered migration files use CREATE TRIGGER or other constructs
-        with semicolons inside a statement body (verified before writing
-        this); a migrations directory that gained one would need a real
-        SQL-aware splitter instead.
+        Statements are split by split_sql_statements() (comment- and
+        string-literal-aware -- a ";" inside a comment or literal no
+        longer splits a statement in two) and executed individually
+        inside a manual transaction (conn.isolation_level = None -- see
+        below). Trigger bodies (CREATE TRIGGER ... BEGIN ... END;) remain
+        unsupported; no migration file in this project uses one.
         """
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
@@ -114,7 +187,7 @@ class MigrationManager:
                 if version > current:
                     sql = file.read_text(encoding="utf-8")
                     logger.info(f"Applying migration {version}: {file.name}")
-                    statements = [s.strip() for s in sql.split(";") if s.strip()]
+                    statements = split_sql_statements(sql)
                     conn.execute("BEGIN")
                     try:
                         for stmt in statements:

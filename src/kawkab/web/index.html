@@ -128,6 +128,7 @@
             <a href="#tactics-report-section" class="nav-item" data-section="tactics-report-section">Report</a>
             <a href="#game-plan-section" class="nav-item" data-section="game-plan-section">Game Plan</a>
             <a href="#briefing-section" class="nav-item" data-section="briefing-section">Briefing</a>
+            <a href="#proanalytics-section" class="nav-item" data-section="proanalytics-section">Pro Analytics</a>
           </div>
           <div class="nav-group">
             <span class="nav-group-title">Coding</span>
@@ -601,6 +602,38 @@
                                 <div id="sb-lineups-result" class="feedback-result" style="margin-top:8px"></div>
                                 <div id="sb-import-result" class="feedback-result" style="margin-top:8px"></div>
                             </div>
+                        </div>
+
+                        <div id="vendor-import-section" class="benchmark-section">
+                            <h3>📥 Vendor Data Import (season / tracking / events)</h3>
+                            <div class="form-row">
+                                <input type="text" id="season-dir" placeholder="Folder of StatsBomb event JSONs (e.g., data/statsbomb_corpus)" class="input" style="flex:1">
+                                <input type="text" id="season-competition" placeholder="Competition (optional)" class="input" style="flex:0.5">
+                                <input type="number" id="season-id" placeholder="Season ID" class="input" style="flex:0.3">
+                                <button id="season-import-btn" class="btn btn-primary">Import Season</button>
+                            </div>
+                            <div id="season-progress" class="feedback-result" style="margin-top:6px"></div>
+                            <div id="season-import-result" class="feedback-result" style="margin-top:4px"></div>
+                            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                            <div class="form-row">
+                                <input type="text" id="tracking-path" placeholder="Tracking file (SkillCorner .json / EPTS .xml / Metrica home .csv)" class="input" style="flex:1">
+                                <select id="tracking-vendor" class="input" style="flex:0.4">
+                                    <option value="">Auto-detect</option>
+                                    <option value="skillcorner">SkillCorner</option>
+                                    <option value="epts">EPTS XML</option>
+                                    <option value="metrica">Metrica CSV</option>
+                                </select>
+                                <input type="text" id="tracking-away-csv" placeholder="Metrica away CSV (optional)" class="input" style="flex:0.6">
+                                <button id="tracking-import-btn" class="btn btn-primary">Import Tracking</button>
+                            </div>
+                            <div id="tracking-import-result" class="feedback-result" style="margin-top:6px"></div>
+                            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                            <div class="form-row">
+                                <input type="text" id="event-path" placeholder="Event file (Opta F24 .xml / Wyscout .json)" class="input" style="flex:1">
+                                <input type="text" id="event-f7-path" placeholder="Opta F7 (optional)" class="input" style="flex:0.6">
+                                <button id="event-import-btn" class="btn btn-primary">Import Events</button>
+                            </div>
+                            <div id="event-import-result" class="feedback-result" style="margin-top:6px"></div>
                         </div>
 
                         <div id="openfootball-section" class="benchmark-section">
@@ -2720,6 +2753,24 @@
                 </div>
                 <div id="briefing-content" class="briefing-content">
                     <p class="hint" data-i18n="briefingHint">Select a match and click "Generate Briefing" to see the pre-match analysis.</p>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Pro Analytics (elite module suite)
+                 ============================================================ -->
+            <section id="proanalytics-section" class="section hidden">
+                <h2>🔬 Pro Analytics</h2>
+                <div class="briefing-toolbar">
+                    <select id="proanalytics-match-select" class="input">
+                        <option value="">-- Select Match --</option>
+                    </select>
+                    <button id="proanalytics-load-btn" class="btn btn-primary">🧮 Run Elite Suite</button>
+                    <button id="proanalytics-season-btn" class="btn btn-secondary">📅 Season Report</button>
+                    <span id="proanalytics-status" class="briefing-status"></span>
+                </div>
+                <div id="proanalytics-content" class="briefing-content">
+                    <p class="hint">Runs 12 elite analytical models (EPV, OBV, pass flow, pressing clusters, duels, ball recovery, box entries, switches, crossing, set pieces, through balls, off-ball) on the selected match. Cards report honest availability — tracking-frame models need a video-analyzed match.</p>
                 </div>
             </section>
         </main>

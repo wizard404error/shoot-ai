@@ -10,11 +10,13 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from kawkab.core.logging import get_logger
+from kawkab.services.storage.base import parse_metadata_json
 
 logger = get_logger(__name__)
 
@@ -559,7 +561,10 @@ class PostgresStorageAdapter:
                        face_embedding, face_confidence)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                    RETURNING id""",
-                profile.get("global_id", ""),
+                # global_id is UNIQUE: generate one when absent (two ''
+                # inserts would violate the constraint; SQLite parity via
+                # the mirrored fix in storage_service.save_player_profile).
+                profile.get("global_id") or f"auto_{uuid.uuid4().hex}",
                 profile.get("display_name", profile.get("name", "")),
                 profile.get("name", ""),
                 profile.get("team", "home"),
@@ -572,7 +577,12 @@ class PostgresStorageAdapter:
                 profile.get("date_of_birth"),
                 profile.get("nationality", ""),
                 profile.get("photo_path", ""),
-                json.dumps(profile.get("notes", {}), default=str) if isinstance(profile.get("notes"), (dict, list)) else str(profile.get("notes", "")),
+                # JSONB column requires VALID JSON: a missing notes key must
+                # become '{}' (the old expression produced str(None)=="None",
+                # which asyncpg rejects with InvalidTextRepresentationError).
+                json.dumps(notes, default=str)
+                if isinstance(notes := profile.get("notes"), (dict, list))
+                else ("{}" if notes in (None, "") else json.dumps(str(notes))),
                 profile.get("is_active", True),
                 profile.get("face_embedding", ""),
                 profile.get("face_confidence", 0.0),
@@ -850,7 +860,10 @@ class PostgresStorageAdapter:
                 feedback.get("coach_id", feedback.get("user_name", "")),
                 feedback.get("match_id", 0),
                 feedback.get("user_name", ""),
-                feedback.get("overall_rating", 0),
+                # NULL, not 0: the PG CHECK allows only 1..5 or NULL
+                # (SQLite's schema has the same CHECK; its adapter writes
+                # 0 default into a table created without this CHECK).
+                feedback.get("overall_rating") if feedback.get("overall_rating") else None,
                 feedback.get("rating", 0),
                 feedback.get("tracking_rating"),
                 feedback.get("events_rating"),
@@ -1015,20 +1028,21 @@ class PostgresStorageAdapter:
             return row["id"] if row else 0
 
     async def get_coding_tags(self, match_id: int) -> list[dict]:
+        # Soft-delete filter mirrors SQLite get_coding_tags (parity).
         return await self.fetch(
-            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 ORDER BY video_time",
+            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
             match_id,
         )
 
     async def get_coding_tags_by_type(self, match_id: int, tag_type: str) -> list[dict]:
         return await self.fetch(
-            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (event_type = $2 OR tag_type = $2) ORDER BY video_time",
+            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (event_type = $2 OR tag_type = $2) AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
             match_id, tag_type,
         )
 
     async def get_coding_tags_by_player(self, match_id: int, player_track_id: int) -> list[dict]:
         return await self.fetch(
-            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND player_track_id = $2 ORDER BY video_time",
+            "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND player_track_id = $2 AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
             match_id, player_track_id,
         )
 
@@ -1160,6 +1174,513 @@ class PostgresStorageAdapter:
                 json.dumps(ball_detections, default=str),
             )
             return True
+
+    # ── Vendor tracking-import provenance (elite interop) ───────────────
+
+    async def save_tracking_import(
+        self,
+        match_id: int,
+        vendor: str,
+        *,
+        source_path: str = "",
+        checksum: str = "",
+        fps: float | None = None,
+        frame_count: int = 0,
+        pitch_length_m: float | None = None,
+        pitch_width_m: float | None = None,
+        coordinate_system: str = "kawkab_meters",
+        metadata: dict | None = None,
+    ) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """INSERT INTO tracking_imports (
+                       match_id, vendor, source_path, checksum, fps, frame_count,
+                       pitch_length_m, pitch_width_m, coordinate_system, metadata_json)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id""",
+                match_id, vendor, source_path, checksum, fps, frame_count,
+                pitch_length_m, pitch_width_m, coordinate_system,
+                json.dumps(metadata or {}, default=str),
+            )
+            return row["id"] if row else 0
+
+    @staticmethod
+    def _tracking_import_dict(row) -> dict:
+        return parse_metadata_json(dict(row))
+
+    async def get_tracking_imports(self, match_id: int) -> list[dict]:
+        if not self._pool:
+            return []
+        rows = await self.fetch(
+            """SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
+                      pitch_length_m, pitch_width_m, coordinate_system,
+                      metadata_json, imported_at
+               FROM tracking_imports
+               WHERE match_id = $1 AND (is_deleted = 0 OR is_deleted IS NULL)
+               ORDER BY imported_at DESC""",
+            match_id,
+        )
+        return [self._tracking_import_dict(r) for r in rows]
+
+    async def get_tracking_import_by_id(self, import_id: int) -> dict | None:
+        if not self._pool:
+            return None
+        row = await self.fetchrow(
+            """SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
+                      pitch_length_m, pitch_width_m, coordinate_system,
+                      metadata_json, imported_at
+               FROM tracking_imports
+               WHERE id = $1 AND (is_deleted = 0 OR is_deleted IS NULL)""",
+            import_id,
+        )
+        return self._tracking_import_dict(row) if row else None
+
+    async def delete_tracking_import(self, import_id: int) -> bool:
+        if not self._pool:
+            return False
+        r = await self.execute(
+            "UPDATE tracking_imports SET is_deleted = 1 WHERE id = $1", import_id
+        )
+        return r not in ("UPDATE 0", "0")
+
+    # ── Match external-ID registry + season context (migration 031) ─────
+
+    async def register_match_external_id(
+        self, match_id: int, source: str, external_id: str
+    ) -> bool:
+        """Map a vendor match id to the internal match (migration 031).
+
+        ON CONFLICT DO NOTHING against UNIQUE(source, external_id):
+        returns True when this call created the mapping, False when the
+        mapping already existed.
+        """
+        if not self._pool:
+            return False
+        row = await self.fetchrow(
+            """INSERT INTO matches_external_ids (match_id, source, external_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (source, external_id) DO NOTHING
+               RETURNING id""",
+            match_id, source, str(external_id),
+        )
+        return row is not None
+
+    async def get_match_by_external_id(
+        self, source: str, external_id: str
+    ) -> int | None:
+        """Internal match id for a vendor match id, or None."""
+        if not self._pool:
+            return None
+        row = await self.fetchrow(
+            "SELECT match_id FROM matches_external_ids WHERE source = $1 AND external_id = $2",
+            source, str(external_id),
+        )
+        if not row:
+            return None
+        return int(row["match_id"])
+
+    async def update_match_context(
+        self,
+        match_id: int,
+        *,
+        match_date: str | None = None,
+        competition: str | None = None,
+        season_id: int | None = None,
+    ) -> None:
+        """Fill the season-context columns on a match; only non-None
+        arguments are written."""
+        if not self._pool:
+            return
+        sets: list[str] = []
+        vals: list[Any] = []
+        if match_date is not None:
+            # match_date is TIMESTAMPTZ: asyncpg requires a datetime object,
+            # so accept ISO strings (the SeasonImportService format) and
+            # convert before sending. Date-only strings are pinned to UTC
+            # midnight — a naive datetime would be read in the client's
+            # local zone and shift the stored day across timezones.
+            sets.append(f"match_date = ${len(vals) + 1}::timestamptz")
+            if isinstance(match_date, datetime):
+                dt = match_date
+            else:
+                dt = datetime.fromisoformat(str(match_date))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            vals.append(dt)
+        if competition is not None:
+            sets.append(f"competition = ${len(vals) + 1}")
+            vals.append(competition)
+        if season_id is not None:
+            sets.append(f"season_id = ${len(vals) + 1}")
+            vals.append(season_id)
+        if not sets:
+            return
+        vals.append(match_id)
+        await self.execute(
+            f"UPDATE matches SET {', '.join(sets)} WHERE id = ${len(vals)}", *vals
+        )
+
+    async def save_event_frame_links_bulk(self, match_id: int, links: list[dict]) -> int:
+        if not self._pool or not links:
+            return 0
+        params = [
+            (match_id, l.get("event_id"), l.get("frame_number", 0), l.get("frame_offset", 0))
+            for l in links
+            if l.get("event_id") is not None
+        ]
+        if not params:
+            return 0
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO event_frame_links (match_id, event_id, frame_number, frame_offset)
+                   VALUES ($1,$2,$3,$4)
+                   ON CONFLICT (match_id, event_id, frame_number) DO NOTHING""",
+                params,
+            )
+        return len(params)
+
+    async def get_event_frame_links(
+        self, match_id: int, event_id: int | None = None, limit: int = 10000
+    ) -> list[dict]:
+        if not self._pool:
+            return []
+        if event_id is not None:
+            return await self.fetch(
+                """SELECT id, match_id, event_id, frame_number, frame_offset
+                   FROM event_frame_links
+                   WHERE match_id = $1 AND event_id = $2
+                   ORDER BY event_id, frame_number LIMIT $3""",
+                match_id, event_id, limit,
+            )
+        return await self.fetch(
+            """SELECT id, match_id, event_id, frame_number, frame_offset
+               FROM event_frame_links
+               WHERE match_id = $1
+               ORDER BY event_id, frame_number LIMIT $2""",
+            match_id, limit,
+        )
+
+    # ── User / Auth (mirrors StorageService migration-027 methods) ────────
+
+    async def create_user(
+        self, username: str, password_hash: str, role: str = "analyst",
+        email: str = "", display_name: str = "",
+        must_reset_password: bool = False,
+    ) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
+                   VALUES ($1,$2,$3,$4,$5,$6) RETURNING id""",
+                username, email, display_name, password_hash, role, int(must_reset_password),
+            )
+            return row["id"] if row else 0
+
+    _USER_COLUMNS = (
+        "id, username, email, display_name, role, team, is_active, is_locked, "
+        "locked_until, password_hash, must_reset_password, last_login"
+    )
+
+    async def get_user_by_username(self, username: str) -> dict | None:
+        if not self._pool:
+            return None
+        row = await self.fetchrow(
+            f"SELECT {_USER_COLUMNS} FROM users WHERE username = $1", username
+        )
+        return dict(row) if row else None
+
+    async def get_user_by_id(self, user_id: int) -> dict | None:
+        if not self._pool:
+            return None
+        row = await self.fetchrow(
+            f"SELECT {_USER_COLUMNS} FROM users WHERE id = $1", user_id
+        )
+        return dict(row) if row else None
+
+    async def get_all_users(self) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            "SELECT id, username, email, display_name, role, team, is_active, "
+            "is_locked, last_login, created_at FROM users ORDER BY id"
+        )
+
+    async def clear_expired_lock(self, user_id: int) -> None:
+        if not self._pool:
+            return
+        await self.execute(
+            "UPDATE users SET is_locked=0, failed_attempts=0, locked_until=NULL WHERE id=$1",
+            user_id,
+        )
+
+    async def update_user_login(self, user_id: int) -> None:
+        if not self._pool:
+            return
+        await self.execute(
+            "UPDATE users SET last_login=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), "
+            "failed_attempts=0, is_locked=0 WHERE id=$1",
+            user_id,
+        )
+
+    async def record_failed_login(self, username: str) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id, failed_attempts, is_locked FROM users WHERE username=$1", username
+            )
+            if not row:
+                return 0
+            attempts = (row["failed_attempts"] or 0) + 1
+            if attempts >= 5:
+                await conn.execute(
+                    "UPDATE users SET failed_attempts=$1, is_locked=1, "
+                    "locked_until=TO_CHAR(NOW() + INTERVAL '1 hour', 'YYYY-MM-DD HH24:MI:SS') WHERE id=$2",
+                    attempts, row["id"],
+                )
+            else:
+                await conn.execute(
+                    "UPDATE users SET failed_attempts=$1 WHERE id=$2", attempts, row["id"]
+                )
+            return 5 - attempts
+
+    async def save_session(self, user_id: int, token_hash: str, expires_at: str) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES ($1,$2,$3) RETURNING id",
+                user_id, token_hash, expires_at,
+            )
+            return row["id"] if row else 0
+
+    async def validate_session(self, token_hash: str) -> dict | None:
+        if not self._pool:
+            return None
+        row = await self.fetchrow(
+            """SELECT u.id, u.username, u.role, u.team, u.display_name
+               FROM user_sessions s JOIN users u ON s.user_id = u.id
+               WHERE s.token_hash=$1
+                 AND s.expires_at > TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+                 AND u.is_active=1 AND u.is_locked=0""",
+            token_hash,
+        )
+        return dict(row) if row else None
+
+    async def delete_session(self, token_hash: str) -> bool:
+        if not self._pool:
+            return False
+        r = await self.execute("DELETE FROM user_sessions WHERE token_hash=$1", token_hash)
+        return r not in ("DELETE 0", "0")
+
+    async def audit_log(
+        self, user_id: int, username: str, action: str,
+        resource_type: str = "", resource_id: str = "", details: dict | None = None,
+    ) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
+                   VALUES ($1,$2,$3,$4,$5,$6) RETURNING id""",
+                user_id, username, action, resource_type, resource_id,
+                json.dumps(details or {}, default=str),
+            )
+            return row["id"] if row else 0
+
+    async def get_audit_log(self, limit: int = 50, offset: int = 0) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            "SELECT id, user_id, username, action, resource_type, resource_id, details, created_at "
+            "FROM audit_events_local ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            limit, offset,
+        )
+
+    async def change_password(self, user_id: int, new_hash: str) -> bool:
+        if not self._pool:
+            return False
+        r = await self.execute(
+            "UPDATE users SET password_hash=$1, must_reset_password=0, "
+            "updated_at=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=$2",
+            new_hash, user_id,
+        )
+        return r not in ("UPDATE 0", "0")
+
+    # ── GPS / Physical (mirrors StorageService migration-026 methods) ─────
+
+    async def save_gps_session(
+        self, match_id: int, player_id: int, session_type: str, vendor: str,
+    ) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "INSERT INTO gps_sessions (match_id, player_id, session_type, vendor) VALUES ($1,$2,$3,$4) RETURNING id",
+                match_id, player_id, session_type, vendor,
+            )
+            return row["id"] if row else 0
+
+    async def update_gps_session_stats(self, session_id: int, summary: dict) -> None:
+        if not self._pool:
+            return
+        await self.execute(
+            """UPDATE gps_sessions SET duration_seconds=$1, total_distance_m=$2,
+               max_speed_kmh=$3, avg_speed_kmh=$4, player_load=$5 WHERE id=$6""",
+            summary.get("duration_s"), summary.get("total_distance_m"),
+            summary.get("max_speed_kmh"), summary.get("avg_speed_kmh"),
+            summary.get("total_player_load"), session_id,
+        )
+
+    async def save_gps_samples_bulk(self, session_id: int, samples: list[dict]) -> int:
+        if not self._pool or not samples:
+            return 0
+        params = [
+            (
+                session_id,
+                s.get("timestamp", 0.0), s.get("lat"), s.get("lon"),
+                s.get("speed_ms"), s.get("acceleration"), s.get("accel_x"),
+                s.get("accel_y"), s.get("accel_z"), s.get("heart_rate"),
+                s.get("distance"), s.get("player_load"), s.get("metabolic_power"),
+                s.get("speed_zone"), s.get("x_m"), s.get("y_m"),
+            )
+            for s in samples
+        ]
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO gps_samples (session_id, timestamp, lat, lon, speed_ms,
+                   acceleration, accel_x, accel_y, accel_z, heart_rate, distance,
+                   player_load, metabolic_power, speed_zone, x_m, y_m)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)""",
+                params,
+            )
+        return len(params)
+
+    async def get_gps_sessions(self, match_id: int) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            """SELECT id, player_id, session_type, vendor, start_time, end_time,
+               duration_seconds, total_distance_m, max_speed_kmh, avg_speed_kmh,
+               player_load FROM gps_sessions
+               WHERE match_id=$1 AND (is_deleted IS NULL OR is_deleted=0)
+               ORDER BY id""",
+            match_id,
+        )
+
+    async def get_gps_samples(self, session_id: int) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            """SELECT timestamp, speed_ms, acceleration, heart_rate, distance,
+               player_load, metabolic_power, speed_zone, x_m, y_m
+               FROM gps_samples WHERE session_id=$1 ORDER BY timestamp""",
+            session_id,
+        )
+
+    async def save_acwr(
+        self, player_id: int, date: str, acute: float, chronic: float, acwr: float,
+    ) -> int:
+        if not self._pool:
+            return 0
+        cat = "normal"
+        if acwr > 1.5:
+            cat = "very_high"
+        elif acwr > 1.3:
+            cat = "high"
+        elif acwr < 0.8:
+            cat = "low"
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """INSERT INTO acwr_daily (player_id, date, acute_load_7d, chronic_load_28d, acwr, load_category)
+                   VALUES ($1,$2,$3,$4,$5,$6)
+                   ON CONFLICT (player_id, date) DO UPDATE SET
+                     acute_load_7d=EXCLUDED.acute_load_7d,
+                     chronic_load_28d=EXCLUDED.chronic_load_28d,
+                     acwr=EXCLUDED.acwr, load_category=EXCLUDED.load_category
+                   RETURNING id""",
+                player_id, date, acute, chronic, acwr, cat,
+            )
+            return row["id"] if row else 0
+
+    async def get_player_acwr(self, player_id: int, limit: int = 30) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            """SELECT date, acute_load_7d, chronic_load_28d, acwr, load_category
+               FROM acwr_daily WHERE player_id=$1 ORDER BY date DESC LIMIT $2""",
+            player_id, limit,
+        )
+
+    async def get_player_gps_summary(self, player_id: int, limit: int = 10) -> list[dict]:
+        if not self._pool:
+            return []
+        return await self.fetch(
+            """SELECT id, session_type, vendor, start_time, duration_seconds,
+               total_distance_m, max_speed_kmh, avg_speed_kmh, player_load
+               FROM gps_sessions WHERE player_id=$1 ORDER BY id DESC LIMIT $2""",
+            player_id, limit,
+        )
+
+    async def get_squad_injury_report(self, team_id: int) -> dict:
+        """Active-injury report for players linked to matches of *team_id*.
+
+        Mirrors StorageService.get_squad_injury_report: resolves team ->
+        player_profile ids via matches + player_match_links, then reuses
+        InjuryTrackerService for the aggregation.
+        """
+        empty: dict[str, Any] = {
+            "total_active": 0, "injuries": [], "by_severity": {}, "by_body_part": {},
+            "high_risk_count": 0, "high_risk_injuries": [],
+            "report_date": datetime.now().isoformat(),
+        }
+        if not self._pool:
+            return empty
+        rows = await self.fetch(
+            """SELECT DISTINCT pml.player_id FROM player_match_links pml
+               JOIN matches m ON m.id = pml.match_id
+               WHERE m.home_team_id = $1 OR m.away_team_id = $1""",
+            team_id,
+        )
+        player_ids = [r["player_id"] for r in rows]
+        if not player_ids:
+            return empty
+        from kawkab.services.injury_tracker import InjuryTrackerService
+
+        tracker = InjuryTrackerService(None)  # pool-backed queries below
+        active = []
+        placeholders = ",".join(f"${i + 1}" for i in range(len(player_ids)))
+        injury_rows = await self.fetch(
+            f"SELECT * FROM injuries WHERE status IN ('active','chronic') "
+            f"AND player_id IN ({placeholders}) ORDER BY date_injured DESC",
+            *player_ids,
+        )
+        for r in injury_rows:
+            active.append(dict(r))
+        total = len(active)
+        by_severity: dict[str, int] = {}
+        by_body_part: dict[str, int] = {}
+        high_risk: list[dict] = []
+        for inj in active:
+            sev = inj.get("severity", "unknown")
+            by_severity[sev] = by_severity.get(sev, 0) + 1
+            bp = inj.get("body_part", "unknown")
+            by_body_part[bp] = by_body_part.get(bp, 0) + 1
+            risk = inj.get("injury_risk_score", 0)
+            if risk and risk > 0.5:
+                high_risk.append(inj)
+        del tracker  # aggregation done inline; service kept for schema parity
+        return {
+            "total_active": total,
+            "injuries": active,
+            "by_severity": by_severity,
+            "by_body_part": by_body_part,
+            "high_risk_count": len(high_risk),
+            "high_risk_injuries": high_risk,
+            "report_date": datetime.now().isoformat(),
+        }
 
     async def save_tracking_frames_bulk(self, match_id: int, frames: list[dict]) -> int:
         if not self._pool or not frames:

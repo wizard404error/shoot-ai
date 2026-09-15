@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -41,6 +42,15 @@ def _get_storage():
 def _get_monitor():
     from kawkab.services.model_monitor_service import ModelMonitoringService
     return ModelMonitoringService()
+
+
+def _get_audit():
+    """AuditService bound to the same storage backend as the API (Phase 3:
+    wires the previously-orphaned audit_service.py into the API layer so
+    elite-facing operations leave a compliance trail)."""
+    from kawkab.services.audit_service import AuditService
+
+    return AuditService(_get_storage())
 
 
 def _not_found(msg: str):
@@ -263,6 +273,51 @@ async def get_pressing(match_id: int, _user: dict = Depends(require_permission("
         away_ppda=away.ppda,
         pressing_triggers=home.trigger_count + away.trigger_count,
     )
+
+
+@router.get("/matches/{match_id}/analysis/pro")
+async def get_pro_analytics(
+    match_id: int,
+    _user: dict = Depends(require_permission("analysis:read")),
+):
+    """Aggregated elite-analytics report (OBV, EPV, pass flow, pressing
+    clusters, duels, ball recovery, box entries, switches, crossing, set
+    pieces, through balls, off-ball) with honest per-block data_available
+    flags. See ui/bridge_handlers/bridge_pro_analytics.py."""
+    import json as _json
+
+    svc = _get_storage()
+    match = await svc.get_match(match_id)
+    if not match:
+        _not_found(f"Match {match_id} not found")
+    _check_match_access(match, _user)
+
+    from kawkab.ui.bridge_handlers.bridge_pro_analytics import ProAnalyticsHandler
+
+    handler = ProAnalyticsHandler(bridge=None, services={"storage_service": svc})
+    payload = await handler.get_pro_analytics_report(match_id)
+    try:
+        return _json.loads(payload)
+    except _json.JSONDecodeError:
+        return {"raw": payload}
+
+
+@router.get("/season/pro")
+async def get_season_pro_analytics(_user: dict = Depends(require_permission("analysis:read"))):
+    """Cross-match season analytics: formation trends, discipline/suspension
+    risk, fixture difficulty. See ui/bridge_handlers/bridge_season_analytics.py."""
+    import json as _json
+
+    svc = _get_storage()
+
+    from kawkab.ui.bridge_handlers.bridge_season_analytics import SeasonAnalyticsHandler
+
+    handler = SeasonAnalyticsHandler(bridge=None, services={"storage_service": svc})
+    payload = await handler.get_season_pro_report()
+    try:
+        return _json.loads(payload)
+    except _json.JSONDecodeError:
+        return {"raw": payload}
 
 
 @router.get("/matches/{match_id}/analysis/report", response_model=MatchReportOut)
@@ -690,3 +745,383 @@ async def get_reports(
 @router.get("/health")
 async def api_health():
     return {"status": "ok", "api_version": "v1"}
+
+
+# ── Vendor tracking import (elite interop path) ──
+
+class TrackingImportIn(BaseModel):
+    file_path: str = ""
+    vendor: str = ""          # skillcorner | epts | metrica (auto-detected if empty)
+    match_id: int | None = None   # attach to an existing match
+    match_name: str = ""
+    home_team: str = ""
+    away_team: str = ""
+    away_csv: str = ""        # metrica only: the away CSV path
+    max_frames: int = 0       # 0 = all frames
+    fps: float | None = None
+
+
+class TrackingImportOut(BaseModel):
+    success: bool
+    match_id: int
+    vendor: str
+    deduplicated: bool
+    frames_imported: int
+    players_registered: int
+    checksum: str
+    match_name: str = ""
+    source: str = "tracking"
+
+
+@router.post("/matches/import/tracking", response_model=TrackingImportOut)
+async def import_tracking_match(
+    body: TrackingImportIn,
+    _user: dict = Depends(require_permission("analysis:run")),
+):
+    """Import a vendor tracking feed (SkillCorner JSON / EPTS XML / Metrica CSVs)
+    as a Kawkab match — zero video capture. RBAC-gated to analysis:run;
+    file_path validated against the SecurityValidator allowlist, same as
+    every other local-file API."""
+    from kawkab.core.security import SecurityValidator
+    from kawkab.services.vendor_tracking_import_service import VendorTrackingImportService
+
+    if not body.file_path:
+        raise HTTPException(400, "file_path is required")
+    try:
+        SecurityValidator.validate_data_file_path(body.file_path)
+        if body.away_csv:
+            SecurityValidator.validate_data_file_path(body.away_csv)
+    except Exception as exc:
+        raise HTTPException(400, f"file_path rejected: {exc}") from exc
+    for p in (body.file_path, body.away_csv):
+        if p and not Path(p).exists():
+            raise HTTPException(404, f"file not found: {p}")
+
+    storage = _get_storage()
+    svc = VendorTrackingImportService(storage)
+    try:
+        summary = await svc.import_tracking_file(
+            body.file_path,
+            vendor=body.vendor or None,
+            match_id=body.match_id,
+            match_name=body.match_name or None,
+            home_team=body.home_team or None,
+            away_team=body.away_team or None,
+            away_csv=body.away_csv or None,
+            max_frames=body.max_frames or None,
+            fps=body.fps,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    # Audit trail (only on a fresh, non-dedup import)
+    if not summary.get("deduplicated"):
+        _get_audit().log_event(
+            "match.imported", "match", str(summary["match_id"]),
+            details={"vendor": summary["vendor"],
+                     "frames_imported": summary["frames_imported"],
+                     "source_file": body.file_path},
+            user=str(_user.get("sub", "local")),
+        )
+
+    return TrackingImportOut(
+        success=True,
+        match_id=summary["match_id"],
+        vendor=summary["vendor"],
+        deduplicated=summary.get("deduplicated", False),
+        frames_imported=summary["frames_imported"],
+        players_registered=summary["players_registered"],
+        checksum=summary.get("checksum", ""),
+        match_name=summary.get("match_name", ""),
+    )
+
+
+# ── Vendor event-data import (Opta F24 / Wyscout) ──
+
+class EventImportIn(BaseModel):
+    vendor: str                 # opta | wyscout
+    file_path: str
+    f7_path: str = ""           # opta only: paired F7 match-info XML
+    match_id: int | None = None
+    match_name: str = ""
+    home_team: str = ""
+    away_team: str = ""
+
+
+class EventImportOut(BaseModel):
+    success: bool
+    match_id: int
+    vendor: str
+    events_imported: int
+    events_skipped: int
+    players_registered: int
+    shots: int
+    goals: int
+    xg_total: float
+    match_name: str = ""
+
+
+@router.post("/matches/import/events", response_model=EventImportOut)
+async def import_vendor_events(
+    body: EventImportIn,
+    _user: dict = Depends(require_permission("analysis:run")),
+):
+    """Import a vendor event-data file (Opta F24 XML / Wyscout JSON) as a
+    Kawkab match — zero video capture. RBAC-gated to analysis:run;
+    file_path validated against the SecurityValidator allowlist."""
+    from kawkab.core.security import SecurityValidator
+    from kawkab.services.vendor_event_import_service import VendorEventImportService
+
+    vendor = (body.vendor or "").lower()
+    if vendor not in ("opta", "wyscout"):
+        raise HTTPException(400, "vendor must be 'opta' or 'wyscout'")
+    try:
+        SecurityValidator.validate_data_file_path(body.file_path)
+        if body.f7_path:
+            SecurityValidator.validate_data_file_path(body.f7_path)
+    except Exception as exc:
+        raise HTTPException(400, f"file_path rejected: {exc}") from exc
+    for p in (body.file_path, body.f7_path):
+        if p and not Path(p).exists():
+            raise HTTPException(404, f"file not found: {p}")
+
+    storage = _get_storage()
+    svc = VendorEventImportService(storage)
+    try:
+        if vendor == "opta":
+            summary = await svc.import_opta_f24(
+                body.file_path,
+                body.f7_path or None,
+                match_name=body.match_name or None,
+                home_team=body.home_team or None,
+                away_team=body.away_team or None,
+                match_id=body.match_id,
+            )
+        else:
+            summary = await svc.import_wyscout(
+                body.file_path,
+                match_name=body.match_name or None,
+                home_team=body.home_team or None,
+                away_team=body.away_team or None,
+                match_id=body.match_id,
+            )
+        _get_audit().log_event(
+            "match.imported", "match", str(summary["match_id"]),
+            details={"vendor": vendor, "events_imported": summary["events_imported"],
+                     "source_file": body.file_path},
+            user=str(_user.get("sub", "local")),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return EventImportOut(
+        success=True,
+        match_id=summary["match_id"],
+        vendor=summary["vendor"],
+        events_imported=summary["events_imported"],
+        events_skipped=summary["events_skipped"],
+        players_registered=summary["players_registered"],
+        shots=summary["shots"],
+        goals=summary["goals"],
+        xg_total=summary["xg_total"],
+        match_name=summary.get("match_name", ""),
+    )
+
+
+# ── StatsBomb event-data import (elite interop path) ──
+
+class StatsBombImportIn(BaseModel):
+    events_json: str = ""
+    file_path: str = ""
+    match_name: str = ""
+    home_team: str = ""
+    away_team: str = ""
+
+
+class StatsBombImportOut(BaseModel):
+    success: bool
+    match_id: int
+    events_imported: int
+    events_skipped: int
+    players_registered: int
+    shots: int
+    goals: int
+    xg_total: float
+    match_name: str
+    source: str = "statsbomb"
+
+
+class AuditLogOut(BaseModel):
+    success: bool
+    events: list[dict]
+    total: int
+
+
+@router.get("/audit/events", response_model=AuditLogOut)
+async def get_audit_events(
+    action: str | None = None,
+    entity_type: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    _user: dict = Depends(require_permission("analysis:read")),
+):
+    """Query the hash-chained audit trail (who imported/ran/exported what
+    and when). RBAC-gated to analysis:read; analyst-level minimum."""
+    audit = _get_audit()
+    events = audit.get_events(action=action, entity_type=entity_type,
+                              limit=min(limit, 500), offset=max(offset, 0))
+    return AuditLogOut(success=True, events=events, total=len(events))
+
+
+@router.post("/matches/import/statsbomb", response_model=StatsBombImportOut)
+async def import_statsbomb_match(
+    body: StatsBombImportIn,
+    _user: dict = Depends(require_permission("analysis:run")),
+):
+    """Import a StatsBomb events file (path or inline JSON) as a Kawkab match.
+
+    Lets clubs run the full Kawkab analytics stack on their existing
+    StatsBomb event data with zero video capture. RBAC-gated to
+    analysis:run; file_path is validated against the SecurityValidator's
+    directory allowlist, same as every other local-file API.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from kawkab.core.security import SecurityValidator
+    from kawkab.services.statsbomb_import_service import StatsBombImportService
+
+    storage = _get_storage()
+
+    tmp_json_path = ""
+    try:
+        if body.file_path:
+            try:
+                SecurityValidator.validate_data_file_path(body.file_path)
+            except Exception as exc:
+                raise HTTPException(400, f"file_path rejected: {exc}") from exc
+            source_path = _Path(body.file_path)
+            if not source_path.exists():
+                raise HTTPException(404, f"file not found: {body.file_path}")
+        elif body.events_json:
+            import tempfile as _tempfile
+
+            data = _json.loads(body.events_json)
+            if not isinstance(data, list):
+                raise HTTPException(400, "events_json must be a JSON array of events")
+            fd, tmp_json_path = _tempfile.mkstemp(suffix=".json")
+            with open(fd, "w") as f:
+                _json.dump(data, f)
+            source_path = _Path(tmp_json_path)
+        else:
+            raise HTTPException(400, "provide either file_path or events_json")
+
+        svc = StatsBombImportService(storage)
+        summary = await svc.import_match(
+            source_path,
+            match_name=body.match_name or None,
+            home_team=body.home_team or None,
+            away_team=body.away_team or None,
+        )
+        _get_audit().log_event(
+            "match.imported", "match", str(summary["match_id"]),
+            details={"vendor": "statsbomb", "events_imported": summary["events_imported"],
+                     "source_file": str(source_path)},
+            user=str(_user.get("sub", "local")),
+        )
+        return StatsBombImportOut(
+            success=True,
+            match_id=summary["match_id"],
+            events_imported=summary["events_imported"],
+            events_skipped=summary["events_skipped"],
+            players_registered=summary["players_registered"],
+            shots=summary["shots"],
+            goals=summary["goals"],
+            xg_total=summary["xg_total"],
+            match_name=summary["match_name"],
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — API boundary
+        raise HTTPException(500, f"import failed: {exc}") from exc
+    finally:
+        if tmp_json_path:
+            try:
+                _Path(tmp_json_path).unlink()
+            except OSError:
+                pass
+
+
+class SeasonImportIn(BaseModel):
+    directory: str
+    competition: str | None = None
+    season_id: int | None = None
+    match_date: str | None = None
+    max_matches: int | None = None
+
+
+class SeasonImportOut(BaseModel):
+    success: bool
+    directory: str
+    total_files: int
+    eligible: int
+    imported: int
+    skipped_already: int
+    skipped_not_events: int
+    failed: int
+    matches: list[dict]
+    source: str = "statsbomb"
+
+
+@router.post("/matches/import/statsbomb/season", response_model=SeasonImportOut)
+async def import_statsbomb_season(
+    body: SeasonImportIn,
+    _user: dict = Depends(require_permission("analysis:run")),
+):
+    """Bulk-import a whole directory of StatsBomb event files as one season.
+
+    The season-scale workflow elite analysts live in: one call turns a
+    folder of vendor match files into deduplicated matches tagged with
+    competition/date/season (migration 031 external-ID registry makes
+    re-runs idempotent). RBAC-gated to analysis:run; the directory is
+    validated against the same documents-dir allowlist as every other
+    local-file API.
+    """
+    from kawkab.core.security import SecurityValidator as _SV
+    from kawkab.services.season_import_service import SeasonImportService
+
+    storage = _get_storage()
+    try:
+        try:
+            _SV.validate_directory_path(body.directory)
+        except Exception as exc:
+            raise HTTPException(400, f"directory rejected: {exc}") from exc
+
+        svc = SeasonImportService(storage)
+        summary = await svc.import_statsbomb_directory(
+            body.directory,
+            competition=body.competition,
+            season_id=body.season_id,
+            match_date=body.match_date,
+            max_matches=body.max_matches,
+        )
+        _get_audit().log_event(
+            "season.imported", "match", body.directory,
+            details={"vendor": "statsbomb", "imported": summary["imported"],
+                     "skipped_already": summary["skipped_already"],
+                     "failed": summary["failed"]},
+            user=str(_user.get("sub", "local")),
+        )
+        return SeasonImportOut(success=True, directory=str(summary["directory"]), **{
+            k: v for k, v in summary.items() if k != "directory"
+        })
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — API boundary
+        raise HTTPException(500, f"season import failed: {exc}") from exc

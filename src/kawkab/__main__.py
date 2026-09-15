@@ -11,6 +11,7 @@ Usage:
     python -m kawkab events --tracking tracking_output [--output events.json]
     python -m kawkab e2e --match-id 1
     python -m kawkab benchmark [--module xg_model] [--iterations 5] [--output benchmark_results.json]
+    python -m kawkab validate [--corpus data/statsbomb_corpus] [--out docs/validation]
     python -m kawkab train-yolo --data dataset.yaml [--epochs 100]
     python -m kawkab prepare-data --source raw_annotations --output data/soccer_net
 """
@@ -103,6 +104,34 @@ def main():
     bench_p.add_argument("--output", type=str, default=None,
                          help="Save benchmark results to JSON file")
 
+    # validate (Phase 2 elite-readiness: reproducible model-validation report)
+    val_p = subparsers.add_parser(
+        "validate",
+        help="Build the model-validation report (model cards + calibration)",
+    )
+    val_p.add_argument("--corpus", type=str, default="data/statsbomb_corpus",
+                       help="StatsBomb open-data corpus directory")
+    val_p.add_argument("--out", type=str, default="docs/validation",
+                       help="Output directory for validation_report.json/.md")
+    val_p.add_argument("--max-matches", type=int, default=40,
+                       help="Cap on corpus matches per calibration section")
+
+    # import (season-scale vendor ingest: one command, whole season)
+    imp_p = subparsers.add_parser(
+        "import",
+        help="Import a vendor match file or a whole directory as a season",
+    )
+    imp_p.add_argument("path", type=str,
+                       help="StatsBomb event file, or directory of them (season import)")
+    imp_p.add_argument("--competition", type=str, default=None,
+                       help="Competition tag written to every imported match")
+    imp_p.add_argument("--season-id", type=int, default=None,
+                       help="Season id (seasons table) to attach to imported matches")
+    imp_p.add_argument("--match-date", type=str, default=None,
+                       help="Fallback match date (YYYY-MM-DD) when the file carries none")
+    imp_p.add_argument("--max-matches", type=int, default=None,
+                       help="Cap on matches imported this run (smoke tests)")
+
     # train-yolo
     train_p = subparsers.add_parser("train-yolo", help="Fine-tune YOLO on football data")
     train_p.add_argument("--data", type=str, required=True, help="Dataset YAML path")
@@ -144,6 +173,10 @@ def main():
         _run_e2e(args)
     elif args.command == "benchmark":
         _run_benchmark(args)
+    elif args.command == "validate":
+        _run_validate(args)
+    elif args.command == "import":
+        _run_import(args)
     elif args.command == "train-yolo":
         _run_train_yolo(args)
     elif args.command == "prepare-data":
@@ -743,6 +776,92 @@ def _run_e2e(args):
 
     success = asyncio.run(_pipeline())
     sys.exit(0 if success else 1)
+
+
+def _run_validate(args):
+    """Build the reproducible model-validation report (Phase 2 trust layer).
+
+    Writes validation_report.json + validation_report.md into --out.
+    Exit code 0 = report written (even if numbers are bad — honesty is
+    the gate, not optimism), matching scripts/validate_models.py.
+    """
+    import json as _json
+
+    from kawkab.services.validation_report_service import ValidationReportService
+
+    svc = ValidationReportService(corpus_dir=args.corpus)
+    report = svc.write_report(out_dir=args.out, max_matches=args.max_matches)
+
+    print("Validation report written")
+    print(f"  Corpus : {report['corpus_dir']}")
+    print(f"  Output : {Path(args.out) / 'validation_report.json'}")
+    summary = report.get("summary", {})
+    print(f"  Sections evaluated: {summary.get('sections_evaluated', 0)} "
+          f"(skipped: {summary.get('sections_skipped', 0)})")
+    print(f"  Model cards registered: {summary.get('model_cards_registered', 0)}")
+    for s in report.get("sections", []):
+        status = s.get("status", "?")
+        if status == "evaluated":
+            keys = [k for k in s.get("metrics", {}) if k != "cards"]
+            print(f"  [{status.upper()}] {s['name']}: {', '.join(keys) or 'ok'}")
+        else:
+            print(f"  [{status.upper()}] {s['name']}: {s.get('reason', '')}")
+
+
+def _run_import(args):
+    """Vendor ingest CLI: one file, or a whole directory as one season.
+
+    Directory mode deduplicates via the migration-031 external-ID
+    registry — re-running the same directory imports 0 new matches.
+    Exit code 0 when nothing failed, 1 when at least one file failed.
+    """
+    import asyncio
+
+    from kawkab.services.season_import_service import SeasonImportService
+    from kawkab.services.storage_service import StorageService
+
+    storage = StorageService()
+    asyncio.run(storage.initialize())  # runs migrations (incl. 031) + connects
+
+    path = Path(args.path)
+    svc = SeasonImportService(storage)
+
+    async def run():
+        if path.is_dir():
+            return await svc.import_statsbomb_directory(
+                path,
+                competition=args.competition,
+                season_id=args.season_id,
+                match_date=args.match_date,
+                max_matches=args.max_matches,
+            )
+        return await svc.import_single_file(
+            path,
+            competition=args.competition,
+            season_id=args.season_id,
+            match_date=args.match_date,
+        )
+
+    summary = asyncio.run(run())
+
+    if path.is_dir():
+        print(f"Season import: {summary['directory']}")
+        print(f"  Files scanned: {summary['total_files']} "
+              f"(new event files this run: {summary['eligible']})")
+        print(f"  Imported: {summary['imported']}  "
+              f"Already present: {summary['skipped_already']}  "
+              f"Not event files: {summary['skipped_not_events']}  "
+              f"Failed: {summary['failed']}")
+        for m in summary["matches"]:
+            if m["status"] == "failed":
+                print(f"    FAILED {m['file']}: {m.get('error', '')}")
+            elif m["status"] == "imported":
+                print(f"    imported {m['file']} -> match {m['match_id']} "
+                      f"({m.get('match_name', '')})")
+        raise SystemExit(1 if summary["failed"] else 0)
+
+    print(f"{summary['status']}: {summary['file']} -> match {summary.get('match_id')}")
+    raise SystemExit(0 if summary["status"] != "failed" else 1)
 
 
 def _run_benchmark(args):

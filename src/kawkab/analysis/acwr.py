@@ -11,8 +11,18 @@ Ranges (Gabbett 2016):
   - 1.3-1.5: High (increased risk)
   - > 1.5:   Very high (danger zone)
 
-The acute load is the exponentially-weighted moving average of daily
-loads over the last 7 days. Chronic load is over the last 28 days.
+The acute load is the exponentially-weighted moving average (EWMA) of
+daily loads (decay k=3, the standard "acute" time constant); chronic
+load is the EWMA with k=7, which approximates a 28-day rolling baseline.
+EWMA (Williams et al. 2017, "How to use acute:chronic workload ratios to
+manage training load") reacts to load spikes faster than the
+same-length rolling averages it replaced: a rolling 7-day average can
+miss a mid-week spike entirely, while EWMA weights recent days heavier.
+
+Caveat surfaced for consumers: for roughly the first 28 days both
+averages are still warming up, and ratios computed from them are not
+yet a trustworthy chronic baseline. Each row therefore carries a
+`reliable` flag that turns on after 28 days of data.
 
 Player load metric options:
   - total_distance_m (most common)
@@ -42,33 +52,35 @@ def compute_acwr(
         daily_loads: List of dicts with 'date' (str/date) and load_field (float).
                      Must be sorted by date ascending.
         load_field: Which field to use for load.
-        decay_factor: Exponential decay weight per day (0.1 = 10% weight/day).
 
     Returns:
         List with same length as input, each dict augmented with:
-          acute_load, chronic_load, acwr, load_category
+          acute_load, chronic_load, acwr, load_category, reliable
+
+    The first row initializes both averages to the day's own load, so
+    day-one ACWR is 1.0 by construction; `reliable` is False until the
+    chronic average has seen 28 days.
     """
     if not daily_loads:
         return []
 
     results = []
-    acute_window = 7
-    chronic_window = 28
+    acute_decay = 3.0   # Williams et al. (2017) acute time constant
+    chronic_decay = 7.0  # ~28-day baseline equivalent
+    acute_ewma: float | None = None
+    chronic_ewma: float | None = None
 
     for i, entry in enumerate(daily_loads):
         load = entry.get(load_field, 0) or 0
 
-        # Acute load: rolling 7-day simple average
-        start = max(0, i - acute_window + 1)
-        acute_vals = [daily_loads[j].get(load_field, 0) or 0 for j in range(start, i + 1)]
-        acute = sum(acute_vals) / len(acute_vals) if acute_vals else load
+        if acute_ewma is None:
+            acute_ewma = float(load)
+            chronic_ewma = float(load)
+        else:
+            acute_ewma += (load - acute_ewma) / acute_decay
+            chronic_ewma += (load - chronic_ewma) / chronic_decay
 
-        # Chronic load: rolling 28-day simple average
-        start = max(0, i - chronic_window + 1)
-        chronic_vals = [daily_loads[j].get(load_field, 0) or 0 for j in range(start, i + 1)]
-        chronic = sum(chronic_vals) / len(chronic_vals) if chronic_vals else load
-
-        ratio = acute / max(chronic, 0.001)
+        ratio = acute_ewma / max(chronic_ewma, 0.001)
 
         if ratio > 1.5:
             category = "very_high"
@@ -81,10 +93,11 @@ def compute_acwr(
 
         results.append({
             **entry,
-            "acute_load": round(acute, 1),
-            "chronic_load": round(chronic, 1),
+            "acute_load": round(acute_ewma, 1),
+            "chronic_load": round(chronic_ewma, 1),
             "acwr": round(ratio, 3),
             "load_category": category,
+            "reliable": i >= 27,
         })
 
     return results
@@ -95,7 +108,12 @@ def compute_acwr_from_sessions(
     load_field: str = "total_distance_m",
     date_field: str = "start_time",
 ) -> list[dict[str, Any]]:
-    """Compute ACWR from GPS session records, aggregating load by date.
+    """    Compute ACWR from GPS session records, aggregating load by date.
+
+    Rest days carry zero load and MUST be part of the series — a series
+    built only from days with sessions inflates both averages and
+    distorts the ratio. The date range from first to last session is
+    therefore expanded and missing days filled with 0.
 
     Args:
         sessions: List of GPS session dicts with date_field and load_field.
@@ -109,10 +127,12 @@ def compute_acwr_from_sessions(
         return []
 
     daily: dict[str, float] = defaultdict(float)
+    parsed: dict[str, datetime] = {}
     for s in sessions:
         raw_date = s.get(date_field, "")
         if isinstance(raw_date, datetime):
             date_key = raw_date.strftime("%Y-%m-%d")
+            parsed[date_key] = raw_date.replace(hour=0, minute=0, second=0, microsecond=0)
         elif isinstance(raw_date, str):
             date_key = raw_date[:10]
         else:
@@ -120,10 +140,20 @@ def compute_acwr_from_sessions(
         load = s.get(load_field, 0) or 0
         daily[date_key] += load
 
-    daily_loads = [
-        {"date": date, load_field: load}
-        for date, load in sorted(daily.items())
-    ]
+    if not daily:
+        return []
+
+    # Expand first→last session date, zero-filling rest days.
+    from datetime import timedelta
+
+    first = min(parsed.get(d, datetime.strptime(d, "%Y-%m-%d")) for d in daily)
+    last = max(parsed.get(d, datetime.strptime(d, "%Y-%m-%d")) for d in daily)
+    daily_loads: list[dict[str, Any]] = []
+    day = first
+    while day <= last:
+        key = day.strftime("%Y-%m-%d")
+        daily_loads.append({"date": key, load_field: daily.get(key, 0.0)})
+        day += timedelta(days=1)
 
     return compute_acwr(daily_loads, load_field=load_field)
 

@@ -289,6 +289,110 @@ def unlink_oauth_account(provider: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# ── SAML SSO (Phase 4: wires the previously-orphaned saml_auth_service.py) ──
+
+class SAMLCallbackRequest(BaseModel):
+    saml_response_xml: str
+    idp_entity_id: str
+
+
+class SAMLConfigIn(BaseModel):
+    entity_id: str
+    sso_url: str
+    certificate: str = ""
+
+
+_saml_states: dict[str, str] = {}  # relay_state -> idp_entity_id
+
+
+def _get_saml_service():
+    from kawkab.services.saml_auth_service import SAMLAuthService
+
+    return SAMLAuthService()
+
+
+@app.get("/auth/saml/status")
+def saml_status():
+    """Whether the SAML SDK is importable and which IdPs are configured.
+
+    Registration lives in process memory (same lifetime as the OAuth
+    state map) — a deployment wires its IdP once at boot via
+    KAWKAB_SAML_IDP_ENTITY_ID / KAWKAB_SAML_IDP_SSO_URL / KAWKAB_SAML_IDP_CERT.
+    """
+    svc = _get_saml_service()
+    if not svc.available and os.environ.get("KAWKAB_SAML_IDP_SSO_URL"):
+        svc.register_idp(type(svc).SAMLIdentityProvider(
+            entity_id=os.environ.get("KAWKAB_SAML_IDP_ENTITY_ID", "club-idp"),
+            sso_url=os.environ["KAWKAB_SAML_IDP_SSO_URL"],
+            certificate=os.environ.get("KAWKAB_SAML_IDP_CERT", ""),
+        ))
+    return {
+        "sdk_available": svc.available,
+        "configured_idps": [i.entity_id for i in svc.get_configured_providers()],
+    }
+
+
+@app.post("/auth/saml/configure")
+def saml_configure(body: SAMLConfigIn, user: dict = Depends(get_current_user)):
+    """Register/replace a SAML IdP (admin only — the club IT dept's step)."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    svc = _get_saml_service()
+    if not svc.available:
+        raise HTTPException(
+            status_code=503,
+            detail="SAML SDK not installed (pip install python3-saml or onelogin-graphql-sdk alternative)",
+        )
+    from kawkab.services.saml_auth_service import SAMLIdentityProvider
+
+    svc.register_idp(SAMLIdentityProvider(
+        entity_id=body.entity_id, sso_url=body.sso_url, certificate=body.certificate,
+    ))
+    return {"ok": True, "entity_id": body.entity_id}
+
+
+@app.post("/auth/saml/callback", response_model=TokenResponse)
+def saml_callback(body: SAMLCallbackRequest):
+    """Consume the IdP's SAMLResponse POST, resolve/create the local user,
+    and mint the same JWT the password/OAuth flows return."""
+    svc = _get_saml_service()
+    if not svc.available:
+        raise HTTPException(status_code=503, detail="SAML SDK not available on this deployment")
+    result = svc.handle_acs(body.saml_response_xml)
+    if not result or not result.get("email"):
+        raise HTTPException(status_code=400, detail="Invalid SAML response (no assertion/email)")
+
+    email = result["email"]
+    db = get_cloud_db()
+    row = db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE email = ?", (email,)).fetchone()
+    if row:
+        user = dict(row)
+        if not user.get("is_active", 1):
+            raise HTTPException(status_code=403, detail="Account disabled")
+        jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
+        return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+
+    # First SSO login: provision the account (analyst by default — the
+    # cloud server's other provisioning paths use the same default).
+    username = email.split("@")[0].lower().replace(" ", "_")
+    base = username
+    counter = 1
+    while db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone():
+        username = f"{base}_{counter}"
+        counter += 1
+    cur = db.execute(
+        "INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
+        (username, email, "saml", result.get("name") or username),
+    )
+    db.commit()
+    user = dict(db.execute(
+        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+        (cur.lastrowid,),
+    ).fetchone())
+    jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
+    return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+
+
 # ── Sync ──
 
 @app.post("/sync/push")

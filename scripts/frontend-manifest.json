@@ -27,7 +27,10 @@
     "js/app-highlight.js",
     "js/app.js",
     "js/app-data-providers.js",
+    "js/app-import.js",
+    "js/app-search-compare.js",
     "js/tactical_sandbox.js",
-    "js/app-briefing.js"
+    "js/app-briefing.js",
+    "js/app-proanalytics.js"
   ]
 }

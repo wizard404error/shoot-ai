@@ -11,12 +11,14 @@ import os
 import re
 import shutil
 import sqlite3
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
+from kawkab.services.storage.base import parse_metadata_json
 
 if TYPE_CHECKING:
     from kawkab.services.benchmark_service import BenchmarkResult
@@ -1050,7 +1052,9 @@ class StorageService:
             ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
             """,
             (
-                profile.get("global_id", ""),
+                # global_id is UNIQUE NOT NULL: generate one when absent so
+                # two anonymous inserts don't collide (mirrors the PG fix).
+                profile.get("global_id") or f"auto_{uuid.uuid4().hex}",
                 profile.get("display_name", ""),
                 profile.get("jersey_number"),
                 profile.get("preferred_position"),
@@ -1446,6 +1450,258 @@ class StorageService:
         cursor.execute("SELECT COUNT(*) AS cnt FROM tracking_frames WHERE match_id = ?", (match_id,))
         row = cursor.fetchone()
         return row["cnt"] if row else 0
+
+    # ── Vendor tracking-import provenance (elite interop) ───────────────
+
+    async def save_tracking_import(
+        self,
+        match_id: int,
+        vendor: str,
+        *,
+        source_path: str = "",
+        checksum: str = "",
+        fps: float | None = None,
+        frame_count: int = 0,
+        pitch_length_m: float | None = None,
+        pitch_width_m: float | None = None,
+        coordinate_system: str = "kawkab_meters",
+        metadata: dict | None = None,
+    ) -> int:
+        """Record one external tracking-feed import (migration 030).
+
+        One row per (match, vendor, file) import; frame positions live in
+        ``tracking_frames`` via save_tracking_frames_bulk, this is the
+        per-match provenance row. Returns the row id, or 0 on failure.
+        """
+        if self._conn is None:
+            return 0
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO tracking_imports (
+                    match_id, vendor, source_path, checksum, fps, frame_count,
+                    pitch_length_m, pitch_width_m, coordinate_system, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    match_id,
+                    vendor,
+                    source_path,
+                    checksum,
+                    fps,
+                    frame_count,
+                    pitch_length_m,
+                    pitch_width_m,
+                    coordinate_system,
+                    json.dumps(metadata or {}),
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_tracking_import failed: {e}")
+            return 0
+
+    async def get_tracking_imports(self, match_id: int) -> list[dict]:
+        """All (non-deleted) vendor tracking imports for a match."""
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
+                   pitch_length_m, pitch_width_m, coordinate_system,
+                   metadata_json, imported_at
+            FROM tracking_imports
+            WHERE match_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)
+            ORDER BY imported_at DESC
+            """,
+            (match_id,),
+        )
+        rows = []
+        for row in cursor.fetchall():
+            rows.append(parse_metadata_json(dict(row)))
+        return rows
+
+    async def get_tracking_import_by_id(self, import_id: int) -> dict | None:
+        """One tracking-import row by id (dict or None)."""
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
+                   pitch_length_m, pitch_width_m, coordinate_system,
+                   metadata_json, imported_at
+            FROM tracking_imports
+            WHERE id = ? AND (is_deleted = 0 OR is_deleted IS NULL)
+            """,
+            (import_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return parse_metadata_json(dict(row))
+
+    async def delete_tracking_import(self, import_id: int) -> bool:
+        """Soft-delete a tracking-import provenance row."""
+        if self._conn is None:
+            return False
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("UPDATE tracking_imports SET is_deleted = 1 WHERE id = ?", (import_id,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"delete_tracking_import failed: {e}")
+            return False
+
+    # ── Match external-ID registry + season context (migration 031) ─────
+
+    async def register_match_external_id(
+        self, match_id: int, source: str, external_id: str
+    ) -> bool:
+        """Map a vendor match id to the internal match (migration 031).
+
+        INSERT OR IGNORE against UNIQUE(source, external_id): returns True
+        when this call created the mapping, False when it already existed
+        (so bulk importers can distinguish "registered" from "was already
+        there" without a second query).
+        """
+        if self._conn is None:
+            return False
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO matches_external_ids (match_id, source, external_id)
+                VALUES (?, ?, ?)
+                """,
+                (match_id, source, str(external_id)),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"register_match_external_id failed: {e}")
+            return False
+
+    async def get_match_by_external_id(
+        self, source: str, external_id: str
+    ) -> int | None:
+        """Internal match id for a vendor match id, or None."""
+        if self._conn is None:
+            return None
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT match_id FROM matches_external_ids WHERE source = ? AND external_id = ?",
+            (source, str(external_id)),
+        )
+        row = cursor.fetchone()
+        return int(row[0]) if row else None
+
+    async def update_match_context(
+        self,
+        match_id: int,
+        *,
+        match_date: str | None = None,
+        competition: str | None = None,
+        season_id: int | None = None,
+    ) -> None:
+        """Fill the season-context columns on a match (migration 002 cols).
+
+        Only non-None arguments are written, so bulk importers can update
+        one facet (e.g. competition) without clobbering another.
+        """
+        if self._conn is None:
+            return
+        sets: list[str] = []
+        vals: list[Any] = []
+        if match_date is not None:
+            sets.append("match_date = ?")
+            vals.append(match_date)
+        if competition is not None:
+            sets.append("competition = ?")
+            vals.append(competition)
+        if season_id is not None:
+            sets.append("season_id = ?")
+            vals.append(season_id)
+        if not sets:
+            return
+        vals.append(match_id)
+        cursor = self._conn.cursor()
+        cursor.execute(
+            f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
+        )
+        self._conn.commit()
+
+    # ── Event<->frame alignment (migration 030) ─────────────────────────
+
+    async def save_event_frame_links_bulk(self, match_id: int, links: list[dict]) -> int:
+        """Bulk-insert event<->frame alignment rows.
+
+        Each link: {event_id, frame_number, frame_offset?}. Duplicates
+        (same match/event/frame) are skipped via the UNIQUE constraint.
+        """
+        if self._conn is None:
+            return 0
+        if not links:
+            return 0
+        try:
+            cursor = self._conn.cursor()
+            rows = [
+                (
+                    match_id,
+                    l.get("event_id"),
+                    l.get("frame_number", 0),
+                    l.get("frame_offset", 0),
+                )
+                for l in links
+                if l.get("event_id") is not None
+            ]
+            if not rows:
+                return 0
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO event_frame_links (match_id, event_id, frame_number, frame_offset)
+                VALUES (?, ?, ?, ?)
+                """,
+                rows,
+            )
+            self._conn.commit()
+            return len(rows)
+        except Exception as e:
+            logger.warning(f"save_event_frame_links_bulk failed: {e}")
+            return 0
+
+    async def get_event_frame_links(
+        self, match_id: int, event_id: int | None = None, limit: int = 10000
+    ) -> list[dict]:
+        """Alignment rows for a match, optionally narrowed to one event."""
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        if event_id is not None:
+            cursor.execute(
+                """
+                SELECT id, match_id, event_id, frame_number, frame_offset
+                FROM event_frame_links
+                WHERE match_id = ? AND event_id = ?
+                ORDER BY event_id, frame_number LIMIT ?
+                """,
+                (match_id, event_id, limit),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT id, match_id, event_id, frame_number, frame_offset
+                FROM event_frame_links
+                WHERE match_id = ?
+                ORDER BY event_id, frame_number LIMIT ?
+                """,
+                (match_id, limit),
+            )
+        return [dict(row) for row in cursor.fetchall()]
 
     async def delete_tracking_frames(self, match_id: int) -> bool:
         if self._conn is None:
