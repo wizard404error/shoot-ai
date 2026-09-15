@@ -31,6 +31,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -121,7 +122,7 @@ def assess_tracking_quality(frames: list[dict], fps: float | None = None) -> dic
         return {"frames": 0}
 
     times = [float(fr.get("timestamp", 0.0) or 0.0) for fr in frames]
-    deltas = [b - a for a, b in zip(times, times[1:]) if b > a]
+    deltas = [b - a for a, b in zip(times, times[1:], strict=False) if b > a]
     median_dt = sorted(deltas)[len(deltas) // 2] if deltas else 0.0
     gap_threshold = (2.0 * median_dt) if median_dt > 0 else 1e9
     frame_gaps = sum(1 for d in deltas if d > gap_threshold)
@@ -139,8 +140,10 @@ def assess_tracking_quality(frames: list[dict], fps: float | None = None) -> dic
             missing_ball += 1
         for p in fr.get("player_detections") or []:
             if (
-                p.get("x", 0.0) < -3.0 or p.get("x", 0.0) > KAWKAB_X_MAX + 3.0
-                or p.get("y", 0.0) < -3.0 or p.get("y", 0.0) > KAWKAB_Y_MAX + 3.0
+                p.get("x", 0.0) < -3.0
+                or p.get("x", 0.0) > KAWKAB_X_MAX + 3.0
+                or p.get("y", 0.0) < -3.0
+                or p.get("y", 0.0) > KAWKAB_Y_MAX + 3.0
             ):
                 out_of_bounds += 1
 
@@ -186,8 +189,9 @@ def detect_vendor(path: str | Path) -> str | None:
 # player_meta: {track_id: {"name": str, "team": "home"|"away", "position": str}}
 
 
-def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
-                      pitch_width_m: float = KAWKAB_Y_MAX) -> tuple[list[dict], dict[int, dict], float]:
+def parse_skillcorner(
+    path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX, pitch_width_m: float = KAWKAB_Y_MAX
+) -> tuple[list[dict], dict[int, dict], float]:
     """SkillCorner JSON (open-data or pro export shape).
 
     Timestamp scale: SkillCorner "time" is milliseconds since period
@@ -196,7 +200,7 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
     a seconds clock reads as ~0.04 — which self-calibrates per file
     instead of guessing from absolute magnitude.
     """
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if isinstance(data, list):
         data = {"frames": data}
@@ -216,7 +220,7 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
 
     # Timestamp scale detection (see docstring)
     times = [_raw_time(it) for it in raw_frames if isinstance(it, dict)]
-    deltas = [b - a for a, b in zip(times, times[1:]) if b != a]
+    deltas = [b - a for a, b in zip(times, times[1:], strict=False) if b != a]
     if deltas:
         deltas.sort()
         median_delta = deltas[len(deltas) // 2]
@@ -231,7 +235,7 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
         if not isinstance(p, dict):
             continue
         try:
-            tid = int(p.get("track_id", p.get("id", -1)))
+            tid = int(p.get("track_id") or p.get("id") or -1)
         except (TypeError, ValueError):
             continue
         player_meta[tid] = {
@@ -247,7 +251,7 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
         if not isinstance(item, dict):
             continue
         try:
-            frame_number = int(item.get("frame_id", item.get("id", item.get("frame", i))))
+            frame_number = int(item.get("frame_id") or item.get("id") or item.get("frame") or i)
             timestamp = _raw_time(item)
             if is_ms:
                 timestamp = timestamp / 1000.0
@@ -260,41 +264,53 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
             if not isinstance(pd, dict):
                 continue
             try:
-                tid = int(pd.get("track_id", pd.get("id", -1)))
+                tid = int(pd.get("track_id") or pd.get("id") or -1)
                 x, y = to_kawkab_meters(
-                    float(pd.get("x", 0.0)), float(pd.get("y", 0.0)),
+                    float(pd.get("x", 0.0)),
+                    float(pd.get("y", 0.0)),
                     convention="skillcorner",
-                    pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m,
+                    pitch_length_m=pitch_length_m,
+                    pitch_width_m=pitch_width_m,
                 )
             except (TypeError, ValueError):
                 continue
-            players.append({
-                "track_id": tid,
-                "x": round(x, 3), "y": round(y, 3),
-                "speed": float(pd.get("speed", 0.0) or 0.0),
-            })
+            players.append(
+                {
+                    "track_id": tid,
+                    "x": round(x, 3),
+                    "y": round(y, 3),
+                    "speed": float(pd.get("speed", 0.0) or 0.0),
+                }
+            )
 
         ball_raw = item.get("ball")
         ball = None
         if isinstance(ball_raw, dict):
             try:
                 bx, by = to_kawkab_meters(
-                    float(ball_raw.get("x", 0.0)), float(ball_raw.get("y", 0.0)),
+                    float(ball_raw.get("x", 0.0)),
+                    float(ball_raw.get("y", 0.0)),
                     convention="skillcorner",
-                    pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m,
+                    pitch_length_m=pitch_length_m,
+                    pitch_width_m=pitch_width_m,
                 )
-                ball = {"x": round(bx, 3), "y": round(by, 3),
-                        "z": float(ball_raw.get("z", 0.0) or 0.0)}
+                ball = {
+                    "x": round(bx, 3),
+                    "y": round(by, 3),
+                    "z": float(ball_raw.get("z", 0.0) or 0.0),
+                }
             except (TypeError, ValueError):
                 ball = None
 
-        frames.append({
-            "frame_number": frame_number,
-            "timestamp": timestamp,
-            "period": int(item.get("period", 0) or 0),
-            "player_detections": players,
-            "ball": ball,
-        })
+        frames.append(
+            {
+                "frame_number": frame_number,
+                "timestamp": timestamp,
+                "period": int(item.get("period", 0) or 0),
+                "player_detections": players,
+                "ball": ball,
+            }
+        )
 
     if not frames:
         raise ValueError(f"{path}: parsed zero usable frames")
@@ -315,9 +331,13 @@ def _epts_attr(el: ET.Element, *names: str) -> str:
     return ""
 
 
-def parse_epts(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
-               pitch_width_m: float = KAWKAB_Y_MAX,
-               convention: str = "meters") -> tuple[list[dict], dict[int, dict], float]:
+def parse_epts(
+    path: str | Path,
+    *,
+    pitch_length_m: float = KAWKAB_X_MAX,
+    pitch_width_m: float = KAWKAB_Y_MAX,
+    convention: str = "meters",
+) -> tuple[list[dict], dict[int, dict], float]:
     """FIFA EPTS XML tracking export (namespace-tolerant).
 
     Walks every element whose local name is 'Frame'; ball is a 'Ball'
@@ -364,37 +384,46 @@ def parse_epts(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
         for child in el.iter():
             local = _epts_local(child.tag)
             if local == "section" and child.text:
-                try:
+                with contextlib.suppress(ValueError):
                     period = int(child.text)
-                except ValueError:
-                    pass
             elif local == "ball":
                 bx = _epts_attr(child, "x") or (child.findtext(".//x") or "0")
                 by = _epts_attr(child, "y") or (child.findtext(".//y") or "0")
                 bz = _epts_attr(child, "z") or (child.findtext(".//z") or "0")
                 try:
                     mx, my = to_kawkab_meters(
-                        float(bx), float(by), convention=convention,
-                        pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m,
+                        float(bx),
+                        float(by),
+                        convention=convention,
+                        pitch_length_m=pitch_length_m,
+                        pitch_width_m=pitch_width_m,
                     )
                     ball = {"x": round(mx, 3), "y": round(my, 3), "z": float(bz)}
                 except (TypeError, ValueError):
                     ball = None
             elif local == "player":
-                pid_raw = (_epts_attr(child, "playerid", "id")
-                           or child.findtext(".//playerid") or "")
+                pid_raw = _epts_attr(child, "playerid", "id") or child.findtext(".//playerid") or ""
                 px = _epts_attr(child, "x") or (child.findtext(".//x") or "0")
                 py = _epts_attr(child, "y") or (child.findtext(".//y") or "0")
                 try:
                     tid = int(float(pid_raw))
                     mx, my = to_kawkab_meters(
-                        float(px), float(py), convention=convention,
-                        pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m,
+                        float(px),
+                        float(py),
+                        convention=convention,
+                        pitch_length_m=pitch_length_m,
+                        pitch_width_m=pitch_width_m,
                     )
                 except (TypeError, ValueError):
                     continue
-                players.append({"track_id": tid, "x": round(mx, 3), "y": round(my, 3),
-                                "speed": float(_epts_attr(child, "speed") or 0.0)})
+                players.append(
+                    {
+                        "track_id": tid,
+                        "x": round(mx, 3),
+                        "y": round(my, 3),
+                        "speed": float(_epts_attr(child, "speed") or 0.0),
+                    }
+                )
                 if tid not in player_meta:
                     player_meta[tid] = {
                         "name": _epts_attr(child, "name"),
@@ -403,17 +432,24 @@ def parse_epts(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
                     }
 
         if players or ball is not None:
-            frames.append({
-                "frame_number": frame_number, "timestamp": timestamp,
-                "period": period, "player_detections": players, "ball": ball,
-            })
+            frames.append(
+                {
+                    "frame_number": frame_number,
+                    "timestamp": timestamp,
+                    "period": period,
+                    "player_detections": players,
+                    "ball": ball,
+                }
+            )
 
     if not frames:
         raise ValueError(f"{path}: no EPTS Frame elements found — unsupported variant")
     return frames, player_meta, fps
 
 
-def parse_metrica(home_csv: str | Path, away_csv: str | Path) -> tuple[list[dict], dict[int, dict], float]:
+def parse_metrica(
+    home_csv: str | Path, away_csv: str | Path
+) -> tuple[list[dict], dict[int, dict], float]:
     """Metrica raw CSVs via the existing validation loader (meters out)."""
     from kawkab.core.validation.metrica_loader import load_metrica_match
 
@@ -424,19 +460,27 @@ def parse_metrica(home_csv: str | Path, away_csv: str | Path) -> tuple[list[dict
         players: list[dict] = []
         for idx, pos in enumerate(fr.home):
             tid = 1 + idx
-            players.append({"track_id": tid, "x": round(pos[0], 3), "y": round(pos[1], 3), "speed": 0.0})
+            players.append(
+                {"track_id": tid, "x": round(pos[0], 3), "y": round(pos[1], 3), "speed": 0.0}
+            )
             player_meta.setdefault(tid, {"name": f"Home {idx + 1}", "team": "home", "position": ""})
         for idx, pos in enumerate(fr.away):
             tid = 101 + idx
-            players.append({"track_id": tid, "x": round(pos[0], 3), "y": round(pos[1], 3), "speed": 0.0})
+            players.append(
+                {"track_id": tid, "x": round(pos[0], 3), "y": round(pos[1], 3), "speed": 0.0}
+            )
             player_meta.setdefault(tid, {"name": f"Away {idx + 1}", "team": "away", "position": ""})
-        frames.append({
-            "frame_number": fr.frame,
-            "timestamp": fr.time_s,
-            "period": fr.period,
-            "player_detections": players,
-            "ball": {"x": round(fr.ball[0], 3), "y": round(fr.ball[1], 3), "z": 0.0} if fr.ball else None,
-        })
+        frames.append(
+            {
+                "frame_number": fr.frame,
+                "timestamp": fr.time_s,
+                "period": fr.period,
+                "player_detections": players,
+                "ball": {"x": round(fr.ball[0], 3), "y": round(fr.ball[1], 3), "z": 0.0}
+                if fr.ball
+                else None,
+            }
+        )
     if not frames:
         raise ValueError("Metrica files produced zero frames")
     return frames, player_meta, mm.fps
@@ -460,7 +504,7 @@ class VendorTrackingImportService:
         match_name: str | None = None,
         home_team: str | None = None,
         away_team: str | None = None,
-        away_csv: str | Path | None = None,   # metrica only
+        away_csv: str | Path | None = None,  # metrica only
         max_frames: int | None = None,
         fps: float | None = None,
         pitch_length_m: float = KAWKAB_X_MAX,
@@ -474,9 +518,7 @@ class VendorTrackingImportService:
         if vendor is None:
             vendor = "metrica" if away_csv is not None else detect_vendor(path)
         if vendor not in SUPPORTED_VENDORS:
-            raise ValueError(
-                f"unsupported vendor {vendor!r}; supported: {SUPPORTED_VENDORS}"
-            )
+            raise ValueError(f"unsupported vendor {vendor!r}; supported: {SUPPORTED_VENDORS}")
 
         if vendor == "metrica":
             if away_csv is None:
@@ -513,12 +555,14 @@ class VendorTrackingImportService:
         # 2. Idempotence: same checksum + vendor on the same match -> skip
         checksum = _sha256_file(path)
         existing = await self.storage.get_tracking_imports(match_id)
-        if any(e.get("vendor") == vendor and e.get("checksum") == checksum
-               for e in existing):
+        if any(e.get("vendor") == vendor and e.get("checksum") == checksum for e in existing):
             return {
-                "match_id": match_id, "vendor": vendor,
-                "deduplicated": True, "frames_imported": 0,
-                "players_registered": 0, "events_aligned": 0,
+                "match_id": match_id,
+                "vendor": vendor,
+                "deduplicated": True,
+                "frames_imported": 0,
+                "players_registered": 0,
+                "events_aligned": 0,
                 "checksum": checksum,
             }
 
@@ -528,21 +572,32 @@ class VendorTrackingImportService:
                 "frame_number": fr["frame_number"],
                 "timestamp": fr["timestamp"],
                 "player_detections": [
-                    {"track_id": p["track_id"], "x": p["x"], "y": p["y"],
-                     "speed": p.get("speed", 0.0)}
+                    {
+                        "track_id": p["track_id"],
+                        "x": p["x"],
+                        "y": p["y"],
+                        "speed": p.get("speed", 0.0),
+                    }
                     for p in fr["player_detections"]
                 ],
                 "ball_detections": (
-                    [{"track_id": 999, "x": fr["ball"]["x"], "y": fr["ball"]["y"],
-                      "z": fr["ball"].get("z", 0.0)}]
-                    if fr.get("ball") else []
+                    [
+                        {
+                            "track_id": 999,
+                            "x": fr["ball"]["x"],
+                            "y": fr["ball"]["y"],
+                            "z": fr["ball"].get("z", 0.0),
+                        }
+                    ]
+                    if fr.get("ball")
+                    else []
                 ),
             }
             for fr in frames
         ]
         frames_saved = 0
         for i in range(0, len(frame_rows), _FRAME_BATCH_SIZE):
-            batch = frame_rows[i:i + _FRAME_BATCH_SIZE]
+            batch = frame_rows[i : i + _FRAME_BATCH_SIZE]
             frames_saved += await self.storage.save_tracking_frames_bulk(match_id, batch)
 
         # 4. Register players (from metadata, else first frame's track ids)
@@ -556,13 +611,16 @@ class VendorTrackingImportService:
         for tid, meta in player_meta.items():
             team = meta.get("team") or "home"
             seen_teams[tid] = team
-            ok = await self.storage.save_player(match_id, {
-                "track_id": tid,
-                "name": meta.get("name") or f"Player {tid}",
-                "team": team,
-                "position": meta.get("position") or None,
-                "jersey_number": meta.get("jersey_number"),
-            })
+            ok = await self.storage.save_player(
+                match_id,
+                {
+                    "track_id": tid,
+                    "name": meta.get("name") or f"Player {tid}",
+                    "team": team,
+                    "position": meta.get("position") or None,
+                    "jersey_number": meta.get("jersey_number"),
+                },
+            )
             if ok:
                 registered += 1
 
@@ -572,7 +630,8 @@ class VendorTrackingImportService:
         # 6. Provenance row (migration 030) — carries the quality report so
         # downstream consumers see the feed's condition, not just its size
         await self.storage.save_tracking_import(
-            match_id, vendor,
+            match_id,
+            vendor,
             source_path=str(path),
             checksum=checksum,
             fps=fps,
@@ -664,7 +723,7 @@ class VendorTrackingImportService:
         written = 0
         if links:
             for i in range(0, len(links), _FRAME_BATCH_SIZE):
-                batch = links[i:i + _FRAME_BATCH_SIZE]
+                batch = links[i : i + _FRAME_BATCH_SIZE]
                 written += await self.storage.save_event_frame_links_bulk(match_id, batch)
 
         return {
@@ -676,8 +735,11 @@ class VendorTrackingImportService:
         }
 
     async def _relabel_match(
-        self, match_id: int, match_name: str | None,
-        home_team: str | None, away_team: str | None,
+        self,
+        match_id: int,
+        match_name: str | None,
+        home_team: str | None,
+        away_team: str | None,
     ) -> None:
         """Best-effort team-label update on an existing match row.
 

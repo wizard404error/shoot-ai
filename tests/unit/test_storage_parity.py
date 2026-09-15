@@ -162,9 +162,7 @@ class TestNoConnectionFallbackParity:
         assert asyncio.run(pg_adapter.get_tracking_imports(1)) == []
 
     def test_pg_save_tracking_import_no_pool_returns_zero(self, pg_adapter):
-        result = asyncio.run(
-            pg_adapter.save_tracking_import(1, "skillcorner")
-        )
+        result = asyncio.run(pg_adapter.save_tracking_import(1, "skillcorner"))
         assert result == 0
 
     def test_pg_get_tracking_import_by_id_no_pool_returns_none(self, pg_adapter):
@@ -185,21 +183,26 @@ class TestTrackingImportRoundTrip:
     def test_tracking_import_full_round_trip(self, sqlite_storage):
         """save_match -> save_tracking_import -> get_tracking_imports ->
         delete, exercising migration 030's real tables."""
-        match_id = asyncio.run(sqlite_storage.save_match(
-            "SkillCorner Fixture", "", home_team="Alpha", away_team="Beta"
-        ))
+        match_id = asyncio.run(
+            sqlite_storage.save_match(
+                "SkillCorner Fixture", "", home_team="Alpha", away_team="Beta"
+            )
+        )
         assert match_id > 0
 
-        import_row = asyncio.run(sqlite_storage.save_tracking_import(
-            match_id, "skillcorner",
-            source_path="/tmp/fake.json",
-            checksum="deadbeef",
-            fps=25.0,
-            frame_count=100,
-            pitch_length_m=105.0,
-            pitch_width_m=68.0,
-            metadata={"periods": [1, 2]},
-        ))
+        import_row = asyncio.run(
+            sqlite_storage.save_tracking_import(
+                match_id,
+                "skillcorner",
+                source_path="/tmp/fake.json",
+                checksum="deadbeef",
+                fps=25.0,
+                frame_count=100,
+                pitch_length_m=105.0,
+                pitch_width_m=68.0,
+                metadata={"periods": [1, 2]},
+            )
+        )
         assert import_row > 0
 
         rows = asyncio.run(sqlite_storage.get_tracking_imports(match_id))
@@ -220,17 +223,24 @@ class TestTrackingImportRoundTrip:
     def test_event_frame_links_round_trip_with_dedup(self, sqlite_storage):
         match_id = asyncio.run(sqlite_storage.save_match("L", ""))
         # events table needs a real event row (FK)
-        event_id = asyncio.run(sqlite_storage.save_event(match_id, {
-            "type": "pass", "timestamp": 1.0, "team": "home",
-        }))
+        event_id = asyncio.run(
+            sqlite_storage.save_event(
+                match_id,
+                {
+                    "type": "pass",
+                    "timestamp": 1.0,
+                    "team": "home",
+                },
+            )
+        )
         assert event_id > 0
 
-        links = [{"event_id": event_id, "frame_number": 5, "frame_offset": 0},
-                 {"event_id": event_id, "frame_number": 6, "frame_offset": 1},
-                 {"event_id": event_id, "frame_number": 5, "frame_offset": 0}]  # dup
-        written = asyncio.run(
-            sqlite_storage.save_event_frame_links_bulk(match_id, links)
-        )
+        links = [
+            {"event_id": event_id, "frame_number": 5, "frame_offset": 0},
+            {"event_id": event_id, "frame_number": 6, "frame_offset": 1},
+            {"event_id": event_id, "frame_number": 5, "frame_offset": 0},
+        ]  # dup
+        written = asyncio.run(sqlite_storage.save_event_frame_links_bulk(match_id, links))
         assert written == 3  # executemany row count; the UNIQUE dup is ignored
 
         rows = asyncio.run(sqlite_storage.get_event_frame_links(match_id))

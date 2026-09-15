@@ -37,14 +37,14 @@ SB_X_MAX = 120.0
 SB_Y_MAX = 80.0
 KAWKAB_X_MAX = 105.0
 KAWKAB_Y_MAX = 68.0
-UNIT_TO_M_X = KAWKAB_X_MAX / SB_X_MAX   # 0.875
-UNIT_TO_M_Y = KAWKAB_Y_MAX / SB_Y_MAX   # 0.85
+UNIT_TO_M_X = KAWKAB_X_MAX / SB_X_MAX  # 0.875
+UNIT_TO_M_Y = KAWKAB_Y_MAX / SB_Y_MAX  # 0.85
 
 # Kawkab goal geometry (meters) — matches core/game_constants.py
 GOAL_WIDTH_M = 7.32
 HALF_GOAL_W = GOAL_WIDTH_M / 2.0
-GOAL_CENTER_Y = KAWKAB_Y_MAX / 2.0      # 34.0
-GOAL_LINE_X = KAWKAB_X_MAX              # shots attack toward x=105
+GOAL_CENTER_Y = KAWKAB_Y_MAX / 2.0  # 34.0
+GOAL_LINE_X = KAWKAB_X_MAX  # shots attack toward x=105
 
 # ── Event-type mapping ──────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ SHOT_TYPE_MAP = {
     "Open Play": "open_play",
     "Free Kick": "free_kick",
     "Penalty": "penalty",
-    "Corner": "corner",        # shots direct from corners
+    "Corner": "corner",  # shots direct from corners
     "Kick Off": "open_play",
 }
 
@@ -154,8 +154,8 @@ class StatsBombShot:
     # Kawkab-native features (what the model consumes)
     distance_m: float
     angle_deg: float
-    body_part: str            # "right_foot" | "left_foot" | "head" | "other"
-    shot_type: str            # "open_play" | "free_kick" | "penalty" | "corner"
+    body_part: str  # "right_foot" | "left_foot" | "head" | "other"
+    shot_type: str  # "open_play" | "free_kick" | "penalty" | "corner"
     gk_distance_m: float
     is_pressed: bool
     is_one_on_one: bool
@@ -271,7 +271,8 @@ def _parse_shot(ev: dict[str, Any], match_id: str) -> StatsBombShot | None:
         is_one_on_one = one_on_one_raw
     else:
         is_one_on_one = bool(
-            gk_dist > 0 and gk_dist < 12.0
+            gk_dist > 0
+            and gk_dist < 12.0
             and _nearest_opponent_distance(shot.get("freeze_frame"), loc) > 3.0
         )
 

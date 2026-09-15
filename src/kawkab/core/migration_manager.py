@@ -203,6 +203,8 @@ class MigrationManager:
             conn.close()
 
         if applied > 0:
-            logger.info(f"Applied {applied} migration(s). Schema now at version {current + applied}")
+            logger.info(
+                f"Applied {applied} migration(s). Schema now at version {current + applied}"
+            )
         else:
             logger.debug(f"Schema up to date at version {current}")

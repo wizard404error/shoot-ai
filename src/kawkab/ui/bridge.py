@@ -161,7 +161,9 @@ class Bridge(QObject):
         self._auth = AuthHandler(self, services, rate_limiter=self._rate_limiter)
         self._provider = ProviderHandler(self, services, rate_limiter=self._rate_limiter)
         self._pro_analytics = ProAnalyticsHandler(self, services, rate_limiter=self._rate_limiter)
-        self._season_analytics = SeasonAnalyticsHandler(self, services, rate_limiter=self._rate_limiter)
+        self._season_analytics = SeasonAnalyticsHandler(
+            self, services, rate_limiter=self._rate_limiter
+        )
         self._import = ImportHandler(self, services, rate_limiter=self._rate_limiter)
 
     # ================================================================
@@ -169,25 +171,51 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, int, int, result=str)
-    async def import_season_directory(self, directory: str, competition: str = "", season_id: int = 0, max_matches: int = 0) -> str:
+    async def import_season_directory(
+        self, directory: str, competition: str = "", season_id: int = 0, max_matches: int = 0
+    ) -> str:
         return await self._import.import_season_directory(
-            directory, competition,
+            directory,
+            competition,
             season_id=season_id or None,
             max_matches=max_matches or None,
         )
 
     @Slot(str, str, str, str, str, str, result=str)
-    async def import_tracking_file(self, path: str, vendor: str = "", away_csv: str = "", match_name: str = "", home_team: str = "", away_team: str = "") -> str:
+    async def import_tracking_file(
+        self,
+        path: str,
+        vendor: str = "",
+        away_csv: str = "",
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
         return await self._import.import_tracking_file(
-            path, vendor, away_csv, match_name, home_team, away_team,
+            path,
+            vendor,
+            away_csv,
+            match_name,
+            home_team,
+            away_team,
         )
 
     @Slot(str, str, str, str, str, result=str)
-    async def import_event_file(self, path: str, f7_path: str = "", match_name: str = "", home_team: str = "", away_team: str = "") -> str:
+    async def import_event_file(
+        self,
+        path: str,
+        f7_path: str = "",
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
         return await self._import.import_event_file(
-            path, f7_path, match_name, home_team, away_team,
+            path,
+            f7_path,
+            match_name,
+            home_team,
+            away_team,
         )
-
 
         logger.info("Bridge initialized with handler delegation")
 
@@ -200,16 +228,33 @@ class Bridge(QObject):
         return await self._analysis.get_first_frame(match_id)
 
     @Slot(int, str, float, float, result=str)
-    async def save_homography(self, match_id: int, corners_json: str, pitch_length_m: float = 105.0, pitch_width_m: float = 68.0) -> str:
-        return await self._analysis.save_homography(match_id, corners_json, pitch_length_m, pitch_width_m)
+    async def save_homography(
+        self,
+        match_id: int,
+        corners_json: str,
+        pitch_length_m: float = 105.0,
+        pitch_width_m: float = 68.0,
+    ) -> str:
+        return await self._analysis.save_homography(
+            match_id, corners_json, pitch_length_m, pitch_width_m
+        )
 
     @Slot(int, result=str)
     async def get_homography(self, match_id: int) -> str:
         return await self._analysis.get_homography(match_id)
 
     @Slot(int, int, str, float, float, result=str)
-    async def save_segment_homography(self, match_id: int, segment_index: int, corners_json: str, pitch_length_m: float = 105.0, pitch_width_m: float = 68.0) -> str:
-        return await self._analysis.save_segment_homography(match_id, segment_index, corners_json, pitch_length_m, pitch_width_m)
+    async def save_segment_homography(
+        self,
+        match_id: int,
+        segment_index: int,
+        corners_json: str,
+        pitch_length_m: float = 105.0,
+        pitch_width_m: float = 68.0,
+    ) -> str:
+        return await self._analysis.save_segment_homography(
+            match_id, segment_index, corners_json, pitch_length_m, pitch_width_m
+        )
 
     @Slot(int, result=str)
     async def get_segment_homographies(self, match_id: int) -> str:
@@ -248,7 +293,9 @@ class Bridge(QObject):
         return await self._analysis.get_event_timestamp(match_id, event_id)
 
     @Slot(int, float, float, result=str)
-    async def get_unreviewed_events(self, match_id: int, min_confidence: float = 0.0, max_confidence: float = 0.7) -> str:
+    async def get_unreviewed_events(
+        self, match_id: int, min_confidence: float = 0.0, max_confidence: float = 0.7
+    ) -> str:
         return await self._analysis.get_unreviewed_events(match_id, min_confidence, max_confidence)
 
     @Slot(int, result=str)
@@ -256,8 +303,12 @@ class Bridge(QObject):
         return await self._analysis.get_detection_summary(match_id)
 
     @Slot(int, int, str, str, result=str)
-    async def submit_event_correction(self, match_id: int, event_id: int, action: str, corrections_json: str = "") -> str:
-        return await self._analysis.submit_event_correction(match_id, event_id, action, corrections_json)
+    async def submit_event_correction(
+        self, match_id: int, event_id: int, action: str, corrections_json: str = ""
+    ) -> str:
+        return await self._analysis.submit_event_correction(
+            match_id, event_id, action, corrections_json
+        )
 
     @Slot(int, result=str)
     async def get_video_path(self, match_id: int) -> str:
@@ -300,7 +351,9 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, int, str, result=str)
-    async def create_player_profile(self, name: str, jersey: str, number: int, position: str) -> str:
+    async def create_player_profile(
+        self, name: str, jersey: str, number: int, position: str
+    ) -> str:
         return await self._analysis.create_player_profile(name, jersey, number, position)
 
     @Slot(result=str)
@@ -320,7 +373,9 @@ class Bridge(QObject):
         return await self._analysis.get_face_gallery()
 
     @Slot(str, str, int, result=str)
-    async def upload_face_photo(self, photo_path: str, display_name: str, jersey_number: int) -> str:
+    async def upload_face_photo(
+        self, photo_path: str, display_name: str, jersey_number: int
+    ) -> str:
         return await self._analysis.upload_face_photo(photo_path, display_name, jersey_number)
 
     @Slot(int, result=str)
@@ -416,7 +471,9 @@ class Bridge(QObject):
         return await self._external.get_football_competitions()
 
     @Slot(int, str, str, result=str)
-    async def get_football_team_matches(self, api_team_id: int, date_from: str, date_to: str) -> str:
+    async def get_football_team_matches(
+        self, api_team_id: int, date_from: str, date_to: str
+    ) -> str:
         return await self._external.get_football_team_matches(api_team_id, date_from, date_to)
 
     # ================================================================
@@ -660,8 +717,17 @@ class Bridge(QObject):
         return await self._analysis.get_setpiece_presets()
 
     @Slot(float, float, float, float, float, result=str)
-    async def simulate_trajectory(self, initial_speed: float, launch_angle_deg: float, spin_rps: float, direction_deg: float, duration_s: float) -> str:
-        return await self._analysis.simulate_trajectory(initial_speed, launch_angle_deg, spin_rps, direction_deg, duration_s)
+    async def simulate_trajectory(
+        self,
+        initial_speed: float,
+        launch_angle_deg: float,
+        spin_rps: float,
+        direction_deg: float,
+        duration_s: float,
+    ) -> str:
+        return await self._analysis.simulate_trajectory(
+            initial_speed, launch_angle_deg, spin_rps, direction_deg, duration_s
+        )
 
     # ================================================================
     # FluidX3D
@@ -672,7 +738,9 @@ class Bridge(QObject):
         return await self._analysis.check_fluidx3d_status()
 
     @Slot(float, float, float, result=str)
-    async def simulate_ball_cfd(self, wind_speed: float, spin_rps: float, ball_radius: float) -> str:
+    async def simulate_ball_cfd(
+        self, wind_speed: float, spin_rps: float, ball_radius: float
+    ) -> str:
         return await self._analysis.simulate_ball_cfd(wind_speed, spin_rps, ball_radius)
 
     # ================================================================
@@ -684,16 +752,36 @@ class Bridge(QObject):
         return await self._analysis.check_weather_status()
 
     @Slot(float, float, str, bool, result=str)
-    async def fetch_match_weather(self, latitude: float, longitude: float, date: str, is_forecast: bool) -> str:
+    async def fetch_match_weather(
+        self, latitude: float, longitude: float, date: str, is_forecast: bool
+    ) -> str:
         return await self._analysis.fetch_match_weather(latitude, longitude, date, is_forecast)
 
     @Slot(float, float, float, float, str, result=str)
-    async def set_manual_weather(self, temperature: float, precipitation: float, wind: float, humidity: float, conditions: str) -> str:
-        return await self._analysis.set_manual_weather(temperature, precipitation, wind, humidity, conditions)
+    async def set_manual_weather(
+        self,
+        temperature: float,
+        precipitation: float,
+        wind: float,
+        humidity: float,
+        conditions: str,
+    ) -> str:
+        return await self._analysis.set_manual_weather(
+            temperature, precipitation, wind, humidity, conditions
+        )
 
     @Slot(float, float, float, float, str, result=str)
-    async def analyze_weather_impact(self, temperature: float, precipitation: float, wind: float, humidity: float, conditions: str) -> str:
-        return await self._analysis.analyze_weather_impact(temperature, precipitation, wind, humidity, conditions)
+    async def analyze_weather_impact(
+        self,
+        temperature: float,
+        precipitation: float,
+        wind: float,
+        humidity: float,
+        conditions: str,
+    ) -> str:
+        return await self._analysis.analyze_weather_impact(
+            temperature, precipitation, wind, humidity, conditions
+        )
 
     @Slot(result=str)
     async def check_raindrop_status(self) -> str:
@@ -704,8 +792,12 @@ class Bridge(QObject):
         return await self._analysis.check_weather_classifier_status()
 
     @Slot(str, int, int, result=str)
-    async def detect_raindrops_in_video(self, video_path: str, sample_every_n: int, max_frames: int) -> str:
-        return await self._analysis.detect_raindrops_in_video(video_path, sample_every_n, max_frames)
+    async def detect_raindrops_in_video(
+        self, video_path: str, sample_every_n: int, max_frames: int
+    ) -> str:
+        return await self._analysis.detect_raindrops_in_video(
+            video_path, sample_every_n, max_frames
+        )
 
     @Slot(str, result=str)
     async def classify_video_weather(self, video_path: str) -> str:
@@ -720,8 +812,12 @@ class Bridge(QObject):
         return await self._analysis.check_psychology_status()
 
     @Slot(int, str, str, str, result=str)
-    async def analyze_match_psychology(self, match_id: int, home_team: str, away_team: str, events_json: str) -> str:
-        return await self._analysis.analyze_match_psychology(match_id, home_team, away_team, events_json)
+    async def analyze_match_psychology(
+        self, match_id: int, home_team: str, away_team: str, events_json: str
+    ) -> str:
+        return await self._analysis.analyze_match_psychology(
+            match_id, home_team, away_team, events_json
+        )
 
     # ================================================================
     # Football Rules
@@ -744,8 +840,12 @@ class Bridge(QObject):
         return await self._analysis.classify_event_rule(event_type, x, y, side)
 
     @Slot(float, float, float, str, result=str)
-    async def check_offside(self, attacker_x: float, defender_x: float, ball_x: float, attacking_direction: str) -> str:
-        return await self._analysis.check_offside(attacker_x, defender_x, ball_x, attacking_direction)
+    async def check_offside(
+        self, attacker_x: float, defender_x: float, ball_x: float, attacking_direction: str
+    ) -> str:
+        return await self._analysis.check_offside(
+            attacker_x, defender_x, ball_x, attacking_direction
+        )
 
     # ================================================================
     # Card Detection
@@ -784,21 +884,40 @@ class Bridge(QObject):
         return await self._analysis.check_goalkeeper_status()
 
     @Slot(str, str, str, bool, result=str)
-    async def analyze_goalkeeper(self, team: str, actions_json: str, shots_json: str, clean_sheet: bool) -> str:
+    async def analyze_goalkeeper(
+        self, team: str, actions_json: str, shots_json: str, clean_sheet: bool
+    ) -> str:
         return await self._analysis.analyze_goalkeeper(team, actions_json, shots_json, clean_sheet)
 
     @Slot(float, float, str, bool, result=str)
-    async def compute_xgot(self, shot_x: float, shot_y: float, body_part: str, one_on_one: bool) -> str:
+    async def compute_xgot(
+        self, shot_x: float, shot_y: float, body_part: str, one_on_one: bool
+    ) -> str:
         return await self._analysis.compute_xgot(shot_x, shot_y, body_part, one_on_one)
 
     @Slot(str, str, str, str, str, str, str, bool, str, result=str)
-    async def analyze_goalkeeper_advanced(self, team: str, shots_json: str, crosses_json: str, dist_json: str,
-                                           positions_json: str, sweeps_json: str, sp_json: str,
-                                           clean_sheet: bool, player_name: str) -> str:
+    async def analyze_goalkeeper_advanced(
+        self,
+        team: str,
+        shots_json: str,
+        crosses_json: str,
+        dist_json: str,
+        positions_json: str,
+        sweeps_json: str,
+        sp_json: str,
+        clean_sheet: bool,
+        player_name: str,
+    ) -> str:
         return await self._analysis.analyze_goalkeeper_advanced(
-            team, shots_json, crosses_json, dist_json,
-            positions_json, sweeps_json, sp_json,
-            clean_sheet, player_name,
+            team,
+            shots_json,
+            crosses_json,
+            dist_json,
+            positions_json,
+            sweeps_json,
+            sp_json,
+            clean_sheet,
+            player_name,
         )
 
     @Slot(str, result=str)
@@ -882,7 +1001,9 @@ class Bridge(QObject):
         return await self._analysis.whiteboard_set_formation(state_id, formation_name, team)
 
     @Slot(str, int, float, float, str, result=str)
-    async def whiteboard_move_player(self, state_id: str, player_index: int, x: float, y: float, team: str) -> str:
+    async def whiteboard_move_player(
+        self, state_id: str, player_index: int, x: float, y: float, team: str
+    ) -> str:
         return await self._analysis.whiteboard_move_player(state_id, player_index, x, y, team)
 
     @Slot(result=str)
@@ -894,15 +1015,23 @@ class Bridge(QObject):
         return await self._analysis.whiteboard_get_template(name)
 
     @Slot(str, int, int, result=str)
-    async def whiteboard_generate_svg(self, state_id: str, width: int = 600, height: int = 400) -> str:
+    async def whiteboard_generate_svg(
+        self, state_id: str, width: int = 600, height: int = 400
+    ) -> str:
         return await self._analysis.whiteboard_generate_svg(state_id, width, height)
 
     @Slot(float, float, float, float, str, str, result=str)
-    async def whiteboard_generate_player_run(self, start_x: float, start_y: float, end_x: float, end_y: float, color: str, label: str) -> str:
-        return await self._analysis.whiteboard_generate_player_run(start_x, start_y, end_x, end_y, color, label)
+    async def whiteboard_generate_player_run(
+        self, start_x: float, start_y: float, end_x: float, end_y: float, color: str, label: str
+    ) -> str:
+        return await self._analysis.whiteboard_generate_player_run(
+            start_x, start_y, end_x, end_y, color, label
+        )
 
     @Slot(float, float, float, float, str, result=str)
-    async def whiteboard_generate_pass(self, start_x: float, start_y: float, end_x: float, end_y: float, color: str) -> str:
+    async def whiteboard_generate_pass(
+        self, start_x: float, start_y: float, end_x: float, end_y: float, color: str
+    ) -> str:
         return await self._analysis.whiteboard_generate_pass(start_x, start_y, end_x, end_y, color)
 
     # ================================================================
@@ -946,7 +1075,9 @@ class Bridge(QObject):
         return self._video.sync_clear()
 
     @Slot(str, float, float, str, result=str)
-    async def trim_video(self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = "") -> str:
+    async def trim_video(
+        self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = ""
+    ) -> str:
         return self._video.trim_video(video_path, start_seconds, end_seconds, output_name)
 
     @Slot(str, str, result=str)
@@ -1183,7 +1314,9 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, str, result=str)
-    async def create_collab_user(self, username: str, display_name: str, role: str = "analyst") -> str:
+    async def create_collab_user(
+        self, username: str, display_name: str, role: str = "analyst"
+    ) -> str:
         return await self._analysis.create_collab_user(username, display_name, role)
 
     @Slot(result=str)
@@ -1243,7 +1376,15 @@ class Bridge(QObject):
         return await self._analysis.live_stop_session()
 
     @Slot(str, str, int, str, float, float, result=str)
-    async def live_tag_event(self, event_type: str, team: str = "", player_id: int = 0, notes: str = "", x: float = None, y: float = None) -> str:
+    async def live_tag_event(
+        self,
+        event_type: str,
+        team: str = "",
+        player_id: int = 0,
+        notes: str = "",
+        x: float = None,
+        y: float = None,
+    ) -> str:
         return await self._analysis.live_tag_event(event_type, team, player_id, notes, x, y)
 
     @Slot(int, result=str)
@@ -1362,7 +1503,9 @@ class Bridge(QObject):
         return await self._analysis.tel_delete_preset(name)
 
     @Slot(str, str, str, result=str)
-    async def tel_export_video(self, video_path: str, layers_json: str, output_path: str = "") -> str:
+    async def tel_export_video(
+        self, video_path: str, layers_json: str, output_path: str = ""
+    ) -> str:
         return await self._analysis.tel_export_video(video_path, layers_json, output_path)
 
     # ================================================================
@@ -1370,7 +1513,9 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, str, result=str)
-    async def stream_start_capture(self, url: str, stream_id: str = "", output_filename: str = "") -> str:
+    async def stream_start_capture(
+        self, url: str, stream_id: str = "", output_filename: str = ""
+    ) -> str:
         return await self._analysis.stream_start_capture(url, stream_id, output_filename)
 
     @Slot(str, result=str)
@@ -1414,11 +1559,15 @@ class Bridge(QObject):
         return await self._analysis.ai_v2_delete_conv(conv_id)
 
     @Slot(str, str, str, str, result=str)
-    async def ai_v2_ask(self, conv_id: str, question: str, match_context: str = "", language: str = "en") -> str:
+    async def ai_v2_ask(
+        self, conv_id: str, question: str, match_context: str = "", language: str = "en"
+    ) -> str:
         return await self._analysis.ai_v2_ask(conv_id, question, match_context, language)
 
     @Slot(str, str, str, result=str)
-    async def ai_v2_tactical_suggestion(self, topic: str, match_context: str = "", language: str = "en") -> str:
+    async def ai_v2_tactical_suggestion(
+        self, topic: str, match_context: str = "", language: str = "en"
+    ) -> str:
         return await self._analysis.ai_v2_tactical_suggestion(topic, match_context, language)
 
     @Slot(str, str, result=str)
@@ -1450,20 +1599,76 @@ class Bridge(QObject):
         return await self._analysis.opponent_delete(profile_id)
 
     @Slot(str, str, str, str, str, str, str, str, str, result=str)
-    async def opponent_add_matchup(self, profile_id: str, our_team: str, date: str, competition: str = "", home_away: str = "home", our_score: str = "0", their_score: str = "0", our_xg: str = "0.0", their_xg: str = "0.0", notes: str = "") -> str:
-        return await self._analysis.opponent_add_matchup(profile_id, our_team, date, competition, home_away, our_score, their_score, our_xg, their_xg, notes)
+    async def opponent_add_matchup(
+        self,
+        profile_id: str,
+        our_team: str,
+        date: str,
+        competition: str = "",
+        home_away: str = "home",
+        our_score: str = "0",
+        their_score: str = "0",
+        our_xg: str = "0.0",
+        their_xg: str = "0.0",
+        notes: str = "",
+    ) -> str:
+        return await self._analysis.opponent_add_matchup(
+            profile_id,
+            our_team,
+            date,
+            competition,
+            home_away,
+            our_score,
+            their_score,
+            our_xg,
+            their_xg,
+            notes,
+        )
 
     @Slot(str, result=str)
     async def opponent_scouting_report(self, profile_id: str) -> str:
         return await self._analysis.opponent_scouting_report(profile_id)
 
     @Slot(str, str, str, str, str, str, result=str)
-    async def scout_network_search(self, query: str = "", position: str = "", min_age: str = "0", max_age: str = "99", league: str = "", min_rating: str = "0.0") -> str:
-        return await self._analysis.scout_network_search(query, position, min_age, max_age, league, min_rating)
+    async def scout_network_search(
+        self,
+        query: str = "",
+        position: str = "",
+        min_age: str = "0",
+        max_age: str = "99",
+        league: str = "",
+        min_rating: str = "0.0",
+    ) -> str:
+        return await self._analysis.scout_network_search(
+            query, position, min_age, max_age, league, min_rating
+        )
 
     @Slot(str, str, str, str, str, str, str, str, str, str, result=str)
-    async def scout_network_add(self, name: str, position: str = "", club: str = "", league: str = "", rating: str = "0.0", strengths_json: str = "[]", weaknesses_json: str = "[]", scout_notes: str = "", submitted_by: str = "", tags_json: str = "[]") -> str:
-        return await self._analysis.scout_network_add(name, position, club, league, rating, strengths_json, weaknesses_json, scout_notes, submitted_by, tags_json)
+    async def scout_network_add(
+        self,
+        name: str,
+        position: str = "",
+        club: str = "",
+        league: str = "",
+        rating: str = "0.0",
+        strengths_json: str = "[]",
+        weaknesses_json: str = "[]",
+        scout_notes: str = "",
+        submitted_by: str = "",
+        tags_json: str = "[]",
+    ) -> str:
+        return await self._analysis.scout_network_add(
+            name,
+            position,
+            club,
+            league,
+            rating,
+            strengths_json,
+            weaknesses_json,
+            scout_notes,
+            submitted_by,
+            tags_json,
+        )
 
     @Slot(str, result=str)
     async def scout_network_get(self, player_id: str) -> str:
@@ -1494,7 +1699,9 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, str, str, result=str)
-    async def marketplace_list(self, item_type: str = "", category: str = "", query: str = "", source: str = "") -> str:
+    async def marketplace_list(
+        self, item_type: str = "", category: str = "", query: str = "", source: str = ""
+    ) -> str:
         return await self._analysis.marketplace_list(item_type, category, query, source)
 
     @Slot(str, result=str)
@@ -1502,8 +1709,20 @@ class Bridge(QObject):
         return await self._analysis.marketplace_get(item_id)
 
     @Slot(str, str, str, str, str, str, str, str, result=str)
-    async def marketplace_add(self, item_type: str, name: str, description: str = "", author: str = "", category: str = "", tags_json: str = "[]", data: str = "", source: str = "local") -> str:
-        return await self._analysis.marketplace_add(item_type, name, description, author, category, tags_json, data, source)
+    async def marketplace_add(
+        self,
+        item_type: str,
+        name: str,
+        description: str = "",
+        author: str = "",
+        category: str = "",
+        tags_json: str = "[]",
+        data: str = "",
+        source: str = "local",
+    ) -> str:
+        return await self._analysis.marketplace_add(
+            item_type, name, description, author, category, tags_json, data, source
+        )
 
     @Slot(str, str, result=str)
     async def marketplace_rate(self, item_id: str, rating: str) -> str:
@@ -1530,7 +1749,9 @@ class Bridge(QObject):
         return await self._analysis.cloud_check_health()
 
     @Slot(str, str, str, result=str)
-    async def cloud_register(self, username: str, email: str, password: str, display_name: str = "") -> str:
+    async def cloud_register(
+        self, username: str, email: str, password: str, display_name: str = ""
+    ) -> str:
         return await self._analysis.cloud_register(username, email, password, display_name)
 
     @Slot(str, str, result=str)
@@ -1602,12 +1823,27 @@ class Bridge(QObject):
         return await self._analysis.import_wearable(file_path)
 
     @Slot(int, str, str, float, result=str)
-    async def merge_player_physiology(self, player_id: int, trajectory_json: str, wearable_json: str, body_mass_kg: float = 75.0) -> str:
-        return await self._analysis.merge_player_physiology(player_id, trajectory_json, wearable_json, body_mass_kg)
+    async def merge_player_physiology(
+        self, player_id: int, trajectory_json: str, wearable_json: str, body_mass_kg: float = 75.0
+    ) -> str:
+        return await self._analysis.merge_player_physiology(
+            player_id, trajectory_json, wearable_json, body_mass_kg
+        )
 
     @Slot(str, str, str, float, result=str)
-    async def analyze_physio_tactical(self, events_json: str, speed_timeline_json: str, hr_timeline_json: str = "", window_s: float = 5.0) -> str:
-        return await self._analysis.analyze_physio_tactical(events_json, speed_timeline_json, hr_timeline_json if hr_timeline_json else None, window_s)
+    async def analyze_physio_tactical(
+        self,
+        events_json: str,
+        speed_timeline_json: str,
+        hr_timeline_json: str = "",
+        window_s: float = 5.0,
+    ) -> str:
+        return await self._analysis.analyze_physio_tactical(
+            events_json,
+            speed_timeline_json,
+            hr_timeline_json if hr_timeline_json else None,
+            window_s,
+        )
 
     # ================================================================
     # P0-B2: YOLO variant control
@@ -1698,7 +1934,14 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, str, str, str, str, result=str)
-    async def import_gps_file(self, match_id: str, player_id: str, file_path: str, session_type: str = "match", vendor: str = "catapult") -> str:
+    async def import_gps_file(
+        self,
+        match_id: str,
+        player_id: str,
+        file_path: str,
+        session_type: str = "match",
+        vendor: str = "catapult",
+    ) -> str:
         return self._analysis.import_gps_file(match_id, player_id, file_path, session_type, vendor)
 
     @Slot(str, result=str)
@@ -1766,8 +2009,12 @@ class Bridge(QObject):
         return await self._provider.get_recent_provider_calls(n)
 
     @Slot(str, str, float, bool, int, result=str)
-    async def record_provider_call(self, provider: str, method: str, duration_ms: float, success: bool, status_code: int = 200) -> str:
-        return await self._provider.record_provider_call(provider, method, duration_ms, success, status_code)
+    async def record_provider_call(
+        self, provider: str, method: str, duration_ms: float, success: bool, status_code: int = 200
+    ) -> str:
+        return await self._provider.record_provider_call(
+            provider, method, duration_ms, success, status_code
+        )
 
     @Slot(str, result=str)
     async def cache_get(self, key: str) -> str:

@@ -15,6 +15,8 @@ Conventions:
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import ArrayLike
+from typing import Any
 
 __all__ = [
     "brier_score",
@@ -30,7 +32,7 @@ __all__ = [
 ]
 
 
-def _check_pair(y_true: np.ndarray, y_proba: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _check_pair(y_true: ArrayLike, y_proba: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     y_true = np.asarray(y_true, dtype=np.float64)
     y_proba = np.asarray(y_proba, dtype=np.float64)
     if y_true.shape != y_proba.shape:
@@ -230,12 +232,12 @@ def bootstrap_ci(
     if not np.all(np.isfinite(arr)):
         raise ValueError("non-finite input")
 
-    fns = {
+    fn_map: dict[str, Any] = {
         "mean": np.mean,
         "sum": np.sum,
         "median": np.median,
     }
-    fn = fns.get(statistic)
+    fn = fn_map.get(statistic)
     if fn is None:
         raise ValueError(f"unknown statistic {statistic!r}")
 

@@ -94,6 +94,7 @@ class SecurityValidator:
 
         # Check for path traversal (resolved path must be under user docs)
         from kawkab.core.paths import get_paths
+
         docs = get_paths().documents.resolve()
         try:
             resolved.relative_to(docs)
@@ -133,6 +134,7 @@ class SecurityValidator:
             )
 
         from kawkab.core.paths import get_paths
+
         docs = get_paths().documents.resolve()
         try:
             resolved.relative_to(docs)
@@ -162,6 +164,7 @@ class SecurityValidator:
             raise ValueError(f"Invalid path: {dir_path}") from e
 
         from kawkab.core.paths import get_paths
+
         docs = get_paths().documents.resolve()
         try:
             resolved.relative_to(docs)

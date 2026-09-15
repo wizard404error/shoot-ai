@@ -48,6 +48,7 @@ class StorageService:
         actual_dsn = dsn or os.environ.get("KAWKAB_DB_URL")
         if actual_dsn:
             from kawkab.services.postgres_storage import PostgresStorageAdapter
+
             self._pg = PostgresStorageAdapter(actual_dsn)
             self._use_postgres = True
             logger.info("StorageService: PostgreSQL mode enabled via KAWKAB_DB_URL")
@@ -73,7 +74,9 @@ class StorageService:
         from kawkab.core.paths import get_paths
 
         if self._conn is not None:
-            logger.warning("StorageService.initialize called with existing connection - closing first")
+            logger.warning(
+                "StorageService.initialize called with existing connection - closing first"
+            )
             self._conn.close()
             self._conn = None
 
@@ -105,7 +108,9 @@ class StorageService:
         row = cursor.fetchone()
         if row:
             return row["id"]
-        cursor.execute("INSERT INTO teams (name, short_name) VALUES (?, ?)", (name, name[:3].upper()))
+        cursor.execute(
+            "INSERT INTO teams (name, short_name) VALUES (?, ?)", (name, name[:3].upper())
+        )
         self._conn.commit()
         return cursor.lastrowid or 0
 
@@ -314,7 +319,9 @@ class StorageService:
         self._conn.commit()
         return cursor.lastrowid or 0
 
-    async def get_reports(self, match_id: int, language: str, limit: int = 20, offset: int = 0) -> list[dict]:
+    async def get_reports(
+        self, match_id: int, language: str, limit: int = 20, offset: int = 0
+    ) -> list[dict]:
         """Get saved reports for a match."""
         if self._conn is None:
             return []
@@ -325,9 +332,7 @@ class StorageService:
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    async def update_match_teams(
-        self, match_id: int, home_team: str, away_team: str
-    ) -> None:
+    async def update_match_teams(self, match_id: int, home_team: str, away_team: str) -> None:
         """Update home/away team names for a match."""
         if self._conn is None:
             return
@@ -354,22 +359,26 @@ class StorageService:
         if api_match_id is not None and StorageService._sanitize_column_name("api_match_id"):
             sets.append("api_match_id = ?")
             vals.append(api_match_id)
-        if competition_code is not None and StorageService._sanitize_column_name("competition_code"):
+        if competition_code is not None and StorageService._sanitize_column_name(
+            "competition_code"
+        ):
             sets.append("competition_code = ?")
             vals.append(competition_code)
-        if football_data_home_team_id is not None and StorageService._sanitize_column_name("football_data_home_team_id"):
+        if football_data_home_team_id is not None and StorageService._sanitize_column_name(
+            "football_data_home_team_id"
+        ):
             sets.append("football_data_home_team_id = ?")
             vals.append(football_data_home_team_id)
-        if football_data_away_team_id is not None and StorageService._sanitize_column_name("football_data_away_team_id"):
+        if football_data_away_team_id is not None and StorageService._sanitize_column_name(
+            "football_data_away_team_id"
+        ):
             sets.append("football_data_away_team_id = ?")
             vals.append(football_data_away_team_id)
         if not sets:
             return
         vals.append(match_id)
         cursor = self._conn.cursor()
-        cursor.execute(
-            f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-        )
+        cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
         self._conn.commit()
 
     async def update_match_apifootball(
@@ -386,13 +395,19 @@ class StorageService:
             return
         sets = []
         vals = []
-        if apifb_home_team_id is not None and StorageService._sanitize_column_name("apifb_home_team_id"):
+        if apifb_home_team_id is not None and StorageService._sanitize_column_name(
+            "apifb_home_team_id"
+        ):
             sets.append("apifb_home_team_id = ?")
             vals.append(apifb_home_team_id)
-        if apifb_away_team_id is not None and StorageService._sanitize_column_name("apifb_away_team_id"):
+        if apifb_away_team_id is not None and StorageService._sanitize_column_name(
+            "apifb_away_team_id"
+        ):
             sets.append("apifb_away_team_id = ?")
             vals.append(apifb_away_team_id)
-        if apifb_fixture_id is not None and StorageService._sanitize_column_name("apifb_fixture_id"):
+        if apifb_fixture_id is not None and StorageService._sanitize_column_name(
+            "apifb_fixture_id"
+        ):
             sets.append("apifb_fixture_id = ?")
             vals.append(apifb_fixture_id)
         if apifb_league_id is not None and StorageService._sanitize_column_name("apifb_league_id"):
@@ -405,9 +420,7 @@ class StorageService:
             return
         vals.append(match_id)
         cursor = self._conn.cursor()
-        cursor.execute(
-            f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-        )
+        cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
         self._conn.commit()
 
     async def update_match_bzzoiro(
@@ -425,19 +438,29 @@ class StorageService:
             return
         sets = []
         vals = []
-        if bzzoiro_home_team_id is not None and StorageService._sanitize_column_name("bzzoiro_home_team_id"):
+        if bzzoiro_home_team_id is not None and StorageService._sanitize_column_name(
+            "bzzoiro_home_team_id"
+        ):
             sets.append("bzzoiro_home_team_id = ?")
             vals.append(bzzoiro_home_team_id)
-        if bzzoiro_away_team_id is not None and StorageService._sanitize_column_name("bzzoiro_away_team_id"):
+        if bzzoiro_away_team_id is not None and StorageService._sanitize_column_name(
+            "bzzoiro_away_team_id"
+        ):
             sets.append("bzzoiro_away_team_id = ?")
             vals.append(bzzoiro_away_team_id)
-        if bzzoiro_event_id is not None and StorageService._sanitize_column_name("bzzoiro_event_id"):
+        if bzzoiro_event_id is not None and StorageService._sanitize_column_name(
+            "bzzoiro_event_id"
+        ):
             sets.append("bzzoiro_event_id = ?")
             vals.append(bzzoiro_event_id)
-        if bzzoiro_league_id is not None and StorageService._sanitize_column_name("bzzoiro_league_id"):
+        if bzzoiro_league_id is not None and StorageService._sanitize_column_name(
+            "bzzoiro_league_id"
+        ):
             sets.append("bzzoiro_league_id = ?")
             vals.append(bzzoiro_league_id)
-        if bzzoiro_competition_code is not None and StorageService._sanitize_column_name("bzzoiro_competition_code"):
+        if bzzoiro_competition_code is not None and StorageService._sanitize_column_name(
+            "bzzoiro_competition_code"
+        ):
             sets.append("bzzoiro_competition_code = ?")
             vals.append(bzzoiro_competition_code)
         if prediction_data is not None and StorageService._sanitize_column_name("prediction_data"):
@@ -447,9 +470,7 @@ class StorageService:
             return
         vals.append(match_id)
         cursor = self._conn.cursor()
-        cursor.execute(
-            f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-        )
+        cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
         self._conn.commit()
 
     async def get_all_matches(self) -> list[dict]:
@@ -514,7 +535,9 @@ class StorageService:
         self._conn.commit()
         return cursor.rowcount > 0
 
-    async def get_match_events(self, match_id: int, limit: int = 200, offset: int = 0) -> list[dict]:
+    async def get_match_events(
+        self, match_id: int, limit: int = 200, offset: int = 0
+    ) -> list[dict]:
         """Get events for a match with pagination."""
         if self._conn is None:
             return []
@@ -538,8 +561,16 @@ class StorageService:
         """Update an event's fields. Returns True if row updated."""
         if self._conn is None:
             return False
-        allowed = {"event_type", "team", "from_track_id", "to_track_id",
-                    "completed", "confidence", "metadata", "user_corrected"}
+        allowed = {
+            "event_type",
+            "team",
+            "from_track_id",
+            "to_track_id",
+            "completed",
+            "confidence",
+            "metadata",
+            "user_corrected",
+        }
         sets = []
         vals = []
         for key, val in updates.items():
@@ -554,9 +585,7 @@ class StorageService:
         sets.append("user_corrected = 1")
         vals.append(event_id)
         cursor = self._conn.cursor()
-        cursor.execute(
-            f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals
-        )
+        cursor.execute(f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals)
         self._conn.commit()
         return cursor.rowcount > 0
 
@@ -686,7 +715,9 @@ class StorageService:
         self._conn.commit()
         return ids
 
-    async def get_validation_results(self, match_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
+    async def get_validation_results(
+        self, match_id: int, limit: int = 20, offset: int = 0
+    ) -> list[dict]:
         """Get validation results for a match with pagination."""
         if self._conn is None:
             return []
@@ -736,7 +767,9 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC")
+        cursor.execute(
+            "SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC"
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     async def save_issue(self, issue: dict) -> int:
@@ -774,7 +807,9 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC")
+        cursor.execute(
+            "SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC"
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     async def save_usage_session(self, session: dict) -> int:
@@ -887,7 +922,9 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC")
+        cursor.execute(
+            "SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC"
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     async def get_all_player_profiles(self, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -928,10 +965,17 @@ class StorageService:
         cursor = self._conn.cursor()
         try:
             params = [
-                (match_id, ev.get("type", ""), ev.get("timestamp", 0.0),
-                 ev.get("from_track_id"), ev.get("to_track_id"), ev.get("team"),
-                 ev.get("completed", False), ev.get("confidence", 0.0),
-                 json.dumps(ev.get("metadata", {})))
+                (
+                    match_id,
+                    ev.get("type", ""),
+                    ev.get("timestamp", 0.0),
+                    ev.get("from_track_id"),
+                    ev.get("to_track_id"),
+                    ev.get("team"),
+                    ev.get("completed", False),
+                    ev.get("confidence", 0.0),
+                    json.dumps(ev.get("metadata", {})),
+                )
                 for ev in events
             ]
             cursor.executemany(
@@ -949,7 +993,9 @@ class StorageService:
             self._conn.rollback()
             return 0
 
-    async def get_match_players(self, match_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+    async def get_match_players(
+        self, match_id: int, limit: int = 50, offset: int = 0
+    ) -> list[dict]:
         """Get players for a match with pagination."""
         if self._conn is None:
             return []
@@ -988,11 +1034,21 @@ class StorageService:
         cursor = self._conn.cursor()
         try:
             params = [
-                (match_id, p.get("track_id", 0), p.get("jersey_number"), p.get("name"),
-                 p.get("team"), p.get("position"), p.get("distance_covered_m", 0),
-                 p.get("max_speed_kmh", 0), p.get("avg_speed_kmh", 0),
-                 p.get("passes_attempted", 0), p.get("passes_completed", 0),
-                 p.get("shots", 0), p.get("tackles", 0))
+                (
+                    match_id,
+                    p.get("track_id", 0),
+                    p.get("jersey_number"),
+                    p.get("name"),
+                    p.get("team"),
+                    p.get("position"),
+                    p.get("distance_covered_m", 0),
+                    p.get("max_speed_kmh", 0),
+                    p.get("avg_speed_kmh", 0),
+                    p.get("passes_attempted", 0),
+                    p.get("passes_completed", 0),
+                    p.get("shots", 0),
+                    p.get("tackles", 0),
+                )
                 for p in players
             ]
             cursor.executemany(
@@ -1018,10 +1074,16 @@ class StorageService:
         cursor = self._conn.cursor()
         try:
             params = [
-                (match_id, m.get("player_id"), m.get("metric_name", ""),
-                 m.get("metric_value", 0.0), m.get("metric_category", ""),
-                 m.get("pitch_zone", ""), m.get("timestamp"),
-                 json.dumps(m.get("metadata", {})))
+                (
+                    match_id,
+                    m.get("player_id"),
+                    m.get("metric_name", ""),
+                    m.get("metric_value", 0.0),
+                    m.get("metric_category", ""),
+                    m.get("pitch_zone", ""),
+                    m.get("timestamp"),
+                    json.dumps(m.get("metadata", {})),
+                )
                 for m in metrics
             ]
             cursor.executemany(
@@ -1153,8 +1215,18 @@ class StorageService:
         """Update a coding tag's fields. Returns True if row updated."""
         if self._conn is None:
             return False
-        allowed = {"event_type", "sub_type", "video_time", "player_track_id",
-                    "player_name", "team", "period", "notes", "lead_ms", "lag_ms"}
+        allowed = {
+            "event_type",
+            "sub_type",
+            "video_time",
+            "player_track_id",
+            "player_name",
+            "team",
+            "period",
+            "notes",
+            "lead_ms",
+            "lag_ms",
+        }
         sets = []
         vals = []
         for key, val in updates.items():
@@ -1166,9 +1238,7 @@ class StorageService:
         vals.append(tag_id)
         try:
             cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE coding_tags SET {', '.join(sets)} WHERE id = ?", vals
-            )
+            cursor.execute(f"UPDATE coding_tags SET {', '.join(sets)} WHERE id = ?", vals)
             self._conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
@@ -1260,6 +1330,7 @@ class StorageService:
             logger.warning(f"backup: wal_checkpoint failed: {e}")
 
         from kawkab.core.paths import get_paths
+
         backup_dir = get_paths().appdata / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1299,6 +1370,7 @@ class StorageService:
 
             from kawkab.core.migration_manager import MigrationManager
             from kawkab.core.paths import get_paths
+
             mgr = MigrationManager(self._db_path, get_paths().migrations)
             mgr.migrate()
 
@@ -1346,7 +1418,13 @@ class StorageService:
 
     # ── Team management ──────────────────────────────────────────────────
 
-    async def save_team(self, name: str, short_name: str = "", home_color: str = "#1e7e34", away_color: str = "#ffffff") -> int:
+    async def save_team(
+        self,
+        name: str,
+        short_name: str = "",
+        home_color: str = "#1e7e34",
+        away_color: str = "#ffffff",
+    ) -> int:
         if self._conn is None:
             return 0
         cursor = self._conn.cursor()
@@ -1365,7 +1443,10 @@ class StorageService:
         if self._conn is None:
             return None
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, name, short_name, home_color, away_color, created_at FROM teams WHERE name = ?", (name,))
+        cursor.execute(
+            "SELECT id, name, short_name, home_color, away_color, created_at FROM teams WHERE name = ?",
+            (name,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -1373,20 +1454,34 @@ class StorageService:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, name, short_name, home_color, away_color, created_at FROM teams ORDER BY name")
+        cursor.execute(
+            "SELECT id, name, short_name, home_color, away_color, created_at FROM teams ORDER BY name"
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     # ── Tracking frames ──────────────────────────────────────────────────
 
-    async def save_tracking_frame(self, match_id: int, frame_number: int, timestamp: float,
-                                   player_detections: list[dict], ball_detections: list[dict]) -> bool:
+    async def save_tracking_frame(
+        self,
+        match_id: int,
+        frame_number: int,
+        timestamp: float,
+        player_detections: list[dict],
+        ball_detections: list[dict],
+    ) -> bool:
         if self._conn is None:
             return False
         cursor = self._conn.cursor()
         try:
             cursor.execute(
                 "INSERT OR REPLACE INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections) VALUES (?, ?, ?, ?, ?)",
-                (match_id, frame_number, timestamp, json.dumps(player_detections), json.dumps(ball_detections)),
+                (
+                    match_id,
+                    frame_number,
+                    timestamp,
+                    json.dumps(player_detections),
+                    json.dumps(ball_detections),
+                ),
             )
             self._conn.commit()
             return True
@@ -1403,15 +1498,19 @@ class StorageService:
         rows = []
         for f in frames:
             try:
-                rows.append((
-                    match_id,
-                    f.get("frame_number", 0),
-                    f.get("timestamp", 0.0),
-                    json.dumps(f.get("player_detections", [])),
-                    json.dumps(f.get("ball_detections", [])),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        f.get("frame_number", 0),
+                        f.get("timestamp", 0.0),
+                        json.dumps(f.get("player_detections", [])),
+                        json.dumps(f.get("ball_detections", [])),
+                    )
+                )
             except Exception as e:
-                logger.warning(f"save_tracking_frames_bulk frame {f.get('frame_number')} failed: {e}")
+                logger.warning(
+                    f"save_tracking_frames_bulk frame {f.get('frame_number')} failed: {e}"
+                )
         if not rows:
             return 0
         cursor.executemany(
@@ -1421,7 +1520,9 @@ class StorageService:
         self._conn.commit()
         return len(rows)
 
-    async def get_tracking_frames(self, match_id: int, start_frame: int = 0, end_frame: int | None = None, limit: int = 1000) -> list[dict]:
+    async def get_tracking_frames(
+        self, match_id: int, start_frame: int = 0, end_frame: int | None = None, limit: int = 1000
+    ) -> list[dict]:
         if self._conn is None:
             return []
         cursor = self._conn.cursor()
@@ -1447,7 +1548,9 @@ class StorageService:
         if self._conn is None:
             return 0
         cursor = self._conn.cursor()
-        cursor.execute("SELECT COUNT(*) AS cnt FROM tracking_frames WHERE match_id = ?", (match_id,))
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM tracking_frames WHERE match_id = ?", (match_id,)
+        )
         row = cursor.fetchone()
         return row["cnt"] if row else 0
 
@@ -1586,9 +1689,7 @@ class StorageService:
             logger.warning(f"register_match_external_id failed: {e}")
             return False
 
-    async def get_match_by_external_id(
-        self, source: str, external_id: str
-    ) -> int | None:
+    async def get_match_by_external_id(self, source: str, external_id: str) -> int | None:
         """Internal match id for a vendor match id, or None."""
         if self._conn is None:
             return None
@@ -1630,9 +1731,7 @@ class StorageService:
             return
         vals.append(match_id)
         cursor = self._conn.cursor()
-        cursor.execute(
-            f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-        )
+        cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
         self._conn.commit()
 
     # ── Event<->frame alignment (migration 030) ─────────────────────────
@@ -1652,12 +1751,12 @@ class StorageService:
             rows = [
                 (
                     match_id,
-                    l.get("event_id"),
-                    l.get("frame_number", 0),
-                    l.get("frame_offset", 0),
+                    ln.get("event_id"),
+                    ln.get("frame_number", 0),
+                    ln.get("frame_offset", 0),
                 )
-                for l in links
-                if l.get("event_id") is not None
+                for ln in links
+                if ln.get("event_id") is not None
             ]
             if not rows:
                 return 0
@@ -1725,6 +1824,7 @@ class StorageService:
         if self._conn is None:
             return None
         import os
+
         new_key = os.urandom(32).hex()
         cursor = self._conn.cursor()
         cursor.execute(
@@ -1734,6 +1834,7 @@ class StorageService:
         self._conn.commit()
         if cursor.rowcount > 0:
             from kawkab.core.encryption import init_fernet
+
             init_fernet(new_key)
             return new_key
         return None
@@ -1741,8 +1842,12 @@ class StorageService:
     # ── User / Auth ───────────────────────────────────────────────────────────
 
     async def create_user(
-        self, username: str, password_hash: str, role: str = "analyst",
-        email: str = "", display_name: str = "",
+        self,
+        username: str,
+        password_hash: str,
+        role: str = "analyst",
+        email: str = "",
+        display_name: str = "",
         must_reset_password: bool = False,
     ) -> int:
         if self._conn is None:
@@ -1812,7 +1917,9 @@ class StorageService:
         if self._conn is None:
             return 0
         cursor = self._conn.cursor()
-        cursor.execute("SELECT id, failed_attempts, is_locked FROM users WHERE username=?", (username,))
+        cursor.execute(
+            "SELECT id, failed_attempts, is_locked FROM users WHERE username=?", (username,)
+        )
         row = cursor.fetchone()
         if not row:
             return 0
@@ -1864,8 +1971,13 @@ class StorageService:
         return cursor.rowcount > 0
 
     async def audit_log(
-        self, user_id: int, username: str, action: str,
-        resource_type: str = "", resource_id: str = "", details: dict | None = None,
+        self,
+        user_id: int,
+        username: str,
+        action: str,
+        resource_type: str = "",
+        resource_id: str = "",
+        details: dict | None = None,
     ) -> int:
         if self._conn is None:
             return 0
@@ -1911,7 +2023,11 @@ class StorageService:
     # ── GPS / Physical Data ────────────────────────────────────────────────────
 
     async def save_gps_session(
-        self, match_id: int, player_id: int, session_type: str, vendor: str,
+        self,
+        match_id: int,
+        player_id: int,
+        session_type: str,
+        vendor: str,
     ) -> int:
         if self._conn is None:
             return 0
@@ -1925,7 +2041,9 @@ class StorageService:
         return cursor.lastrowid or 0
 
     async def update_gps_session_stats(
-        self, session_id: int, summary: dict,
+        self,
+        session_id: int,
+        summary: dict,
     ) -> None:
         if self._conn is None:
             return
@@ -1946,7 +2064,9 @@ class StorageService:
         self._conn.commit()
 
     async def save_gps_samples_bulk(
-        self, session_id: int, samples: list[dict],
+        self,
+        session_id: int,
+        samples: list[dict],
     ) -> int:
         if self._conn is None or not samples:
             return 0
@@ -2009,7 +2129,12 @@ class StorageService:
         return [dict(row) for row in cursor.fetchall()]
 
     async def save_acwr(
-        self, player_id: int, date: str, acute: float, chronic: float, acwr: float,
+        self,
+        player_id: int,
+        date: str,
+        acute: float,
+        chronic: float,
+        acwr: float,
     ) -> int:
         if self._conn is None:
             return 0
@@ -2031,7 +2156,9 @@ class StorageService:
         return cursor.lastrowid or 0
 
     async def get_player_acwr(
-        self, player_id: int, limit: int = 30,
+        self,
+        player_id: int,
+        limit: int = 30,
     ) -> list[dict]:
         if self._conn is None:
             return []
@@ -2045,7 +2172,9 @@ class StorageService:
         return [dict(row) for row in cursor.fetchall()]
 
     async def get_player_gps_summary(
-        self, player_id: int, limit: int = 10,
+        self,
+        player_id: int,
+        limit: int = 10,
     ) -> list[dict]:
         if self._conn is None:
             return []
@@ -2070,8 +2199,13 @@ class StorageService:
         joined directly.
         """
         empty: dict[str, Any] = {
-            "total_active": 0, "injuries": [], "by_severity": {}, "by_body_part": {},
-            "high_risk_count": 0, "high_risk_injuries": [], "report_date": datetime.now().isoformat(),
+            "total_active": 0,
+            "injuries": [],
+            "by_severity": {},
+            "by_body_part": {},
+            "high_risk_count": 0,
+            "high_risk_injuries": [],
+            "report_date": datetime.now().isoformat(),
         }
         if self._conn is None:
             return empty
@@ -2086,6 +2220,7 @@ class StorageService:
         if not player_ids:
             return empty
         from kawkab.services.injury_tracker import InjuryTrackerService
+
         tracker = InjuryTrackerService(self._conn)
         return tracker.get_squad_injury_report(player_ids)
 

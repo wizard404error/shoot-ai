@@ -5,6 +5,7 @@ tactical, fitness, recruitment, and monitoring endpoints."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 from pathlib import Path
@@ -15,12 +16,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from kawkab.api.models import (
-    MatchOut, MatchListOut, EventOut, PlayerOut,
-    ShotAnalysisOut, TacticalShapesOut, PressingOut,
-    PlayerRatingOut, SquadSummaryOut, MatchReportOut,
-    LlmQueryIn, LlmQueryOut, CalibrationOut, ModelComparisonOut,
-    FitnessOut, RecruitmentSearchIn, TransferFeeEstimateOut,
-    GamePlanOut, MonitoringDashboardOut, WebhookCreateIn, WebhookOut,
+    MatchOut,
+    MatchListOut,
+    EventOut,
+    PlayerOut,
+    ShotAnalysisOut,
+    TacticalShapesOut,
+    PressingOut,
+    PlayerRatingOut,
+    SquadSummaryOut,
+    MatchReportOut,
+    LlmQueryIn,
+    LlmQueryOut,
+    CalibrationOut,
+    ModelComparisonOut,
+    FitnessOut,
+    RecruitmentSearchIn,
+    TransferFeeEstimateOut,
+    GamePlanOut,
+    MonitoringDashboardOut,
+    WebhookCreateIn,
+    WebhookOut,
     ModelCardOut,
 )
 from kawkab.core.rbac import require_permission
@@ -30,17 +46,20 @@ router = APIRouter(prefix="/api/v1", tags=["analytics"])
 
 _storage_instance = None
 
+
 def _get_storage():
     global _storage_instance
     if _storage_instance is not None:
         return _storage_instance
     from kawkab.services.storage_service import StorageService
+
     _storage_instance = StorageService()
     return _storage_instance
 
 
 def _get_monitor():
     from kawkab.services.model_monitor_service import ModelMonitoringService
+
     return ModelMonitoringService()
 
 
@@ -64,6 +83,7 @@ def _get_user_team_ids(user_id: int) -> set[int]:
     deliberate cross-database lookup, not something StorageService itself
     could resolve on its own."""
     from kawkab.cloud.database import get_cloud_db
+
     db = get_cloud_db()
     rows = db.execute("SELECT team_id FROM team_members WHERE user_id = ?", (user_id,)).fetchall()
     return {row["team_id"] for row in rows}
@@ -114,6 +134,7 @@ def _paginate(items: list, page: int, per_page: int) -> dict:
 
 # ── Matches ──
 
+
 @router.get("/matches")
 async def list_matches(
     page: int = Query(1, ge=1),
@@ -124,7 +145,8 @@ async def list_matches(
     matches_list = await svc.get_all_matches()
     team_ids = _get_user_team_ids(_user["id"])
     visible = [
-        m for m in matches_list
+        m
+        for m in matches_list
         if m.get("owner_id") is None
         or m.get("owner_id") == _user["id"]
         or (m.get("is_shared") and m.get("team_id") in team_ids)
@@ -160,16 +182,21 @@ async def get_match_events(
     events = await svc.get_match_events(match_id)
     if event_type:
         events = [e for e in events if e.get("type") == event_type]
-    items = [EventOut(
-        id=e.get("id", 0),
-        match_id=e.get("match_id", match_id),
-        event_type=e.get("type", ""),
-        timestamp=float(e.get("timestamp", 0)),
-        team=e.get("team", ""),
-        from_track_id=int(e.get("from_track_id", 0)),
-        x=float(e.get("x", 0)), y=float(e.get("y", 0)),
-        end_x=float(e.get("end_x", 0)), end_y=float(e.get("end_y", 0)),
-    ) for e in events[:limit]]
+    items = [
+        EventOut(
+            id=e.get("id", 0),
+            match_id=e.get("match_id", match_id),
+            event_type=e.get("type", ""),
+            timestamp=float(e.get("timestamp", 0)),
+            team=e.get("team", ""),
+            from_track_id=int(e.get("from_track_id", 0)),
+            x=float(e.get("x", 0)),
+            y=float(e.get("y", 0)),
+            end_x=float(e.get("end_x", 0)),
+            end_y=float(e.get("end_y", 0)),
+        )
+        for e in events[:limit]
+    ]
     return _paginate(items, page, per_page)
 
 
@@ -186,17 +213,21 @@ async def get_match_players(
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
     players = await svc.get_match_players(match_id)
-    items = [PlayerOut(
-        track_id=p.get("track_id", 0),
-        match_id=match_id,
-        name=p.get("name", f"Player {p.get('track_id', '')}"),
-        team=p.get("team", ""),
-        jersey_number=int(p.get("jersey_number", 0)),
-    ) for p in players]
+    items = [
+        PlayerOut(
+            track_id=p.get("track_id", 0),
+            match_id=match_id,
+            name=p.get("name", f"Player {p.get('track_id', '')}"),
+            team=p.get("team", ""),
+            jersey_number=int(p.get("jersey_number", 0)),
+        )
+        for p in players
+    ]
     return _paginate(items, page, per_page)
 
 
 # ── Analysis ──
+
 
 @router.get("/matches/{match_id}/analysis/shots", response_model=ShotAnalysisOut)
 async def analyze_shots(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
@@ -218,13 +249,16 @@ async def analyze_shots(match_id: int, _user: dict = Depends(require_permission(
         total_xg += xg
         if is_goal:
             total_goals += 1
-        shot_data.append({
-            "timestamp": s.get("timestamp", 0),
-            "x": s.get("x", 0), "y": s.get("y", 0),
-            "xg": round(xg, 4),
-            "is_goal": is_goal,
-            "player": s.get("player_name", ""),
-        })
+        shot_data.append(
+            {
+                "timestamp": s.get("timestamp", 0),
+                "x": s.get("x", 0),
+                "y": s.get("y", 0),
+                "xg": round(xg, 4),
+                "is_goal": is_goal,
+                "player": s.get("player_name", ""),
+            }
+        )
 
     return ShotAnalysisOut(
         match_id=match_id,
@@ -236,8 +270,11 @@ async def analyze_shots(match_id: int, _user: dict = Depends(require_permission(
 
 
 @router.get("/matches/{match_id}/analysis/tactical-shapes", response_model=TacticalShapesOut)
-async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
+async def get_tactical_shapes(
+    match_id: int, _user: dict = Depends(require_permission("analysis:read"))
+):
     from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -251,13 +288,17 @@ async def get_tactical_shapes(match_id: int, _user: dict = Depends(require_permi
         formation_home=home.primary_attacking_shape,
         formation_away=away.primary_attacking_shape,
         shapes={"home": home.to_dict(), "away": away.to_dict()},
-        support_angles={"home": home.avg_support_angle_coverage, "away": away.avg_support_angle_coverage},
+        support_angles={
+            "home": home.avg_support_angle_coverage,
+            "away": away.avg_support_angle_coverage,
+        },
     )
 
 
 @router.get("/matches/{match_id}/analysis/pressing", response_model=PressingOut)
 async def get_pressing(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.pressing_classifier import classify_pressing_system
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -321,8 +362,11 @@ async def get_season_pro_analytics(_user: dict = Depends(require_permission("ana
 
 
 @router.get("/matches/{match_id}/analysis/report", response_model=MatchReportOut)
-async def get_match_report(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
+async def get_match_report(
+    match_id: int, _user: dict = Depends(require_permission("analysis:read"))
+):
     from kawkab.core.tactical_report import generate_tactical_report
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -342,9 +386,13 @@ async def get_match_report(match_id: int, _user: dict = Depends(require_permissi
 
 # ── AI / LLM ──
 
+
 @router.post("/matches/{match_id}/ai/ask", response_model=LlmQueryOut)
-async def ask_llm(match_id: int, body: LlmQueryIn, _user: dict = Depends(require_permission("analysis:read"))):
+async def ask_llm(
+    match_id: int, body: LlmQueryIn, _user: dict = Depends(require_permission("analysis:read"))
+):
     from kawkab.services.llm_service import LLMService
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -354,14 +402,20 @@ async def ask_llm(match_id: int, body: LlmQueryIn, _user: dict = Depends(require
     context = json.dumps({"match_id": match_id, "events_count": len(events)}, indent=2)
     llm = LLMService()
     answer = llm.generate(tactical_context=context, question=body.question)
-    return LlmQueryOut(answer=answer, model_used=llm.model_name if hasattr(llm, "model_name") else "default")
+    return LlmQueryOut(
+        answer=answer, model_used=llm.model_name if hasattr(llm, "model_name") else "default"
+    )
 
 
 # ── Player Ratings ──
 
+
 @router.get("/matches/{match_id}/ratings", response_model=list[SquadSummaryOut])
-async def get_player_ratings(match_id: int, _user: dict = Depends(require_permission("player:read"))):
+async def get_player_ratings(
+    match_id: int, _user: dict = Depends(require_permission("player:read"))
+):
     from kawkab.services.rating_service import RatingService
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -377,22 +431,28 @@ async def get_player_ratings(match_id: int, _user: dict = Depends(require_permis
         team = r.get("team", "unknown")
         if team not in teams:
             teams[team] = []
-        teams[team].append(PlayerRatingOut(
-            track_id=r.get("track_id", 0),
-            name=r.get("name", f"Player {r.get('track_id', '')}"),
-            rating=float(r.get("rating", 0)),
-            pass_accuracy=float(r.get("pass_accuracy", 0)),
-            shot_impact=float(r.get("shot_impact", 0)),
-            tackles=int(r.get("tackles", 0)),
-        ))
+        teams[team].append(
+            PlayerRatingOut(
+                track_id=r.get("track_id", 0),
+                name=r.get("name", f"Player {r.get('track_id', '')}"),
+                rating=float(r.get("rating", 0)),
+                pass_accuracy=float(r.get("pass_accuracy", 0)),
+                shot_impact=float(r.get("shot_impact", 0)),
+                tackles=int(r.get("tackles", 0)),
+            )
+        )
     return [SquadSummaryOut(team=t, players=ps) for t, ps in teams.items()]
 
 
 # ── Calibration & Model Comparison ──
 
+
 @router.get("/matches/{match_id}/calibration", response_model=CalibrationOut)
-async def get_calibration(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
+async def get_calibration(
+    match_id: int, _user: dict = Depends(require_permission("analysis:read"))
+):
     from kawkab.core.calibration import ModelCalibrator
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -414,8 +474,13 @@ async def get_calibration(match_id: int, _user: dict = Depends(require_permissio
 
 
 @router.post("/model-comparison", response_model=ModelComparisonOut)
-async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10), _user: dict = Depends(require_permission("analysis:run"))):
+async def compare_models(
+    shots: list[dict],
+    n_folds: int = Query(5, ge=0, le=10),
+    _user: dict = Depends(require_permission("analysis:run")),
+):
     from kawkab.core.model_comparison import compare_xg_models
+
     report = compare_xg_models(shots, n_folds=n_folds, compute_feature_importance=True)
     return ModelComparisonOut(
         models=report.to_dict().get("models", []),
@@ -426,8 +491,13 @@ async def compare_models(shots: list[dict], n_folds: int = Query(5, ge=0, le=10)
 
 # ── Fitness / Wearables ──
 
+
 @router.get("/players/{track_id}/fitness", response_model=FitnessOut)
-async def get_player_fitness(track_id: int, match_id: int = Query(..., description="Match ID"), _user: dict = Depends(require_permission("medical:read"))):
+async def get_player_fitness(
+    track_id: int,
+    match_id: int = Query(..., description="Match ID"),
+    _user: dict = Depends(require_permission("medical:read")),
+):
     # PhysicalLoadService/WorkloadService need raw per-frame tracking data and
     # day-by-day season history respectively -- neither is derivable from
     # match events. GPS sessions and the acwr_daily table (populated by the
@@ -454,10 +524,14 @@ async def get_player_fitness(track_id: int, match_id: int = Query(..., descripti
 
 # ── Recruitment ──
 
+
 @router.post("/recruitment/search")
-async def search_players(body: RecruitmentSearchIn, _user: dict = Depends(require_permission("recruitment:read"))):
+async def search_players(
+    body: RecruitmentSearchIn, _user: dict = Depends(require_permission("recruitment:read"))
+):
     try:
         from kawkab.services.player_search import PlayerSearchService
+
         search_svc = PlayerSearchService()
         results = search_svc.search(
             position=body.position,
@@ -473,9 +547,12 @@ async def search_players(body: RecruitmentSearchIn, _user: dict = Depends(requir
 
 
 @router.get("/recruitment/transfer-fee/{player_name}", response_model=TransferFeeEstimateOut)
-async def estimate_transfer_fee(player_name: str, _user: dict = Depends(require_permission("recruitment:read"))):
+async def estimate_transfer_fee(
+    player_name: str, _user: dict = Depends(require_permission("recruitment:read"))
+):
     try:
         from kawkab.core.squad_valuation import estimate_player_transfer_fee
+
         fee_data = estimate_player_transfer_fee(player_name)
         return TransferFeeEstimateOut(
             player_name=player_name,
@@ -492,6 +569,7 @@ async def estimate_transfer_fee(player_name: str, _user: dict = Depends(require_
 async def get_shortlist(_user: dict = Depends(require_permission("recruitment:read"))):
     try:
         from kawkab.services.shortlist_service import ShortlistService
+
         shortlist_svc = ShortlistService()
         return shortlist_svc.get_shortlist()
     except (ImportError, AttributeError):
@@ -500,9 +578,13 @@ async def get_shortlist(_user: dict = Depends(require_permission("recruitment:re
 
 # ── Game Plan ──
 
+
 @router.get("/game-plan/{match_id}/vs/{opponent}", response_model=GamePlanOut)
-async def get_game_plan(match_id: int, opponent: str, _user: dict = Depends(require_permission("analysis:read"))):
+async def get_game_plan(
+    match_id: int, opponent: str, _user: dict = Depends(require_permission("analysis:read"))
+):
     from kawkab.core.game_plan import GamePlanGenerator
+
     svc = _get_storage()
     match = await svc.get_match(match_id)
     if not match:
@@ -515,6 +597,7 @@ async def get_game_plan(match_id: int, opponent: str, _user: dict = Depends(requ
 
 
 # ── Monitoring ──
+
 
 @router.get("/monitoring/dashboard", response_model=MonitoringDashboardOut)
 async def get_monitoring_dashboard(_user: dict = Depends(require_permission("admin:settings"))):
@@ -543,9 +626,13 @@ async def get_drift_alerts(_user: dict = Depends(require_permission("admin:setti
 
 # ── Webhooks ──
 
+
 @router.post("/webhooks", response_model=WebhookOut)
-async def create_webhook(body: WebhookCreateIn, _user: dict = Depends(require_permission("admin:settings"))):
+async def create_webhook(
+    body: WebhookCreateIn, _user: dict = Depends(require_permission("admin:settings"))
+):
     from kawkab.services.webhook_service import WebhookService
+
     wh_svc = WebhookService()
     wh = wh_svc.register(body.url, body.secret, body.events)
     return WebhookOut(**wh)
@@ -554,13 +641,17 @@ async def create_webhook(body: WebhookCreateIn, _user: dict = Depends(require_pe
 @router.get("/webhooks", response_model=list[WebhookOut])
 async def list_webhooks(_user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.services.webhook_service import WebhookService
+
     wh_svc = WebhookService()
     return [WebhookOut(**wh) for wh in wh_svc.list_all()]
 
 
 @router.delete("/webhooks/{webhook_id}")
-async def delete_webhook(webhook_id: int, _user: dict = Depends(require_permission("admin:settings"))):
+async def delete_webhook(
+    webhook_id: int, _user: dict = Depends(require_permission("admin:settings"))
+):
     from kawkab.services.webhook_service import WebhookService
+
     wh_svc = WebhookService()
     wh_svc.unregister(webhook_id)
     return {"ok": True}
@@ -568,14 +659,17 @@ async def delete_webhook(webhook_id: int, _user: dict = Depends(require_permissi
 
 # ── Season Summary ──
 
+
 @router.get("/season/summary")
 async def get_season_summary(_user: dict = Depends(require_permission("match:read"))):
     from kawkab.core.season_aggregator import SeasonAggregator
+
     aggregator = SeasonAggregator()
     return aggregator.aggregate_team_season([])
 
 
 # ── Coding Tags ──
+
 
 @router.get("/matches/{match_id}/coding/tags")
 async def get_coding_tags(
@@ -585,6 +679,7 @@ async def get_coding_tags(
     _user: dict = Depends(require_permission("tag:read")),
 ):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     match = await svc.get_match(match_id)
     if not match:
@@ -593,9 +688,11 @@ async def get_coding_tags(
     tags = svc.get_coding_tags(match_id)
     return _paginate(tags, page, per_page)
 
+
 @router.get("/matches/{match_id}/coding/tags/stats")
 async def get_coding_stats(match_id: int, _user: dict = Depends(require_permission("tag:read"))):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     match = await svc.get_match(match_id)
     if not match:
@@ -603,9 +700,13 @@ async def get_coding_stats(match_id: int, _user: dict = Depends(require_permissi
     _check_match_access(match, _user)
     return svc.get_coding_tag_stats(match_id)
 
+
 @router.get("/matches/{match_id}/coding/tags/type/{tag_type}")
-async def get_coding_tags_by_type(match_id: int, tag_type: str, _user: dict = Depends(require_permission("tag:read"))):
+async def get_coding_tags_by_type(
+    match_id: int, tag_type: str, _user: dict = Depends(require_permission("tag:read"))
+):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     match = await svc.get_match(match_id)
     if not match:
@@ -616,13 +717,21 @@ async def get_coding_tags_by_type(match_id: int, tag_type: str, _user: dict = De
 
 # ── Injury / Medical ──
 
+
 @router.get("/players/{player_id}/injury-risk")
-async def get_player_injury_risk(player_id: int, _user: dict = Depends(require_permission("medical:read"))):
+async def get_player_injury_risk(
+    player_id: int, _user: dict = Depends(require_permission("medical:read"))
+):
     from kawkab.core.injury_risk import InjuryRiskPredictor
+
     svc = _get_storage()
     acwr_history = await svc.get_player_acwr(player_id, limit=1)
     if not acwr_history:
-        return {"player_id": player_id, "data_available": False, "reason": "no GPS/workload data on file for this player"}
+        return {
+            "player_id": player_id,
+            "data_available": False,
+            "reason": "no GPS/workload data on file for this player",
+        }
     latest = acwr_history[0]
     pred = InjuryRiskPredictor()
     risk = pred.predict_injury_risk({"acwr": latest.get("acwr", 1.0)})
@@ -634,21 +743,29 @@ async def get_player_injury_risk(player_id: int, _user: dict = Depends(require_p
         **risk,
     }
 
+
 @router.get("/squad/{team_id}/injury-report")
-async def get_squad_injury_report(team_id: int, _user: dict = Depends(require_permission("medical:read"))):
+async def get_squad_injury_report(
+    team_id: int, _user: dict = Depends(require_permission("medical:read"))
+):
     svc = _get_storage()
     return await svc.get_squad_injury_report(team_id)
 
 
 # ── Streaming ──
 
+
 @router.get("/streaming/status")
 async def get_streaming_status(_user: dict = Depends(require_permission("match:read"))):
     return {"status": "idle"}
 
+
 @router.post("/streaming/start")
-async def start_streaming(source: str = "", _user: dict = Depends(require_permission("analysis:run"))):
+async def start_streaming(
+    source: str = "", _user: dict = Depends(require_permission("analysis:run"))
+):
     return {"status": "started", "source": source}
+
 
 @router.post("/streaming/stop")
 async def stop_streaming(_user: dict = Depends(require_permission("analysis:run"))):
@@ -657,9 +774,11 @@ async def stop_streaming(_user: dict = Depends(require_permission("analysis:run"
 
 # ── Collaboration ──
 
+
 @router.get("/collaboration/sessions")
 async def get_collab_sessions(_user: dict = Depends(require_permission("admin:settings"))):
     from kawkab.cloud.server import connected_clients
+
     return {
         "sessions": [
             {"project_id": pid, "clients": len(clients)}
@@ -671,15 +790,18 @@ async def get_collab_sessions(_user: dict = Depends(require_permission("admin:se
 
 # ── Model Cards ──
 
+
 @router.get("/model-cards", response_model=list[ModelCardOut])
 async def list_model_cards():
     from kawkab.core.model_card_registry import list_model_cards
+
     return [ModelCardOut(**m.__dict__) for m in list_model_cards()]
 
 
 @router.get("/model-cards/{name}", response_model=ModelCardOut)
 async def get_model_card(name: str):
     from kawkab.core.model_card_registry import get_model_card
+
     card = get_model_card(name)
     if not card:
         raise HTTPException(404, f"Model card '{name}' not found")
@@ -688,6 +810,7 @@ async def get_model_card(name: str):
 
 # ── Health ──
 
+
 @router.get("/feedback")
 async def get_all_feedback(
     page: int = Query(1, ge=1),
@@ -695,6 +818,7 @@ async def get_all_feedback(
     _user: dict = Depends(require_permission("admin:settings")),
 ):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     feedback = await svc.get_all_feedback()
     return _paginate(feedback, page, per_page)
@@ -707,6 +831,7 @@ async def get_all_issues(
     _user: dict = Depends(require_permission("admin:settings")),
 ):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     issues = await svc.get_all_issues()
     return _paginate(issues, page, per_page)
@@ -719,6 +844,7 @@ async def get_playlists(
     _user: dict = Depends(require_permission("match:read")),
 ):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     playlists = await svc.get_playlists()
     return _paginate(playlists, page, per_page)
@@ -733,6 +859,7 @@ async def get_reports(
     _user: dict = Depends(require_permission("analysis:read")),
 ):
     from kawkab.services.storage_service import StorageService
+
     svc = StorageService()
     match = await svc.get_match(match_id)
     if not match:
@@ -749,15 +876,16 @@ async def api_health():
 
 # ── Vendor tracking import (elite interop path) ──
 
+
 class TrackingImportIn(BaseModel):
     file_path: str = ""
-    vendor: str = ""          # skillcorner | epts | metrica (auto-detected if empty)
-    match_id: int | None = None   # attach to an existing match
+    vendor: str = ""  # skillcorner | epts | metrica (auto-detected if empty)
+    match_id: int | None = None  # attach to an existing match
     match_name: str = ""
     home_team: str = ""
     away_team: str = ""
-    away_csv: str = ""        # metrica only: the away CSV path
-    max_frames: int = 0       # 0 = all frames
+    away_csv: str = ""  # metrica only: the away CSV path
+    max_frames: int = 0  # 0 = all frames
     fps: float | None = None
 
 
@@ -818,10 +946,14 @@ async def import_tracking_match(
     # Audit trail (only on a fresh, non-dedup import)
     if not summary.get("deduplicated"):
         _get_audit().log_event(
-            "match.imported", "match", str(summary["match_id"]),
-            details={"vendor": summary["vendor"],
-                     "frames_imported": summary["frames_imported"],
-                     "source_file": body.file_path},
+            "match.imported",
+            "match",
+            str(summary["match_id"]),
+            details={
+                "vendor": summary["vendor"],
+                "frames_imported": summary["frames_imported"],
+                "source_file": body.file_path,
+            },
             user=str(_user.get("sub", "local")),
         )
 
@@ -839,10 +971,11 @@ async def import_tracking_match(
 
 # ── Vendor event-data import (Opta F24 / Wyscout) ──
 
+
 class EventImportIn(BaseModel):
-    vendor: str                 # opta | wyscout
+    vendor: str  # opta | wyscout
     file_path: str
-    f7_path: str = ""           # opta only: paired F7 match-info XML
+    f7_path: str = ""  # opta only: paired F7 match-info XML
     match_id: int | None = None
     match_name: str = ""
     home_team: str = ""
@@ -907,9 +1040,14 @@ async def import_vendor_events(
                 match_id=body.match_id,
             )
         _get_audit().log_event(
-            "match.imported", "match", str(summary["match_id"]),
-            details={"vendor": vendor, "events_imported": summary["events_imported"],
-                     "source_file": body.file_path},
+            "match.imported",
+            "match",
+            str(summary["match_id"]),
+            details={
+                "vendor": vendor,
+                "events_imported": summary["events_imported"],
+                "source_file": body.file_path,
+            },
             user=str(_user.get("sub", "local")),
         )
     except FileNotFoundError as exc:
@@ -931,6 +1069,7 @@ async def import_vendor_events(
 
 
 # ── StatsBomb event-data import (elite interop path) ──
+
 
 class StatsBombImportIn(BaseModel):
     events_json: str = ""
@@ -970,8 +1109,9 @@ async def get_audit_events(
     """Query the hash-chained audit trail (who imported/ran/exported what
     and when). RBAC-gated to analysis:read; analyst-level minimum."""
     audit = _get_audit()
-    events = audit.get_events(action=action, entity_type=entity_type,
-                              limit=min(limit, 500), offset=max(offset, 0))
+    events = audit.get_events(
+        action=action, entity_type=entity_type, limit=min(limit, 500), offset=max(offset, 0)
+    )
     return AuditLogOut(success=True, events=events, total=len(events))
 
 
@@ -1026,9 +1166,14 @@ async def import_statsbomb_match(
             away_team=body.away_team or None,
         )
         _get_audit().log_event(
-            "match.imported", "match", str(summary["match_id"]),
-            details={"vendor": "statsbomb", "events_imported": summary["events_imported"],
-                     "source_file": str(source_path)},
+            "match.imported",
+            "match",
+            str(summary["match_id"]),
+            details={
+                "vendor": "statsbomb",
+                "events_imported": summary["events_imported"],
+                "source_file": str(source_path),
+            },
             user=str(_user.get("sub", "local")),
         )
         return StatsBombImportOut(
@@ -1050,10 +1195,8 @@ async def import_statsbomb_match(
         raise HTTPException(500, f"import failed: {exc}") from exc
     finally:
         if tmp_json_path:
-            try:
+            with contextlib.suppress(OSError):
                 _Path(tmp_json_path).unlink()
-            except OSError:
-                pass
 
 
 class SeasonImportIn(BaseModel):
@@ -1091,13 +1234,13 @@ async def import_statsbomb_season(
     validated against the same documents-dir allowlist as every other
     local-file API.
     """
-    from kawkab.core.security import SecurityValidator as _SV
+    from kawkab.core.security import SecurityValidator
     from kawkab.services.season_import_service import SeasonImportService
 
     storage = _get_storage()
     try:
         try:
-            _SV.validate_directory_path(body.directory)
+            SecurityValidator.validate_directory_path(body.directory)
         except Exception as exc:
             raise HTTPException(400, f"directory rejected: {exc}") from exc
 
@@ -1110,15 +1253,22 @@ async def import_statsbomb_season(
             max_matches=body.max_matches,
         )
         _get_audit().log_event(
-            "season.imported", "match", body.directory,
-            details={"vendor": "statsbomb", "imported": summary["imported"],
-                     "skipped_already": summary["skipped_already"],
-                     "failed": summary["failed"]},
+            "season.imported",
+            "match",
+            body.directory,
+            details={
+                "vendor": "statsbomb",
+                "imported": summary["imported"],
+                "skipped_already": summary["skipped_already"],
+                "failed": summary["failed"],
+            },
             user=str(_user.get("sub", "local")),
         )
-        return SeasonImportOut(success=True, directory=str(summary["directory"]), **{
-            k: v for k, v in summary.items() if k != "directory"
-        })
+        return SeasonImportOut(
+            success=True,
+            directory=str(summary["directory"]),
+            **{k: v for k, v in summary.items() if k != "directory"},
+        )
     except HTTPException:
         raise
     except ValueError as exc:

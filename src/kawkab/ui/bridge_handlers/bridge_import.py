@@ -63,9 +63,7 @@ class ImportHandler:
 
             def _on_file(row: dict) -> None:
                 done["n"] += 1
-                self._bridge.importProgress.emit(
-                    float(done["n"]), str(row.get("file", ""))
-                )
+                self._bridge.importProgress.emit(float(done["n"]), str(row.get("file", "")))
 
             result = await svc.import_statsbomb_directory(
                 directory,

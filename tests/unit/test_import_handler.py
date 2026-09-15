@@ -60,10 +60,7 @@ def handler(store):
 def _corpus_dir() -> Path | None:
     if not CORPUS.is_dir():
         return None
-    event_files = [
-        p for p in sorted(CORPUS.glob("*.json"))
-        if not p.name.endswith(".meta.json")
-    ]
+    event_files = [p for p in sorted(CORPUS.glob("*.json")) if not p.name.endswith(".meta.json")]
     return CORPUS if event_files else None
 
 
@@ -73,8 +70,7 @@ class TestImportSeasonDirectory:
         if src is None:
             pytest.skip("statsbomb corpus not on this machine")
         # A 2-file scratch directory keeps the test fast
-        files = [p for p in sorted(src.glob("*.json"))
-                 if not p.name.endswith(".meta.json")][:2]
+        files = [p for p in sorted(src.glob("*.json")) if not p.name.endswith(".meta.json")][:2]
         work = tmp_path / "season"
         work.mkdir()
         for f in files:
@@ -94,8 +90,7 @@ class TestImportSeasonDirectory:
         src = _corpus_dir()
         if src is None:
             pytest.skip("statsbomb corpus not on this machine")
-        files = [p for p in sorted(src.glob("*.json"))
-                 if not p.name.endswith(".meta.json")][:1]
+        files = [p for p in sorted(src.glob("*.json")) if not p.name.endswith(".meta.json")][:1]
         work = tmp_path / "season2"
         work.mkdir()
         for f in files:
@@ -123,12 +118,16 @@ class TestImportTrackingFile:
                 {"track_id": 2, "name": "B", "side": "away"},
             ],
             "frames": [
-                {"frame_id": i, "time": i * 100, "period": 1,
-                 "players": [
-                     {"track_id": 1, "x": -0.8, "y": 0.1},
-                     {"track_id": 2, "x": 0.7, "y": -0.2},
-                 ],
-                 "ball": {"x": 0.0, "y": 0.0, "z": 0.0}}
+                {
+                    "frame_id": i,
+                    "time": i * 100,
+                    "period": 1,
+                    "players": [
+                        {"track_id": 1, "x": -0.8, "y": 0.1},
+                        {"track_id": 2, "x": 0.7, "y": -0.2},
+                    ],
+                    "ball": {"x": 0.0, "y": 0.0, "z": 0.0},
+                }
                 for i in range(3)
             ],
         }
@@ -143,9 +142,7 @@ class TestImportTrackingFile:
         assert r["quality"]["frames"] == 3
 
     def test_missing_file_returns_error_json(self, handler):
-        out = asyncio.run(
-            handler.import_tracking_file("/nonexistent/feed.json")
-        )
+        out = asyncio.run(handler.import_tracking_file("/nonexistent/feed.json"))
         r = json.loads(out)
         assert r["success"] is False
         assert r["error"]

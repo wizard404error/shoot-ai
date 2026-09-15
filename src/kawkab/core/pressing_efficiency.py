@@ -55,16 +55,6 @@ class PressingEfficiencyAnalyzer:
             goals_from_traps = 0
             used_shot_indices: set[int] = set()
 
-            team_positions = np.array(
-                [
-                    [
-                        float(e.get("x", e.get("start_x", 0))),
-                        float(e.get("y", e.get("start_y", 0))),
-                    ]
-                    for e in team_events
-                ],
-                dtype=np.float64,
-            )
             trap_mask = np.array(
                 [self._is_trap_event(e) for e in team_events], dtype=bool
             )

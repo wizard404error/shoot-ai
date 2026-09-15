@@ -72,29 +72,31 @@ class ValidationReportService:
     def xg_calibration_section(self, max_matches: int = 40) -> ValidationSection:
         """xG model calibration vs StatsBomb's published xG on the corpus."""
         try:
+            from kawkab.core.validation.metrics import brier_score, roc_auc
             from kawkab.core.validation.statsbomb_loader import (
                 extract_shots_for_fitting,
                 load_statsbomb_corpus,
             )
-            from kawkab.core.validation.metrics import brier_score, roc_auc
-            from kawkab.core.xg_model import active_xg_model
+            from kawkab.core.xg_model import EnhancedXgModel
 
             # load_statsbomb_corpus is a lazy generator — use its limit
             # parameter rather than slicing.
             matches = list(load_statsbomb_corpus(self.corpus_dir, limit=max_matches))
             if not matches:
                 return ValidationSection(
-                    name="xg_calibration", status="skipped",
+                    name="xg_calibration",
+                    status="skipped",
                     reason=f"corpus empty at {self.corpus_dir}",
                 )
             shots, n_matches = extract_shots_for_fitting(matches)
             if not shots:
                 return ValidationSection(
-                    name="xg_calibration", status="skipped",
+                    name="xg_calibration",
+                    status="skipped",
                     reason="corpus produced zero shots",
                 )
 
-            model = active_xg_model()
+            model = EnhancedXgModel()
             y = [1.0 if s.is_goal else 0.0 for s in shots]
             preds: list[float] = []
             sb_xg: list[float] = []
@@ -103,8 +105,12 @@ class ValidationReportService:
                     "type": "shot",
                     "distance_m": s.distance_m,
                     "angle_deg": s.angle_deg,
-                    "body_part": s.body_part if s.body_part in ("right_foot", "left_foot", "head") else "right_foot",
-                    "shot_type": s.shot_type if s.shot_type in ("open_play", "free_kick", "penalty", "corner") else "open_play",
+                    "body_part": s.body_part
+                    if s.body_part in ("right_foot", "left_foot", "head")
+                    else "right_foot",
+                    "shot_type": s.shot_type
+                    if s.shot_type in ("open_play", "free_kick", "penalty", "corner")
+                    else "open_play",
                     "gk_distance_m": s.gk_distance_m,
                     "is_rebound": s.is_rebound,
                     "is_big_chance": s.is_big_chance,
@@ -133,30 +139,29 @@ class ValidationReportService:
                 },
             )
         except Exception as exc:
-            return ValidationSection(
-                name="xg_calibration", status="skipped", reason=str(exc)
-            )
+            return ValidationSection(name="xg_calibration", status="skipped", reason=str(exc))
 
     def psxg_calibration_section(self, max_matches: int = 20) -> ValidationSection:
         """PSxG vs outcomes on corpus shots that were on target."""
         try:
+            from kawkab.core.psxg_model import compute_psxg
+            from kawkab.core.validation.metrics import brier_score
             from kawkab.core.validation.statsbomb_loader import (
                 extract_shots_for_fitting,
                 load_statsbomb_corpus,
             )
-            from kawkab.core.validation.metrics import brier_score
-            from kawkab.core.psxg_model import compute_psxg
 
             matches = list(load_statsbomb_corpus(self.corpus_dir, limit=max_matches))
             shots, _n_matches = extract_shots_for_fitting(matches)
             on_target = [
-                s for s in shots
-                if getattr(s, "shot_type", "") != "penalty"
-                and 8.0 <= s.distance_m <= 30.0
+                s
+                for s in shots
+                if getattr(s, "shot_type", "") != "penalty" and 8.0 <= s.distance_m <= 30.0
             ]
             if not on_target:
                 return ValidationSection(
-                    name="psxg_calibration", status="skipped",
+                    name="psxg_calibration",
+                    status="skipped",
                     reason="no on-target-range shots in corpus sample",
                 )
             y, preds = [], []
@@ -164,7 +169,9 @@ class ValidationReportService:
                 result = compute_psxg(
                     distance_m=s.distance_m,
                     angle_deg=s.angle_deg,
-                    body_part=s.body_part if s.body_part in ("right_foot", "left_foot", "head") else "right_foot",
+                    body_part=s.body_part
+                    if s.body_part in ("right_foot", "left_foot", "head")
+                    else "right_foot",
                 )
                 preds.append(float(result.psxg))
                 y.append(1.0 if s.is_goal else 0.0)
@@ -179,23 +186,33 @@ class ValidationReportService:
                 },
             )
         except Exception as exc:
-            return ValidationSection(
-                name="psxg_calibration", status="skipped", reason=str(exc)
-            )
+            return ValidationSection(name="psxg_calibration", status="skipped", reason=str(exc))
 
     def xt_grid_section(self) -> ValidationSection:
         """Sanity of the trained xT reference grid (bounds + goalward growth)."""
         try:
-            from kawkab.core.xt_model import _load_reference_grid
-
-            arr = _load_reference_grid()
-            if arr is None:
+            # Read the trained-grid artifact directly: present when an xT
+            # training pass has run (core/trained_xt_grid.json). No private
+            # symbol dependency on xt_model — the report degrades honestly
+            # to "skipped" when no trained grid exists.
+            grid_path = Path(__file__).resolve().parents[1] / "core" / "trained_xt_grid.json"
+            if not grid_path.exists():
                 return ValidationSection(
-                    name="xt_grid", status="skipped", reason="no trained grid available",
+                    name="xt_grid",
+                    status="skipped",
+                    reason="no trained grid available",
                 )
             import numpy as np
 
-            arr = np.asarray(arr, dtype=float)
+            with open(grid_path, encoding="utf-8") as f:
+                payload = json.load(f)
+            arr = np.asarray(payload.get("grid", []), dtype=float)
+            if arr.ndim != 2 or arr.size == 0:
+                return ValidationSection(
+                    name="xt_grid",
+                    status="skipped",
+                    reason="trained grid malformed",
+                )
             return ValidationSection(
                 name="xt_grid",
                 status="evaluated",
@@ -205,8 +222,7 @@ class ValidationReportService:
                     "max": round(float(arr.max()), 5),
                     "all_nonnegative": bool((arr >= 0).all()),
                     "max_in_attacking_third": bool(
-                        arr[:, arr.shape[1] * 2 // 3:].max()
-                        >= arr[:, : arr.shape[1] // 3].max()
+                        arr[:, arr.shape[1] * 2 // 3 :].max() >= arr[:, : arr.shape[1] // 3].max()
                     ),
                 },
             )
@@ -236,7 +252,8 @@ class ValidationReportService:
 
             with open(ev_path, encoding="utf-8") as f:
                 for row in _csv.DictReader(f):
-                    def _num(v: str) -> float | None:
+
+                    def _num(v: Any) -> float | None:
                         try:
                             f = float(v)
                         except (TypeError, ValueError):
@@ -252,34 +269,32 @@ class ValidationReportService:
                     # the ball (interception when subtype says so, else a
                     # loose-ball recovery).
                     if ev_type == "recovery":
-                        ev_type = (
-                            "interception" if "interception" in subtype else "loose_ball"
-                        )
-                    events.append({
-                        "type": ev_type,
-                        "subtype": subtype,
-                        "team": (row.get("Team") or "").lower(),
-                        "period": int(row.get("Period") or 1),
-                        "timestamp": _num(row.get("Start Time [s]")) or 0.0,
-                        # Metrica events share the tracking files' [0,1]
-                        # normalized pitch; convert to Kawkab meters (105x68).
-                        # Both key conventions are filled: the recovery
-                        # analyzer reads x/y, the xT/carry code reads
-                        # start_x/start_y/end_x/end_y. Missing coordinates
-                        # fall back to pitch center.
-                        "x": (sx if sx is not None else 0.5) * 105.0,
-                        "y": (sy if sy is not None else 0.5) * 68.0,
-                        "start_x": (sx if sx is not None else 0.5) * 105.0,
-                        "start_y": (sy if sy is not None else 0.5) * 68.0,
-                        "end_x": (ex if ex is not None else 0.5) * 105.0,
-                        "end_y": (ey if ey is not None else 0.5) * 68.0,
-                        "completed": True,
-                        # Metrica marks goals as SHOT / ON TARGET-GOAL —
-                        # the xT model's ze term needs them.
-                        "is_goal": (
-                            ev_type == "shot" and "goal" in subtype
-                        ),
-                    })
+                        ev_type = "interception" if "interception" in subtype else "loose_ball"
+                    events.append(
+                        {
+                            "type": ev_type,
+                            "subtype": subtype,
+                            "team": (row.get("Team") or "").lower(),
+                            "period": int(row.get("Period") or 1),
+                            "timestamp": _num(row.get("Start Time [s]")) or 0.0,
+                            # Metrica events share the tracking files' [0,1]
+                            # normalized pitch; convert to Kawkab meters (105x68).
+                            # Both key conventions are filled: the recovery
+                            # analyzer reads x/y, the xT/carry code reads
+                            # start_x/start_y/end_x/end_y. Missing coordinates
+                            # fall back to pitch center.
+                            "x": (sx if sx is not None else 0.5) * 105.0,
+                            "y": (sy if sy is not None else 0.5) * 68.0,
+                            "start_x": (sx if sx is not None else 0.5) * 105.0,
+                            "start_y": (sy if sy is not None else 0.5) * 68.0,
+                            "end_x": (ex if ex is not None else 0.5) * 105.0,
+                            "end_y": (ey if ey is not None else 0.5) * 68.0,
+                            "completed": True,
+                            # Metrica marks goals as SHOT / ON TARGET-GOAL —
+                            # the xT model's ze term needs them.
+                            "is_goal": (ev_type == "shot" and "goal" in subtype),
+                        }
+                    )
         return {"tracking": mm, "events": events}
 
     @staticmethod
@@ -288,12 +303,14 @@ class ValidationReportService:
         consumes, subsampled for runtime (25 fps -> 5 Hz)."""
         frames = []
         for fr in mm.sample(every_n):
-            frames.append({
-                "timestamp": fr.time_s,
-                "home_positions": [(p[0], p[1]) for p in fr.home],
-                "away_positions": [(p[0], p[1]) for p in fr.away],
-                "ball_pos": (fr.ball[0], fr.ball[1]) if fr.ball else None,
-            })
+            frames.append(
+                {
+                    "timestamp": fr.time_s,
+                    "home_positions": [(p[0], p[1]) for p in fr.home],
+                    "away_positions": [(p[0], p[1]) for p in fr.away],
+                    "ball_pos": (fr.ball[0], fr.ball[1]) if fr.ball else None,
+                }
+            )
         return frames
 
     def pitch_control_section(self) -> ValidationSection:
@@ -304,7 +321,8 @@ class ValidationReportService:
             data = self._load_metrica_fixture()
             if data is None:
                 return ValidationSection(
-                    name="pitch_control", status="skipped",
+                    name="pitch_control",
+                    status="skipped",
                     reason="Metrica fixture missing (tests/fixtures/tracking)",
                 )
             from kawkab.core.pitch_control import VoronoiPitchControl
@@ -312,7 +330,9 @@ class ValidationReportService:
             frames = self._tracking_frames_dicts(data["tracking"], every_n=25)
             if not frames:
                 return ValidationSection(
-                    name="pitch_control", status="skipped", reason="no frames",
+                    name="pitch_control",
+                    status="skipped",
+                    reason="no frames",
                 )
             pc = VoronoiPitchControl()
             match = pc.compute_match_control(frames)
@@ -342,10 +362,11 @@ class ValidationReportService:
             data = self._load_metrica_fixture()
             if data is None or not data["events"]:
                 return ValidationSection(
-                    name="ball_recovery", status="skipped",
+                    name="ball_recovery",
+                    status="skipped",
                     reason="Metrica events fixture missing",
                 )
-            from kawkab.core.ball_recovery import BallRecoveryAnalyzer, RECOVERY_EVENT_TYPES
+            from kawkab.core.ball_recovery import RECOVERY_EVENT_TYPES, BallRecoveryAnalyzer
 
             events = data["events"]
             n_rec = sum(
@@ -383,7 +404,8 @@ class ValidationReportService:
             data = self._load_metrica_fixture()
             if data is None:
                 return ValidationSection(
-                    name="carry_xt", status="skipped",
+                    name="carry_xt",
+                    status="skipped",
                     reason="Metrica fixture missing",
                 )
             from kawkab.core.carry_xt import compute_carry_xt_from_tracking
@@ -395,7 +417,6 @@ class ValidationReportService:
             # feeds do not label carries; the service does the same).
             carries: list[dict[str, Any]] = []
             prev: tuple[float, float] | None = None
-            prev_t = 0.0
             team_flip = 0
             for fr in frames_raw:
                 if not fr["ball_pos"]:
@@ -406,19 +427,25 @@ class ValidationReportService:
                     # 0.2 s apart at 5 Hz: >1 m of ball travel means the
                     # ball is genuinely moving (pass/carry), not jitter.
                     if 1.0 <= dist <= 40.0:
-                        carries.append({
-                            "type": "carry",
-                            "team": "home" if team_flip % 2 == 0 else "away",
-                            "start_x": prev[0], "start_y": prev[1],
-                            "end_x": bx, "end_y": by,
-                            "timestamp": fr["timestamp"],
-                            "completed": True,
-                        })
+                        carries.append(
+                            {
+                                "type": "carry",
+                                "team": "home" if team_flip % 2 == 0 else "away",
+                                "start_x": prev[0],
+                                "start_y": prev[1],
+                                "end_x": bx,
+                                "end_y": by,
+                                "timestamp": fr["timestamp"],
+                                "completed": True,
+                            }
+                        )
                         team_flip += 1
-                prev, prev_t = (bx, by), fr["timestamp"]
+                prev = (bx, by)
             if not carries:
                 return ValidationSection(
-                    name="carry_xt", status="skipped", reason="no carries derived",
+                    name="carry_xt",
+                    status="skipped",
+                    reason="no carries derived",
                 )
             # Build the model from the FULL event set (passes, shots, etc.),
             # exactly as the production path does — a carry-only transition
@@ -438,9 +465,7 @@ class ValidationReportService:
                     "away_total_xt": round(report.away_total_xt, 4),
                     "home_progressive": report.home_progressive,
                     "away_progressive": report.away_progressive,
-                    "xt_nonnegative": bool(
-                        report.home_total_xt >= 0 and report.away_total_xt >= 0
-                    ),
+                    "xt_nonnegative": bool(report.home_total_xt >= 0 and report.away_total_xt >= 0),
                 },
             )
         except Exception as exc:
@@ -454,15 +479,16 @@ class ValidationReportService:
             data = self._load_metrica_fixture()
             if data is None:
                 return ValidationSection(
-                    name="physical_load", status="skipped",
+                    name="physical_load",
+                    status="skipped",
                     reason="Metrica fixture missing",
                 )
-            from kawkab.services.physical_load_service import PhysicalLoadService
             from kawkab.services.cv_service import (
                 Detection,
                 FrameDetections,
                 MatchTrackData,
             )
+            from kawkab.services.physical_load_service import PhysicalLoadService
 
             mm = data["tracking"]
             svc = PhysicalLoadService()
@@ -482,45 +508,61 @@ class ValidationReportService:
                 out = []
                 for i in range(len(pts)):
                     lo, hi = max(0, i - 2), min(len(pts), i + 3)
-                    out.append((
-                        sum(p[0] for p in pts[lo:hi]) / (hi - lo),
-                        sum(p[1] for p in pts[lo:hi]) / (hi - lo),
-                    ))
+                    out.append(
+                        (
+                            sum(p[0] for p in pts[lo:hi]) / (hi - lo),
+                            sum(p[1] for p in pts[lo:hi]) / (hi - lo),
+                        )
+                    )
                 smoothed[tid] = out
             frames = []
             for j, fr in enumerate(sampled):
                 dets = []
                 for tid in sorted(smoothed):
                     x, y = smoothed[tid][j]
-                    dets.append(Detection(
-                        bbox=(x, y, x, y),
-                        confidence=1.0, class_id=0, class_name="person",
-                        track_id=tid,
-                    ))
-                frames.append(FrameDetections(
-                    frame_number=fr.frame, timestamp=fr.time_s,
-                    detections=dets, image_width=105, image_height=68,
-                ))
+                    dets.append(
+                        Detection(
+                            bbox=(x, y, x, y),
+                            confidence=1.0,
+                            class_id=0,
+                            class_name="person",
+                            track_id=tid,
+                        )
+                    )
+                frames.append(
+                    FrameDetections(
+                        frame_number=fr.frame,
+                        timestamp=fr.time_s,
+                        detections=dets,
+                        image_width=105,
+                        image_height=68,
+                    )
+                )
             track = MatchTrackData(
-                match_id=0, fps=mm.fps / 5, total_frames=len(frames),
+                match_id=0,
+                fps=mm.fps / 5,
+                total_frames=len(frames),
                 duration_seconds=frames[-1].timestamp if frames else 0.0,
-                frames=frames, track_registry={},
+                frames=frames,
+                track_registry={},
             )
             import asyncio as _asyncio
 
-            results = _asyncio.run(
-                svc.compute_physical_load(track, homography_matrix=None)
-            )
+            results = _asyncio.run(svc.compute_physical_load(track, homography_matrix=None))
             if not results:
                 return ValidationSection(
-                    name="physical_load", status="skipped", reason="no trajectories",
+                    name="physical_load",
+                    status="skipped",
+                    reason="no trajectories",
                 )
             # Extrapolate the ~80 s window to a 96-minute match for the
             # plausibility band (10-13 km/match, elite published range).
             durations = frames[-1].timestamp
             if durations <= 0:
                 return ValidationSection(
-                    name="physical_load", status="skipped", reason="zero duration",
+                    name="physical_load",
+                    status="skipped",
+                    reason="zero duration",
                 )
             # Like-for-like plausibility: average running speed over the
             # window vs the published elite match average (~10.5 km over
@@ -530,9 +572,7 @@ class ValidationReportService:
             # errors (jitter artifacts push >3.5 m/s, dead data <1 m/s).
             # No linear extrapolation to 96 min — that would assume the
             # opening 80 s represents a full match.
-            speeds = sorted(
-                m.total_distance_m / durations for m in results.values()
-            )
+            speeds = sorted(m.total_distance_m / durations for m in results.values())
             median_speed = speeds[len(speeds) // 2]
             return ValidationSection(
                 name="physical_load",
@@ -541,9 +581,7 @@ class ValidationReportService:
                     "players": len(results),
                     "window_seconds": round(durations, 1),
                     "median_avg_speed_mps": round(median_speed, 2),
-                    "within_sanity_band_1p8_2p6_mps": bool(
-                        1.8 <= median_speed <= 2.6
-                    ),
+                    "within_sanity_band_1p8_2p6_mps": bool(1.8 <= median_speed <= 2.6),
                 },
             )
         except Exception as exc:
@@ -615,7 +653,5 @@ class ValidationReportService:
         (out / "validation_report.json").write_text(
             json.dumps(report, indent=2, default=str), encoding="utf-8"
         )
-        (out / "validation_report.md").write_text(
-            self.to_markdown(report), encoding="utf-8"
-        )
+        (out / "validation_report.md").write_text(self.to_markdown(report), encoding="utf-8")
         return report

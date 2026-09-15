@@ -213,18 +213,23 @@ class VendorEventImportService:
             uid = str(ev.team or "").lstrip("t")
             team = uid_to_side.get(uid, "home")
             player_uid = str(ev.player or "").lstrip("p")
-            player_name = player_names.get(player_uid) or (f"Opta {player_uid}" if player_uid else "")
+            player_name = player_names.get(player_uid) or (
+                f"Opta {player_uid}" if player_uid else ""
+            )
 
             if player_uid and player_uid not in seen:
                 seen.add(player_uid)
                 tid = self._stable_track_id(team, player_name or player_uid)
-                await self.storage.save_player(match_id, {
-                    "track_id": tid,
-                    "name": player_name or f"Player {player_uid}",
-                    "team": team,
-                    "position": None,
-                    "jersey_number": None,
-                })
+                await self.storage.save_player(
+                    match_id,
+                    {
+                        "track_id": tid,
+                        "name": player_name or f"Player {player_uid}",
+                        "team": team,
+                        "position": None,
+                        "jersey_number": None,
+                    },
+                )
                 track_ids[player_uid] = tid
                 players_registered += 1
 
@@ -259,14 +264,17 @@ class VendorEventImportService:
         }
 
     def _opta_to_kawkab_event(
-        self, ev: Any, team: str, from_track: int | None,
+        self,
+        ev: Any,
+        team: str,
+        from_track: int | None,
     ) -> dict[str, Any] | None:
         """One Opta ProviderEvent -> one Kawkab event dict (or None)."""
         parser_type = (ev.type or "").lower()
         type_id = str(ev.extra.get("type_id", "") or "")
 
         if parser_type in _OPTA_SHOT_NAMES:
-            ktype = "shot"
+            ktype: str | None = "shot"
         elif parser_type:
             ktype = parser_type
         else:
@@ -277,8 +285,10 @@ class VendorEventImportService:
         sx, sy = _norm100_to_meters(ev.x, ev.y)
         ex, ey = _norm100_to_meters(ev.end_x, ev.end_y)
         meta: dict[str, Any] = {
-            "start_x": round(sx, 2), "start_y": round(sy, 2),
-            "end_x": round(ex, 2), "end_y": round(ey, 2),
+            "start_x": round(sx, 2),
+            "start_y": round(sy, 2),
+            "end_x": round(ex, 2),
+            "end_y": round(ey, 2),
             "opta_event_id": ev.event_id,
             "opta_type_id": type_id,
             "source": "opta",
@@ -351,8 +361,10 @@ class VendorEventImportService:
             tid = str(lu.get("team_id", ""))
             if tid and tid not in team_id_to_side:
                 team_id_to_side[tid] = (
-                    "home" if lu.get("team_name") == home
-                    else "away" if lu.get("team_name") == away
+                    "home"
+                    if lu.get("team_name") == home
+                    else "away"
+                    if lu.get("team_name") == away
                     else ""
                 ) or ("home" if "home" not in team_id_to_side.values() else "away")
 
@@ -379,23 +391,27 @@ class VendorEventImportService:
             if player_key and player_key not in seen:
                 seen.add(player_key)
                 new_tid = self._stable_track_id(team, player_name or player_key)
-                await self.storage.save_player(match_id, {
-                    "track_id": new_tid,
-                    "name": player_name or f"Player {player_key}",
-                    "team": info.get("team") or team,
-                    "position": info.get("position"),
-                    "jersey_number": info.get("jersey_number"),
-                })
+                await self.storage.save_player(
+                    match_id,
+                    {
+                        "track_id": new_tid,
+                        "name": player_name or f"Player {player_key}",
+                        "team": info.get("team") or team,
+                        "position": info.get("position"),
+                        "jersey_number": info.get("jersey_number"),
+                    },
+                )
                 track_ids[player_key] = new_tid
                 players_registered += 1
 
-            ktype = _WYSCOUT_TYPE_MAP.get(wev.event_type,
-                                          wev.event_type.lower().replace(" ", "_"))
+            ktype = _WYSCOUT_TYPE_MAP.get(wev.event_type, wev.event_type.lower().replace(" ", "_"))
             sx, sy = _norm100_to_meters(wev.x, wev.y)
             ex, ey = _norm100_to_meters(wev.end_x, wev.end_y)
             meta: dict[str, Any] = {
-                "start_x": round(sx, 2), "start_y": round(sy, 2),
-                "end_x": round(ex, 2), "end_y": round(ey, 2),
+                "start_x": round(sx, 2),
+                "start_y": round(sy, 2),
+                "end_x": round(ex, 2),
+                "end_y": round(ey, 2),
                 "wyscout_event_id": wev.event_id,
                 "wyscout_tags": wev.tags,
                 "source": "wyscout",
@@ -410,14 +426,17 @@ class VendorEventImportService:
                 meta["shot_outcome"] = "goal" if meta["is_goal"] else "off_target"
                 meta["xg"] = 0.0
 
-            saved = await self.storage.save_event(match_id, {
-                "type": ktype,
-                "timestamp": float(wev.minute) * 60.0 + float(wev.second),
-                "team": team,
-                "completed": True,
-                "from_track_id": track_ids.get(player_key),
-                "metadata": meta,
-            })
+            saved = await self.storage.save_event(
+                match_id,
+                {
+                    "type": ktype,
+                    "timestamp": float(wev.minute) * 60.0 + float(wev.second),
+                    "team": team,
+                    "completed": True,
+                    "from_track_id": track_ids.get(player_key),
+                    "metadata": meta,
+                },
+            )
             if saved:
                 imported += 1
             else:
@@ -446,7 +465,12 @@ class VendorEventImportService:
         return (abs(hash((team_name, player_name))) % 998) + 1
 
     async def _cache_totals(
-        self, match_id: int, events: int, shots: int, goals: int, total_xg: float,
+        self,
+        match_id: int,
+        events: int,
+        shots: int,
+        goals: int,
+        total_xg: float,
     ) -> None:
         await self.storage.save_advanced_metrics(
             match_id, "events_total", float(events), metric_category="import"

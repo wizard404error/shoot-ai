@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -45,9 +45,8 @@ class PostgresStorageAdapter:
             return
         try:
             import asyncpg
-            self._pool = await asyncpg.create_pool(
-                self._dsn, min_size=2, max_size=10
-            )
+
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=2, max_size=10)
             self._available = True
             await self._apply_schema()
         except Exception as exc:
@@ -74,7 +73,9 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS owner_id INTEGER")
             await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_id INTEGER")
-            await conn.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS is_shared INTEGER DEFAULT 0")
+            await conn.execute(
+                "ALTER TABLE matches ADD COLUMN IF NOT EXISTS is_shared INTEGER DEFAULT 0"
+            )
 
     async def close(self):
         if self._pool:
@@ -113,8 +114,8 @@ class PostgresStorageAdapter:
 
     @staticmethod
     def _sanitize_column_name(name: str) -> str | None:
-        cleaned = re.sub(r'[^a-zA-Z0-9_]', '', name)
-        if cleaned and (cleaned[0].isalpha() or cleaned.startswith('_')):
+        cleaned = re.sub(r"[^a-zA-Z0-9_]", "", name)
+        if cleaned and (cleaned[0].isalpha() or cleaned.startswith("_")):
             return cleaned
         return None
 
@@ -131,7 +132,12 @@ class PostgresStorageAdapter:
             row = await conn.fetchrow(
                 """INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id)
                    VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
-                name, video_path, home_team, away_team, home_id, away_id,
+                name,
+                video_path,
+                home_team,
+                away_team,
+                home_id,
+                away_id,
             )
             return row["id"] if row else 0
 
@@ -141,7 +147,8 @@ class PostgresStorageAdapter:
             return row["id"]
         row = await conn.fetchrow(
             "INSERT INTO teams (name, short_name) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id",
-            name, name[:3].upper(),
+            name,
+            name[:3].upper(),
         )
         return row["id"] if row else None
 
@@ -186,9 +193,14 @@ class PostgresStorageAdapter:
             )
             return r != "UPDATE 0"
 
-    async def update_match_analysis(self, match_id: int, analysis_data: Any = None,
-                                     duration: float | None = None, fps: float | None = None,
-                                     total_frames: int | None = None) -> bool:
+    async def update_match_analysis(
+        self,
+        match_id: int,
+        analysis_data: Any = None,
+        duration: float | None = None,
+        fps: float | None = None,
+        total_frames: int | None = None,
+    ) -> bool:
         """Update match analysis fields. Accepts both dict (PG) and scalar (SQLite) signatures."""
         if not self._pool:
             return False
@@ -196,12 +208,16 @@ class PostgresStorageAdapter:
             if isinstance(analysis_data, dict) and duration is None:
                 r = await conn.execute(
                     "UPDATE matches SET analysis_json = $1, updated_at = NOW() WHERE id = $2",
-                    json.dumps(analysis_data, default=str), match_id,
+                    json.dumps(analysis_data, default=str),
+                    match_id,
                 )
             else:
                 r = await conn.execute(
                     "UPDATE matches SET duration_seconds = $1, fps = $2, total_frames = $3, analyzed_at = NOW() WHERE id = $4",
-                    duration or 0, fps or 0, total_frames or 0, match_id,
+                    duration or 0,
+                    fps or 0,
+                    total_frames or 0,
+                    match_id,
                 )
             return r != "UPDATE 0"
 
@@ -211,22 +227,29 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE matches SET home_team = $1, away_team = $2, updated_at = NOW() WHERE id = $3",
-                home_team, away_team, match_id,
+                home_team,
+                away_team,
+                match_id,
             )
             return r != "UPDATE 0"
 
-    async def update_match_football_data(self, match_id: int, data: Any = None,
-                                          api_match_id: int | None = None,
-                                          competition_code: str | None = None,
-                                          football_data_home_team_id: int | None = None,
-                                          football_data_away_team_id: int | None = None) -> bool:
+    async def update_match_football_data(
+        self,
+        match_id: int,
+        data: Any = None,
+        api_match_id: int | None = None,
+        competition_code: str | None = None,
+        football_data_home_team_id: int | None = None,
+        football_data_away_team_id: int | None = None,
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and api_match_id is None:
                 r = await conn.execute(
                     "UPDATE matches SET football_data_json = $1, updated_at = NOW() WHERE id = $2",
-                    json.dumps(data, default=str), match_id,
+                    json.dumps(data, default=str),
+                    match_id,
                 )
                 return r != "UPDATE 0"
             sets = []
@@ -247,34 +270,41 @@ class PostgresStorageAdapter:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d" % (
-                    ", ".join(sets), len(args)),
+                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
+                % (", ".join(sets), len(args)),
                 *args,
             )
             return r != "UPDATE 0"
 
-    async def update_match_apifootball(self, match_id: int, data: Any = None,
-                                        apifb_home_team_id: int | None = None,
-                                        apifb_away_team_id: int | None = None,
-                                        apifb_fixture_id: int | None = None,
-                                        apifb_league_id: int | None = None,
-                                        apifb_season: int | None = None) -> bool:
+    async def update_match_apifootball(
+        self,
+        match_id: int,
+        data: Any = None,
+        apifb_home_team_id: int | None = None,
+        apifb_away_team_id: int | None = None,
+        apifb_fixture_id: int | None = None,
+        apifb_league_id: int | None = None,
+        apifb_season: int | None = None,
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and apifb_home_team_id is None:
                 r = await conn.execute(
                     "UPDATE matches SET apifootball_json = $1, updated_at = NOW() WHERE id = $2",
-                    json.dumps(data, default=str), match_id,
+                    json.dumps(data, default=str),
+                    match_id,
                 )
                 return r != "UPDATE 0"
             sets = []
             args = []
-            for name, val in [("apifb_home_team_id", apifb_home_team_id),
-                              ("apifb_away_team_id", apifb_away_team_id),
-                              ("apifb_fixture_id", apifb_fixture_id),
-                              ("apifb_league_id", apifb_league_id),
-                              ("apifb_season", apifb_season)]:
+            for name, val in [
+                ("apifb_home_team_id", apifb_home_team_id),
+                ("apifb_away_team_id", apifb_away_team_id),
+                ("apifb_fixture_id", apifb_fixture_id),
+                ("apifb_league_id", apifb_league_id),
+                ("apifb_season", apifb_season),
+            ]:
                 if val is not None:
                     sets.append(f"{name} = ${len(args) + 1}")
                     args.append(val)
@@ -282,36 +312,43 @@ class PostgresStorageAdapter:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d" % (
-                    ", ".join(sets), len(args)),
+                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
+                % (", ".join(sets), len(args)),
                 *args,
             )
             return r != "UPDATE 0"
 
-    async def update_match_bzzoiro(self, match_id: int, data: Any = None,
-                                    bzzoiro_home_team_id: int | None = None,
-                                    bzzoiro_away_team_id: int | None = None,
-                                    bzzoiro_event_id: int | None = None,
-                                    bzzoiro_league_id: int | None = None,
-                                    bzzoiro_competition_code: str | None = None,
-                                    prediction_data: str | None = None) -> bool:
+    async def update_match_bzzoiro(
+        self,
+        match_id: int,
+        data: Any = None,
+        bzzoiro_home_team_id: int | None = None,
+        bzzoiro_away_team_id: int | None = None,
+        bzzoiro_event_id: int | None = None,
+        bzzoiro_league_id: int | None = None,
+        bzzoiro_competition_code: str | None = None,
+        prediction_data: str | None = None,
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and bzzoiro_home_team_id is None:
                 r = await conn.execute(
                     "UPDATE matches SET bzzoiro_json = $1, updated_at = NOW() WHERE id = $2",
-                    json.dumps(data, default=str), match_id,
+                    json.dumps(data, default=str),
+                    match_id,
                 )
                 return r != "UPDATE 0"
             sets = []
             args = []
-            for name, val in [("bzzoiro_home_team_id", bzzoiro_home_team_id),
-                              ("bzzoiro_away_team_id", bzzoiro_away_team_id),
-                              ("bzzoiro_event_id", bzzoiro_event_id),
-                              ("bzzoiro_league_id", bzzoiro_league_id),
-                              ("bzzoiro_competition_code", bzzoiro_competition_code),
-                              ("prediction_data", prediction_data)]:
+            for name, val in [
+                ("bzzoiro_home_team_id", bzzoiro_home_team_id),
+                ("bzzoiro_away_team_id", bzzoiro_away_team_id),
+                ("bzzoiro_event_id", bzzoiro_event_id),
+                ("bzzoiro_league_id", bzzoiro_league_id),
+                ("bzzoiro_competition_code", bzzoiro_competition_code),
+                ("prediction_data", prediction_data),
+            ]:
                 if val is not None:
                     sets.append(f"{name} = ${len(args) + 1}")
                     args.append(val)
@@ -319,8 +356,8 @@ class PostgresStorageAdapter:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d" % (
-                    ", ".join(sets), len(args)),
+                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
+                % (", ".join(sets), len(args)),
                 *args,
             )
             return r != "UPDATE 0"
@@ -344,8 +381,10 @@ class PostgresStorageAdapter:
                 event.get("completed", False),
                 event.get("confidence", 0.0),
                 json.dumps(event.get("metadata", event.get("data", {})), default=str),
-                event.get("x", 0.0), event.get("y", 0.0),
-                event.get("end_x", 0.0), event.get("end_y", 0.0),
+                event.get("x", 0.0),
+                event.get("y", 0.0),
+                event.get("end_x", 0.0),
+                event.get("end_y", 0.0),
                 event.get("is_goal", False),
             )
             return row["id"] if row else 0
@@ -364,8 +403,10 @@ class PostgresStorageAdapter:
                 ev.get("completed", False),
                 ev.get("confidence", 0.0),
                 json.dumps(ev.get("metadata", ev.get("data", {})), default=str),
-                ev.get("x", 0.0), ev.get("y", 0.0),
-                ev.get("end_x", 0.0), ev.get("end_y", 0.0),
+                ev.get("x", 0.0),
+                ev.get("y", 0.0),
+                ev.get("end_x", 0.0),
+                ev.get("end_y", 0.0),
                 ev.get("is_goal", False),
             )
             for ev in events
@@ -380,7 +421,9 @@ class PostgresStorageAdapter:
             )
         return len(params)
 
-    async def get_match_events(self, match_id: int, limit: int = 200, offset: int = 0) -> list[dict]:
+    async def get_match_events(
+        self, match_id: int, limit: int = 200, offset: int = 0
+    ) -> list[dict]:
         rows = await self.fetch(
             """SELECT id, match_id, timestamp, event_type, from_track_id, to_track_id, team,
                       completed, confidence, metadata, user_corrected,
@@ -392,7 +435,9 @@ class PostgresStorageAdapter:
                FROM events
                WHERE match_id = $1 AND (is_deleted IS NULL OR is_deleted=0)
                ORDER BY timestamp LIMIT $2 OFFSET $3""",
-            match_id, limit, offset,
+            match_id,
+            limit,
+            offset,
         )
         result = []
         for r in rows:
@@ -409,9 +454,21 @@ class PostgresStorageAdapter:
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._pool:
             return False
-        allowed = {"event_type", "team", "from_track_id", "to_track_id",
-                    "completed", "confidence", "metadata", "user_corrected",
-                    "x", "y", "end_x", "end_y", "is_goal"}
+        allowed = {
+            "event_type",
+            "team",
+            "from_track_id",
+            "to_track_id",
+            "completed",
+            "confidence",
+            "metadata",
+            "user_corrected",
+            "x",
+            "y",
+            "end_x",
+            "end_y",
+            "is_goal",
+        }
         sets = []
         args = []
         for k, v in updates.items():
@@ -522,13 +579,17 @@ class PostgresStorageAdapter:
         )
         return len(params)
 
-    async def get_match_players(self, match_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+    async def get_match_players(
+        self, match_id: int, limit: int = 50, offset: int = 0
+    ) -> list[dict]:
         return await self.fetch(
             """SELECT id, match_id, track_id, team, jersey_number, name, confidence
                FROM players
                WHERE match_id = $1 AND (is_deleted IS NULL OR is_deleted=0)
                ORDER BY id LIMIT $2 OFFSET $3""",
-            match_id, limit, offset,
+            match_id,
+            limit,
+            offset,
         )
 
     async def hard_delete_player(self, player_id: int) -> bool:
@@ -597,43 +658,61 @@ class PostgresStorageAdapter:
                FROM player_profiles
                WHERE is_active = TRUE
                ORDER BY id LIMIT $1 OFFSET $2""",
-            limit, offset,
+            limit,
+            offset,
         )
 
-    async def update_player_profile_face(self, profile_id: int, face_embedding_or_path: str,
-                                          face_confidence: float = 0.0) -> bool:
+    async def update_player_profile_face(
+        self, profile_id: int, face_embedding_or_path: str, face_confidence: float = 0.0
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE player_profiles SET face_embedding = $1, face_confidence = $2, updated_at = NOW() WHERE id = $3",
-                face_embedding_or_path, face_confidence, profile_id,
+                face_embedding_or_path,
+                face_confidence,
+                profile_id,
             )
             return r != "UPDATE 0"
 
     # ── Advanced Metrics ────────────────────────────────────────────────────
 
-    async def save_advanced_metrics(self, match_id: int, metrics: Any = None,
-                                     metric_name: str = "", metric_value: float = 0,
-                                     metric_category: str = "", player_id: int | None = None,
-                                     pitch_zone: str = "", timestamp: float | None = None,
-                                     metadata: dict | None = None,
-                                     category: str = "") -> int:
+    async def save_advanced_metrics(
+        self,
+        match_id: int,
+        metrics: Any = None,
+        metric_name: str = "",
+        metric_value: float = 0,
+        metric_category: str = "",
+        player_id: int | None = None,
+        pitch_zone: str = "",
+        timestamp: float | None = None,
+        metadata: dict | None = None,
+        category: str = "",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             if isinstance(metrics, dict):
                 row = await conn.fetchrow(
                     "INSERT INTO advanced_metrics (match_id, category, data_json) VALUES ($1,$2,$3) RETURNING id",
-                    match_id, metrics.get("category", "general"), json.dumps(metrics, default=str),
+                    match_id,
+                    metrics.get("category", "general"),
+                    json.dumps(metrics, default=str),
                 )
             else:
                 row = await conn.fetchrow(
                     """INSERT INTO advanced_metrics (match_id, player_id, metric_name, metric_value,
                            metric_category, pitch_zone, timestamp, metadata, category)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id""",
-                    match_id, player_id, metric_name, metric_value,
-                    metric_category, pitch_zone, timestamp,
+                    match_id,
+                    player_id,
+                    metric_name,
+                    metric_value,
+                    metric_category,
+                    pitch_zone,
+                    timestamp,
                     json.dumps(metadata or {}, default=str),
                     category or metric_category,
                 )
@@ -667,11 +746,20 @@ class PostgresStorageAdapter:
 
     # ── Corrections ─────────────────────────────────────────────────────────
 
-    async def save_correction(self, match_id_or_event_id: Any = None, correction: dict | None = None,
-                               correction_type: str = "", original_value: Any = None,
-                               corrected_value: Any = None, event_id: int | None = None,
-                               match_id: int | None = None, field: str = "",
-                               old_value: str = "", new_value: str = "", reason: str = "") -> int:
+    async def save_correction(
+        self,
+        match_id_or_event_id: Any = None,
+        correction: dict | None = None,
+        correction_type: str = "",
+        original_value: Any = None,
+        corrected_value: Any = None,
+        event_id: int | None = None,
+        match_id: int | None = None,
+        field: str = "",
+        old_value: str = "",
+        new_value: str = "",
+        reason: str = "",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
@@ -689,7 +777,11 @@ class PostgresStorageAdapter:
                 return row["id"] if row else 0
             # SQLite scalar signature: save_correction(event_id, correction_type, original_value, corrected_value)
             if event_id is not None or match_id_or_event_id is not None:
-                eid = event_id if event_id is not None else (match_id_or_event_id if isinstance(match_id_or_event_id, int) else 0)
+                eid = (
+                    event_id
+                    if event_id is not None
+                    else (match_id_or_event_id if isinstance(match_id_or_event_id, int) else 0)
+                )
                 row = await conn.fetchrow(
                     "INSERT INTO user_corrections (event_id, correction_type, original_value, corrected_value) VALUES ($1,$2,$3,$4) RETURNING id",
                     eid,
@@ -702,9 +794,15 @@ class PostgresStorageAdapter:
 
     # ── Reports ─────────────────────────────────────────────────────────────
 
-    async def save_report(self, match_id: int, report_text_or_language: str = "",
-                           language: str = "en", report_type: str = "match",
-                           report_text: str = "", llm_provider: str = "") -> int:
+    async def save_report(
+        self,
+        match_id: int,
+        report_text_or_language: str = "",
+        language: str = "en",
+        report_type: str = "match",
+        report_text: str = "",
+        llm_provider: str = "",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
@@ -712,31 +810,48 @@ class PostgresStorageAdapter:
             if report_text_or_language and not language and not report_text:
                 row = await conn.fetchrow(
                     "INSERT INTO reports (match_id, report_text, language, report_type) VALUES ($1,$2,$3,$4) RETURNING id",
-                    match_id, report_text_or_language, "en", report_type,
+                    match_id,
+                    report_text_or_language,
+                    "en",
+                    report_type,
                 )
                 return row["id"] if row else 0
             # SQLite signature: save_report(match_id, language, report_text, llm_provider)
             if language and report_text_or_language and not report_text:
                 row = await conn.fetchrow(
                     "INSERT INTO reports (match_id, language, report_text, llm_provider) VALUES ($1,$2,$3,$4) RETURNING id",
-                    match_id, language, report_text_or_language, llm_provider,
+                    match_id,
+                    language,
+                    report_text_or_language,
+                    llm_provider,
                 )
                 return row["id"] if row else 0
             row = await conn.fetchrow(
                 "INSERT INTO reports (match_id, report_text, language, report_type, llm_provider) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-                match_id, report_text or report_text_or_language, language, report_type, llm_provider,
+                match_id,
+                report_text or report_text_or_language,
+                language,
+                report_type,
+                llm_provider,
             )
             return row["id"] if row else 0
 
-    async def get_reports(self, match_id: int, language: str = "", limit: int = 20, offset: int = 0) -> list[dict]:
+    async def get_reports(
+        self, match_id: int, language: str = "", limit: int = 20, offset: int = 0
+    ) -> list[dict]:
         if language:
             return await self.fetch(
                 "SELECT id, match_id, report_type, language, content, report_text, created_at FROM reports WHERE match_id = $1 AND language = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-                match_id, language, limit, offset,
+                match_id,
+                language,
+                limit,
+                offset,
             )
         return await self.fetch(
             "SELECT id, match_id, report_type, language, content, report_text, created_at FROM reports WHERE match_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-            match_id, limit, offset,
+            match_id,
+            limit,
+            offset,
         )
 
     # ── Benchmarks ──────────────────────────────────────────────────────────
@@ -792,7 +907,8 @@ class PostgresStorageAdapter:
     async def get_recent_benchmarks(self, limit: int = 20, offset: int = 0) -> list[dict]:
         return await self.fetch(
             "SELECT id, match_id, model_name, gpu_name, model_size, avg_fps, avg_latency_ms, created_at FROM benchmark_results ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-            limit, offset,
+            limit,
+            offset,
         )
 
     # ── Validation ──────────────────────────────────────────────────────────
@@ -804,11 +920,22 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             cats = ["events", "possession", "team_assignment", "speed"]
             for cat in cats:
-                score = getattr(report, f"{cat}_accuracy", 0.0) if hasattr(report, f"{cat}_accuracy") else 0.0
+                score = (
+                    getattr(report, f"{cat}_accuracy", 0.0)
+                    if hasattr(report, f"{cat}_accuracy")
+                    else 0.0
+                )
                 row = await conn.fetchrow(
                     "INSERT INTO validation_results (match_id, category, accuracy, details_json) VALUES ($1,$2,$3,$4) RETURNING id",
-                    getattr(report, "match_id", 0), cat, score,
-                    json.dumps(getattr(report, "to_dict", lambda: {})() if callable(getattr(report, "to_dict", None)) else {}, default=str),
+                    getattr(report, "match_id", 0),
+                    cat,
+                    score,
+                    json.dumps(
+                        getattr(report, "to_dict", lambda: {})()
+                        if callable(getattr(report, "to_dict", None))
+                        else {},
+                        default=str,
+                    ),
                 )
                 if row:
                     ids.append(row["id"])
@@ -839,10 +966,14 @@ class PostgresStorageAdapter:
                         ids.append(row["id"])
         return ids
 
-    async def get_validation_results(self, match_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
+    async def get_validation_results(
+        self, match_id: int, limit: int = 20, offset: int = 0
+    ) -> list[dict]:
         return await self.fetch(
             "SELECT id, match_id, metric_name, metric_value, accuracy, created_at FROM validation_results WHERE match_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-            match_id, limit, offset,
+            match_id,
+            limit,
+            offset,
         )
 
     # ── Feedback ────────────────────────────────────────────────────────────
@@ -1001,7 +1132,11 @@ class PostgresStorageAdapter:
     async def save_coding_tag(self, match_id: int, tag: dict) -> int:
         if not self._pool:
             return 0
-        if tag.get("event_type") is None and tag.get("video_time") is None and tag.get("tag_type") is None:
+        if (
+            tag.get("event_type") is None
+            and tag.get("video_time") is None
+            and tag.get("tag_type") is None
+        ):
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -1037,21 +1172,36 @@ class PostgresStorageAdapter:
     async def get_coding_tags_by_type(self, match_id: int, tag_type: str) -> list[dict]:
         return await self.fetch(
             "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (event_type = $2 OR tag_type = $2) AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
-            match_id, tag_type,
+            match_id,
+            tag_type,
         )
 
     async def get_coding_tags_by_player(self, match_id: int, player_track_id: int) -> list[dict]:
         return await self.fetch(
             "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND player_track_id = $2 AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
-            match_id, player_track_id,
+            match_id,
+            player_track_id,
         )
 
     async def update_coding_tag(self, tag_id: int, updates: dict) -> bool:
         if not self._pool:
             return False
-        allowed = {"event_type", "tag_type", "sub_type", "category", "video_time",
-                    "timestamp", "player_track_id", "player_name", "team", "period",
-                    "notes", "color", "lead_ms", "lag_ms"}
+        allowed = {
+            "event_type",
+            "tag_type",
+            "sub_type",
+            "category",
+            "video_time",
+            "timestamp",
+            "player_track_id",
+            "player_name",
+            "team",
+            "period",
+            "notes",
+            "color",
+            "lead_ms",
+            "lag_ms",
+        }
         sets = []
         args = []
         for k, v in updates.items():
@@ -1129,18 +1279,27 @@ class PostgresStorageAdapter:
                 return row["id"]
             row = await conn.fetchrow(
                 "INSERT INTO teams (name, short_name) VALUES ($1, $2) RETURNING id",
-                name, name[:3].upper(),
+                name,
+                name[:3].upper(),
             )
             return row["id"] if row else 0
 
-    async def save_team(self, name: str, short_name: str = "",
-                         home_color: str = "#1e7e34", away_color: str = "#ffffff") -> int:
+    async def save_team(
+        self,
+        name: str,
+        short_name: str = "",
+        home_color: str = "#1e7e34",
+        away_color: str = "#ffffff",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO teams (name, short_name, home_color, away_color) VALUES ($1,$2,$3,$4) ON CONFLICT (name) DO UPDATE SET short_name=EXCLUDED.short_name RETURNING id",
-                name, short_name, home_color, away_color,
+                name,
+                short_name,
+                home_color,
+                away_color,
             )
             return row["id"] if row else 0
 
@@ -1157,8 +1316,14 @@ class PostgresStorageAdapter:
 
     # ── Tracking Frames ─────────────────────────────────────────────────────
 
-    async def save_tracking_frame(self, match_id: int, frame_number: int, timestamp: float,
-                                   player_detections: list[dict], ball_detections: list[dict]) -> bool:
+    async def save_tracking_frame(
+        self,
+        match_id: int,
+        frame_number: int,
+        timestamp: float,
+        player_detections: list[dict],
+        ball_detections: list[dict],
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
@@ -1169,7 +1334,9 @@ class PostgresStorageAdapter:
                    SET player_detections = EXCLUDED.player_detections,
                        ball_detections = EXCLUDED.ball_detections,
                        timestamp = EXCLUDED.timestamp""",
-                match_id, frame_number, timestamp,
+                match_id,
+                frame_number,
+                timestamp,
                 json.dumps(player_detections, default=str),
                 json.dumps(ball_detections, default=str),
             )
@@ -1199,8 +1366,15 @@ class PostgresStorageAdapter:
                        match_id, vendor, source_path, checksum, fps, frame_count,
                        pitch_length_m, pitch_width_m, coordinate_system, metadata_json)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id""",
-                match_id, vendor, source_path, checksum, fps, frame_count,
-                pitch_length_m, pitch_width_m, coordinate_system,
+                match_id,
+                vendor,
+                source_path,
+                checksum,
+                fps,
+                frame_count,
+                pitch_length_m,
+                pitch_width_m,
+                coordinate_system,
                 json.dumps(metadata or {}, default=str),
             )
             return row["id"] if row else 0
@@ -1262,19 +1436,20 @@ class PostgresStorageAdapter:
                VALUES ($1, $2, $3)
                ON CONFLICT (source, external_id) DO NOTHING
                RETURNING id""",
-            match_id, source, str(external_id),
+            match_id,
+            source,
+            str(external_id),
         )
         return row is not None
 
-    async def get_match_by_external_id(
-        self, source: str, external_id: str
-    ) -> int | None:
+    async def get_match_by_external_id(self, source: str, external_id: str) -> int | None:
         """Internal match id for a vendor match id, or None."""
         if not self._pool:
             return None
         row = await self.fetchrow(
             "SELECT match_id FROM matches_external_ids WHERE source = $1 AND external_id = $2",
-            source, str(external_id),
+            source,
+            str(external_id),
         )
         if not row:
             return None
@@ -1306,7 +1481,7 @@ class PostgresStorageAdapter:
             else:
                 dt = datetime.fromisoformat(str(match_date))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             vals.append(dt)
         if competition is not None:
             sets.append(f"competition = ${len(vals) + 1}")
@@ -1317,17 +1492,15 @@ class PostgresStorageAdapter:
         if not sets:
             return
         vals.append(match_id)
-        await self.execute(
-            f"UPDATE matches SET {', '.join(sets)} WHERE id = ${len(vals)}", *vals
-        )
+        await self.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ${len(vals)}", *vals)
 
     async def save_event_frame_links_bulk(self, match_id: int, links: list[dict]) -> int:
         if not self._pool or not links:
             return 0
         params = [
-            (match_id, l.get("event_id"), l.get("frame_number", 0), l.get("frame_offset", 0))
-            for l in links
-            if l.get("event_id") is not None
+            (match_id, ln.get("event_id"), ln.get("frame_number", 0), ln.get("frame_offset", 0))
+            for ln in links
+            if ln.get("event_id") is not None
         ]
         if not params:
             return 0
@@ -1351,21 +1524,28 @@ class PostgresStorageAdapter:
                    FROM event_frame_links
                    WHERE match_id = $1 AND event_id = $2
                    ORDER BY event_id, frame_number LIMIT $3""",
-                match_id, event_id, limit,
+                match_id,
+                event_id,
+                limit,
             )
         return await self.fetch(
             """SELECT id, match_id, event_id, frame_number, frame_offset
                FROM event_frame_links
                WHERE match_id = $1
                ORDER BY event_id, frame_number LIMIT $2""",
-            match_id, limit,
+            match_id,
+            limit,
         )
 
     # ── User / Auth (mirrors StorageService migration-027 methods) ────────
 
     async def create_user(
-        self, username: str, password_hash: str, role: str = "analyst",
-        email: str = "", display_name: str = "",
+        self,
+        username: str,
+        password_hash: str,
+        role: str = "analyst",
+        email: str = "",
+        display_name: str = "",
         must_reset_password: bool = False,
     ) -> int:
         if not self._pool:
@@ -1374,7 +1554,12 @@ class PostgresStorageAdapter:
             row = await conn.fetchrow(
                 """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
                    VALUES ($1,$2,$3,$4,$5,$6) RETURNING id""",
-                username, email, display_name, password_hash, role, int(must_reset_password),
+                username,
+                email,
+                display_name,
+                password_hash,
+                role,
+                int(must_reset_password),
             )
             return row["id"] if row else 0
 
@@ -1387,16 +1572,14 @@ class PostgresStorageAdapter:
         if not self._pool:
             return None
         row = await self.fetchrow(
-            f"SELECT {_USER_COLUMNS} FROM users WHERE username = $1", username
+            f"SELECT {self._USER_COLUMNS} FROM users WHERE username = $1", username
         )
         return dict(row) if row else None
 
     async def get_user_by_id(self, user_id: int) -> dict | None:
         if not self._pool:
             return None
-        row = await self.fetchrow(
-            f"SELECT {_USER_COLUMNS} FROM users WHERE id = $1", user_id
-        )
+        row = await self.fetchrow(f"SELECT {self._USER_COLUMNS} FROM users WHERE id = $1", user_id)
         return dict(row) if row else None
 
     async def get_all_users(self) -> list[dict]:
@@ -1438,7 +1621,8 @@ class PostgresStorageAdapter:
                 await conn.execute(
                     "UPDATE users SET failed_attempts=$1, is_locked=1, "
                     "locked_until=TO_CHAR(NOW() + INTERVAL '1 hour', 'YYYY-MM-DD HH24:MI:SS') WHERE id=$2",
-                    attempts, row["id"],
+                    attempts,
+                    row["id"],
                 )
             else:
                 await conn.execute(
@@ -1452,7 +1636,9 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES ($1,$2,$3) RETURNING id",
-                user_id, token_hash, expires_at,
+                user_id,
+                token_hash,
+                expires_at,
             )
             return row["id"] if row else 0
 
@@ -1476,8 +1662,13 @@ class PostgresStorageAdapter:
         return r not in ("DELETE 0", "0")
 
     async def audit_log(
-        self, user_id: int, username: str, action: str,
-        resource_type: str = "", resource_id: str = "", details: dict | None = None,
+        self,
+        user_id: int,
+        username: str,
+        action: str,
+        resource_type: str = "",
+        resource_id: str = "",
+        details: dict | None = None,
     ) -> int:
         if not self._pool:
             return 0
@@ -1485,7 +1676,11 @@ class PostgresStorageAdapter:
             row = await conn.fetchrow(
                 """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
                    VALUES ($1,$2,$3,$4,$5,$6) RETURNING id""",
-                user_id, username, action, resource_type, resource_id,
+                user_id,
+                username,
+                action,
+                resource_type,
+                resource_id,
                 json.dumps(details or {}, default=str),
             )
             return row["id"] if row else 0
@@ -1496,7 +1691,8 @@ class PostgresStorageAdapter:
         return await self.fetch(
             "SELECT id, user_id, username, action, resource_type, resource_id, details, created_at "
             "FROM audit_events_local ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-            limit, offset,
+            limit,
+            offset,
         )
 
     async def change_password(self, user_id: int, new_hash: str) -> bool:
@@ -1505,21 +1701,29 @@ class PostgresStorageAdapter:
         r = await self.execute(
             "UPDATE users SET password_hash=$1, must_reset_password=0, "
             "updated_at=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=$2",
-            new_hash, user_id,
+            new_hash,
+            user_id,
         )
         return r not in ("UPDATE 0", "0")
 
     # ── GPS / Physical (mirrors StorageService migration-026 methods) ─────
 
     async def save_gps_session(
-        self, match_id: int, player_id: int, session_type: str, vendor: str,
+        self,
+        match_id: int,
+        player_id: int,
+        session_type: str,
+        vendor: str,
     ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO gps_sessions (match_id, player_id, session_type, vendor) VALUES ($1,$2,$3,$4) RETURNING id",
-                match_id, player_id, session_type, vendor,
+                match_id,
+                player_id,
+                session_type,
+                vendor,
             )
             return row["id"] if row else 0
 
@@ -1529,9 +1733,12 @@ class PostgresStorageAdapter:
         await self.execute(
             """UPDATE gps_sessions SET duration_seconds=$1, total_distance_m=$2,
                max_speed_kmh=$3, avg_speed_kmh=$4, player_load=$5 WHERE id=$6""",
-            summary.get("duration_s"), summary.get("total_distance_m"),
-            summary.get("max_speed_kmh"), summary.get("avg_speed_kmh"),
-            summary.get("total_player_load"), session_id,
+            summary.get("duration_s"),
+            summary.get("total_distance_m"),
+            summary.get("max_speed_kmh"),
+            summary.get("avg_speed_kmh"),
+            summary.get("total_player_load"),
+            session_id,
         )
 
     async def save_gps_samples_bulk(self, session_id: int, samples: list[dict]) -> int:
@@ -1540,11 +1747,21 @@ class PostgresStorageAdapter:
         params = [
             (
                 session_id,
-                s.get("timestamp", 0.0), s.get("lat"), s.get("lon"),
-                s.get("speed_ms"), s.get("acceleration"), s.get("accel_x"),
-                s.get("accel_y"), s.get("accel_z"), s.get("heart_rate"),
-                s.get("distance"), s.get("player_load"), s.get("metabolic_power"),
-                s.get("speed_zone"), s.get("x_m"), s.get("y_m"),
+                s.get("timestamp", 0.0),
+                s.get("lat"),
+                s.get("lon"),
+                s.get("speed_ms"),
+                s.get("acceleration"),
+                s.get("accel_x"),
+                s.get("accel_y"),
+                s.get("accel_z"),
+                s.get("heart_rate"),
+                s.get("distance"),
+                s.get("player_load"),
+                s.get("metabolic_power"),
+                s.get("speed_zone"),
+                s.get("x_m"),
+                s.get("y_m"),
             )
             for s in samples
         ]
@@ -1581,7 +1798,12 @@ class PostgresStorageAdapter:
         )
 
     async def save_acwr(
-        self, player_id: int, date: str, acute: float, chronic: float, acwr: float,
+        self,
+        player_id: int,
+        date: str,
+        acute: float,
+        chronic: float,
+        acwr: float,
     ) -> int:
         if not self._pool:
             return 0
@@ -1601,7 +1823,12 @@ class PostgresStorageAdapter:
                      chronic_load_28d=EXCLUDED.chronic_load_28d,
                      acwr=EXCLUDED.acwr, load_category=EXCLUDED.load_category
                    RETURNING id""",
-                player_id, date, acute, chronic, acwr, cat,
+                player_id,
+                date,
+                acute,
+                chronic,
+                acwr,
+                cat,
             )
             return row["id"] if row else 0
 
@@ -1611,7 +1838,8 @@ class PostgresStorageAdapter:
         return await self.fetch(
             """SELECT date, acute_load_7d, chronic_load_28d, acwr, load_category
                FROM acwr_daily WHERE player_id=$1 ORDER BY date DESC LIMIT $2""",
-            player_id, limit,
+            player_id,
+            limit,
         )
 
     async def get_player_gps_summary(self, player_id: int, limit: int = 10) -> list[dict]:
@@ -1621,7 +1849,8 @@ class PostgresStorageAdapter:
             """SELECT id, session_type, vendor, start_time, duration_seconds,
                total_distance_m, max_speed_kmh, avg_speed_kmh, player_load
                FROM gps_sessions WHERE player_id=$1 ORDER BY id DESC LIMIT $2""",
-            player_id, limit,
+            player_id,
+            limit,
         )
 
     async def get_squad_injury_report(self, team_id: int) -> dict:
@@ -1632,8 +1861,12 @@ class PostgresStorageAdapter:
         InjuryTrackerService for the aggregation.
         """
         empty: dict[str, Any] = {
-            "total_active": 0, "injuries": [], "by_severity": {}, "by_body_part": {},
-            "high_risk_count": 0, "high_risk_injuries": [],
+            "total_active": 0,
+            "injuries": [],
+            "by_severity": {},
+            "by_body_part": {},
+            "high_risk_count": 0,
+            "high_risk_injuries": [],
             "report_date": datetime.now().isoformat(),
         }
         if not self._pool:
@@ -1688,15 +1921,19 @@ class PostgresStorageAdapter:
         params = []
         for f in frames:
             try:
-                params.append((
-                    match_id,
-                    f.get("frame_number", 0),
-                    f.get("timestamp", 0.0),
-                    json.dumps(f.get("player_detections", []), default=str),
-                    json.dumps(f.get("ball_detections", []), default=str),
-                ))
+                params.append(
+                    (
+                        match_id,
+                        f.get("frame_number", 0),
+                        f.get("timestamp", 0.0),
+                        json.dumps(f.get("player_detections", []), default=str),
+                        json.dumps(f.get("ball_detections", []), default=str),
+                    )
+                )
             except Exception as e:
-                logger.warning("save_tracking_frames_bulk frame %s failed: %s", f.get("frame_number"), e)
+                logger.warning(
+                    "save_tracking_frames_bulk frame %s failed: %s", f.get("frame_number"), e
+                )
         if not params:
             return 0
         async with self._pool.acquire() as conn:
@@ -1711,17 +1948,23 @@ class PostgresStorageAdapter:
             )
         return len(params)
 
-    async def get_tracking_frames(self, match_id: int, start_frame: int = 0,
-                                   end_frame: int | None = None, limit: int = 1000) -> list[dict]:
+    async def get_tracking_frames(
+        self, match_id: int, start_frame: int = 0, end_frame: int | None = None, limit: int = 1000
+    ) -> list[dict]:
         if end_frame is not None:
             rows = await self.fetch(
                 "SELECT id, match_id, frame_number, timestamp, player_detections, ball_detections, created_at FROM tracking_frames WHERE match_id = $1 AND frame_number >= $2 AND frame_number <= $3 ORDER BY frame_number LIMIT $4",
-                match_id, start_frame, end_frame, limit,
+                match_id,
+                start_frame,
+                end_frame,
+                limit,
             )
         else:
             rows = await self.fetch(
                 "SELECT id, match_id, frame_number, timestamp, player_detections, ball_detections, created_at FROM tracking_frames WHERE match_id = $1 AND frame_number >= $2 ORDER BY frame_number LIMIT $3",
-                match_id, start_frame, limit,
+                match_id,
+                start_frame,
+                limit,
             )
         result = []
         for r in rows:
@@ -1766,14 +2009,17 @@ class PostgresStorageAdapter:
         if not self._pool:
             return None
         import os as _os
+
         new_key = _os.urandom(32).hex()
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE encryption_keys SET key_value = $1, rotated_at = NOW() WHERE key_name = $2",
-                new_key, key_name,
+                new_key,
+                key_name,
             )
             if r != "UPDATE 0":
                 from kawkab.core.encryption import init_fernet
+
                 init_fernet(new_key)
                 return new_key
             return None
@@ -1786,13 +2032,16 @@ class PostgresStorageAdapter:
             return ""
         try:
             from kawkab.core.paths import get_paths
+
             backup_dir = get_paths().appdata / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_path = str(backup_dir / f"kawkab_pg_backup_{timestamp}.dump")
             subprocess.run(
                 ["pg_dump", "--no-owner", "--format=custom", "--file", backup_path, self._dsn],
-                check=True, capture_output=True, text=True,
+                check=True,
+                capture_output=True,
+                text=True,
             )
             logger.info("PostgreSQL backup saved to %s", backup_path)
             return backup_path
@@ -1816,7 +2065,9 @@ class PostgresStorageAdapter:
         try:
             subprocess.run(
                 ["pg_restore", "--no-owner", "--clean", "--dbname", self._dsn, backup_path],
-                check=True, capture_output=True, text=True,
+                check=True,
+                capture_output=True,
+                text=True,
             )
             logger.info("PostgreSQL restored from %s", backup_path)
             return True
@@ -1840,35 +2091,59 @@ class PostgresStorageAdapter:
 
     # ── Seasons ─────────────────────────────────────────────────────────────
 
-    async def save_season(self, name: str, team_name: str = "", competition: str = "",
-                           start_date: str | None = None, end_date: str | None = None) -> int:
+    async def save_season(
+        self,
+        name: str,
+        team_name: str = "",
+        competition: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO seasons (name, team_name, competition, start_date, end_date) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-                name, team_name, competition, start_date, end_date,
+                name,
+                team_name,
+                competition,
+                start_date,
+                end_date,
             )
             return row["id"] if row else 0
 
     _SEASON_COLUMNS = "id, name, start_date, end_date, created_at, updated_at"
 
     async def get_all_seasons(self) -> list[dict]:
-        return await self.fetch(f"SELECT {self._SEASON_COLUMNS} FROM seasons ORDER BY start_date DESC")
+        return await self.fetch(
+            f"SELECT {self._SEASON_COLUMNS} FROM seasons ORDER BY start_date DESC"
+        )
 
     async def get_season(self, season_id: int) -> dict | None:
-        return await self.fetchrow(f"SELECT {self._SEASON_COLUMNS} FROM seasons WHERE id = $1", season_id)
+        return await self.fetchrow(
+            f"SELECT {self._SEASON_COLUMNS} FROM seasons WHERE id = $1", season_id
+        )
 
     # ── Player Match Links ──────────────────────────────────────────────────
 
-    async def save_player_match_link(self, player_id: int, match_id: int, track_id: int | None = None,
-                                      confidence: float = 0.0, is_verified: bool = False) -> int:
+    async def save_player_match_link(
+        self,
+        player_id: int,
+        match_id: int,
+        track_id: int | None = None,
+        confidence: float = 0.0,
+        is_verified: bool = False,
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO player_match_links (player_id, match_id, track_id, confidence, is_verified) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (player_id, match_id) DO UPDATE SET track_id=EXCLUDED.track_id, confidence=EXCLUDED.confidence RETURNING id",
-                player_id, match_id, track_id, confidence, is_verified,
+                player_id,
+                match_id,
+                track_id,
+                confidence,
+                is_verified,
             )
             return row["id"] if row else 0
 
@@ -1881,16 +2156,26 @@ class PostgresStorageAdapter:
 
     # ── Match Comparisons ───────────────────────────────────────────────────
 
-    async def save_match_comparison(self, name: str, match_id_1: int, match_id_2: int,
-                                     comparison_type: str = "", focus_areas: list | None = None,
-                                     notes: str = "") -> int:
+    async def save_match_comparison(
+        self,
+        name: str,
+        match_id_1: int,
+        match_id_2: int,
+        comparison_type: str = "",
+        focus_areas: list | None = None,
+        notes: str = "",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO match_comparisons (name, match_id_1, match_id_2, comparison_type, focus_areas, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
-                name, match_id_1, match_id_2, comparison_type,
-                json.dumps(focus_areas or []), notes,
+                name,
+                match_id_1,
+                match_id_2,
+                comparison_type,
+                json.dumps(focus_areas or []),
+                notes,
             )
             return row["id"] if row else 0
 
@@ -1903,21 +2188,30 @@ class PostgresStorageAdapter:
 
     # ── Analysis Quality ────────────────────────────────────────────────────
 
-    async def save_analysis_quality(self, match_id: int, overall_score: float | None = None,
-                                     tracking_score: float | None = None,
-                                     event_detection_score: float | None = None,
-                                     homography_score: float | None = None,
-                                     team_assignment_score: float | None = None,
-                                     issues: list | None = None,
-                                     warnings: list | None = None) -> int:
+    async def save_analysis_quality(
+        self,
+        match_id: int,
+        overall_score: float | None = None,
+        tracking_score: float | None = None,
+        event_detection_score: float | None = None,
+        homography_score: float | None = None,
+        team_assignment_score: float | None = None,
+        issues: list | None = None,
+        warnings: list | None = None,
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO analysis_quality (match_id, overall_score, tracking_score, event_detection_score, homography_score, team_assignment_score, issues, warnings) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
-                match_id, overall_score, tracking_score, event_detection_score,
-                homography_score, team_assignment_score,
-                json.dumps(issues or []), json.dumps(warnings or []),
+                match_id,
+                overall_score,
+                tracking_score,
+                event_detection_score,
+                homography_score,
+                team_assignment_score,
+                json.dumps(issues or []),
+                json.dumps(warnings or []),
             )
             return row["id"] if row else 0
 
@@ -1931,35 +2225,53 @@ class PostgresStorageAdapter:
 
     # ── Exports ─────────────────────────────────────────────────────────────
 
-    async def save_export(self, export_type: str, format: str, match_id: int | None = None,
-                           season_id: int | None = None, file_path: str = "",
-                           file_size_bytes: int | None = None) -> int:
+    async def save_export(
+        self,
+        export_type: str,
+        format: str,
+        match_id: int | None = None,
+        season_id: int | None = None,
+        file_path: str = "",
+        file_size_bytes: int | None = None,
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO exports (match_id, season_id, export_type, format, file_path, file_size_bytes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
-                match_id, season_id, export_type, format, file_path, file_size_bytes,
+                match_id,
+                season_id,
+                export_type,
+                format,
+                file_path,
+                file_size_bytes,
             )
             return row["id"] if row else 0
 
     # ── Batch Jobs ──────────────────────────────────────────────────────────
 
-    async def save_batch_job(self, name: str, match_ids: list | None = None,
-                              options: dict | None = None) -> int:
+    async def save_batch_job(
+        self, name: str, match_ids: list | None = None, options: dict | None = None
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO batch_jobs (name, match_ids, options) VALUES ($1,$2,$3) RETURNING id",
-                name, json.dumps(match_ids or []), json.dumps(options or {}),
+                name,
+                json.dumps(match_ids or []),
+                json.dumps(options or {}),
             )
             return row["id"] if row else 0
 
-    async def update_batch_job_status(self, job_id: int, status: str,
-                                       completed_matches: int | None = None,
-                                       failed_matches: int | None = None,
-                                       error_message: str | None = None) -> bool:
+    async def update_batch_job_status(
+        self,
+        job_id: int,
+        status: str,
+        completed_matches: int | None = None,
+        failed_matches: int | None = None,
+        error_message: str | None = None,
+    ) -> bool:
         if not self._pool:
             return False
         sets = ["status = $2"]
@@ -1998,18 +2310,23 @@ class PostgresStorageAdapter:
                 f"SELECT {self._BATCH_JOB_COLUMNS} FROM batch_jobs WHERE status = $1 ORDER BY created_at DESC",
                 status,
             )
-        return await self.fetch(f"SELECT {self._BATCH_JOB_COLUMNS} FROM batch_jobs ORDER BY created_at DESC")
+        return await self.fetch(
+            f"SELECT {self._BATCH_JOB_COLUMNS} FROM batch_jobs ORDER BY created_at DESC"
+        )
 
     # ── Caches (football_data_cache, external_data_cache) ───────────────────
 
-    async def set_cache(self, cache_key: str, data: str, expires_at: float,
-                         table: str = "football_data_cache") -> bool:
+    async def set_cache(
+        self, cache_key: str, data: str, expires_at: float, table: str = "football_data_cache"
+    ) -> bool:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"INSERT INTO {table} (cache_key, data, expires_at) VALUES ($1,$2,$3) ON CONFLICT (cache_key) DO UPDATE SET data=EXCLUDED.data, expires_at=EXCLUDED.expires_at",
-                cache_key, data, expires_at,
+                cache_key,
+                data,
+                expires_at,
             )
             return True
 
@@ -2035,12 +2352,18 @@ class PostgresStorageAdapter:
                        cloud_cover_pct, conditions, pitch_state, source, recorded_at)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
                 match_id,
-                weather.get("latitude"), weather.get("longitude"),
-                weather.get("temperature_c"), weather.get("feels_like_c"),
-                weather.get("precipitation_mm"), weather.get("wind_speed_kmh"),
-                weather.get("wind_direction_deg"), weather.get("humidity_pct"),
-                weather.get("cloud_cover_pct"), weather.get("conditions"),
-                weather.get("pitch_state"), weather.get("source"),
+                weather.get("latitude"),
+                weather.get("longitude"),
+                weather.get("temperature_c"),
+                weather.get("feels_like_c"),
+                weather.get("precipitation_mm"),
+                weather.get("wind_speed_kmh"),
+                weather.get("wind_direction_deg"),
+                weather.get("humidity_pct"),
+                weather.get("cloud_cover_pct"),
+                weather.get("conditions"),
+                weather.get("pitch_state"),
+                weather.get("source"),
                 weather.get("recorded_at"),
             )
             return row["id"] if row else 0
@@ -2062,9 +2385,14 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO card_events (match_id, player_track_id, player_name, card_type, minute, second, detection_source, confidence, description) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",
-                match_id, card.get("player_track_id"), card.get("player_name", ""),
-                card["card_type"], card.get("minute", 0), card.get("second", 0),
-                card.get("detection_source"), card.get("confidence"),
+                match_id,
+                card.get("player_track_id"),
+                card.get("player_name", ""),
+                card["card_type"],
+                card.get("minute", 0),
+                card.get("second", 0),
+                card.get("detection_source"),
+                card.get("confidence"),
                 card.get("description", ""),
             )
             return row["id"] if row else 0
@@ -2085,9 +2413,13 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO psychology_events (match_id, event_type, minute, second, team, description, severity, data_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
-                match_id, event["event_type"], event.get("minute", 0),
-                event.get("second", 0), event.get("team", ""),
-                event.get("description", ""), event.get("severity"),
+                match_id,
+                event["event_type"],
+                event.get("minute", 0),
+                event.get("second", 0),
+                event.get("team", ""),
+                event.get("description", ""),
+                event.get("severity"),
                 json.dumps(event.get("data_json", event.get("data", {})), default=str),
             )
             return row["id"] if row else 0
@@ -2110,8 +2442,10 @@ class PostgresStorageAdapter:
                 """INSERT INTO player_shortlist (player_id, player_name, position, team, league,
                        priority, status, notes, scout_rating, estimated_value, age, nationality)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id""",
-                entry["player_id"], entry["player_name"],
-                entry.get("position", ""), entry.get("team", ""),
+                entry["player_id"],
+                entry["player_name"],
+                entry.get("position", ""),
+                entry.get("team", ""),
                 entry.get("league", ""),
                 entry.get("priority", "medium"),
                 entry.get("status", "scouted"),
@@ -2146,7 +2480,9 @@ class PostgresStorageAdapter:
             )
             return r != "UPDATE 0"
 
-    async def get_shortlist(self, status: str | None = None, priority: str | None = None) -> list[dict]:
+    async def get_shortlist(
+        self, status: str | None = None, priority: str | None = None
+    ) -> list[dict]:
         conditions = []
         args: list[Any] = []
         if status:
@@ -2181,9 +2517,11 @@ class PostgresStorageAdapter:
                        start_date, end_date, club_option_years, player_option_years,
                        release_clause_millions, wage_weekly_pounds, agent_name, notes)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id""",
-                contract["player_profile_id"], contract["player_name"],
+                contract["player_profile_id"],
+                contract["player_name"],
                 contract.get("contract_type", "permanent"),
-                contract["start_date"], contract["end_date"],
+                contract["start_date"],
+                contract["end_date"],
                 contract.get("club_option_years", 0),
                 contract.get("player_option_years", 0),
                 contract.get("release_clause_millions"),
@@ -2205,7 +2543,9 @@ class PostgresStorageAdapter:
                 f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts WHERE player_profile_id = $1 ORDER BY end_date DESC",
                 profile_id,
             )
-        return await self.fetch(f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts ORDER BY end_date ASC")
+        return await self.fetch(
+            f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts ORDER BY end_date ASC"
+        )
 
     async def get_contracts_expiring_soon(self, days: int = 90) -> list[dict]:
         if not self._pool:
@@ -2225,21 +2565,29 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_users (username, role) VALUES ($1,$2) ON CONFLICT (username) DO UPDATE SET role=EXCLUDED.role RETURNING id",
-                username, role,
+                username,
+                role,
             )
             return row["id"] if row else 0
 
     async def get_collab_users(self) -> list[dict]:
-        return await self.fetch("SELECT id, username, role, created_at FROM collab_users ORDER BY username")
+        return await self.fetch(
+            "SELECT id, username, role, created_at FROM collab_users ORDER BY username"
+        )
 
-    async def save_collab_comment(self, match_id: int, text: str, user_id: int = 0,
-                                   username: str = "", event_id: int = 0) -> int:
+    async def save_collab_comment(
+        self, match_id: int, text: str, user_id: int = 0, username: str = "", event_id: int = 0
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_comments (match_id, event_id, user_id, username, text) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-                match_id, event_id, user_id, username, text,
+                match_id,
+                event_id,
+                user_id,
+                username,
+                text,
             )
             return row["id"] if row else 0
 
@@ -2250,14 +2598,19 @@ class PostgresStorageAdapter:
             match_id,
         )
 
-    async def save_collab_mention(self, username: str, from_user: str, text: str,
-                                   match_id: int = 0, event_id: int = 0) -> int:
+    async def save_collab_mention(
+        self, username: str, from_user: str, text: str, match_id: int = 0, event_id: int = 0
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_mentions (username, from_user, text, match_id, event_id) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-                username, from_user, text, match_id, event_id,
+                username,
+                from_user,
+                text,
+                match_id,
+                event_id,
             )
             return row["id"] if row else 0
 
@@ -2292,17 +2645,25 @@ class PostgresStorageAdapter:
                        accelerations, decelerations, point_count, metadata_json)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id""",
                 session.get("match_id"),
-                session.get("athlete_id", ""), session.get("athlete_name", ""),
-                session["device_type"], session.get("device_serial", ""),
-                session.get("start_time"), session.get("duration_s", 0.0),
+                session.get("athlete_id", ""),
+                session.get("athlete_name", ""),
+                session["device_type"],
+                session.get("device_serial", ""),
+                session.get("start_time"),
+                session.get("duration_s", 0.0),
                 session.get("sample_rate_hz", 0.0),
-                session.get("avg_hr"), session.get("max_hr"), session.get("min_hr"),
+                session.get("avg_hr"),
+                session.get("max_hr"),
+                session.get("min_hr"),
                 session.get("total_distance_m", 0.0),
-                session.get("max_speed_ms"), session.get("avg_speed_ms"),
-                session.get("player_load"), session.get("body_load"),
+                session.get("max_speed_ms"),
+                session.get("avg_speed_ms"),
+                session.get("player_load"),
+                session.get("body_load"),
                 session.get("high_speed_running_m", 0.0),
                 session.get("sprint_distance_m", 0.0),
-                session.get("accelerations", 0), session.get("decelerations", 0),
+                session.get("accelerations", 0),
+                session.get("decelerations", 0),
                 session.get("point_count", 0),
                 json.dumps(session.get("metadata_json", session.get("metadata", {})), default=str),
             )
@@ -2321,7 +2682,9 @@ class PostgresStorageAdapter:
                 f"SELECT {self._WEARABLE_SESSION_COLUMNS} FROM wearable_sessions WHERE match_id = $1 ORDER BY created_at DESC",
                 match_id,
             )
-        return await self.fetch(f"SELECT {self._WEARABLE_SESSION_COLUMNS} FROM wearable_sessions ORDER BY created_at DESC")
+        return await self.fetch(
+            f"SELECT {self._WEARABLE_SESSION_COLUMNS} FROM wearable_sessions ORDER BY created_at DESC"
+        )
 
     # ── Medical Tables (Injuries, Rehab, Concussion, History) ───────────────
 
@@ -2333,15 +2696,22 @@ class PostgresStorageAdapter:
                 """INSERT INTO injuries (player_id, match_id, injury_type, body_part, severity,
                        mechanism, date_injured, date_recovered, status, notes)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id""",
-                injury["player_id"], injury.get("match_id"),
-                injury["injury_type"], injury["body_part"],
-                injury.get("severity", "minor"), injury.get("mechanism", ""),
-                injury["date_injured"], injury.get("date_recovered"),
-                injury.get("status", "active"), injury.get("notes", ""),
+                injury["player_id"],
+                injury.get("match_id"),
+                injury["injury_type"],
+                injury["body_part"],
+                injury.get("severity", "minor"),
+                injury.get("mechanism", ""),
+                injury["date_injured"],
+                injury.get("date_recovered"),
+                injury.get("status", "active"),
+                injury.get("notes", ""),
             )
             return row["id"] if row else 0
 
-    async def get_injuries(self, player_id: int | None = None, status: str | None = None) -> list[dict]:
+    async def get_injuries(
+        self, player_id: int | None = None, status: str | None = None
+    ) -> list[dict]:
         conditions = []
         args: list[Any] = []
         if player_id is not None:
@@ -2389,12 +2759,15 @@ class PostgresStorageAdapter:
                 """INSERT INTO rehab_plans (injury_id, phase, start_date, target_end_date,
                        actual_end_date, milestones, protocols, status, notes)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id""",
-                plan["injury_id"], plan.get("phase", "initial"),
-                plan["start_date"], plan.get("target_end_date"),
+                plan["injury_id"],
+                plan.get("phase", "initial"),
+                plan["start_date"],
+                plan.get("target_end_date"),
                 plan.get("actual_end_date"),
                 json.dumps(plan.get("milestones", [])),
                 plan.get("protocols", ""),
-                plan.get("status", "active"), plan.get("notes", ""),
+                plan.get("status", "active"),
+                plan.get("notes", ""),
             )
             return row["id"] if row else 0
 
@@ -2415,7 +2788,8 @@ class PostgresStorageAdapter:
                        assessment_type, symptoms_score, cognitive_score, balance_score,
                        clearance_status, cleared_by, notes)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id""",
-                assessment["player_id"], assessment.get("match_id"),
+                assessment["player_id"],
+                assessment.get("match_id"),
                 assessment["assessment_date"],
                 assessment.get("assessment_type", "scat5"),
                 assessment.get("symptoms_score", 0),
@@ -2441,9 +2815,12 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO medical_history (player_id, condition_type, diagnosis, diagnosis_date, status, severity, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
-                entry["player_id"], entry["condition_type"],
-                entry["diagnosis"], entry["diagnosis_date"],
-                entry.get("status", "active"), entry.get("severity", "moderate"),
+                entry["player_id"],
+                entry["condition_type"],
+                entry["diagnosis"],
+                entry["diagnosis_date"],
+                entry.get("status", "active"),
+                entry.get("severity", "moderate"),
                 entry.get("notes", ""),
             )
             return row["id"] if row else 0
@@ -2458,23 +2835,34 @@ class PostgresStorageAdapter:
 
     # ── Audit Events ────────────────────────────────────────────────────────
 
-    async def save_audit_event(self, action: str, entity_type: str = "",
-                                entity_id: str | None = None,
-                                details: dict | None = None,
-                                user_name: str = "local") -> int:
+    async def save_audit_event(
+        self,
+        action: str,
+        entity_type: str = "",
+        entity_id: str | None = None,
+        details: dict | None = None,
+        user_name: str = "local",
+    ) -> int:
         if not self._pool:
             return 0
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO audit_events (action, entity_type, entity_id, details_json, user_name) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-                action, entity_type, entity_id,
-                json.dumps(details or {}, default=str), user_name,
+                action,
+                entity_type,
+                entity_id,
+                json.dumps(details or {}, default=str),
+                user_name,
             )
             return row["id"] if row else 0
 
-    async def get_audit_events(self, action: str | None = None,
-                                entity_type: str | None = None,
-                                limit: int = 100, offset: int = 0) -> list[dict]:
+    async def get_audit_events(
+        self,
+        action: str | None = None,
+        entity_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict]:
         conditions = []
         args: list[Any] = []
         if action:
@@ -2487,7 +2875,9 @@ class PostgresStorageAdapter:
         return await self.fetch(
             "SELECT id, action, entity_type, entity_id, details_json, user_name, created_at "
             f"FROM audit_events{where} ORDER BY created_at DESC LIMIT ${len(args) + 1} OFFSET ${len(args) + 2}",
-            *args, limit, offset,
+            *args,
+            limit,
+            offset,
         )
 
     # ── Settings ────────────────────────────────────────────────────────────
@@ -2508,7 +2898,8 @@ class PostgresStorageAdapter:
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
-                key, value,
+                key,
+                value,
             )
             return True
 

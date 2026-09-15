@@ -62,6 +62,7 @@ class Frame:
             "away_positions": [list(p) for p in self.away],
         }
 
+
 @dataclass
 class MetricaMatch:
     """Full match of aligned tracking frames."""
