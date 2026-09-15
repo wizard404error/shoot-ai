@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
@@ -64,9 +63,17 @@ class TestEasySoccerService:
         assert mock_client.check_available() is True
 
     def test_unavailable_no_client(self):
-        service = EasySoccerService()
-        assert service.get_live_events() == []
-        assert service.check_available() is False
+        # Mock esd so the real module (which creates a Playwright event loop) is never loaded
+        with patch.dict("sys.modules", {"esd": MagicMock()}):
+            import importlib
+
+            import kawkab.services.easy_soccer_service as _ess_mod
+            importlib.reload(_ess_mod)
+            service = _ess_mod.EasySoccerService()
+            assert service.get_live_events() == []
+            # With esd mocked, SofascoreClient() raises ImportError at import time,
+            # so _get_client returns None and check_available returns False.
+            assert service.check_available() is False
 
     def test_exception_returns_empty(self, mock_client):
         mock_client._client.get_events.side_effect = Exception("fail")

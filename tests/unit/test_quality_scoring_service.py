@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -238,6 +239,30 @@ class TestSaveAndGetScores:
         await svc.save_scores(1, scores)
         assert mock_cursor.execute.called
         assert mock_conn.commit.called
+
+    @pytest.mark.asyncio
+    async def test_save_scores_with_issues_serializes_without_nameerror(self):
+        # Regression test: save_scores only reaches json.dumps(...) when
+        # issues/warnings is non-empty (falsy short-circuits to None), so
+        # the module's missing `import json` went unnoticed by
+        # test_save_scores_success above, which never passed any issues.
+        svc = QualityScoringService()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        svc._get_conn = MagicMock(return_value=mock_conn)
+
+        scores = QualityScores(overall=0.5, tracking=0.5, events=0.5, homography=0.5, team_assignment=0.5)
+        issues = [
+            {"severity": "critical", "description": "Homography failed"},
+            {"severity": "medium", "description": "Low frame rate"},
+        ]
+        await svc.save_scores(1, scores, issues=issues)
+
+        params = mock_cursor.execute.call_args[0][1]
+        issues_json, warnings_json = params[-2], params[-1]
+        assert json.loads(issues_json) == [issues[0]]
+        assert json.loads(warnings_json) == ["Low frame rate"]
 
     @pytest.mark.asyncio
     async def test_get_scores_returns_none_when_no_data(self):

@@ -17,9 +17,7 @@ and defensive organization.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
 
 from kawkab.core.logging import get_logger
 from kawkab.services.cv_service import MatchTrackData
@@ -196,9 +194,8 @@ class PressureMetricsService:
         if not team_passes:
             return 0.0
 
-        # Simplified: assume all incomplete passes were under pressure
-        # In reality, we'd check defender proximity at the moment of pass
-        under_pressure = [e for e in team_passes if not e.get("completed", True)]
+        # A pass is under pressure if explicitly flagged, or if incomplete
+        under_pressure = [e for e in team_passes if e.get("is_pressed", False) or not e.get("completed", True)]
 
         return round(len(under_pressure) / len(team_passes) * 100, 1)
 

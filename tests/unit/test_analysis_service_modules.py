@@ -17,10 +17,10 @@ Coverage: basic functionality, edge cases (empty data, missing keys), bounds.
 from __future__ import annotations
 
 import math
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -33,8 +33,7 @@ AnalysisService = _as_mod.AnalysisService
 MatchAnalysis = _as_mod.MatchAnalysis
 PlayerStats = _as_mod.PlayerStats
 TeamStats = _as_mod.TeamStats
-from kawkab.core.events import PassEvent, ShotEvent, PassType, EventType
-
+from kawkab.core.events import PassEvent, PassType, ShotEvent
 
 # ============================================================
 # Fixtures
@@ -153,11 +152,14 @@ class TestPassingAnalysis:
     """Pass network, line-breaking passes, possession attribution."""
 
     def test_pass_network_basic(self, svc, mock_pass_events):
+        # _compute_pass_network delegates to core.pass_network.PassNetwork,
+        # whose per-edge shape is {source,target,attempted,completed,
+        # completion_pct} -- a superset of the old bare {source,target,weight}.
         r = svc._compute_pass_network(mock_pass_events)
         assert len(r["nodes"]) == 3
         assert len(r["edges"]) == 2
-        assert {"source": 1, "target": 2, "weight": 1} in r["edges"]
-        assert {"source": 2, "target": 3, "weight": 1} in r["edges"]
+        assert {"source": 1, "target": 2, "attempted": 1, "completed": 1, "completion_pct": 100.0} in r["edges"]
+        assert {"source": 2, "target": 3, "attempted": 1, "completed": 1, "completion_pct": 100.0} in r["edges"]
 
     def test_pass_network_empty(self, svc):
         r = svc._compute_pass_network([])

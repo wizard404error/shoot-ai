@@ -132,11 +132,12 @@ class ArabicGlossary:
         return key in self._entries
 
 
+_singleton: ArabicGlossary | None = None
+
+
 def get_glossary(path: Path | None = None) -> ArabicGlossary:
     """Singleton-style accessor for the Arabic glossary."""
     global _singleton
-    try:
-        return _singleton
-    except NameError:
+    if _singleton is None:
         _singleton = ArabicGlossary(path)
-        return _singleton
+    return _singleton

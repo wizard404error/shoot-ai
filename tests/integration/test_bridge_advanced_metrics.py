@@ -20,6 +20,20 @@ from kawkab.services.homography_service import HomographyService, HomographyMatr
 from kawkab.services.advanced_event_detection_service import AdvancedEventDetectionService
 from kawkab.services.physical_load_service import PhysicalLoadService
 from kawkab.services.pressure_metrics_service import PressureMetricsService
+from kawkab.core.security import SecurityValidator
+
+
+@pytest.fixture(autouse=True)
+def _allow_temp_video_paths(monkeypatch):
+    # SecurityValidator.validate_video_path only allows paths under
+    # Documents/KawkabAI -- correct for the real app, but every test in
+    # this file builds its fake video with tempfile.TemporaryDirectory(),
+    # which is never under there. This file is about advanced-metrics/
+    # frame_skip wiring, not path security, so bypass just the directory
+    # check (still requires a real, existing, correctly-suffixed file).
+    monkeypatch.setattr(
+        SecurityValidator, "validate_video_path", staticmethod(lambda p: Path(p).resolve())
+    )
 
 
 def make_detection(track_id, class_name, x, y, w=20.0, h=40.0, confidence=0.9):
@@ -133,12 +147,6 @@ class FakeHomographyService:
         pass
 
 
-@pytest.mark.asyncio
-async def test_bridge_advanced_metrics_wiring():
-    """Test that Bridge calls advanced metrics services and stores results."""
-    track_data = create_test_tracking_data()
-
-    # Create a temp database
 class FakeStorageService:
     """Fake storage that doesn't need a real database."""
 
@@ -307,6 +315,9 @@ async def test_bridge_frame_skip_parameter():
         result = json.loads(result_json)
         assert "error" not in result
 
+
+@pytest.mark.asyncio
+async def test_bridge_works_without_advanced_metrics_services():
     """Test that Bridge works when advanced metrics services are None."""
     track_data = create_test_tracking_data()
 

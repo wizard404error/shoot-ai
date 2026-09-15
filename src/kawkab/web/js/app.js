@@ -10,9 +10,6 @@
     let currentVideoPath = null;
     let analysisResult = null;
 
-    var _searchCache = { matches: [], players: [], events: [] };
-    var _searchSelectedIdx = -1;
-
     // Multi-selection state
     var _selectedEventIds = new Set();
     var _lastShiftClickIdx = -1;
@@ -34,6 +31,18 @@
     var _activeChartFilter = null; // { canvasId, startMin, endMin }
 
     // Expose key functions globally for cross-script access
+    // Exports needed by sibling modules (app-data-providers.js, etc.).
+    // NOTE: this block used to sit inside the *top-level* showFirstRunWizard()
+    // below, where it referenced IIFE-locals (ReferenceError on every call),
+    // so these exports never actually ran. It belongs here, inside the IIFE.
+    window.__kawkab.loadPlayerProfiles = loadPlayerProfiles;
+    window.__kawkab.loadMatchHistory = loadMatchHistory;
+    window.loadMatch = loadMatch;
+    Object.defineProperty(window.__kawkab, 'currentMatchId', {
+        get: function() { return currentMatchId; },
+        set: function(v) { currentMatchId = v; }
+    });
+
     window.setLanguage = function(lang) { setLanguage(lang); };
     window.formatNumber = function(n, d) { return formatNumber(n, d); };
     window.loadDashboard = function() { loadDashboard(); };
@@ -190,6 +199,8 @@
                         loadFaceGallery();
                         populateMatchDropdowns();
                         if (window.__kawkab.checkAllDataProviderStatuses) window.__kawkab.checkAllDataProviderStatuses();
+                        if (window.__kawkab._initImportBridge) window.__kawkab._initImportBridge(bridge);
+                        if (window.__kawkab._initSearchCompareBridge) window.__kawkab._initSearchCompareBridge(bridge);
                     });
                 } catch (e) {
                     console.error('QWebChannel setup error:', e);
@@ -512,13 +523,13 @@
         container.innerHTML = matches.map(match => {
             let badge = '';
             if (match.api_match_id) {
-                badge += '<span class="match-badge verified" title="football-data.org match #' + match.api_match_id + '">FD</span>';
+                badge += '<span class="match-badge verified" title="football-data.org match #' + escapeHtml(match.api_match_id) + '">FD</span>';
             }
             if (match.bzzoiro_event_id) {
-                badge += '<span class="match-badge verified" title="Bzzoiro event #' + match.bzzoiro_event_id + '">BZ</span>';
+                badge += '<span class="match-badge verified" title="Bzzoiro event #' + escapeHtml(match.bzzoiro_event_id) + '">BZ</span>';
             }
             if (match.apifb_fixture_id) {
-                badge += '<span class="match-badge verified" title="API-Football fixture #' + match.apifb_fixture_id + '">AF</span>';
+                badge += '<span class="match-badge verified" title="API-Football fixture #' + escapeHtml(match.apifb_fixture_id) + '">AF</span>';
             }
             return `
             <div class="match-item" data-match-id="${match.id}">
@@ -545,6 +556,7 @@
     async function loadMatch(matchId) {
         if (!bridge) return;
         currentMatchId = matchId;
+        if (window.__kawkab._onMatchLoaded) window.__kawkab._onMatchLoaded(matchId);
 
         try {
             const pathData = JSON.parse(await bridge.get_video_path(matchId));
@@ -558,8 +570,46 @@
             }
             document.getElementById('results-section').classList.remove('hidden');
             setTimeout(loadEventTimeline, 200);
+            updateCalibrationBanner(matchId);
         } catch (e) {
             console.error('Failed to load match:', e);
+        }
+    }
+
+    // Without homography calibration, every spatial stat shown on this
+    // page (xG, xT, distances, formations, PPDA) is computed from raw
+    // pixel positions, not real-world meters -- they look like normal
+    // numbers but aren't measuring what they claim to. This banner makes
+    // that distinction impossible to miss instead of a silent assumption
+    // (see README's own "known limitations" and CLAUDE.md).
+    async function updateCalibrationBanner(matchId) {
+        var banner = document.getElementById('calibration-status-banner');
+        if (!banner || !bridge) return;
+        try {
+            var data = JSON.parse(await bridge.get_homography(matchId));
+            var icon = banner.querySelector('.calibration-banner-icon');
+            var text = banner.querySelector('.calibration-banner-text');
+            var actionBtn = document.getElementById('calibration-banner-action');
+            banner.classList.remove('hidden', 'calibration-ok', 'calibration-missing');
+            if (data && !data.error && data.matrix) {
+                banner.classList.add('calibration-ok');
+                icon.textContent = '✅';
+                text.textContent = t('calibratedNotice') || 'Calibrated — spatial stats are in real meters.';
+                actionBtn.classList.add('hidden');
+            } else {
+                banner.classList.add('calibration-missing');
+                icon.textContent = '⚠️';
+                text.textContent = t('notCalibratedNotice') ||
+                    'Not calibrated — xG, xT, distances, and formations below reflect raw pixel positions, not real meters, until you calibrate this match.';
+                actionBtn.classList.remove('hidden');
+                actionBtn.onclick = function () {
+                    window.location.hash = 'calibration';
+                    if (window.showCalibrationSection) window.showCalibrationSection(matchId);
+                };
+            }
+        } catch (e) {
+            console.error('Failed to load calibration status:', e);
+            banner.classList.add('hidden');
         }
     }
 
@@ -714,6 +764,38 @@
             document.getElementById('dash-away-count').textContent = formatNumber(awayMatchCount, 0);
             document.getElementById('dash-home-detail').textContent = formatNumber(homeMatchCount, 0) + ' ' + t('homeGames').toLowerCase();
             document.getElementById('dash-away-detail').textContent = formatNumber(awayMatchCount, 0) + ' ' + t('awayGames').toLowerCase();
+
+            // Recent form (streak, last-5 results, points-per-game)
+            try {
+                var formContent = document.getElementById('dashboard-form-content');
+                if (formContent && totalMatches > 0) {
+                    var formJson = await bridge.get_season_form();
+                    var form = JSON.parse(formJson);
+                    if (form && !form.error && form.last_5_results) {
+                        var badgeColor = { W: '#16a34a', D: '#d97706', L: '#dc2626' };
+                        // last_5_results/streak_type only ever contain "W"/"D"/"L"
+                        // (FormAnalyzer._result_from_match's closed output set) --
+                        // escaped anyway for defense-in-depth, matching this
+                        // codebase's convention of never trusting bridge JSON blindly.
+                        var badges = form.last_5_results.split('').map(function (r) {
+                            return '<span class="form-badge" style="background:' + (badgeColor[r] || '#64748b') + '">' + escapeHtml(r) + '</span>';
+                        }).join('');
+                        var streakLabel = form.streak_length > 0
+                            ? form.streak_length + ' ' + escapeHtml(form.streak_type) + (form.streak_length > 1 ? 's' : '')
+                            : '-';
+                        formContent.classList.remove('dashboard-empty');
+                        formContent.innerHTML =
+                            '<div class="form-badges">' + badges + '</div>' +
+                            '<div class="form-stats-row">' +
+                            '<div class="form-stat"><span class="form-stat-value">' + streakLabel + '</span><span class="form-stat-label">' + t('currentStreak') + '</span></div>' +
+                            '<div class="form-stat"><span class="form-stat-value">' + form.ppg_last_5.toFixed(2) + '</span><span class="form-stat-label">' + t('ppgLast5') + '</span></div>' +
+                            '<div class="form-stat"><span class="form-stat-value">' + form.total_points + '</span><span class="form-stat-label">' + t('totalPoints') + '</span></div>' +
+                            '</div>';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load season form:', e);
+            }
 
         } catch (e) {
             console.error('Failed to load dashboard:', e);
@@ -984,6 +1066,8 @@
         renderPossession(result.home_team.possession, result.away_team.possession);
         renderTeamStats('home-stats', result.home_team, 'Home');
         renderTeamStats('away-stats', result.away_team, 'Away');
+        loadXaReport(matchId);
+        loadPressingReport(matchId);
 
         const confidenceValue = document.getElementById('confidence-value');
         const confidenceBar = document.getElementById('confidence-bar');
@@ -1074,6 +1158,41 @@
             <div class="stat-item"><span>Shots:</span><span>${stats.shots}</span></div>
             <div class="stat-item"><span>Possession:</span><span>${stats.possession.toFixed(1)}%</span></div>
         `;
+    }
+
+    function loadXaReport(matchId) {
+        if (!bridge || !bridge.get_xa_report) return;
+        bridge.get_xa_report(String(matchId), function(result) {
+            try {
+                const data = JSON.parse(result);
+                if (data.error) return;
+                const homeEl = document.querySelector('#home-stats');
+                const awayEl = document.querySelector('#away-stats');
+                if (homeEl) {
+                    homeEl.insertAdjacentHTML('beforeend',
+                        `<div class="stat-item"><span data-i18n="statXa">xA:</span><span>${data.home.toFixed(2)}</span></div>`);
+                }
+                if (awayEl) {
+                    awayEl.insertAdjacentHTML('beforeend',
+                        `<div class="stat-item"><span data-i18n="statXa">xA:</span><span>${data.away.toFixed(2)}</span></div>`);
+                }
+            } catch (e) {}
+        });
+    }
+
+    function loadPressingReport(matchId) {
+        if (!bridge || !bridge.get_pressing_report) return;
+        bridge.get_pressing_report(String(matchId), function(result) {
+            try {
+                const data = JSON.parse(result);
+                if (data.error) return;
+                const homeEl = document.querySelector('#home-stats');
+                const awayEl = document.querySelector('#away-stats');
+                const row = (t) => `<div class="stat-item"><span data-i18n="statPressConversion">Press → Shot:</span><span>${((t.conversion_rate || 0) * 100).toFixed(0)}%</span></div>`;
+                if (homeEl && data.home) homeEl.insertAdjacentHTML('beforeend', row(data.home));
+                if (awayEl && data.away) awayEl.insertAdjacentHTML('beforeend', row(data.away));
+            } catch (e) {}
+        });
     }
 
     async function loadProfilerStatus() {
@@ -1618,374 +1737,6 @@
         });
     }
 
-    // ============================================================
-    // Global Search (v0.8.6)
-    // ============================================================
-    function setupGlobalSearch() {
-        var input = document.getElementById('global-search');
-        var dropdown = document.getElementById('search-results-dropdown');
-        if (!input || !dropdown) return;
-
-        function cacheData() {
-            if (!bridge) return;
-            bridge.get_all_matches().then(function(json) {
-                try { _searchCache.matches = JSON.parse(json) || []; } catch(e) {}
-            }).catch(function() {});
-            bridge.get_all_player_profiles().then(function(json) {
-                try { var d = JSON.parse(json); _searchCache.players = d.profiles || []; } catch(e) {}
-            }).catch(function() {});
-            if (currentMatchId) {
-                bridge.get_match_events(currentMatchId).then(function(json) {
-                    try { _searchCache.events = JSON.parse(json) || []; } catch(e) {}
-                }).catch(function() {});
-            }
-        }
-
-        function filterAndRender(query) {
-            if (!query || query.length < 2) {
-                dropdown.classList.add('hidden');
-                return;
-            }
-            var q = query.toLowerCase();
-            var matchedMatches = _searchCache.matches.filter(function(m) {
-                return (m.name || '').toLowerCase().indexOf(q) !== -1;
-            }).slice(0, 5);
-            var matchedPlayers = _searchCache.players.filter(function(p) {
-                return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.position || '').toLowerCase().indexOf(q) !== -1;
-            }).slice(0, 5);
-            var matchedEvents = _searchCache.events.filter(function(e) {
-                return (e.event_type || '').toLowerCase().indexOf(q) !== -1 || (e.player_name || '').toLowerCase().indexOf(q) !== -1;
-            }).slice(0, 5);
-
-            var totalMatches = _searchCache.matches.filter(function(m) { return (m.name || '').toLowerCase().indexOf(q) !== -1; }).length;
-            var totalPlayers = _searchCache.players.filter(function(p) { return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.position || '').toLowerCase().indexOf(q) !== -1; }).length;
-            var totalEvents = _searchCache.events.filter(function(e) { return (e.event_type || '').toLowerCase().indexOf(q) !== -1 || (e.player_name || '').toLowerCase().indexOf(q) !== -1; }).length;
-
-            if (matchedMatches.length === 0 && matchedPlayers.length === 0 && matchedEvents.length === 0) {
-                dropdown.innerHTML = '<div class="search-dropdown-empty">' + t('noSearchResults') + '</div>';
-                dropdown.classList.remove('hidden');
-                _searchSelectedIdx = -1;
-                return;
-            }
-
-            var html = '';
-            if (matchedMatches.length > 0) {
-                html += '<div class="search-section"><div class="search-section-title">' + t('searchMatches') + '</div>';
-                matchedMatches.forEach(function(m, i) {
-                    html += '<div class="search-result-item" data-type="match" data-id="' + m.id + '" data-idx="' + i + '">⚽ ' + highlightMatch(escapeHtml(m.name || ''), query) + '</div>';
-                });
-                if (totalMatches > 5) html += '<div class="search-view-all" data-type="match">' + t('viewAllResults').replace('{n}', totalMatches) + '</div>';
-                html += '</div>';
-            }
-            if (matchedPlayers.length > 0) {
-                html += '<div class="search-section"><div class="search-section-title">' + t('searchPlayers') + '</div>';
-                matchedPlayers.forEach(function(p, i) {
-                    html += '<div class="search-result-item" data-type="player" data-id="' + p.id + '" data-idx="' + i + '">👤 ' + highlightMatch(escapeHtml(p.name || ''), query) + ' <span class="search-result-sub">' + escapeHtml(p.position || '') + '</span></div>';
-                });
-                if (totalPlayers > 5) html += '<div class="search-view-all" data-type="player">' + t('viewAllResults').replace('{n}', totalPlayers) + '</div>';
-                html += '</div>';
-            }
-            if (matchedEvents.length > 0) {
-                html += '<div class="search-section"><div class="search-section-title">' + t('searchEvents') + '</div>';
-                matchedEvents.forEach(function(e, i) {
-                    var label = (e.event_type || '').replace(/_/g, ' ') + (e.player_name ? ' - ' + e.player_name : '');
-                    html += '<div class="search-result-item" data-type="event" data-idx="' + i + '">🔹 ' + highlightMatch(escapeHtml(label), query) + '</div>';
-                });
-                if (totalEvents > 5) html += '<div class="search-view-all" data-type="event">' + t('viewAllResults').replace('{n}', totalEvents) + '</div>';
-                html += '</div>';
-            }
-            dropdown.innerHTML = html;
-            dropdown.classList.remove('hidden');
-
-            _searchSelectedIdx = -1;
-            dropdown.querySelectorAll('.search-result-item, .search-view-all').forEach(function(el) {
-                el.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    var type = this.dataset.type;
-                    var id = this.dataset.id;
-                    if (type === 'match' && id) {
-                        dropdown.classList.add('hidden');
-                        input.value = '';
-                        navigateToMatch(parseInt(id));
-                    } else if (type === 'player') {
-                        dropdown.classList.add('hidden');
-                        input.value = '';
-                        window.location.hash = 'professional';
-                    } else if (type === 'event') {
-                        dropdown.classList.add('hidden');
-                        input.value = '';
-                    }
-                });
-            });
-        }
-
-        function highlightMatch(text, query) {
-            var idx = text.toLowerCase().indexOf(query.toLowerCase());
-            if (idx === -1) return text;
-            return text.substring(0, idx) + '<strong>' + text.substring(idx, idx + query.length) + '</strong>' + text.substring(idx + query.length);
-        }
-
-        function navigateToMatch(matchId) {
-            if (matchId) {
-                window.location.hash = 'results';
-                loadMatch(matchId);
-            }
-        }
-
-        var debounceTimer = null;
-        input.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            var val = this.value.trim();
-            if (val.length < 2) { dropdown.classList.add('hidden'); return; }
-            debounceTimer = setTimeout(function() { filterAndRender(val); }, 300);
-        });
-
-        input.addEventListener('focus', function() {
-            if (this.value.trim().length >= 2) { filterAndRender(this.value.trim()); }
-        });
-
-        input.addEventListener('keydown', function(e) {
-            var items = dropdown.querySelectorAll('.search-result-item');
-            if (e.key === 'Escape') {
-                dropdown.classList.add('hidden');
-                this.blur();
-                return;
-            }
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                _searchSelectedIdx = Math.min(_searchSelectedIdx + 1, items.length - 1);
-                updateSelected(items);
-                return;
-            }
-            if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                _searchSelectedIdx = Math.max(_searchSelectedIdx - 1, -1);
-                updateSelected(items);
-                return;
-            }
-            if (e.key === 'Enter' && _searchSelectedIdx >= 0 && items[_searchSelectedIdx]) {
-                e.preventDefault();
-                items[_searchSelectedIdx].click();
-                return;
-            }
-        });
-
-        function updateSelected(items) {
-            items.forEach(function(el, i) {
-                el.classList.toggle('search-selected', i === _searchSelectedIdx);
-            });
-            if (_searchSelectedIdx >= 0 && items[_searchSelectedIdx]) {
-                items[_searchSelectedIdx].scrollIntoView({ block: 'nearest' });
-            }
-        }
-
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
-        // Slash key to focus search
-        document.addEventListener('keydown', function(e) {
-            if (e.key === '/' && document.activeElement !== input && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-                input.focus();
-                input.select();
-            }
-        });
-
-        // Cache data on bridge connect
-        setTimeout(cacheData, 1000);
-        // Also cache when a match is loaded
-        var origLoadMatch = loadMatch;
-        loadMatch = function(matchId) {
-            origLoadMatch(matchId);
-            setTimeout(cacheData, 500);
-        };
-    }
-
-    // ============================================================
-    // Player Comparison (v0.8.6)
-    // ============================================================
-    var pcPlayers = [];
-
-    function setupPlayerComparison() {
-        // Mode toggle
-        document.querySelectorAll('[data-pc-mode]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('[data-pc-mode]').forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
-                var mode = this.dataset.pcMode;
-                document.getElementById('pc-match-mode').classList.toggle('hidden', mode !== 'match');
-                document.getElementById('pc-player-mode').classList.toggle('hidden', mode !== 'player');
-                if (mode === 'player') populatePlayerDropdowns();
-            });
-        });
-
-        document.getElementById('pc-compare-btn')?.addEventListener('click', handlePlayerCompare);
-
-        // Populate on compare tab activation
-        var compareTab = document.querySelector('[data-tab="compare-tab"]');
-        if (compareTab) {
-            compareTab.addEventListener('click', function() {
-                setTimeout(populatePlayerDropdowns, 300);
-            });
-        }
-    }
-
-    async function populatePlayerDropdowns() {
-        if (!bridge) return;
-        try {
-            var data = JSON.parse(await bridge.get_all_player_profiles());
-            pcPlayers = data.profiles || [];
-            var opts = '<option value="">' + t('pcSelectPlayerA') + '</option>';
-            pcPlayers.forEach(function(p) {
-                opts += '<option value="' + p.id + '">' + escapeHtml(p.name || '') + ' (#' + (p.jersey || '?') + ')</option>';
-            });
-            var selA = document.getElementById('pc-player-a');
-            var selB = document.getElementById('pc-player-b');
-            if (selA) { var v = selA.value; selA.innerHTML = opts; if (v) selA.value = v; }
-            if (selB) { var v2 = selB.value; selB.innerHTML = opts.replace('pcSelectPlayerA', 'pcSelectPlayerB'); if (v2) selB.value = v2; }
-        } catch (e) {
-            console.error('Failed to load players:', e);
-        }
-    }
-
-    async function handlePlayerCompare() {
-        var selA = document.getElementById('pc-player-a');
-        var selB = document.getElementById('pc-player-b');
-        var playerAId = parseInt(selA.value);
-        var playerBId = parseInt(selB.value);
-        if (!playerAId || !playerBId) {
-            showToast('Select two players to compare', 'warning');
-            return;
-        }
-        if (playerAId === playerBId) {
-            showToast('Select two different players', 'warning');
-            return;
-        }
-
-        try {
-            var resultA, resultB;
-            if (bridge.comparePlayers) {
-                var json = await bridge.comparePlayers(playerAId, playerBId);
-                var data = JSON.parse(json);
-                resultA = data.player_a;
-                resultB = data.player_b;
-            } else {
-                var rawA = await bridge.get_player_stats(playerAId);
-                var rawB = await bridge.get_player_stats(playerBId);
-                resultA = JSON.parse(rawA);
-                resultB = JSON.parse(rawB);
-            }
-
-            renderPlayerComparison(resultA, resultB);
-        } catch (e) {
-            console.error('Player compare failed:', e);
-            showToast('Failed to compare players', 'error');
-        }
-    }
-
-    function renderPlayerComparison(dataA, dataB) {
-        var container = document.getElementById('pc-results');
-        container.classList.remove('hidden');
-
-        var nameA = dataA.name || t('pcPlayerA');
-        var nameB = dataB.name || t('pcPlayerB');
-        document.getElementById('pc-radar-a-title').textContent = nameA;
-        document.getElementById('pc-radar-b-title').textContent = nameB;
-
-        // Radar charts
-        var statKeys = ['passes', 'shots', 'tackles', 'sprints', 'distance', 'xg'];
-        var statLabels = [
-            t('metric_passes') || 'Passes',
-            t('metric_shots') || 'Shots',
-            t('alert_tackle') || 'Tackles',
-            t('metric_sprints') || 'Sprints',
-            t('metric_distance') || 'Distance',
-            t('metric_xg') || 'xG',
-        ];
-
-        var maxVals = statKeys.map(function(k) {
-            return Math.max(dataA[k] || 0, dataB[k] || 0, 0.01);
-        });
-        var overallMax = Math.max.apply(null, maxVals);
-
-        function normalize(val, max) { return (val || 0) / max; }
-
-        var chartDataA = { labels: statLabels, values: statKeys.map(function(k, i) { return normalize(dataA[k], maxVals[i]); }), playerName: nameA };
-        var chartDataB = { labels: statLabels, values: statKeys.map(function(k, i) { return normalize(dataB[k], maxVals[i]); }), playerName: nameB };
-
-        if (window.KawkabCharts && window.KawkabCharts.renderDualRadar) {
-            window.KawkabCharts.renderDualRadar('pc-radar-a-canvas', chartDataA, 'pc-radar-b-canvas', chartDataB, 1);
-        } else if (window.KawkabCharts && window.KawkabCharts.renderRadar) {
-            window.KawkabCharts.renderRadar(chartDataA);
-            // second radar fallback: just use renderRadar on a temp canvas
-        }
-
-        // Stat comparison table
-        renderPCStatTable(dataA, dataB, statKeys, statLabels, nameA, nameB);
-
-        // Insights
-        renderPCInsights(dataA, dataB, statKeys, statLabels, nameA, nameB);
-    }
-
-    function renderPCStatTable(dataA, dataB, keys, labels, nameA, nameB) {
-        var wrapper = document.getElementById('pc-stat-table-wrapper');
-        var html = '<table class="pc-compare-table"><thead><tr>' +
-            '<th>' + t('pcStat') + '</th>' +
-            '<th>' + escapeHtml(nameA) + '</th>' +
-            '<th>' + escapeHtml(nameB) + '</th>' +
-            '<th>' + t('pcDelta') + '</th>' +
-            '<th>' + t('pcAdvantage') + '</th>' +
-            '</tr></thead><tbody>';
-        keys.forEach(function(k, i) {
-            var vA = dataA[k] || 0;
-            var vB = dataB[k] || 0;
-            var delta = vA - vB;
-            var advantage = delta > 0 ? nameA : (delta < 0 ? nameB : '-');
-            var deltaStr = (delta > 0 ? '+' : '') + delta.toFixed(2);
-            var deltaClass = delta > 0 ? 'pc-delta-pos' : (delta < 0 ? 'pc-delta-neg' : '');
-            html += '<tr>' +
-                '<td>' + escapeHtml(labels[i]) + '</td>' +
-                '<td>' + formatNumber(vA, 2) + '</td>' +
-                '<td>' + formatNumber(vB, 2) + '</td>' +
-                '<td class="' + deltaClass + '">' + deltaStr + '</td>' +
-                '<td>' + escapeHtml(advantage) + '</td>' +
-                '</tr>';
-        });
-        html += '</tbody></table>';
-        wrapper.innerHTML = html;
-    }
-
-    function renderPCInsights(dataA, dataB, keys, labels, nameA, nameB) {
-        var el = document.getElementById('pc-insights');
-        var aBetter = [];
-        var bBetter = [];
-        keys.forEach(function(k, i) {
-            var vA = dataA[k] || 0;
-            var vB = dataB[k] || 0;
-            if (vA > vB) aBetter.push({ label: labels[i], diff: vA - vB });
-            else if (vB > vA) bBetter.push({ label: labels[i], diff: vB - vA });
-        });
-        aBetter.sort(function(a, b) { return b.diff - a.diff; });
-        bBetter.sort(function(a, b) { return b.diff - a.diff; });
-
-        var html = '';
-        if (aBetter.length > 0) {
-            html += '<p><strong>' + escapeHtml(nameA) + ' ' + t('pcBetterAt') + ':</strong> ' +
-                aBetter.slice(0, 3).map(function(s) { return escapeHtml(s.label); }).join(', ') + '</p>';
-        }
-        if (bBetter.length > 0) {
-            html += '<p><strong>' + escapeHtml(nameB) + ' ' + t('pcBetterAt') + ':</strong> ' +
-                bBetter.slice(0, 3).map(function(s) { return escapeHtml(s.label); }).join(', ') + '</p>';
-        }
-        if (aBetter.length === 0 && bBetter.length === 0) {
-            html = '<p>' + t('pcNoInsights') + '</p>';
-        }
-        el.innerHTML = html;
-    }
-
     // --- Feedback UI (v0.8.0) ---
     function setupFeedbackStars() {
         const containers = document.querySelectorAll('.star-rating');
@@ -2081,7 +1832,7 @@
             window.KawkabSkeletons.showAll();
             const stats = JSON.parse(await bridge.get_feedback_stats());
             if (stats.error) {
-                document.getElementById('feedback-stats').innerHTML = `<p class="hint">${stats.error}</p>`;
+                document.getElementById('feedback-stats').innerHTML = `<p class="hint">${escapeHtml(stats.error)}</p>`;
                 return;
             }
             const html = `
@@ -4302,11 +4053,6 @@
         } catch (e) {}
     }
 
-    function escapeHtml(str) {
-        if (typeof str !== 'string') str = String(str || '');
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
     function formatNumber(n, d) {
         if (n == null) return '0';
         if (d === undefined) d = 0;
@@ -4980,8 +4726,7 @@
 
         initQWebChannel();
         setupFeedbackStars();
-        setupGlobalSearch();
-        setupPlayerComparison();
+        window.__kawkab.setupSearchAndCompare();
         setTimeout(connectProgressSignals, 500);
 
         // ── Item 7: Init Timeline Scrubber ──
@@ -5095,6 +4840,14 @@
         router.register('squad', 'squad-section', function() {
             saveFilterState();
             initSquadWorkspace();
+        });
+        router.register('briefing', 'briefing-section', function() {
+            saveFilterState();
+            initBriefingWorkspace();
+        });
+        router.register('proanalytics', 'proanalytics-section', function() {
+            saveFilterState();
+            initProAnalyticsWorkspace();
         });
 
         // Initialize PWA on load
@@ -5263,12 +5016,4 @@ function showFirstRunWizard() {
             showToast('Welcome to Kawkab AI! Start by importing a match.', 'info');
         };
     } catch (e) {}
-
-    // Exports needed by app-data-providers.js
-    window.__kawkab.loadPlayerProfiles = loadPlayerProfiles;
-    window.__kawkab.loadMatchHistory = loadMatchHistory;
-    Object.defineProperty(window.__kawkab, 'currentMatchId', {
-        get: function() { return currentMatchId; },
-        set: function(v) { currentMatchId = v; }
-    });
 }

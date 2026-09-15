@@ -5,6 +5,6 @@ tactical problems, and prescribes training plans. All processing happens
 locally on the coach's machine - no data leaves the device.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.12.0"
 __author__ = "Kawkab AI"
 __license__ = "MIT"

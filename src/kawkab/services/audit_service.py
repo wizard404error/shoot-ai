@@ -153,7 +153,10 @@ class AuditService:
         if self._storage is None or self._storage._conn is None:
             return []
         cursor = self._storage._conn.cursor()
-        sql = "SELECT * FROM audit_events WHERE 1=1"
+        sql = (
+            "SELECT id, timestamp, action, entity_type, entity_id, details_json, "
+            "user, prev_hash FROM audit_events WHERE 1=1"
+        )
         params: list[Any] = []
         if action:
             sql += " AND action = ?"

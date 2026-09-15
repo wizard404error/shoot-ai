@@ -1,11 +1,15 @@
 """Tests for security validation utilities."""
 
-import time as _real_time
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from kawkab.core.security import SecurityValidator, ErrorSanitizer, RateLimiter, _global_rate_limiter
+
+from kawkab.core.security import (
+    ErrorSanitizer,
+    RateLimiter,
+    SecurityValidator,
+    _global_rate_limiter,
+)
 
 
 class TestSecurityValidator:
@@ -65,7 +69,7 @@ class TestSecurityValidator:
         in_docs.parent.mkdir(parents=True, exist_ok=True)
         in_docs.write_text("dummy")
         result = SecurityValidator.validate_video_path(str(in_docs))
-        assert result == in_docs
+        assert result.resolve() == in_docs.resolve()
         in_docs.unlink()
 
     def test_validate_video_path_unsupported_extension(self, tmp_path):

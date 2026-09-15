@@ -1,10 +1,12 @@
 """Base class for specialised storage classes.
 
-Provides connection management, _ensure_initialized, and _log_error helpers.
+Provides connection management, _ensure_initialized, and _log_error helpers,
+plus shared row-parsing helpers used by both storage backends.
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,21 @@ from typing import Any
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def parse_metadata_json(row: dict) -> dict:
+    """Move a row's raw ``metadata_json`` string into ``metadata`` (dict).
+
+    Used by every tracking-import read on both backends; malformed JSON
+    degrades to an empty dict rather than raising (an unreadable provenance
+    annotation must not kill the record it describes).
+    """
+    if isinstance(row.get("metadata_json"), str):
+        try:
+            row["metadata"] = json.loads(row["metadata_json"])
+        except (json.JSONDecodeError, TypeError):
+            row["metadata"] = {}
+    return row
 
 
 class BaseStorage:

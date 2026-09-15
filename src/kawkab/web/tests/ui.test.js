@@ -1,19 +1,25 @@
-/* Tests for ui.js — toast, skeleton, collapsible, modal (CommonJS) */
+/* Tests for ui.js — toast, skeleton, collapsible, modal (IIFE attaching to window) */
 
-var fs = require('fs');
-var path = require('path');
-
-var UI_JS_PATH = path.resolve(__dirname, '../js/ui.js');
-var uiCode = fs.readFileSync(UI_JS_PATH, 'utf-8');
-
-/** Wrap ESM exports into a plain object and eval in jsdom context */
+/** ui.js is a plain IIFE (like every other web/js/*.js file), not an ES
+ * module -- it has never had `export function` since this test was
+ * written. require()-ing it runs the IIFE, which attaches its public
+ * functions directly onto `window` (see the "Public API" section at the
+ * bottom of ui.js); jest.resetModules() forces a fresh run each test so
+ * state (e.g. the notification list closure) doesn't leak between tests,
+ * matching the working pattern in js/__tests__/router.test.js. */
 function loadUi() {
-    // Replace `export function` with assignments to a shared exports object
-    var wrapped = uiCode.replace(/export function (\w+)/g, 'window.__ui_exports.$1 = function');
-    var sandbox = {};
-    // eslint-disable-next-line no-eval
-    (function() { window.__ui_exports = {}; eval(wrapped); }).call(global);
-    return window.__ui_exports;
+    jest.resetModules();
+    require('../js/ui.js');
+    return {
+        showToast: window.showToast,
+        showSkeleton: window.showSkeleton,
+        hideSkeleton: window.hideSkeleton,
+        toggleCollapsible: window.toggleCollapsible,
+        updateWorkflowStep: window.updateWorkflowStep,
+        openModal: window.openModal,
+        closeModal: window.closeModal,
+        loadMissingKeys: window.loadMissingKeys,
+    };
 }
 
 var ui;

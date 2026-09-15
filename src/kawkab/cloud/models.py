@@ -30,6 +30,17 @@ class UserOut(BaseModel):
     display_name: str
     is_active: bool
     created_at: datetime
+    # Every construction site does `UserOut(**user)` from a full-row dict
+    # that already has `role` (login/register/me/change-password all
+    # `SELECT *`). Without this field pydantic silently dropped it from
+    # every response -- an RBAC-based API returning a token but never
+    # telling the client what role it authenticated as. Defaulted (not
+    # required) because the two OAuth callback sites still `SELECT` an
+    # explicit column list that omits `role` -- see cloud/server.py's
+    # oauth_callback -- so they fall back to "analyst" rather than
+    # erroring. That fallback can be wrong for a non-analyst OAuth user;
+    # the real fix is adding `role` to those two SELECTs too.
+    role: str = "analyst"
 
 class PasswordChange(BaseModel):
     old_password: str

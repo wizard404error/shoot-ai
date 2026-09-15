@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import sys
-import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -311,10 +310,10 @@ class TestStatsBombService:
     async def test_get_events_returns_parsed(self, mock_httpx):
         svc = StatsBombService()
         mock_httpx.get.return_value = _mock_response(200, [
-            {"id": "e1", "type": "Pass", "period": 1, "minute": 10, "second": 0,
+            {"id": "e1", "type": {"name": "Pass"}, "period": 1, "minute": 10, "second": 0,
              "timestamp": "00:00:10", "team": {"name": "Home"}, "player": {"name": "P1"},
-             "location": [1.0, 2.0], "outcome": {"name": "Success"}},
-            {"id": "e2", "type": "Shot", "period": 2, "minute": 50, "second": 10,
+             "location": [1.0, 2.0], "outcome": "Success"},
+            {"id": "e2", "type": {"name": "Shot"}, "period": 2, "minute": 50, "second": 10,
              "timestamp": "00:50:10", "team": {"name": "Away"}, "player": {"name": "P2"},
              "location": [10.0, 20.0], "shot": {"statsbomb_xg": 0.45}},
         ])

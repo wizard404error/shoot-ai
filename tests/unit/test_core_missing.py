@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -17,20 +16,20 @@ except ImportError:
     get_season_key = None  # type: ignore
     HAS_SHARDING = False
 from kawkab.core.mot_metrics import compute_mot_metrics
+from kawkab.core.pressing_traps import PressingTrap
+from kawkab.core.transitions import PhaseTransition
 from kawkab.core.trap_transition_linkage import (
     TrapTransitionAnalysis,
     TrapTransitionLink,
     analyze_trap_transitions,
     summarize_trap_transition,
 )
-from kawkab.core.transitions import PhaseTransition
-from kawkab.core.pressing_traps import PressingTrap
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 # database_sharding
 # ═════════════════════════════════════════════════════════════════════════════
 
+@pytest.mark.skipif(not HAS_SHARDING, reason="database_sharding module archived")
 class TestGetSeasonKey:
     def test_current_season(self):
         key = get_season_key()

@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-
 # =============================================================================
 # Helpers
 # =============================================================================
@@ -201,7 +200,7 @@ class TestWorkflowConfigValidation:
         return path
 
     def _load_yaml(self, path: Path):
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def test_workflow_yaml_syntax(self, workflow_file):
@@ -250,5 +249,10 @@ class TestWorkflowConfigValidation:
         assert "repos" in data
         repo_urls = [r["repo"] for r in data["repos"]]
         assert any("ruff" in r for r in repo_urls)
-        assert any("black" in r for r in repo_urls)
         assert any("mypy" in r for r in repo_urls)
+        # ruff-format replaces black (both reformat code; running both
+        # fought each other every commit) -- assert the hook is present
+        # rather than requiring the black repo specifically.
+        ruff_repo = next(r for r in data["repos"] if "ruff" in r["repo"])
+        hook_ids = [h["id"] for h in ruff_repo["hooks"]]
+        assert "ruff-format" in hook_ids

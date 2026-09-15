@@ -33,9 +33,20 @@ N_HIST_BINS = 32                  # HSV histogram bins for ReID embedding
 
 
 def _bbox_corners(bbox: tuple[float, float, float, float]) -> np.ndarray:
-    """Convert (x1, y1, x2, y2) bbox to 4-corner point array for IoU."""
+    """Convert (x1, y1, x2, y2) bbox to the 2-point (top-left, bottom-right)
+    array norfair's "iou" distance function requires.
+
+    norfair's Detection accepts an arbitrary N-point polygon for most
+    distance functions, but "iou" (used for the person tracker) validates
+    bboxes strictly as (N, 4) internally -- i.e. exactly 2 points per
+    detection. An earlier version of this returned all 4 corners, which
+    silently worked with the norfair version installed at the time but
+    raises `AssertionError: Bounding boxes must be defined as np.array
+    with (N, 4) shape` under norfair>=2.3 (verified against a clean
+    `pip install -e ".[test,cloud]"`, which is what actually ships).
+    """
     x1, y1, x2, y2 = bbox
-    return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
+    return np.array([[x1, y1], [x2, y2]], dtype=np.float32)
 
 
 def _bbox_center(bbox: tuple[float, float, float, float]) -> np.ndarray:
@@ -54,6 +65,7 @@ def _get_osnet_extractor():
         return _osnet_extractor
     try:
         from boxmot import ReID
+
         from kawkab.core.paths import get_paths
 
         model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
@@ -96,7 +108,6 @@ def _reid_embedding(frame: np.ndarray, bbox: tuple[float, float, float, float]) 
     extractor = _get_osnet_extractor()
     if extractor is not None:
         try:
-            import cv2
             x1, y1, x2, y2 = [int(v) for v in bbox]
             h, w = frame.shape[:2]
             x1, y1 = max(0, x1), max(0, y1)
@@ -115,7 +126,6 @@ def _reid_embedding(frame: np.ndarray, bbox: tuple[float, float, float, float]) 
     sn_extractor = _get_soccernet_extractor()
     if sn_extractor is not None and sn_extractor.available:
         try:
-            import cv2
             x1, y1, x2, y2 = [int(v) for v in bbox]
             h, w = frame.shape[:2]
             x1, y1 = max(0, x1), max(0, y1)
@@ -270,7 +280,7 @@ class NorfairTracker:
                 person_dets.append(
                     Detection(
                         points=_bbox_corners(d["bbox"]),
-                        scores=np.array([d["confidence"]] * 4),
+                        scores=np.array([d["confidence"]] * 2),
                         label="person",
                         data={"bbox": d["bbox"], "confidence": d["confidence"]},
                         embedding=emb,

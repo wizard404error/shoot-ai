@@ -47,27 +47,27 @@ jobs:
       - name: Run unit tests (core analytical)
         env:
           KAWKAB_JWT_SECRET: ci-test-secret-do-not-use-in-production
+        # Previously ignored 20 files here. Verified against a clean
+        # `pip install -e ".[test,cloud]"` (this exact command, in an
+        # isolated venv) rather than trusting the ambient dev environment,
+        # which had extra packages installed that masked real gaps:
+        #   - test_audio_service.py: genuinely failing (stale test file,
+        #     source had moved on) -- fixed, see CLAUDE.md.
+        #   - test_easy_soccer_service.py: needed `playwright` (a
+        #     transitive import of EasySoccerData's Sofascore client) --
+        #     now declared in the `cloud` extra.
+        #   - test_norfair_tracker.py: needed a real norfair_tracker.py bbox
+        #     fix (norfair>=2.3 validates Detection points strictly as
+        #     (N,4)) plus a test-isolation fix (its norfair/cv2 stubs only
+        #     applied if not already imported, so a real install silently
+        #     defeated them) -- both fixed.
+        #   - the other 16: no discernible reason, passed cleanly.
+        # test_health_endpoints.py is the one remaining, legitimate
+        # exclusion: it's already run explicitly by the `server` job below
+        # with real Postgres + JWT env configured, so excluding it here
+        # avoids running it twice per push.
         run: |
           python -m pytest tests/unit/ \
-            --ignore=tests/unit/test_audio_service.py \
-            --ignore=tests/unit/test_cv_service_model_manager.py \
-            --ignore=tests/unit/test_kalman_and_match_type.py \
-            --ignore=tests/unit/test_professional_services.py \
-            --ignore=tests/unit/test_cv_service.py \
-            --ignore=tests/unit/test_enhancement_service.py \
-            --ignore=tests/unit/test_weather_image_classifier.py \
-            --ignore=tests/unit/test_batch_service.py \
-            --ignore=tests/unit/test_benchmark_service.py \
-            --ignore=tests/unit/test_api_services.py \
-            --ignore=tests/unit/test_easy_soccer_service.py \
-            --ignore=tests/unit/test_llm_service.py \
-            --ignore=tests/unit/test_reasoning_outside.py \
-            --ignore=tests/unit/test_reasoning_service.py \
-            --ignore=tests/unit/test_storage_service.py \
-            --ignore=tests/unit/test_bridge_handlers.py \
-            --ignore=tests/unit/test_api_external_services.py \
-            --ignore=tests/unit/test_core_missing.py \
-            --ignore=tests/unit/test_visualization_service.py \
             --ignore=tests/unit/test_health_endpoints.py \
             -v --tb=short -q
 

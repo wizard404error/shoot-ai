@@ -13,7 +13,6 @@ state handling, and error paths for every public API method across:
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import sys
 import tempfile
@@ -34,34 +33,6 @@ from kawkab.services.storage.match_storage import MatchStorage
 from kawkab.services.storage.player_storage import PlayerStorage
 from kawkab.services.storage.profile_storage import ProfileStorage
 
-# Patch SecurityValidator with missing methods used by sub-module fallbacks.
-# The real SecurityValidator (from kawkab.core.security) lacks several methods
-# that the sub-module try/except blocks define; the import succeeds because
-# conftest stubs the kawkab.core package path, so the sub-modules use the
-# real (incomplete) validator instead of their own fallback stubs.
-from kawkab.core.security import SecurityValidator as _RealSecVal
-
-def _validate_positive_float(v, n="v"):
-    return max(0.0, float(v))
-
-def _validate_float_range(v, lo, hi, n="v"):
-    return max(float(lo), min(float(hi), float(v)))
-
-def _validate_event_type(e):
-    return str(e)
-
-def _validate_event_dict(e):
-    return e
-
-def _validate_track_id(t):
-    return int(t)
-
-_RealSecVal.validate_positive_float = staticmethod(_validate_positive_float)
-_RealSecVal.validate_float_range = staticmethod(_validate_float_range)
-_RealSecVal.validate_event_type = staticmethod(_validate_event_type)
-_RealSecVal.validate_event_dict = staticmethod(_validate_event_dict)
-_RealSecVal.validate_track_id = staticmethod(_validate_track_id)
-
 # Shared DDL covering all tables used by the 7 sub-modules
 CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS matches (
@@ -77,7 +48,12 @@ CREATE TABLE IF NOT EXISTS matches (
     apifb_fixture_id INTEGER, apifb_league_id INTEGER, apifb_season INTEGER,
     bzzoiro_home_team_id INTEGER, bzzoiro_away_team_id INTEGER,
     bzzoiro_event_id INTEGER, bzzoiro_league_id INTEGER,
-    bzzoiro_competition_code TEXT, prediction_data TEXT
+    bzzoiro_competition_code TEXT, prediction_data TEXT,
+    season_id INTEGER, competition TEXT, round TEXT,
+    score_home INTEGER, score_away INTEGER,
+    match_type TEXT DEFAULT 'unknown',
+    home_team_id INTEGER, away_team_id INTEGER,
+    owner_id INTEGER, team_id INTEGER, is_shared INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,6 +115,9 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     jersey_number INTEGER, preferred_position TEXT,
     team TEXT DEFAULT 'home', is_active INTEGER DEFAULT 1,
     face_embedding TEXT, face_confidence REAL DEFAULT 0.0,
+    height_cm REAL, weight_kg REAL,
+    dominant_foot TEXT, date_of_birth TEXT,
+    nationality TEXT, photo_path TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

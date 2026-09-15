@@ -120,10 +120,18 @@ def require_permission(permission: str, resource_team: str = "", allow_anonymous
                     from kawkab.cloud.database import get_cloud_db
                     db = get_cloud_db()
                     row = db.execute(
-                        "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+                        "SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?",
                         (int(payload["sub"]),),
                     ).fetchone()
-                    if row and row["is_active"]:
+                    # This dependency has its own, independent auth check
+                    # rather than calling cloud.auth.get_current_user --
+                    # it must therefore also independently check "tv"
+                    # (token_version), or every /api/v1 route (all 39 of
+                    # them use require_permission()) would keep accepting
+                    # a token after it was supposed to be revoked (e.g. by
+                    # a password change), even though cloud.auth's own
+                    # get_current_user correctly rejects it.
+                    if row and row["is_active"] and payload.get("tv", 0) == row["token_version"]:
                         current_user = dict(row)
                 except Exception:
                     pass

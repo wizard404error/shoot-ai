@@ -15,6 +15,7 @@ CardDetectionService = _svc.CardDetectionService
 CardEvent = _svc.CardEvent
 CardType = _svc.CardType
 CardSource = _svc.CardSource
+AudioCardSignal = _svc.AudioCardSignal
 
 import numpy as np
 import pytest
@@ -125,3 +126,31 @@ class TestCardEvent:
         assert ev.card_type.value == "yellow"
         assert ev.minute == 30
         assert ev.confidence == 0.7
+
+
+class TestDetectCardsAudio:
+    """Regression test: detect_cards_audio indexed Sxx[whistle_mask_mask]
+    (a typo'd, always-undefined name) instead of Sxx[whistle_mask]. It only
+    threw NameError when whistle_mask.any() was True, i.e. whenever the
+    spectrogram actually has energy in the 1-3.5kHz whistle band -- which a
+    silent/empty chunk (the only case previously exercised) never triggers.
+    """
+
+    def test_whistle_tone_does_not_raise(self, cards: CardDetectionService) -> None:
+        sample_rate = 22050
+        t = np.linspace(0, 1.0, sample_rate, endpoint=False)
+        whistle = 5.0 * np.sin(2 * np.pi * 2000 * t)  # 2kHz tone, inside the whistle band
+        result = cards.detect_cards_audio(whistle.astype(np.float32), sample_rate=sample_rate)
+        assert isinstance(result, AudioCardSignal)
+        assert result.has_whistle is True
+
+    def test_silence_returns_no_whistle(self, cards: CardDetectionService) -> None:
+        silence = np.zeros(22050, dtype=np.float32)
+        result = cards.detect_cards_audio(silence, sample_rate=22050)
+        assert isinstance(result, AudioCardSignal)
+        assert result.has_whistle is False
+
+    def test_empty_chunk_returns_default_signal(self, cards: CardDetectionService) -> None:
+        result = cards.detect_cards_audio(np.array([]), sample_rate=22050)
+        assert result.has_whistle is False
+        assert result.has_crowd_reaction is False

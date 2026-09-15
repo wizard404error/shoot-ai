@@ -1,5 +1,6 @@
 """Assess Kawkab AI progress vs PLAN.md."""
 import os
+
 os.environ["PYTHONIOENCODING"] = "utf-8"
 import sys
 from pathlib import Path
@@ -169,7 +170,7 @@ def main() -> int:
     print(f"  Total:               {done_tasks}/{total_tasks} = {pct:.0f}%")
     print()
     print("## GITHUB ##")
-    print("  Repo: https://github.com/jraya106/kawkab-ai")
+    print("  Repo: https://github.com/wizard404error/shoot-ai")
     print("  Commit: fe22880 v0.3.0")
     return 0
 

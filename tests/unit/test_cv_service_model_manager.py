@@ -6,11 +6,20 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from conftest import install_kawkab_stubs
+from conftest import install_kawkab_stubs, load_service_module
 
 install_kawkab_stubs()
 
-from kawkab.services.cv_service import CVService
+# Some other test files replace sys.modules["kawkab.services.cv_service"]
+# with a stub CVService (no constructor override -> "takes no arguments")
+# and don't always restore it; under pytest-xdist, if one of those files
+# shares this worker process, a plain `from kawkab.services.cv_service
+# import CVService` could silently bind to that stub instead of the real
+# class. load_service_module loads a fresh copy under its own unique
+# sys.modules key, sidestepping the shared "kawkab.services.cv_service"
+# entry (and whatever another file did to it) entirely.
+_cv = load_service_module("cv_service_real_for_model_manager_test", "cv_service.py")
+CVService = _cv.CVService
 from kawkab.core.model_manager import ModelManager
 
 

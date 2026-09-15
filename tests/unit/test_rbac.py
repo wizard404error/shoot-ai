@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import pytest
-from kawkab.core.rbac import (
-    RBACMiddleware, Role, ROLE_HIERARCHY, PERMISSION_ROLES, rbac, get_rbac,
-)
 from fastapi import HTTPException
+
+from kawkab.core.rbac import (
+    PERMISSION_ROLES,
+    ROLE_HIERARCHY,
+    RBACMiddleware,
+    Role,
+    get_rbac,
+    rbac,
+)
 
 
 class TestRBACMiddleware:
@@ -106,11 +112,12 @@ class TestRequirePermissionDependency:
 
     @pytest.fixture(autouse=True)
     def setup_env_and_db(self):
-        import os, tempfile
+        import os
+        import tempfile
         self._old_secret = os.environ.get("KAWKAB_JWT_SECRET")
         self._old_db_url = os.environ.get("KAWKAB_DB_URL")
         self._old_cloud_db = os.environ.get("KAWKAB_CLOUD_DB")
-        os.environ["KAWKAB_JWT_SECRET"] = "test-secret-for-testing"
+        os.environ["KAWKAB_JWT_SECRET"] = "test-secret-for-testing-purposes-only-32chars"
         os.environ.pop("KAWKAB_DB_URL", None)
         db_path = os.path.join(tempfile.gettempdir(), f"kawkab_test_rbac_{id(self)}.db")
         os.environ["KAWKAB_CLOUD_DB"] = db_path
@@ -127,10 +134,12 @@ class TestRequirePermissionDependency:
 
     @pytest.fixture
     def client(self):
-        from fastapi.testclient import TestClient
-        from kawkab.cloud.server import app
         import threading
+
+        from fastapi.testclient import TestClient
+
         from kawkab.cloud import database
+        from kawkab.cloud.server import app
         database._local = threading.local()
         # Reset cached DB reference
         if hasattr(database._local, "conn"):
@@ -148,10 +157,12 @@ class TestRequirePermissionDependency:
 
     def test_expired_token_returns_401(self, client):
         # JWT with "exp" in the past
-        import jwt, time
+        import time
+
+        import jwt
         token = jwt.encode(
             {"sub": 1, "exp": int(time.time()) - 3600, "iat": int(time.time()) - 7200},
-            "test-secret-for-testing",
+            "test-secret-for-testing-purposes-only-32chars",
             algorithm="HS256",
         )
         resp = client.get("/api/v1/matches", headers={"Authorization": f"Bearer {token}"})

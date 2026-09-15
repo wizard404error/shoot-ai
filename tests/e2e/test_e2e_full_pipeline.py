@@ -72,12 +72,30 @@ def _install_cv_stub() -> None:
     sys.modules["kawkab.services.cv_service"] = svc_mod
 
 
+# Save whatever was in sys.modules before stubbing (None if nothing yet)
+# so it can be restored once this module's own tests are done -- without
+# this, the stub's no-arg CVService (no __init__ override) permanently
+# replaces the real class for the rest of the pytest-xdist worker process,
+# breaking any later-run file (in the same worker) that needs the real
+# CVService's actual constructor. Same species of leak as the
+# test_norfair_tracker.py fix earlier in this audit, different file.
+_ORIG_CV_SERVICE_MODULE = sys.modules.get("kawkab.services.cv_service")
+
 _install_cv_stub()
 _as = load_service_module("as_e2e", "analysis_service.py")
 AnalysisService = _as.AnalysisService
 
 # Capture stub MatchTrackData after stub installation for pollution-safe use
 _MatchTrackData = sys.modules["kawkab.services.cv_service"].MatchTrackData
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _restore_cv_service_module():
+    yield
+    if _ORIG_CV_SERVICE_MODULE is None:
+        sys.modules.pop("kawkab.services.cv_service", None)
+    else:
+        sys.modules["kawkab.services.cv_service"] = _ORIG_CV_SERVICE_MODULE
 
 
 # ── Sample events ──────────────────────────────────────────────────────────

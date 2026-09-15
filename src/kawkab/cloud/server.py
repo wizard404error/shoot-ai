@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from kawkab.cloud.auth import (
     create_access_token,
+    decode_token,
     get_current_user,
     hash_password,
     verify_password,
@@ -132,8 +133,15 @@ def login(body: UserLogin):
     row = db.execute("SELECT * FROM users WHERE email = ?", (body.email,)).fetchone()
     if not row or not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(row["id"], role=row.get("role", "analyst"))
+    # row.get(...) used to be called directly on `row` here. On the SQLite
+    # backend `row` is a sqlite3.Row, which supports row["role"] but has no
+    # .get() method at all -- so every login on the default (non-Postgres)
+    # backend raised AttributeError -> HTTP 500, with no test covering
+    # /auth/login anywhere to catch it. Converting to a plain dict first
+    # works identically on both backends (_ResultRow on Postgres already
+    # is a dict subclass).
     user = dict(row)
+    token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=user.get("token_version", 0))
     del user["password_hash"]
     return TokenResponse(access_token=token, user=UserOut(**user))
 
@@ -144,13 +152,20 @@ def me(user: dict = Depends(get_current_user)):
 @app.post("/auth/change-password")
 def change_password(body: PasswordChange, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    row = db.execute("SELECT password_hash, token_version FROM users WHERE id = ?", (user["id"],)).fetchone()
     if not verify_password(body.old_password, row["password_hash"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    db.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
-               (hash_password(body.new_password), user["id"]))
+    # Bumping token_version invalidates every token issued before this
+    # change -- including the one used to make this very request -- which
+    # is the whole point: a stolen token shouldn't survive its victim
+    # changing their password. A fresh token is returned below so the
+    # caller isn't forced to immediately log back in.
+    new_token_version = row["token_version"] + 1
+    db.execute("UPDATE users SET password_hash = ?, token_version = ?, updated_at = datetime('now') WHERE id = ?",
+               (hash_password(body.new_password), new_token_version, user["id"]))
     db.commit()
-    return {"ok": True}
+    new_token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=new_token_version)
+    return {"ok": True, "access_token": new_token}
 
 
 # ── OAuth ──
@@ -205,8 +220,12 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
             (access_token, tokens.get("refresh_token"), row["user_id"]),
         )
         db.commit()
-        user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
-        jwt_token = create_access_token(user["id"])
+        user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
+        # token_version must come from the DB, not default to 0: a
+        # returning OAuth user may have had it bumped since (e.g. a
+        # password change on a linked local-auth account), and minting a
+        # token with the wrong version would lock them out immediately.
+        jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
         return TokenResponse(access_token=jwt_token, user=UserOut(**user))
     existing_user = None
     if email:
@@ -231,8 +250,8 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
         (user_id, provider, provider_user_id, access_token, tokens.get("refresh_token")),
     )
     db.commit()
-    user = dict(db.execute("SELECT id, username, email, display_name, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
-    jwt_token = create_access_token(user_id)
+    user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    jwt_token = create_access_token(user_id, token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
 @app.post("/auth/link-oauth")
@@ -270,6 +289,110 @@ def unlink_oauth_account(provider: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# ── SAML SSO (Phase 4: wires the previously-orphaned saml_auth_service.py) ──
+
+class SAMLCallbackRequest(BaseModel):
+    saml_response_xml: str
+    idp_entity_id: str
+
+
+class SAMLConfigIn(BaseModel):
+    entity_id: str
+    sso_url: str
+    certificate: str = ""
+
+
+_saml_states: dict[str, str] = {}  # relay_state -> idp_entity_id
+
+
+def _get_saml_service():
+    from kawkab.services.saml_auth_service import SAMLAuthService
+
+    return SAMLAuthService()
+
+
+@app.get("/auth/saml/status")
+def saml_status():
+    """Whether the SAML SDK is importable and which IdPs are configured.
+
+    Registration lives in process memory (same lifetime as the OAuth
+    state map) — a deployment wires its IdP once at boot via
+    KAWKAB_SAML_IDP_ENTITY_ID / KAWKAB_SAML_IDP_SSO_URL / KAWKAB_SAML_IDP_CERT.
+    """
+    svc = _get_saml_service()
+    if not svc.available and os.environ.get("KAWKAB_SAML_IDP_SSO_URL"):
+        svc.register_idp(type(svc).SAMLIdentityProvider(
+            entity_id=os.environ.get("KAWKAB_SAML_IDP_ENTITY_ID", "club-idp"),
+            sso_url=os.environ["KAWKAB_SAML_IDP_SSO_URL"],
+            certificate=os.environ.get("KAWKAB_SAML_IDP_CERT", ""),
+        ))
+    return {
+        "sdk_available": svc.available,
+        "configured_idps": [i.entity_id for i in svc.get_configured_providers()],
+    }
+
+
+@app.post("/auth/saml/configure")
+def saml_configure(body: SAMLConfigIn, user: dict = Depends(get_current_user)):
+    """Register/replace a SAML IdP (admin only — the club IT dept's step)."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    svc = _get_saml_service()
+    if not svc.available:
+        raise HTTPException(
+            status_code=503,
+            detail="SAML SDK not installed (pip install python3-saml or onelogin-graphql-sdk alternative)",
+        )
+    from kawkab.services.saml_auth_service import SAMLIdentityProvider
+
+    svc.register_idp(SAMLIdentityProvider(
+        entity_id=body.entity_id, sso_url=body.sso_url, certificate=body.certificate,
+    ))
+    return {"ok": True, "entity_id": body.entity_id}
+
+
+@app.post("/auth/saml/callback", response_model=TokenResponse)
+def saml_callback(body: SAMLCallbackRequest):
+    """Consume the IdP's SAMLResponse POST, resolve/create the local user,
+    and mint the same JWT the password/OAuth flows return."""
+    svc = _get_saml_service()
+    if not svc.available:
+        raise HTTPException(status_code=503, detail="SAML SDK not available on this deployment")
+    result = svc.handle_acs(body.saml_response_xml)
+    if not result or not result.get("email"):
+        raise HTTPException(status_code=400, detail="Invalid SAML response (no assertion/email)")
+
+    email = result["email"]
+    db = get_cloud_db()
+    row = db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE email = ?", (email,)).fetchone()
+    if row:
+        user = dict(row)
+        if not user.get("is_active", 1):
+            raise HTTPException(status_code=403, detail="Account disabled")
+        jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
+        return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+
+    # First SSO login: provision the account (analyst by default — the
+    # cloud server's other provisioning paths use the same default).
+    username = email.split("@")[0].lower().replace(" ", "_")
+    base = username
+    counter = 1
+    while db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone():
+        username = f"{base}_{counter}"
+        counter += 1
+    cur = db.execute(
+        "INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
+        (username, email, "saml", result.get("name") or username),
+    )
+    db.commit()
+    user = dict(db.execute(
+        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+        (cur.lastrowid,),
+    ).fetchone())
+    jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
+    return TokenResponse(access_token=jwt_token, user=UserOut(**user))
+
+
 # ── Sync ──
 
 @app.post("/sync/push")
@@ -282,6 +405,33 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
             "SELECT version, data FROM projects WHERE id = ? AND owner_id = ?",
             (op.entity_id, user["id"]),
         ).fetchone()
+
+        # `existing` above is scoped to *this user's own* rows, so it comes
+        # back None both for "brand new project id" and for "a project with
+        # this id exists but is owned by someone else" -- previously those
+        # two cases were indistinguishable. A cross-user id collision on
+        # create/update fell through to the ON CONFLICT(id) DO UPDATE below,
+        # which has no owner check at all: any authenticated user submitting
+        # someone else's real project id got their data/version silently
+        # written over the victim's project (owner_id itself wasn't
+        # touched, but the content was destroyed). Distinguish the two
+        # cases explicitly before ever reaching the upsert.
+        if existing is None and op.op in ("create", "update"):
+            owned_by_other = db.execute(
+                "SELECT owner_id FROM projects WHERE id = ? AND owner_id != ?",
+                (op.entity_id, user["id"]),
+            ).fetchone()
+            if owned_by_other is not None:
+                conflicts.append(ConflictRecord(
+                    entity_type=op.entity_type,
+                    entity_id=op.entity_id,
+                    local_version=int(op.data.get("_version", 0)),
+                    remote_version=-1,
+                    local_data=op.data,
+                    remote_data={"error": "This id belongs to a project you do not own."},
+                ))
+                continue
+
         if existing and op.op == "update":
             local_ver = int(op.data.get("_version", 0))
             if local_ver < existing["version"]:
@@ -302,8 +452,15 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
         elif op.op in ("create", "update"):
             data_json = json.dumps(op.data, ensure_ascii=False)
             new_ver = existing["version"] + 1 if existing else 1
+            # The WHERE on DO UPDATE is defense-in-depth on top of the
+            # explicit ownership check above: even if that check were ever
+            # bypassed or buggy, SQLite itself refuses to apply the update
+            # when the existing row's owner_id doesn't match, rather than
+            # silently overwriting another user's row.
             db.execute("""INSERT INTO projects (id, name, owner_id, data, version)
-                          VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=datetime('now')""",
+                          VALUES (?,?,?,?,?)
+                          ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=datetime('now')
+                          WHERE projects.owner_id = excluded.owner_id""",
                        (op.entity_id, op.data.get("name", "Untitled"), user["id"], data_json, new_ver))
             db.execute("INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
                        (user["id"], payload.device_id, op.entity_type, op.entity_id, op.op))
@@ -390,8 +547,64 @@ def share_project(body: SharedProject, user: dict = Depends(get_current_user)):
 
 connected_clients: dict[str, list[WebSocket]] = {}
 
+
+def _authorize_project_access(db, project_id: str, user_id: int) -> bool:
+    """True if user_id may join a collaboration session for project_id.
+
+    Authorized if the user owns the project outright, or the project is
+    marked shared and the user belongs to the team it's shared with.
+    """
+    project = db.execute(
+        "SELECT owner_id, team_id, is_shared FROM projects WHERE id = ?", (project_id,)
+    ).fetchone()
+    if project is None:
+        return False
+    if project["owner_id"] == user_id:
+        return True
+    if project["is_shared"] and project["team_id"] is not None:
+        member = db.execute(
+            "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?",
+            (project["team_id"], user_id),
+        ).fetchone()
+        return member is not None
+    return False
+
+
 @app.websocket("/ws/{project_id}")
-async def ws_endpoint(websocket: WebSocket, project_id: str):
+async def ws_endpoint(websocket: WebSocket, project_id: str, token: str = Query(...)):
+    """Real-time collaboration channel for one project.
+
+    Previously had no authentication at all -- no token, no origin
+    check, no project-membership check. Any internet client could
+    connect to any project_id, read every collaborator's live edits,
+    and inject arbitrary messages into their session. Browsers can't
+    set a custom Authorization header on a WebSocket handshake, so the
+    JWT is passed as a query parameter instead (matches how most
+    WebSocket APIs handle this); everything is rejected with an explicit
+    close code *before* accept() so a rejected client never enters the
+    broadcast group.
+    """
+    origin = websocket.headers.get("origin")
+    if origin is not None and origin not in _cors_origins and "*" not in _cors_origins:
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
+
+    payload = decode_token(token)
+    if payload is None:
+        await websocket.close(code=1008, reason="Invalid or missing token")
+        return
+    user_id = int(payload["sub"])
+
+    db = get_cloud_db()
+    user_row = db.execute("SELECT is_active FROM users WHERE id = ?", (user_id,)).fetchone()
+    if user_row is None or not user_row["is_active"]:
+        await websocket.close(code=1008, reason="User not found or inactive")
+        return
+
+    if not _authorize_project_access(db, project_id, user_id):
+        await websocket.close(code=1008, reason="Not authorized for this project")
+        return
+
     await websocket.accept()
     if project_id not in connected_clients:
         connected_clients[project_id] = []

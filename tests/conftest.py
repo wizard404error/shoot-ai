@@ -6,14 +6,28 @@ import importlib.util
 import json
 import os
 import sys
-import types
 import tempfile
+import types
 from pathlib import Path
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = PROJECT_ROOT / "src"
+
+
+def pytest_addoption(parser):
+    # Registers --run-load, used by tests/test_load.py's skipif marker.
+    # pytest only discovers pytest_addoption in conftest.py (or a plugin) --
+    # test_load.py used to define this hook itself, where pytest never
+    # looked for it, so config.getoption('--run-load') always raised
+    # "no option named '--run-load'" instead of skipping/running as intended.
+    parser.addoption(
+        "--run-load",
+        action="store_true",
+        default=False,
+        help="Run load/benchmark tests",
+    )
 
 # ── StatsBomb auto-fetch ─────────────────────────────────────────────────
 
@@ -105,37 +119,31 @@ def install_httpx_stub() -> None:
     sys.modules["httpx"] = httpx_stub
 
 
-def install_kawkab_stubs() -> None:
-    install_loguru_stub()
-    install_httpx_stub()
-    _stubs: dict[str, str | None] = {
-        "kawkab": str(SRC_DIR / "kawkab"),
-        "kawkab.core": str(SRC_DIR / "kawkab" / "core"),
-        "kawkab.services": str(SRC_DIR / "kawkab" / "services"),
-        "kawkab.core.paths": None,
-        "kawkab.core.migration_manager": None,
-    }
-    for _pkg, _path in _stubs.items():
-        if _pkg not in sys.modules:
-            sys.modules[_pkg] = _make_module(_pkg, _path)
-    _kawkab = sys.modules["kawkab"]
-    _kawkab.core = sys.modules["kawkab.core"]
-    _kawkab.services = sys.modules["kawkab.services"]
-    _kawkab.core.paths = sys.modules.get("kawkab.core.paths")
-    _kawkab.core.migration_manager = sys.modules.get("kawkab.core.migration_manager")
-    if "kawkab.core.logging" not in sys.modules:
-        log_mod = _make_module("kawkab.core.logging")
-        class _ServiceLogger:
-            def info(self, *a, **k): pass
-            def warning(self, *a, **k): pass
-            def error(self, *a, **k): pass
-            def debug(self, *a, **k): pass
-            def bind(self, name=""): return _ServiceLogger()
-        def _get_logger(name=""): return _ServiceLogger()
-        log_mod.get_logger = _get_logger
-        log_mod.setup_logging = lambda debug=False: None
-        sys.modules["kawkab.core.logging"] = log_mod
-    paths_mod = _make_module("kawkab.core.paths")
+def _ensure_real_package(pkg_name: str) -> types.ModuleType | None:
+    """Import a real package if not already in sys.modules. Returns the module or None."""
+    if pkg_name in sys.modules:
+        return sys.modules[pkg_name]
+    try:
+        return importlib.import_module(pkg_name)
+    except ImportError:
+        return None
+
+
+def _make_logging_stub() -> types.ModuleType:
+    mod = _make_module("kawkab.core.logging")
+    class _ServiceLogger:
+        def info(self, *a, **k): pass
+        def warning(self, *a, **k): pass
+        def error(self, *a, **k): pass
+        def exception(self, *a, **k): pass
+        def debug(self, *a, **k): pass
+        def bind(self, name=""): return _ServiceLogger()
+    mod.get_logger = lambda name="": _ServiceLogger()
+    mod.setup_logging = lambda debug=False: None
+    return mod
+
+def _make_paths_stub() -> types.ModuleType:
+    mod = _make_module("kawkab.core.paths")
     class _Paths:
         def __init__(self):
             tmp = Path(tempfile.gettempdir()) / "kawkab_test"
@@ -147,19 +155,65 @@ def install_kawkab_stubs() -> None:
             self.cache = tmp / "cache"
             self.logs = tmp / "logs"
             self.models = tmp / "models"
-            self.migrations = tmp / "migrations"
+            self.migrations = SRC_DIR / "kawkab" / "migrations"
             self.database = tmp / "kawkab.db"
             self.config_file = tmp / "config.json"
-    paths_mod.Paths = _Paths
-    paths_mod._default_paths = _Paths()
-    paths_mod.get_paths = lambda: paths_mod._default_paths
-    sys.modules["kawkab.core.paths"] = paths_mod
-    mm_mod = _make_module("kawkab.core.migration_manager")
+    mod.Paths = _Paths
+    mod._default_paths = _Paths()
+    mod.get_paths = lambda: mod._default_paths
+
+    # Private helpers expected by some tests
+    def _get_appdata_dir():
+        return mod._default_paths.appdata
+    def _get_localappdata_dir():
+        return mod._default_paths.localappdata
+    def _get_documents_dir():
+        return mod._default_paths.documents
+    mod._get_appdata_dir = _get_appdata_dir
+    mod._get_localappdata_dir = _get_localappdata_dir
+    mod._get_documents_dir = _get_documents_dir
+
+    # Ensure tmp directories exist (some tests check Path.exists())
+    _p = mod._default_paths
+    for _d in [_p.videos, _p.exports, _p.cache, _p.logs, _p.models]:
+        _d.mkdir(parents=True, exist_ok=True)
+    # knowledge_base is a separate path outside tmp
+    _p.knowledge_base = SRC_DIR / "kawkab" / "knowledge"
+    return mod
+
+def _make_migration_manager_stub() -> types.ModuleType:
+    mod = _make_module("kawkab.core.migration_manager")
     class _MigrationManager:
         def __init__(self, db_path, migrations_dir): pass
         def migrate(self): pass
-    mm_mod.MigrationManager = _MigrationManager
-    sys.modules["kawkab.core.migration_manager"] = mm_mod
+    mod.MigrationManager = _MigrationManager
+    return mod
+
+def install_kawkab_stubs() -> None:
+    # Isolate from PostgreSQL — all tests use SQLite by default.
+    # Opt in to the real-Postgres integration tests by setting BOTH
+    # KAWKAB_DB_URL and KAWKAB_PG_TESTS=1 (see test_postgres_storage.py).
+    if os.environ.get("KAWKAB_PG_TESTS") != "1":
+        os.environ.pop("KAWKAB_DB_URL", None)
+
+    install_loguru_stub()
+    install_httpx_stub()
+
+    # Stub core modules FIRST so real imports see them
+    if "kawkab.core.logging" not in sys.modules:
+        sys.modules["kawkab.core.logging"] = _make_logging_stub()
+    sys.modules.setdefault("kawkab.core.paths", _make_paths_stub())
+
+    # Real packages — import normally instead of stubbing
+    for _pkg in ["kawkab", "kawkab.core", "kawkab.services"]:
+        _ensure_real_package(_pkg)
+
+    _kawkab = sys.modules.get("kawkab")
+    if _kawkab is not None:
+        _kawkab.core = sys.modules.get("kawkab.core")
+        _kawkab.services = sys.modules.get("kawkab.services")
+        _kawkab.core.paths = sys.modules.get("kawkab.core.paths")
+
     _stg_dir = SRC_DIR / "kawkab" / "services" / "storage"
     if _stg_dir.exists() and "kawkab.services.storage" not in sys.modules:
         stg_pkg = _make_module("kawkab.services.storage", str(SRC_DIR / "kawkab" / "services" / "storage"))

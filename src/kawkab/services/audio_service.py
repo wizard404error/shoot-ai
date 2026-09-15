@@ -182,6 +182,50 @@ class AudioService:
             logger.error(f"Whistle detection failed: {e}")
             return []
 
+    async def analyze_crowd_noise(self, video_path: Path) -> dict:
+        """Analyze crowd noise intensity over time (cheer-detection proxy).
+
+        Args:
+            video_path: Path to video file
+
+        Returns:
+            Dict with avg_intensity, peak_intensity, peak_time, samples.
+            Always has this exact shape (zeroed out) if disabled, librosa
+            is unavailable, or analysis fails -- callers never need to
+            check for a missing key.
+        """
+        empty = {"avg_intensity": 0.0, "peak_intensity": 0.0, "peak_time": 0.0, "samples": 0}
+        if not self.enable_crowd_analysis:
+            return empty
+
+        logger.info(f"Analyzing crowd noise in: {video_path.name}")
+
+        try:
+            import librosa
+            import numpy as np
+        except ImportError:
+            logger.warning("librosa not installed. Run: pip install librosa")
+            return empty
+
+        try:
+            y, sr = librosa.load(str(video_path), sr=None, mono=True)
+            rms = librosa.feature.rms(y=y)[0]
+            times = librosa.frames_to_time(np.arange(len(rms)), sr=sr)
+
+            if len(rms) == 0:
+                return empty
+
+            peak_idx = int(np.argmax(rms))
+            return {
+                "avg_intensity": float(np.mean(rms)),
+                "peak_intensity": float(rms[peak_idx]),
+                "peak_time": float(times[peak_idx]),
+                "samples": int(len(rms)),
+            }
+        except Exception as e:
+            logger.error(f"Crowd noise analysis failed: {e}")
+            return empty
+
     async def analyze_audio(self, video_path: Path) -> dict:
         """Full audio analysis: transcription + whistle detection.
 

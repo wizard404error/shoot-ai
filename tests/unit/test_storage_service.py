@@ -7,7 +7,6 @@ and edge cases (uninitialized, corrupt DB, missing fields).
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import sys
 import tempfile
@@ -31,6 +30,14 @@ ValidationResult = _valid_mod.ValidationResult
 
 
 CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    short_name TEXT,
+    home_color TEXT DEFAULT '#1e7e34',
+    away_color TEXT DEFAULT '#ffffff',
+    created_at TEXT DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -43,6 +50,15 @@ CREATE TABLE IF NOT EXISTS matches (
     total_frames INTEGER,
     analyzed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    home_team_id INTEGER REFERENCES teams(id),
+    away_team_id INTEGER REFERENCES teams(id),
+    score_home INTEGER,
+    score_away INTEGER,
+    season_id INTEGER,
+    match_type TEXT DEFAULT 'unknown',
+    competition TEXT,
+    round TEXT,
+    opponent TEXT,
     api_match_id INTEGER,
     competition_code TEXT,
     football_data_home_team_id INTEGER,
@@ -51,7 +67,13 @@ CREATE TABLE IF NOT EXISTS matches (
     apifb_fixture_id INTEGER, apifb_league_id INTEGER, apifb_season INTEGER,
     bzzoiro_home_team_id INTEGER, bzzoiro_away_team_id INTEGER,
     bzzoiro_event_id INTEGER, bzzoiro_league_id INTEGER,
-    bzzoiro_competition_code TEXT, prediction_data TEXT
+    bzzoiro_competition_code TEXT, prediction_data TEXT,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT,
+    owner_id INTEGER,
+    team_id INTEGER,
+    is_shared INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +81,10 @@ CREATE TABLE IF NOT EXISTS events (
     timestamp REAL NOT NULL, from_track_id INTEGER, to_track_id INTEGER,
     team TEXT, completed INTEGER DEFAULT 0, confidence REAL DEFAULT 0.0,
     metadata TEXT DEFAULT '{}', user_corrected INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT
 );
 CREATE TABLE IF NOT EXISTS players (
     id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER NOT NULL,
@@ -67,7 +92,11 @@ CREATE TABLE IF NOT EXISTS players (
     team TEXT, position TEXT, distance_covered_m REAL DEFAULT 0,
     max_speed_kmh REAL DEFAULT 0, avg_speed_kmh REAL DEFAULT 0,
     passes_attempted INTEGER DEFAULT 0, passes_completed INTEGER DEFAULT 0,
-    shots INTEGER DEFAULT 0, tackles INTEGER DEFAULT 0
+    shots INTEGER DEFAULT 0, tackles INTEGER DEFAULT 0,
+    confidence REAL DEFAULT 0.0,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT
 );
 CREATE TABLE IF NOT EXISTS advanced_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER NOT NULL,
@@ -166,7 +195,73 @@ CREATE TABLE IF NOT EXISTS coding_tags (
     notes TEXT DEFAULT '',
     lead_ms INTEGER DEFAULT 2000,
     lag_ms INTEGER DEFAULT 3000,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    deleted_by TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE,
+    display_name TEXT DEFAULT '',
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'analyst',
+    team TEXT DEFAULT '',
+    is_active INTEGER DEFAULT 1,
+    is_locked INTEGER DEFAULT 0,
+    failed_attempts INTEGER DEFAULT 0,
+    locked_until TEXT,
+    must_reset_password INTEGER DEFAULT 0,
+    last_login TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS audit_events_local (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    details TEXT DEFAULT '{}',
+    ip_address TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS gps_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    match_id INTEGER, player_id INTEGER,
+    session_type TEXT NOT NULL DEFAULT 'match',
+    vendor TEXT NOT NULL DEFAULT 'catapult',
+    start_time TIMESTAMP, end_time TIMESTAMP,
+    duration_seconds REAL, total_distance_m REAL,
+    max_speed_kmh REAL, avg_speed_kmh REAL, player_load REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS gps_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL, timestamp REAL NOT NULL,
+    lat REAL, lon REAL, speed_ms REAL, acceleration REAL,
+    accel_x REAL, accel_y REAL, accel_z REAL, heart_rate INTEGER,
+    distance REAL, player_load REAL, metabolic_power REAL,
+    speed_zone INTEGER, x_m REAL, y_m REAL
+);
+CREATE TABLE IF NOT EXISTS acwr_daily (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER, date DATE NOT NULL,
+    acute_load_7d REAL, chronic_load_28d REAL, acwr REAL,
+    load_category TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(player_id, date)
 );
 """
 
@@ -176,6 +271,8 @@ def storage():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.db"
         svc = StorageService()
+        svc._pg = None  # Force SQLite mode even if KAWKAB_DB_URL is set
+        svc._use_postgres = False
         svc._db_path = db_path
         svc._conn = sqlite3.connect(str(db_path))
         svc._conn.row_factory = sqlite3.Row
@@ -198,7 +295,8 @@ async def test_initialize_creates_tables(storage):
               "benchmark_results", "validation_results", "coach_feedback",
               "issue_reports", "usage_sessions", "video_clips",
               "clip_playlists", "player_profiles", "user_corrections",
-              "reports"]:
+              "reports", "gps_sessions", "gps_samples", "acwr_daily",
+              "users", "user_sessions", "audit_events_local"]:
         assert t in tables, f"Missing table: {t}"
 
 
@@ -539,6 +637,8 @@ async def test_update_match_bzzoiro(storage):
 @pytest.mark.asyncio
 async def test_uninitialized_service_returns_safe_defaults():
     svc = StorageService()
+    svc._pg = None  # Force SQLite mode
+    svc._use_postgres = False
     svc._conn = None
     assert await svc.save_match("n", "") == 0
     assert await svc.get_match(1) is None
@@ -612,12 +712,16 @@ async def test_save_playlist_missing_name(storage):
 async def test_concurrent_writes_different_connections(tmp_path):
     db = tmp_path / "concurrent.db"
     svc1 = StorageService()
+    svc1._pg = None  # Force SQLite mode
+    svc1._use_postgres = False
     svc1._db_path = db
     svc1._conn = sqlite3.connect(str(db))
     svc1._conn.row_factory = sqlite3.Row
     svc1._conn.executescript(CREATE_SQL)
     svc1._conn.commit()
     svc2 = StorageService()
+    svc2._pg = None  # Force SQLite mode
+    svc2._use_postgres = False
     svc2._db_path = db
     svc2._conn = sqlite3.connect(str(db))
     svc2._conn.row_factory = sqlite3.Row
@@ -806,6 +910,8 @@ async def test_get_coding_tag_stats_empty(storage):
 @pytest.mark.asyncio
 async def test_coding_tags_uninitialized_conn():
     svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
     assert await svc.save_coding_tag(1, {"event_type": "pass", "video_time": 10.0}) == 0
     assert await svc.get_coding_tags(1) == []
     assert await svc.get_coding_tags_by_type(1, "pass") == []
@@ -828,3 +934,190 @@ async def test_coding_tags_multiple_matches(storage):
     assert len(tags2) == 1
     assert tags1[0]["event_type"] == "pass"
     assert tags2[0]["event_type"] == "shot"
+
+# ─── GPS / Physical Data ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_save_gps_session(storage):
+    match_id = await _mid(storage)
+    session_id = await storage.save_gps_session(match_id, 1, "match", "catapult")
+    assert session_id > 0
+
+@pytest.mark.asyncio
+async def test_get_gps_sessions(storage):
+    match_id = await _mid(storage)
+    await storage.save_gps_session(match_id, 1, "match", "catapult")
+    sessions = await storage.get_gps_sessions(match_id)
+    assert len(sessions) == 1
+    assert sessions[0]["session_type"] == "match"
+
+@pytest.mark.asyncio
+async def test_get_gps_sessions_empty(storage):
+    sessions = await storage.get_gps_sessions(999)
+    assert sessions == []
+
+@pytest.mark.asyncio
+async def test_update_gps_session_stats(storage):
+    match_id = await _mid(storage)
+    sid = await storage.save_gps_session(match_id, 1, "match", "catapult")
+    await storage.update_gps_session_stats(sid, {
+        "duration_s": 3600.0,
+        "total_distance_m": 10500.0,
+        "max_speed_kmh": 32.5,
+        "avg_speed_kmh": 8.2,
+        "total_player_load": 850.0,
+    })
+    sessions = await storage.get_gps_sessions(match_id)
+    assert sessions[0]["total_distance_m"] == 10500.0
+    assert sessions[0]["max_speed_kmh"] == 32.5
+
+@pytest.mark.asyncio
+async def test_save_gps_samples_bulk(storage):
+    match_id = await _mid(storage)
+    sid = await storage.save_gps_session(match_id, 1, "match", "catapult")
+    samples = [
+        {"timestamp": 0.0, "speed_ms": 0.0, "heart_rate": 72, "distance": 0.0},
+        {"timestamp": 0.1, "speed_ms": 2.5, "heart_rate": 75, "distance": 0.25},
+        {"timestamp": 0.2, "speed_ms": 5.0, "heart_rate": 78, "distance": 0.5},
+    ]
+    count = await storage.save_gps_samples_bulk(sid, samples)
+    assert count == 3
+
+@pytest.mark.asyncio
+async def test_get_gps_samples(storage):
+    match_id = await _mid(storage)
+    sid = await storage.save_gps_session(match_id, 1, "match", "catapult")
+    await storage.save_gps_samples_bulk(sid, [
+        {"timestamp": 0.0, "speed_ms": 0.0, "distance": 0.0},
+        {"timestamp": 0.1, "speed_ms": 2.5, "distance": 0.25},
+    ])
+    samples = await storage.get_gps_samples(sid)
+    assert len(samples) == 2
+    assert samples[0]["speed_ms"] == 0.0
+    assert samples[1]["speed_ms"] == 2.5
+
+@pytest.mark.asyncio
+async def test_get_gps_samples_empty(storage):
+    assert await storage.get_gps_samples(999) == []
+
+@pytest.mark.asyncio
+async def test_save_and_get_acwr(storage):
+    pid = 1
+    await storage.save_acwr(pid, "2026-01-01", 5000.0, 4500.0, 1.11)
+    await storage.save_acwr(pid, "2026-01-02", 5500.0, 4800.0, 1.15)
+    data = await storage.get_player_acwr(pid)
+    assert len(data) == 2
+    assert data[0]["acwr"] == 1.15
+    assert data[1]["acwr"] == 1.11
+
+@pytest.mark.asyncio
+async def test_get_acwr_limit(storage):
+    pid = 1
+    for i in range(1, 15):
+        await storage.save_acwr(pid, f"2026-01-{i:02d}", 5000.0, 4500.0, 1.11)
+    data = await storage.get_player_acwr(pid, limit=10)
+    assert len(data) == 10
+
+@pytest.mark.asyncio
+async def test_get_player_gps_summary(storage):
+    match_id = await _mid(storage)
+    await storage.save_gps_session(match_id, 1, "match", "catapult")
+    await storage.save_gps_session(match_id, 1, "training", "statsports")
+    summary = await storage.get_player_gps_summary(1)
+    assert len(summary) == 2
+
+@pytest.mark.asyncio
+async def test_gps_uninitialized_conn():
+    svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
+    assert await svc.save_gps_session(1, 1, "match", "catapult") == 0
+    assert await svc.get_gps_sessions(1) == []
+    assert await svc.get_gps_samples(1) == []
+    assert await svc.save_gps_samples_bulk(1, [{"timestamp": 0.0}]) == 0
+    assert await svc.save_acwr(1, "2026-01-01", 5000, 4500, 1.11) == 0
+    assert await svc.get_player_acwr(1) == []
+    assert await svc.get_player_gps_summary(1) == []
+
+# ─── Squad Injury Report ────────────────────────────────────────────────────
+# get_squad_injury_report() was a broken api_v1.py call (StorageService had
+# no such method -- the real logic lives on InjuryTrackerService, keyed by
+# player_profiles ids, not a match-local track_id). These tests exercise the
+# new StorageService.get_squad_injury_report() added to fix that: it
+# resolves team_id -> player_profiles ids via matches.home_team_id/
+# away_team_id + player_match_links, then delegates to InjuryTrackerService.
+
+def _create_injury_tables(storage):
+    storage._conn.executescript("""
+        CREATE TABLE IF NOT EXISTS player_match_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL, match_id INTEGER NOT NULL, track_id INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS injuries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL, match_id INTEGER, injury_type TEXT,
+            body_part TEXT, severity TEXT, mechanism TEXT, date_injured TEXT,
+            date_recovered TEXT, status TEXT, notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    storage._conn.commit()
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_no_team_matches_returns_empty_not_all_injuries(storage):
+    # A team with zero linked players must not fall through to
+    # InjuryTrackerService.get_active_injuries' own "falsy team_player_ids
+    # -> return every injury system-wide" branch -- that would leak every
+    # other team's injuries under a team that has none of its own.
+    _create_injury_tables(storage)
+    profile_id = storage._conn.execute(
+        "INSERT INTO player_profiles (display_name) VALUES ('Unrelated Player')"
+    ).lastrowid
+    storage._conn.execute(
+        "INSERT INTO injuries (player_id, injury_type, body_part, severity, status, date_injured) "
+        "VALUES (?, 'sprain', 'ankle', 'moderate', 'active', '2026-01-01')",
+        (profile_id,),
+    )
+    storage._conn.commit()
+
+    report = await storage.get_squad_injury_report(999)
+    assert report["total_active"] == 0
+    assert report["injuries"] == []
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_resolves_team_via_player_match_links(storage):
+    _create_injury_tables(storage)
+    team_id = storage._conn.execute("INSERT INTO teams (name) VALUES ('Real Madrid')").lastrowid
+    match_id = await storage.save_match("Clasico", "/v/c.mp4", "Real Madrid", "Barcelona")
+    storage._conn.execute("UPDATE matches SET home_team_id = ? WHERE id = ?", (team_id, match_id))
+    profile_id = storage._conn.execute(
+        "INSERT INTO player_profiles (display_name) VALUES ('Star Striker')"
+    ).lastrowid
+    storage._conn.execute(
+        "INSERT INTO player_match_links (player_id, match_id, track_id) VALUES (?, ?, ?)",
+        (profile_id, match_id, 9),
+    )
+    storage._conn.execute(
+        "INSERT INTO injuries (player_id, injury_type, body_part, severity, status, date_injured) "
+        "VALUES (?, 'hamstring strain', 'thigh', 'severe', 'active', '2026-01-01')",
+        (profile_id,),
+    )
+    storage._conn.commit()
+
+    report = await storage.get_squad_injury_report(team_id)
+    assert report["total_active"] == 1
+    assert report["injuries"][0]["injury_type"] == "hamstring strain"
+    assert report["by_severity"] == {"severe": 1}
+
+
+@pytest.mark.asyncio
+async def test_squad_injury_report_uninitialized_conn():
+    svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
+    report = await svc.get_squad_injury_report(1)
+    assert report["total_active"] == 0
+    assert report["injuries"] == []

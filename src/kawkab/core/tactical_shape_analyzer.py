@@ -283,8 +283,19 @@ class TacticalShapeAnalyzer:
         for ev in window_events:
             tid = ev.get("from_track_id") or ev.get("player_track_id", 0)
             if tid and tid not in seen_track_ids:
-                x = ev.get("start_x") or ev.get("x", 0.5) * PITCH_LENGTH
-                y = ev.get("start_y") or ev.get("y", 0.5) * PITCH_WIDTH
+                # ev.get("x", 0.5) does NOT fall back to 0.5 when "x" is
+                # present with value None -- and get_match_events() always
+                # includes the "x" key (via json_extract on metadata),
+                # None whenever an event has no spatial metadata. That
+                # made `None * PITCH_LENGTH` raise on any such event.
+                x = ev.get("start_x")
+                if x is None:
+                    x_frac = ev.get("x")
+                    x = (x_frac if x_frac is not None else 0.5) * PITCH_LENGTH
+                y = ev.get("start_y")
+                if y is None:
+                    y_frac = ev.get("y")
+                    y = (y_frac if y_frac is not None else 0.5) * PITCH_WIDTH
                 if isinstance(x, float) and isinstance(y, float):
                     positions.append((x, y))
                     seen_track_ids.add(tid)

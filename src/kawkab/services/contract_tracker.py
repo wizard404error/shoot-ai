@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 
 class ContractTracker:
+    _CONTRACT_COLUMNS = (
+        "id, player_profile_id, player_name, contract_type, start_date, end_date, "
+        "club_option_years, player_option_years, release_clause_millions, "
+        "wage_weekly_pounds, agent_name, notes, last_updated"
+    )
+
     def __init__(self, db_path: str | Path | None = None, conn: sqlite3.Connection | None = None) -> None:
         self._db_path = Path(db_path) if db_path else None
         self._conn: sqlite3.Connection | None = conn
@@ -24,6 +30,8 @@ class ContractTracker:
 
     def set_connection(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+
+    def add_contract(
         self,
         player_profile_id: int,
         player_name: str,
@@ -83,8 +91,8 @@ class ContractTracker:
             return []
         cursor = self.conn.cursor()
         cursor.execute(
-            """
-            SELECT * FROM player_contracts
+            f"""
+            SELECT {self._CONTRACT_COLUMNS} FROM player_contracts
             WHERE end_date BETWEEN date('now') AND date('now', '+' || ? || ' months')
             ORDER BY end_date ASC
             """,
@@ -97,7 +105,7 @@ class ContractTracker:
             return []
         cursor = self.conn.cursor()
         cursor.execute(
-            "SELECT * FROM player_contracts WHERE end_date < date('now') ORDER BY end_date DESC"
+            f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts WHERE end_date < date('now') ORDER BY end_date DESC"
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -112,8 +120,8 @@ class ContractTracker:
             season_end = f"{year}-06-30"
         cursor = self.conn.cursor()
         cursor.execute(
-            """
-            SELECT * FROM player_contracts
+            f"""
+            SELECT {self._CONTRACT_COLUMNS} FROM player_contracts
             WHERE end_date BETWEEN date('now') AND date(?)
             ORDER BY end_date ASC
             """,
@@ -153,8 +161,8 @@ class ContractTracker:
         alerts: list[dict] = []
         cursor = self.conn.cursor()
         cursor.execute(
-            """
-            SELECT * FROM player_contracts
+            f"""
+            SELECT {self._CONTRACT_COLUMNS} FROM player_contracts
             WHERE end_date BETWEEN date('now') AND date('now', '+3 months')
             ORDER BY end_date ASC
             """
@@ -168,8 +176,8 @@ class ContractTracker:
                 "end_date": row["end_date"],
             })
         cursor.execute(
-            """
-            SELECT * FROM player_contracts WHERE player_option_years > 0
+            f"""
+            SELECT {self._CONTRACT_COLUMNS} FROM player_contracts WHERE player_option_years > 0
             """
         )
         for row in cursor.fetchall():
