@@ -38,6 +38,7 @@ class HomographyMatrix:
     source: str = "manual"
     confidence: float = 0.0
     error_px: float = 0.0
+    quality_issues: list[str] = field(default_factory=list)
 
     def to_array(self) -> np.ndarray:
         """Convert to numpy array."""
@@ -109,7 +110,20 @@ class HomographyService:
 
         error = self._compute_reprojection_error(H, pixel_pts, pitch_pts)
 
-        confidence = max(0.0, min(1.0, 1.0 - (error / 100.0)))
+        # With exactly 4 point correspondences findHomography fits them
+        # exactly, so the reprojection error is ~0 even for geometrically
+        # bad corner sets (mirrored, self-intersecting, skewed). The
+        # independent geometry assessment is the honest confidence signal;
+        # the reprojection term only penalises numerical failure.
+        error_confidence = max(0.0, min(1.0, 1.0 - (error / 100.0)))
+        quality = self._assess_corner_quality(pixel_corners, pitch_length_m, pitch_width_m)
+        confidence = min(error_confidence, quality["score"])
+        if quality["issues"]:
+            logger.warning(
+                "Homography calibration quality issues: %s (confidence %.2f)",
+                "; ".join(quality["issues"]),
+                confidence,
+            )
 
         matrix = HomographyMatrix(
             matrix=H.tolist(),
@@ -118,6 +132,7 @@ class HomographyService:
             source="manual",
             confidence=confidence,
             error_px=error,
+            quality_issues=quality["issues"],
         )
 
         logger.info(
@@ -202,6 +217,7 @@ class HomographyService:
                 "source": matrix.source,
                 "confidence": matrix.confidence,
                 "error_px": matrix.error_px,
+                "quality_issues": matrix.quality_issues,
             }, f, indent=2)
 
         logger.info(f"Calibration saved: {calib_path}")
@@ -223,6 +239,7 @@ class HomographyService:
                 source=data.get("source", "unknown"),
                 confidence=data.get("confidence", 0.0),
                 error_px=data.get("error_px", 0.0),
+                quality_issues=data.get("quality_issues", []),
             )
         except Exception as e:
             logger.error(f"Failed to load calibration: {e}")
@@ -252,6 +269,7 @@ class HomographyService:
             "source": matrix.source,
             "confidence": matrix.confidence,
             "error_px": matrix.error_px,
+            "quality_issues": matrix.quality_issues,
         }
 
         with open(seg_path, "w") as f:
@@ -276,6 +294,7 @@ class HomographyService:
                     source=cal_data.get("source", "unknown"),
                     confidence=cal_data.get("confidence", 0.0),
                     error_px=cal_data.get("error_px", 0.0),
+                    quality_issues=cal_data.get("quality_issues", []),
                 )
             return result
         except Exception as e:
@@ -329,11 +348,57 @@ class HomographyService:
 
         Returns a dict with: 'is_valid', 'score' (0-1), 'issues' (list of str).
         """
+        result = self._assess_corner_quality(pixel_corners, pitch_length_m, pitch_width_m)
+        issues: list[str] = result["issues"]
+        score: float = result["score"]
+        metrics: dict[str, Any] = result["metrics"]
+        if metrics:
+            reprojection = 0.0
+            try:
+                matrix = self.compute_homography_from_corners(
+                    pixel_corners, pitch_length_m, pitch_width_m
+                )
+                src_pts = np.array(pixel_corners, dtype=np.float32)
+                dst_pts = np.array([
+                    [0, 0],
+                    [pitch_length_m, 0],
+                    [pitch_length_m, pitch_width_m],
+                    [0, pitch_width_m],
+                ], dtype=np.float32)
+                reprojection = self._compute_reprojection_error(
+                    matrix.to_array(), src_pts, dst_pts
+                )
+            except Exception as e:
+                issues.append(f"reprojection error: {e}")
+                reprojection = 999.0
+            if reprojection > 5.0:
+                issues.append(f"reprojection error {reprojection:.2f}px > 5px threshold")
+                score -= 0.2
+            metrics["reprojection_error_px"] = round(reprojection, 2)
+        score = max(0.0, score)
+        return {
+            "is_valid": len(issues) == 0,
+            "score": round(score, 2),
+            "issues": issues,
+            "metrics": metrics,
+        }
+
+    def _assess_corner_quality(
+        self,
+        pixel_corners: list[tuple[float, float]],
+        pitch_length_m: float = 105.0,
+        pitch_width_m: float = 68.0,
+    ) -> dict[str, Any]:
+        """Assess geometric quality of 4 clicked corners (no homography needed).
+
+        Returns {'score': float, 'issues': list[str], 'metrics': dict}.
+        'metrics' is empty when the corners are too degenerate to assess.
+        """
         issues: list[str] = []
         score = 1.0
         if len(pixel_corners) != 4:
             issues.append(f"need exactly 4 corners, got {len(pixel_corners)}")
-            return {"is_valid": False, "score": 0.0, "issues": issues, "metrics": {}}
+            return {"score": 0.0, "issues": issues, "metrics": {}}
         tl, tr, br, bl = pixel_corners
         widths_top = math.hypot(tr[0] - tl[0], tr[1] - tl[1])
         widths_bot = math.hypot(br[0] - bl[0], br[1] - bl[1])
@@ -341,7 +406,7 @@ class HomographyService:
         heights_right = math.hypot(br[0] - tr[0], br[1] - tr[1])
         if widths_top == 0 or widths_bot == 0 or heights_left == 0 or heights_right == 0:
             issues.append("one or more edges have zero length (degenerate)")
-            return {"is_valid": False, "score": 0.0, "issues": issues, "metrics": {}}
+            return {"score": 0.0, "issues": issues, "metrics": {}}
         aspect = ((widths_top + widths_bot) / 2) / ((heights_left + heights_right) / 2)
         expected_aspect = pitch_length_m / pitch_width_m
         aspect_error = abs(aspect - expected_aspect) / expected_aspect
@@ -359,38 +424,14 @@ class HomographyService:
         if not self._is_convex(pixel_corners):
             issues.append("corner polygon is not convex (likely self-intersecting)")
             score -= 0.3
-        reprojection = 0.0
-        try:
-            matrix = self.compute_homography_from_corners(
-                pixel_corners, pitch_length_m, pitch_width_m
-            )
-            src_pts = np.array(pixel_corners, dtype=np.float32)
-            dst_pts = np.array([
-                [0, 0],
-                [pitch_length_m, 0],
-                [pitch_length_m, pitch_width_m],
-                [0, pitch_width_m],
-            ], dtype=np.float32)
-            reprojection = self._compute_reprojection_error(
-                matrix.to_array(), src_pts, dst_pts
-            )
-        except Exception as e:
-            issues.append(f"reprojection error: {e}")
-            reprojection = 999.0
-        if reprojection > 5.0:
-            issues.append(f"reprojection error {reprojection:.2f}px > 5px threshold")
-            score -= 0.2
-        score = max(0.0, score)
         return {
-            "is_valid": len(issues) == 0,
-            "score": round(score, 2),
+            "score": score,
             "issues": issues,
             "metrics": {
                 "aspect_ratio": round(aspect, 3),
                 "expected_aspect_ratio": round(expected_aspect, 3),
                 "width_diff_ratio": round(width_diff, 3),
                 "height_diff_ratio": round(height_diff, 3),
-                "reprojection_error_px": round(reprojection, 2),
             },
         }
 
