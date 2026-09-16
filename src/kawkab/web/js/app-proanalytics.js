@@ -67,7 +67,67 @@
                 loadSeasonProReport(seasonBtn);
             });
         }
+
+        var gamePlanBtn = document.getElementById('proanalytics-gameplan-btn');
+        if (gamePlanBtn) {
+            gamePlanBtn.addEventListener('click', function() {
+                var matchSelect = document.getElementById('proanalytics-match-select');
+                var mid = parseInt(matchSelect && matchSelect.value, 10);
+                if (!mid) { showToast('Select a match first.', 'warning'); return; }
+                loadGamePlan(mid);
+            });
+        }
     };
+
+    // ── Game Plan (consumes generate_game_plan, dormant since Sprint 12+) ──
+
+    function loadGamePlan(matchId) {
+        var status = document.getElementById('proanalytics-status');
+        var content = document.getElementById('proanalytics-content');
+        if (!content) return;
+        if (typeof bridge === 'undefined' || !bridge ||
+            typeof bridge.generate_game_plan !== 'function') {
+            showToast('Bridge not available', 'error');
+            return;
+        }
+        if (status) status.textContent = 'Building game plan...';
+        content.innerHTML = '<p class="hint">Generating opposition game plan from stored match events...</p>';
+
+        bridge.generate_game_plan(matchId, 0, function(result) {
+            if (status) status.textContent = '';
+            try {
+                var data = typeof result === 'string' ? JSON.parse(result) : result;
+                if (data.error) {
+                    content.innerHTML = '<p class="error-message">' + escapeHtml(data.error) + '</p>';
+                    return;
+                }
+                var r = (data && data.result) || {};
+                var players = r.key_players_to_neutralize || [];
+                content.innerHTML =
+                    '<div class="pro-card" style="border:1px solid var(--border);border-radius:var(--radius);padding:12px">' +
+                    '<h3>📋 Game Plan' + (r.opponent ? ' — vs ' + escapeHtml(String(r.opponent)) : '') + '</h3>' +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:8px">' +
+                    planCell('📐 Formation', r.formation_recommendation) +
+                    planCell('🛡 Set Pieces', r.set_piece_plan) +
+                    planCell('🔮 Scoreline Prediction', r.scoreline_prediction) +
+                    planCell('🎯 Key Players to Neutralize', players.length ? '<ul style="margin:4px 0 0 16px">' +
+                        players.map(function(p) { return '<li>' + escapeHtml(String(p)) + '</li>'; }).join('') + '</ul>' : '') +
+                    '</div>' +
+                    '<p class="hint" style="margin-top:10px">Generated from ' +
+                    escapeHtml(String(r.opponent || 'the selected match')) + ' event profile. Review with your staff before matchday.</p>' +
+                    '</div>';
+            } catch (e) {
+                content.innerHTML = '<p class="error-message">Failed to parse game plan.</p>';
+                console.warn('game plan parse failed:', e);
+            }
+        });
+    }
+
+    function planCell(title, body) {
+        return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:8px">' +
+            '<div style="font-weight:600;margin-bottom:4px">' + title + '</div>' +
+            '<div style="font-size:0.85rem">' + (body ? body : '<span class="hint">--</span>') + '</div></div>';
+    }
 
     function loadSeasonProReport(btn) {
         var content = document.getElementById('proanalytics-content');
