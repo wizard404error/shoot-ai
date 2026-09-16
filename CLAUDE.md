@@ -1131,16 +1131,39 @@ bugs; not chased further.
     has to start with re-deriving it.
   - If you switch a deployment to `KAWKAB_DB_URL` (Postgres), do not
     assume feature parity with SQLite — check the specific methods above.
-- **22 dead nav links** in the left sidebar (xG, xT, VAEP, Charts, Heatmap,
-  Pass Network, Momentum, Transitions, Finishing, Set Pieces, Timeline,
-  Phases, Player Compare, Search, Import, Data Export, Contracts,
-  Recruitment, Shortlist, Game Plan, Settings, Tactics Report) reference
-  hash routes that were never registered in `app-router.js` and don't
-  correspond to any element in `index.html` — clicking them does nothing.
-  Flagged as a background task (see the task chip from this session) with
-  the full investigation; needs per-item UI judgment (wire as a real
-  sub-view of an existing working section vs. remove) rather than a
-  mechanical fix.
+- ~~**22 dead nav links** in the left sidebar~~ — **fixed 2026-09-16, and
+  the original diagnosis understated the severity**: the links did NOT
+  "do nothing". Sidebar navigation is handled by an inline
+  `syncSidebarClicks` handler in index.html that toggles `hidden` on
+  every `.section` whose id doesn't match the clicked link's
+  `data-section` — so clicking any of the 23 links whose target id had
+  never existed (Timeline, xG, xT, VAEP, Charts, Heatmap, Pass Network,
+  Momentum, Transitions, Finishing, Set Pieces, Phases, Tactics Report,
+  Game Plan, Compare, Shortlist, Contracts, Recruitment, Settings,
+  Search, Import, Data Export, plus a 24th, Sandbox, never counted)
+  **hid every section and blanked the whole app**. The mobile bottom
+  nav's Settings button had the same bug. Resolution per link: the 14
+  Analysis/Tactics links whose views are panels INSIDE the Results page
+  (xG/xT cards, charts, timeline sidebar, heatmap, pass network,
+  momentum, set pieces, phases, report, transitions/finishing panels)
+  now route to `results-section`; Compare → `professional-section`
+  (where the pc-* compare panel actually lives); Sandbox →
+  `results-section` (its `tactical-sandbox-section` div is embedded
+  there — it was never a `.section`); Import → `results-section`
+  (vendor-import panel); Data Export → `results-section` (export
+  buttons); Search link **removed** (global search is the always-visible
+  header box); Shortlist/Contracts/Recruitment and Settings and Game
+  Plan **removed** (no UI exists anywhere — Settings had no section, no
+  modal, no JS at all; Game Plan is backend-only
+  `generate_game_plan`); bottom-nav Settings → Calibration (a real
+  section that was previously unreachable from mobile nav).
+  `calibration-section` was wrongly on the original dead list — it is a
+  real `<section>` and worked. Regression gate:
+  `src/kawkab/web/tests/nav-integrity.test.js` fails the frontend build
+  if any `data-section` target (sidebar or bottom nav) stops resolving
+  to a real `.section`. Remaining true gaps (no UI yet, link removed
+  rather than faked): Shortlist, Contracts, Recruitment, Settings,
+  Game Plan.
 - ~~**34 frontend Jest failures**~~ — fixed (2026-07-30, same session as the
   harness fix below). All three were exactly "stale assertions against
   DOM/JS that moved on," confirmed via root-cause investigation rather than

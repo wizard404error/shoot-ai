@@ -109,24 +109,28 @@
           </div>
           <div class="nav-group">
             <span class="nav-group-title">Analysis</span>
-            <a href="#timeline-section" class="nav-item" data-section="timeline-section"><span data-i18n="navTimeline">Timeline</span></a>
-            <a href="#xg-section" class="nav-item" data-section="xg-section">xG</a>
-            <a href="#xt-section" class="nav-item" data-section="xt-section">xT</a>
-            <a href="#vaep-section" class="nav-item" data-section="vaep-section">VAEP</a>
-            <a href="#charts-section" class="nav-item" data-section="charts-section">Charts</a>
-            <a href="#heatmap-section" class="nav-item" data-section="heatmap-section">Heatmap</a>
-            <a href="#pass-network-section" class="nav-item" data-section="pass-network-section">Pass Network</a>
-            <a href="#momentum-section" class="nav-item" data-section="momentum-section">Momentum</a>
-            <a href="#transitions-section" class="nav-item" data-section="transitions-section">Transitions</a>
-            <a href="#finishing-section" class="nav-item" data-section="finishing-section">Finishing</a>
+            <!-- These views are panels INSIDE the Results page (charts, xG/xT
+                 cards, timeline sidebar, heatmap, pass network, momentum).
+                 The old links pointed at section ids that never existed, so
+                 clicking them hid every section (blank app). They now route
+                 to the section that actually hosts each view. -->
+            <a href="#results-section" class="nav-item" data-section="results-section"><span data-i18n="navTimeline">Timeline</span></a>
+            <a href="#results-section" class="nav-item" data-section="results-section">xG</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">xT</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">VAEP</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Charts</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Heatmap</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Pass Network</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Momentum</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Transitions</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Finishing</a>
           </div>
           <div class="nav-group">
             <span class="nav-group-title">Tactics</span>
             <a href="#tactics-section" class="nav-item" data-section="tactics-section">Formations</a>
-            <a href="#set-piece-section" class="nav-item" data-section="set-piece-section">Set Pieces</a>
-            <a href="#phases-section" class="nav-item" data-section="phases-section">Phases</a>
-            <a href="#tactics-report-section" class="nav-item" data-section="tactics-report-section">Report</a>
-            <a href="#game-plan-section" class="nav-item" data-section="game-plan-section">Game Plan</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Set Pieces</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Phases</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Report</a>
             <a href="#briefing-section" class="nav-item" data-section="briefing-section">Briefing</a>
             <a href="#proanalytics-section" class="nav-item" data-section="proanalytics-section">Pro Analytics</a>
           </div>
@@ -137,20 +141,17 @@
           <div class="nav-group">
             <span class="nav-group-title">Squad</span>
             <a href="#squad-section" class="nav-item" data-section="squad-section"><span data-i18n="navSquad">Squad</span></a>
-            <a href="#player-compare-section" class="nav-item" data-section="player-compare-section">Compare</a>
-            <a href="#shortlist-section" class="nav-item" data-section="shortlist-section">Shortlist</a>
-            <a href="#contracts-section" class="nav-item" data-section="contracts-section">Contracts</a>
-            <a href="#recruitment-section" class="nav-item" data-section="recruitment-section">Recruitment</a>
+            <a href="#professional-section" class="nav-item" data-section="professional-section">Compare</a>
           </div>
           <div class="nav-group">
             <span class="nav-group-title">Admin</span>
-            <a href="#settings-section" class="nav-item" data-section="settings-section"><span data-i18n="navSettings">Settings</span></a>
             <a href="#calibration-section" class="nav-item" data-section="calibration-section">Calibration</a>
-            <a href="#search-section" class="nav-item" data-section="search-section">Search</a>
-            <a href="#import-section" class="nav-item" data-section="import-section">Import</a>
-            <a href="#data-export-section" class="nav-item" data-section="data-export-section">Data</a>
+            <!-- Search removed: the global search box is permanently visible
+                 in the app header on every section. -->
+            <a href="#results-section" class="nav-item" data-section="results-section">Import</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Data</a>
             <a href="#ai-section" class="nav-item" data-section="ai-section">AI Coach</a>
-            <a href="#tactical-sandbox-section" class="nav-item" data-section="tactical-sandbox-section">Sandbox</a>
+            <a href="#results-section" class="nav-item" data-section="results-section">Sandbox</a>
           </div>
         </nav>
 
@@ -2960,9 +2961,9 @@
       <span class="bottom-nav-icon">👥</span>
       <span class="bottom-nav-label" data-i18n="navSquad">Squad</span>
     </button>
-    <button class="bottom-nav-item" data-section="settings-section" title="Settings">
-      <span class="bottom-nav-icon">⚙️</span>
-      <span class="bottom-nav-label" data-i18n="navSettings">Settings</span>
+    <button class="bottom-nav-item" data-section="calibration-section" title="Calibration">
+      <span class="bottom-nav-icon">🎯</span>
+      <span class="bottom-nav-label">Calibration</span>
     </button>
   </nav>
   <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
