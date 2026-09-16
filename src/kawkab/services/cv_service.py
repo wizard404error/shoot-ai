@@ -5,13 +5,13 @@ Handles player, ball, and referee detection + tracking.
 
 from __future__ import annotations
 
+import asyncio
+import math
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
-import asyncio
-import os
 
 import cv2
 import numpy as np
@@ -223,7 +223,9 @@ class PipelineCheckpoint:
             "track_first_px": {str(k): v for k, v in track_first_px.items()},
         }
         try:
-            import hashlib, hmac, json as _json
+            import hashlib
+            import hmac
+            import json as _json
             # HMAC sign for integrity/tamper detection (not for code-exec
             # safety -- JSON can't execute code on load regardless).
             payload = _json.dumps(state).encode("utf-8")
@@ -240,7 +242,9 @@ class PipelineCheckpoint:
     @staticmethod
     def latest(video_path: Path) -> dict | None:
         """Return checkpoint state dict if a resume is possible."""
-        import hashlib, hmac, json as _json
+        import hashlib
+        import hmac
+        import json as _json
         ckpt_dir = video_path.resolve().parent / PipelineCheckpoint._CHECKPOINT_DIR
         ckpt_file = ckpt_dir / f"{video_path.stem}.ckpt"
         if not ckpt_file.exists():
@@ -302,7 +306,13 @@ class CVService:
         model_manager=None,
         tracker_type: str = "deepocsort",
         cfg: Any = None,
-        use_track_smoother: bool = False,
+        # RTS smoothing default ON (2026-09-02): the forward-filter +
+        # backward-RTS pass removes detection jitter from validated track
+        # positions. It was off by default and never enabled by any caller,
+        # so the feature was dead code despite being fully implemented and
+        # tested. Post-hoc only (mutates nothing but valid track bboxes),
+        # wrapped in try/except -- zero risk to the pipeline.
+        use_track_smoother: bool = True,
         lightglue_service=None,
     ) -> None:
         # If a TrackingConfigRoot is provided, use its values over defaults
@@ -361,11 +371,18 @@ class CVService:
         self._ball_tracker: Any | None = None
         self._lightglue = lightglue_service
         gpu_tier = detect_gpu_tier()
-        self._use_boxmot = (
-            model_size == "auto"
-            and _BOXMOT_AVAILABLE
-            and gpu_tier in ("medium", "high", "ultra")
+        # NOTE: model_size has already been resolved from "auto" to a
+        # concrete variant (n/s/m/l/x) above, so testing model_size ==
+        # "auto" here was always False and the entire boxmot/DeepOcSort
+        # path was dead code -- the CLI's --tracker deepocsort flag was
+        # silently inert. Enable boxmot when the caller explicitly chose a
+        # boxmot tracker type, or automatically on capable GPUs.
+        _requested_boxmot = tracker_type in (
+            "deepocsort", "strongsort", "botsort", "bytetrack", "ocsort",
         )
+        self._use_boxmot = (
+            _requested_boxmot or gpu_tier in ("medium", "high", "ultra")
+        ) and _BOXMOT_AVAILABLE
 
         logger.info(
             f"CVService v2: model=yolo11{model_size}, "
@@ -440,6 +457,7 @@ class CVService:
                          "ocsort", "boosttrack". Falls back to deepocsort on unknown.
         """
         from pathlib import Path
+
         from kawkab.core.paths import get_paths
 
         if self._model_manager is not None:
@@ -549,6 +567,7 @@ class CVService:
           3. default fallback     (tiny x0_25, BoxMOT default)
         """
         import torch
+
         from kawkab.core.paths import get_paths
         gpu_ok = torch.cuda.is_available()
         sportsmot_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
@@ -660,6 +679,7 @@ class CVService:
     async def detect_frame(
         self, frame: np.ndarray, frame_number: int, timestamp: float,
         norfair_tracker: Any | None = None,
+        period: int = 1,
     ) -> FrameDetections:
         """Run detection (+ optional Norfair tracking) on a single frame.
 
@@ -671,6 +691,11 @@ class CVService:
             frame_number: Sequential frame index
             timestamp: Time in seconds from video start
             norfair_tracker: Optional NorfairTracker instance for enhanced tracking
+            period: Number of source frames between consecutive calls --
+                Norfair's motion-distance compensation for skipped frames.
+                Pass frame_skip when detect_frame() only runs on detection
+                frames; the old hardcoded period=1 made Norfair misestimate
+                motion by the frame-skip factor whenever frame_skip > 1.
 
         Returns:
             FrameDetections with all detected objects
@@ -681,20 +706,21 @@ class CVService:
         use_norfair = norfair_tracker is not None and _NORFAIR_AVAILABLE
         use_boxmot = self._boxmot_tracker is not None and not use_norfair
 
-        if use_boxmot:
+        # imgsz=1280: the preprocessing pipeline normalizes video to
+        # 1280x720, and Ultralytics' default 640px letterbox shrinks a
+        # 4-12px ball to 2-7px -- a structural ceiling on ball recall
+        # that bottlenecks every possession/pass/shot metric. Match the
+        # inference resolution to the actual input resolution.
+        if use_boxmot or use_norfair:
             results = self._model(
                 frame, conf=self.ball_confidence_threshold,
-                iou=self.iou_threshold, classes=[0, 32], verbose=False,
-            )
-        elif use_norfair:
-            results = self._model(
-                frame, conf=self.ball_confidence_threshold,
-                iou=self.iou_threshold, classes=[0, 32], verbose=False,
+                iou=self.iou_threshold, classes=[0, 32], imgsz=1280,
+                verbose=False,
             )
         else:
             results = self._model.track(
                 frame, persist=True, conf=self.ball_confidence_threshold,
-                iou=self.iou_threshold, classes=[0, 32],
+                iou=self.iou_threshold, classes=[0, 32], imgsz=1280,
                 tracker="botsort.yaml", verbose=False,
             )
 
@@ -716,18 +742,24 @@ class CVService:
                 # Initialize track IDs to -1 for all detections
                 boxes.id = torch.full((len(boxes),), -1, dtype=torch.int32)
                 if tracked is not None and len(tracked) > 0:
-                    for t in tracked:
-                        x1, y1, x2, y2, tid, conf, cls_id, *_ = t
-                        tid = int(tid)
-                        for i in range(len(boxes)):
-                            box = boxes.xyxy[i].cpu().numpy()
-                            iou = self._bbox_iou(
-                                (float(box[0]), float(box[1]), float(box[2]), float(box[3])),
-                                (float(x1), float(y1), float(x2), float(y2)),
-                            )
-                            if iou > 0.5:
-                                boxes.id[i] = tid
-                                break
+                    det_bboxes = [
+                        tuple(boxes.xyxy[i].cpu().numpy().tolist())
+                        for i in range(len(boxes))
+                    ]
+                    track_bboxes = [
+                        (float(t[0]), float(t[1]), float(t[2]), float(t[3]))
+                        for t in tracked
+                    ]
+                    track_ids = [int(t[4]) for t in tracked]
+                    # Global optimal assignment (Hungarian) instead of
+                    # greedy first-IoU-match -- greedy loses the correct
+                    # pairing in dense clusters (latent ID switches).
+                    assigned = self._assign_track_ids_optimal(
+                        det_bboxes, track_bboxes, track_ids, iou_threshold=0.3
+                    )
+                    for i, tid in enumerate(assigned):
+                        if tid is not None:
+                            boxes.id[i] = tid
 
         # Collect raw detections
         raw: list[dict[str, Any]] = []
@@ -788,23 +820,27 @@ class CVService:
                  "label": d["class_name"]}
                 for d in filtered
             ]
-            tracked = norfair_tracker.update(frame, norfair_input, period=1)
-            # Build track_id lookup by label + best IoU match
+            tracked = norfair_tracker.update(frame, norfair_input, period=max(1, int(period)))
+            # Global optimal assignment (Hungarian) per label, instead of
+            # per-detection greedy best-IoU -- greedy misassigns when two
+            # detections compete for the same track in dense clusters.
             from collections import defaultdict
             track_lookup: dict[str, list[tuple[float, int]]] = defaultdict(list)
             for t in tracked:
                 track_lookup[t["label"]].append((t["track_id"], t["bbox"]))
 
-            for d in filtered:
-                label = d["class_name"]
-                best_tid = None
-                best_iou = 0.0
-                for tid, tbbox in track_lookup.get(label, []):
-                    iou = self._bbox_iou(d["bbox"], tbbox)
-                    if iou > best_iou:
-                        best_iou = iou
-                        best_tid = tid
-                d["track_id"] = best_tid
+            for label, entries in track_lookup.items():
+                label_dets = [d for d in filtered if d["class_name"] == label]
+                if not label_dets:
+                    continue
+                assigned = self._assign_track_ids_optimal(
+                    [d["bbox"] for d in label_dets],
+                    [tb for _, tb in entries],
+                    [tid for tid, _ in entries],
+                    iou_threshold=0.3,
+                )
+                for d, tid in zip(label_dets, assigned):
+                    d["track_id"] = tid
 
         # Build Detection objects
         detections = [
@@ -872,7 +908,14 @@ class CVService:
         try:
             from kawkab.services.ball_tracker import BallDetection, BallTracker
             self._ball_tracker = BallTracker(fps=fps)
-            logger.info("Ball tracker initialized (HSV + Kalman)")
+            # update() is only called on detection frames (every frame_skip-th
+            # frame), so the Kalman time step is frame_skip/fps, not 1/fps.
+            # Without this, ball velocities/accelerations were understated
+            # by the frame-skip factor and bounce detection never fired.
+            self._ball_tracker.set_effective_dt(frame_skip / max(fps, 1.0))
+            logger.info(
+                f"Ball tracker initialized (HSV + Kalman, dt={frame_skip / max(fps, 1.0):.4f}s)"
+            )
         except Exception as e:
             logger.warning(f"Ball tracker init failed: {e}")
             self._ball_tracker = None
@@ -972,8 +1015,8 @@ class CVService:
                 # P0-B2: Auto-calibration via PitchDetector on the first processed frame
                 if frame_number == 0 and enable_team_detection:
                     try:
-                        from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
                         from kawkab.services.homography_service import HomographyService
+                        from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
 
                         pd = _PitchDetector()
                         guess = pd.detect(frame)
@@ -1006,9 +1049,18 @@ class CVService:
                         cf > prev_det_frame and cf <= frame_number
                         for cf in camera_cuts
                     )
-                    if cut_hit or (frame_number == 0 and len(camera_cuts) > 0):
+                    if cut_hit:
                         # P1.7: Don't reset tracker on cuts — let max_age handle transitions.
                         # Post-hoc track stitching merges fragments across segments.
+                        #
+                        # Segment indexing must match the consumer exactly:
+                        # seg = number of cuts at-or-before the frame. The old
+                        # `or (frame_number == 0 and len(camera_cuts) > 0)`
+                        # special case incremented current_segment to 1 at
+                        # frame 0 (which is segment 0 by the consumer's
+                        # count), shifting the whole per-segment homography
+                        # map by one -- every frame after cut N got the
+                        # previous angle's homography.
                         current_segment += 1
                         # Cache homography per camera segment (only once per angle)
                         if current_segment not in segment_homography:
@@ -1024,11 +1076,17 @@ class CVService:
                                 except Exception as e:
                                     logger.debug(f"Segment {current_segment} LightGlue auto-calibration failed: {e}")
                             if not lightglue_used:
-                                # P2.12: Try persisted per-segment calibrations second
+                                # P2.12: Try persisted per-segment calibrations second.
+                                # Note the match_id > 0 guard: the old
+                                # `is not None` check loaded match_0_segments.json
+                                # for every match-id-less caller (match_id
+                                # defaults to 0), which never exists.
                                 loaded = False
-                                if match_id is not None:
+                                if match_id:
                                     try:
-                                        from kawkab.services.homography_service import HomographyService
+                                        from kawkab.services.homography_service import (
+                                            HomographyService,
+                                        )
                                         hs = HomographyService()
                                         seg_cals = hs.load_segment_calibrations(match_id)
                                         if current_segment in seg_cals:
@@ -1039,8 +1097,12 @@ class CVService:
                                         logger.debug(f"Segment {current_segment} persisted calibration load failed: {e}")
                                 if not loaded:
                                     try:
-                                        from kawkab.services.pitch_detector import PitchDetector as _PitchDetector
-                                        from kawkab.services.homography_service import HomographyService
+                                        from kawkab.services.homography_service import (
+                                            HomographyService,
+                                        )
+                                        from kawkab.services.pitch_detector import (
+                                            PitchDetector as _PitchDetector,
+                                        )
                                         pd = _PitchDetector()
                                         guess = pd.detect(frame)
                                         if guess.confidence >= 0.15 and len(guess.corners) >= 4:
@@ -1065,6 +1127,7 @@ class CVService:
                         frame_det = await self.detect_frame(
                             frame, frame_number, timestamp,
                             norfair_tracker=norfair_tracker,
+                            period=frame_skip,
                         )
                     except Exception as e:
                         logger.error(f"detect_frame failed at frame {frame_number}: {e}", exc_info=True)
@@ -1320,7 +1383,11 @@ class CVService:
         # Post-processing: RTS Kalman track smoothing (optional)
         if self.use_track_smoother and frames:
             try:
-                smoother = TrackSmoother(dt=1.0 / fps)
+                # Track positions are sampled at DETECTION-frame cadence
+                # (every frame_skip-th source frame), so the smoother's time
+                # step is frame_skip/fps -- with dt=1/fps the smoother
+                # understated inter-sample motion by the frame-skip factor.
+                smoother = TrackSmoother(dt=frame_skip / max(fps, 1.0))
                 for tid in valid_player_tracks:
                     t_frames: list[int] = []
                     t_positions: list[tuple[float, float]] = []
@@ -1491,8 +1558,8 @@ class CVService:
         if _NORFAIR_AVAILABLE:
             try:
                 from kawkab.services.tracking_metrics import (
-                    compute_tracking_self_metrics,
                     compute_merge_map_from_switches,
+                    compute_tracking_self_metrics,
                 )
 
                 mot_metrics = compute_tracking_self_metrics(
@@ -1566,6 +1633,20 @@ class CVService:
             except Exception as e:
                 logger.warning(f"Physical metrics computation failed: {e}", exc_info=True)
 
+        # ---- Interpolate skip frames ----
+        # Skipped frames previously received VERBATIM COPIES of the previous
+        # real detection set: every player/ball frozen in place for
+        # frame_skip-1 frames, then teleporting to its next measured
+        # position. Distance/speed stats ignored the copies (is_skip_frame
+        # guards), but any consumer without the guard saw sawtooth
+        # trajectories. Linear interpolation between adjacent real frames
+        # gives skipped frames physically plausible intermediate positions.
+        if frame_skip > 1 and len(frames) >= 2:
+            try:
+                frames = self._interpolate_skip_frames(frames, frame_skip)
+            except Exception as e:
+                logger.warning(f"Skip-frame interpolation failed: {e}")
+
         # Persist tracking frames if storage_service provided
         if storage_service is not None and match_id > 0 and frames:
             try:
@@ -1633,6 +1714,79 @@ class CVService:
             match_type=match_type,
             checkpoint_manager=ckpt_mgr,
         )
+
+    @staticmethod
+    def _interpolate_skip_frames(
+        frames: list[FrameDetections], frame_skip: int
+    ) -> list[FrameDetections]:
+        """Replace frozen skip-frame copies with linear interpolation.
+
+        Skip frames (frame_number % frame_skip != 0) carry verbatim copies
+        of the previous real frame's detections. For each track id present
+        in BOTH adjacent real frames, place its detection at the linearly
+        interpolated bbox/timestamp fraction. Tracks present in only one
+        side keep the frozen copy (appear/disappear mid-gap -- cannot
+        interpolate honestly).
+        """
+        real_idx = [
+            i for i, f in enumerate(frames)
+            if f.frame_number % frame_skip == 0
+        ]
+        if len(real_idx) < 2:
+            return frames
+
+        def _det_center(d: Detection) -> tuple[float, float]:
+            return ((d.bbox[0] + d.bbox[2]) / 2.0, (d.bbox[1] + d.bbox[3]) / 2.0)
+
+        for a, b in zip(real_idx, real_idx[1:]):
+            prev_real, next_real = frames[a], frames[b]
+            fn_a, fn_b = prev_real.frame_number, next_real.frame_number
+            gap = fn_b - fn_a
+            if gap <= 1:
+                continue
+            # index detections by track id within the real frames
+            prev_by_tid = {
+                d.track_id: d for d in prev_real.detections if d.track_id is not None
+            }
+            next_by_tid = {
+                d.track_id: d for d in next_real.detections if d.track_id is not None
+            }
+            for fi in range(a + 1, b):
+                fd = frames[fi]
+                alpha = (fd.frame_number - fn_a) / gap
+                new_dets: list[Detection] = []
+                for d in fd.detections:
+                    tid = d.track_id
+                    if tid is None or tid not in prev_by_tid or tid not in next_by_tid:
+                        new_dets.append(d)  # keep frozen copy
+                        continue
+                    p, n = prev_by_tid[tid], next_by_tid[tid]
+                    # Skip implausible teleports (e.g. camera cut inside
+                    # the gap): center moved > 40% of frame diagonal.
+                    pc, nc = _det_center(p), _det_center(n)
+                    max_jump = 0.4 * math.hypot(fd.image_width, fd.image_height)
+                    if math.hypot(nc[0] - pc[0], nc[1] - pc[1]) > max_jump:
+                        new_dets.append(d)
+                        continue
+                    bbox = tuple(
+                        pv + alpha * (nv - pv)
+                        for pv, nv in zip(p.bbox, n.bbox)
+                    )
+                    new_dets.append(Detection(
+                        bbox=bbox,
+                        confidence=min(p.confidence, n.confidence),
+                        class_id=d.class_id,
+                        class_name=d.class_name,
+                        track_id=tid,
+                    ))
+                frames[fi] = FrameDetections(
+                    frame_number=fd.frame_number,
+                    timestamp=fd.timestamp,
+                    detections=new_dets,
+                    image_width=fd.image_width,
+                    image_height=fd.image_height,
+                )
+        return frames
 
     @staticmethod
     def _detect_track_stitches(
@@ -1819,6 +1973,49 @@ class CVService:
                 cur = raw_map[cur]
             resolved[discarded] = cur
         return resolved
+
+    @staticmethod
+    def _assign_track_ids_optimal(
+        det_bboxes: list[tuple[float, float, float, float]],
+        track_bboxes: list[tuple[float, float, float, float]],
+        track_ids: list[int],
+        iou_threshold: float = 0.3,
+    ) -> list[int | None]:
+        """Optimal (Hungarian) detection->track assignment by IoU.
+
+        The previous per-detection greedy loop (best-IoU-first-match-wins)
+        loses assignments in dense clusters: when two detections compete for
+        the same track, the loser can grab the wrong remaining track or none
+        at all -- a latent ID-switch source. Solving the assignment
+        globally minimizes total mis-assignment. Detections whose assigned
+        IoU falls below iou_threshold get None (new/unmatched).
+        """
+        n_dets = len(det_bboxes)
+        n_tracks = len(track_bboxes)
+        if n_dets == 0:
+            return []
+        if n_tracks == 0:
+            return [None] * n_dets
+
+        from kawkab.utils.hungarian import hungarian
+
+        # Cost = 1 - IoU (minimize). Rectangular matrices are padded by
+        # the hungarian() helper.
+        cost = np.ones((n_dets, n_tracks), dtype=np.float64)
+        for i, db in enumerate(det_bboxes):
+            for j, tb in enumerate(track_bboxes):
+                iou = CVService._bbox_iou(db, tb)
+                if iou > 0:
+                    cost[i, j] = 1.0 - iou
+
+        row_ind, col_ind, _ = hungarian(cost)
+        assigned: list[int | None] = [None] * n_dets
+        for i, j in zip(row_ind, col_ind):
+            if i >= n_dets or j >= n_tracks:
+                continue  # dummy padding
+            if cost[i, j] <= 1.0 - iou_threshold:
+                assigned[i] = track_ids[j]
+        return assigned
 
     @staticmethod
     def _bbox_iou(bbox_a: tuple[float, float, float, float],
@@ -2171,6 +2368,14 @@ class CVService:
 
         Supports auto-detection of referee (n_clusters=3):
         cluster with darkest/saturation-lowest hue → referee.
+
+        Clustering runs in CIE-LAB color space (converted from BGR via
+        OpenCV): two navy-vs-dark-blue kits that are hundreds of units
+        apart in raw BGR means can be nearly adjacent perceptually, and
+        KMeans in BGR regularly merged similar kits into one cluster
+        with 11+ members and no sanity check. LAB's euclidean distance
+        approximates human color difference, so kit separation matches
+        what a person would see.
         """
         if len(color_data) < 2:
             return {tid: 0 for tid in color_data}
@@ -2178,21 +2383,32 @@ class CVService:
         tids = list(color_data.keys())
         colors_bgr = np.array([color_data[tid]["primary_color"] for tid in tids])
 
+        # BGR -> LAB (float32, as cv2 requires)
+        lab = cv2.cvtColor(
+            colors_bgr.reshape(-1, 1, 3).astype(np.float32) / 255.0 * 255.0,
+            cv2.COLOR_BGR2LAB,
+        ).reshape(-1, 3).astype(np.float64)
+
         auto_detect_ref = n_clusters >= 3
         actual_n = min(n_clusters if not auto_detect_ref else 3, len(tids))
 
         try:
             from sklearn.cluster import KMeans
             kmeans = KMeans(n_clusters=actual_n, random_state=42, n_init=10)
-            labels = kmeans.fit_predict(colors_bgr)
+            labels = kmeans.fit_predict(lab)
             label_map: dict[int, str] = {}
 
             if actual_n >= 3:
-                centroids_bgr = kmeans.cluster_centers_.astype(int)
-                import cv2
+                # Centroids back to BGR for the referee/HSV heuristics.
+                centroids_lab = kmeans.cluster_centers_
+                centroids_bgr = cv2.cvtColor(
+                    centroids_lab.reshape(-1, 1, 3).astype(np.float32),
+                    cv2.COLOR_LAB2BGR,
+                ).reshape(-1, 3).astype(int)
+                import cv2 as _cv2
                 centroids_hsv = [
-                    cv2.cvtColor(
-                        np.uint8([[c]]), cv2.COLOR_BGR2HSV
+                    _cv2.cvtColor(
+                        np.uint8([[c]]), _cv2.COLOR_BGR2HSV
                     )[0, 0]
                     for c in centroids_bgr
                 ]
@@ -2213,9 +2429,14 @@ class CVService:
                 label_map[sorted_teams[0]] = "home"
                 label_map[sorted_teams[1]] = "away"
             else:
+                # Brightness ordering still needs BGR centroids.
+                centroids_bgr = cv2.cvtColor(
+                    kmeans.cluster_centers_.reshape(-1, 1, 3).astype(np.float32),
+                    cv2.COLOR_LAB2BGR,
+                ).reshape(-1, 3).astype(int)
                 sorted_idx = sorted(
                     range(actual_n),
-                    key=lambda i: sum(kmeans.cluster_centers_[i].astype(int)),
+                    key=lambda i: int(sum(centroids_bgr[i])),
                     reverse=True,
                 )
                 label_map[sorted_idx[0]] = "home"

@@ -109,7 +109,13 @@ class FakeCVService:
     def __init__(self, track_data):
         self._track_data = track_data
 
-    async def process_video(self, video_path, progress_callback=None, frame_skip=3, enable_team_detection=True):
+    async def process_video(self, video_path, progress_callback=None, frame_skip=3,
+                            enable_team_detection=True, checkpoint_interval=0,
+                            resume_checkpoint=None, storage_service=None, match_id=0):
+        # Signature mirrors the real CVService.process_video (which the
+        # analysis handler calls with match_id= and storage_service=).
+        # The old 4-param stub raised TypeError on every analyze_match
+        # call, silently degrading these tests to error-payload asserts.
         if progress_callback:
             await progress_callback(0.5, "Halfway")
             await progress_callback(1.0, "Done")

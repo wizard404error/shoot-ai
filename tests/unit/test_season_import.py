@@ -167,7 +167,7 @@ class TestSeasonImport:
         assert summary["imported"] == 1
         assert summary["failed"] == 1
         failed = [m for m in summary["matches"] if m["status"] == "failed"]
-        assert failed and "broken.json" == failed[0]["file"]
+        assert failed and failed[0]["file"] == "broken.json"
 
     @pytest.mark.asyncio
     async def test_max_matches_caps_eligible_imports(self, storage, tmp_path):
@@ -246,7 +246,6 @@ class TestSeasonImport:
 class TestExternalIdStorage:
     @pytest.mark.asyncio
     async def test_register_round_trip_and_duplicate_detection(self, storage):
-        from kawkab.services.storage_service import StorageService
 
         match_id = await storage.save_match("t", "")
         assert await storage.register_match_external_id(

@@ -28,7 +28,21 @@ class TrackingMixin:
         max_speed_per_player: dict[int, float] = {}
 
         fps = track_data.fps
-        pixels_per_meter = 720.0 / self.pitch_width
+        # Uncalibrated-distance approximation. The old 720.0/self.pitch_width
+        # constant assumed 720p frames with the pitch spanning the full frame
+        # height -- wrong by ~1.5x on 1080p sources (and more on zoomed shots).
+        # Derive the scale from the actual frame height when frames carry it;
+        # otherwise fall back to the project-wide CARRY_PIXEL_TO_METER_RATIO.
+        from kawkab.core.game_constants import GAME
+
+        _frame_h = next(
+            (f.image_height for f in track_data.frames if getattr(f, "image_height", 0)),
+            0,
+        )
+        if _frame_h:
+            pixels_per_meter = _frame_h / self.pitch_width
+        else:
+            pixels_per_meter = 1.0 / GAME.CARRY_PIXEL_TO_METER_RATIO
 
         # Read merge map from tracking_metrics if available and not explicitly provided
         if track_merge_map is None:
@@ -242,17 +256,10 @@ class TrackingMixin:
                             (team_players if team == "home" else opp_players).append(det)
                         elif assigned == "away":
                             (team_players if team == "away" else opp_players).append(det)
-                    else:
-                        if team == "home":
-                            if det.track_id % 2 == 0:
-                                team_players.append(det)
-                            else:
-                                opp_players.append(det)
-                        else:
-                            if det.track_id % 2 != 0:
-                                team_players.append(det)
-                            else:
-                                opp_players.append(det)
+                    # No team assignment: skip this player rather than
+                    # inventing one from track-ID parity (tid % 2 has no
+                    # relation to team membership and silently corrupted
+                    # PPDA/formation stats).
 
             if ball_det is None or not team_players or not opp_players:
                 continue
@@ -288,17 +295,12 @@ class TrackingMixin:
             current_possessor_track_id = closest_team_player.track_id
 
             if team == "home":
-                if track_data.player_teams:
-                    if track_data.player_teams.get(current_possessor_track_id) == "home":
-                        team_possession_frames += 1
-                    else:
-                        opp_possession_frames += 1
-                elif current_possessor_track_id % 2 == 0:
+                if track_data.player_teams.get(current_possessor_track_id) == "home":
                     team_possession_frames += 1
                 else:
                     opp_possession_frames += 1
             else:
-                if current_possessor_track_id % 2 != 0:
+                if track_data.player_teams.get(current_possessor_track_id) == "away":
                     team_possession_frames += 1
                 else:
                     opp_possession_frames += 1
@@ -378,12 +380,11 @@ class TrackingMixin:
                     if team == "away" and assigned != "away":
                         continue
                 else:
-                    if team == "home":
-                        if det.track_id % 2 != 0:
-                            continue
-                    else:
-                        if det.track_id % 2 == 0:
-                            continue
+                    # No team assignment: this detection carries no reliable
+                    # team evidence. The old tid%2 parity split fabricated
+                    # half a formation out of arbitrary track IDs; skipping
+                    # yields an honest "formation unknown" instead.
+                    continue
                 x1, y1, x2, y2 = det.bbox
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2

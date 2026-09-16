@@ -33,6 +33,7 @@ from typing import Any
 
 from kawkab.core.validation.statsbomb_loader import (
     sb_to_meters,
+    shot_deviation_angle,
     shot_distance_angle,
 )
 from kawkab.core.xg_model import active_xg_model
@@ -306,14 +307,23 @@ class StatsBombImportService:
             meta["statsbomb_xg"] = float(shot.get("statsbomb_xg", 0.0) or 0.0)
             if start_x_m is not None and start_y_m is not None:
                 distance_m, angle_deg = shot_distance_angle(start_x_m, start_y_m)
+                # Two angle conventions on purpose (2026-09-16):
+                #   angle_deg         = goal-OPENING angle  -> PSxG serving model
+                #   angle_deviation_deg = deviation-from-central -> xG serving model
+                # The xG model's (1 - cos(angle)) feature is calibrated for the
+                # deviation convention; feeding it the opening angle trained/
+                # scored every angle term backwards (see
+                # statsbomb_loader.shot_deviation_angle).
+                angle_deviation_deg = shot_deviation_angle(start_x_m, start_y_m)
                 meta["distance_m"] = round(distance_m, 2)
                 meta["angle_deg"] = round(angle_deg, 2)
+                meta["angle_deviation_deg"] = round(angle_deviation_deg, 2)
                 body = (shot.get("body_part") or {}).get("name", "Right Foot")
                 shot_type = (shot.get("type") or {}).get("name", "Open Play")
                 meta["xg"] = round(self._xg_model.compute({
                     "type": "shot",
                     "distance_m": distance_m,
-                    "angle_deg": angle_deg,
+                    "angle_deg": angle_deviation_deg,
                     "body_part": {"Right Foot": "right_foot", "Left Foot": "left_foot",
                                   "Head": "head"}.get(body, "right_foot"),
                     "shot_type": {"Open Play": "open_play", "Free Kick": "free_kick",

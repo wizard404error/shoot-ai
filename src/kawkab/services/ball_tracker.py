@@ -10,6 +10,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -99,7 +100,7 @@ def _detect_yolo(model: Any, frame: np.ndarray) -> dict | None:
     try:
         results = model(
             frame, conf=YOLO_CONF_THRESHOLD, iou=YOLO_IOU_THRESHOLD,
-            classes=[32], verbose=False,
+            classes=[32], imgsz=1280, verbose=False,
         )
         if not results or len(results) == 0:
             return None
@@ -163,6 +164,14 @@ class BallTracker:
     def __init__(self, fps: float = 24.0, model_path: str | Path | None = None):
         self.fps = fps
         self.dt = 1.0 / max(fps, 1)
+        # Effective dt between consecutive update() calls. CVService only
+        # calls update() on detection frames (every frame_skip-th frame),
+        # so the *real* time step is frame_skip/fps. The Kalman filter's
+        # velocities/accelerations (and bounce detection, which thresholds
+        # on |vy| > 2.0 px/frame-step) are all per-dt; a dt that is
+        # frame_skip times too small understates ball speed by the same
+        # factor and silently disables bounce detection at frame_skip >= 2.
+        self._dt_override: float | None = None
 
         # 8-state Kalman: [x, y, r, vx, vy, vr, ax, ay]
         self.kalman = cv2.KalmanFilter(8, 3)
@@ -237,9 +246,12 @@ class BallTracker:
         meas = np.array([[best["x"]], [best["y"]], [best["radius"]]], dtype=np.float32)
 
         if not self.initialized:
-            self.kalman.statePost = np.array([
-                best["x"], best["y"], best["radius"], 0, 0, 0, 0, 0,
-            ], dtype=np.float32)
+            # Column vector (8, 1) -- a 1-D assignment happened to work on
+            # OpenCV 4 but raises a gemm shape assertion on OpenCV 5+.
+            self.kalman.statePost = np.array(
+                [[best["x"]], [best["y"]], [best["radius"]], [0], [0], [0], [0], [0]],
+                dtype=np.float32,
+            )
             self.kalman.errorCovPost = np.eye(8, dtype=np.float32)
             self.initialized = True
             self.confidence = best["confidence"]
@@ -283,6 +295,23 @@ class BallTracker:
             is_prediction=True, radius=float(pred[2]),
         )
 
+    def set_effective_dt(self, dt: float) -> None:
+        """Set the real time step between consecutive update() calls.
+
+        Use when update() is not called on every video frame (e.g. CVService
+        calls it every frame_skip-th frame). Re-initializes the Kalman
+        transition model with the correct dt so velocities and bounce
+        detection are estimated in consistent units. Safe to call before
+        or during tracking; existing trail/history stays valid.
+        """
+        if dt <= 0:
+            return
+        self._dt_override = dt
+        self._init_kalman(dt)
+
+    def _current_dt(self) -> float:
+        return self._dt_override if self._dt_override is not None else self.dt
+
     def update(self, frame: np.ndarray, frame_number: int, timestamp: float) -> BallDetection | None:
         """Process a new frame: YOLO -> HSV fallback -> Kalman prediction.
 
@@ -301,12 +330,40 @@ class BallTracker:
         if best is None:
             candidates = _find_hsv_candidates(frame)
             if candidates:
-                c = candidates[0]
-                circularity = c.get("circularity", 0.5)
-                best = {
-                    "x": c["x"], "y": c["y"], "radius": c["radius"],
-                    "confidence": 0.3 + circularity * 0.4,
-                }
+                # HSV conf must stay strictly BELOW the 0.3 recording gate
+                # (CVService records ball detections at conf > 0.3). The old
+                # formula (0.3 + circularity * 0.4) was >= 0.3 by
+                # construction, so every white/dark circular blob -- pitch
+                # lines, boots, socks -- passed the gate while marginal true
+                # YOLO detections were dropped. Only high-circularity,
+                # motion-consistent candidates are considered at all.
+                def _hsv_conf(cand: dict) -> float:
+                    circularity = cand.get("circularity", 0.5)
+                    return min(0.1 + (circularity - BALL_CIRCULARITY_MIN) * 0.5, 0.29)
+
+                if self.initialized:
+                    # Motion-consistency gate: only accept a candidate within
+                    # a loose radius of the Kalman prediction (~5x typical
+                    # per-step ball travel). A white line blob far from the
+                    # predicted ball position is noise, not the ball.
+                    pred = self.kalman.statePost.ravel()
+                    max_dist = max(40.0, 400.0 * self._current_dt())
+                    chosen = next(
+                        (
+                            c for c in candidates
+                            if math.hypot(c["x"] - float(pred[0]), c["y"] - float(pred[1])) <= max_dist
+                        ),
+                        None,
+                    )
+                else:
+                    # No track yet: take the best (most circular) candidate.
+                    chosen = candidates[0]
+
+                if chosen is not None:
+                    best = {
+                        "x": chosen["x"], "y": chosen["y"], "radius": chosen["radius"],
+                        "confidence": _hsv_conf(chosen),
+                    }
 
         if best is not None:
             self._current_mode = "yolo" if self._use_yolo and best.get("raw_conf", 0) > 0 else "hsv"
@@ -326,7 +383,7 @@ class BallTracker:
     def predict(self) -> BallDetection | None:
         """Advance Kalman without a measurement frame."""
         self._current_mode = "prediction"
-        return self._prediction_update(self.last_frame + 1, self.last_timestamp + self.dt)
+        return self._prediction_update(self.last_frame + 1, self.last_timestamp + self._current_dt())
 
     def reset(self):
         self.initialized = False

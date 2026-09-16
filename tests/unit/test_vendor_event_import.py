@@ -147,7 +147,6 @@ class TestOptaImport:
         svc = VendorEventImportService(storage)
         summary = aio(svc.import_opta_f24(f24, f7))
         events = aio(storage.get_match_events(summary["match_id"], limit=500))
-        import json as _json
         shots = [e for e in events
                  if (e["event_type"] if isinstance(e, dict) else e.get("event_type")) == "shot"
                  or _safe_meta(e).get("is_goal")]

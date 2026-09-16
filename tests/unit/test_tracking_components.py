@@ -96,7 +96,14 @@ class TestBallTracker:
         assert det.timestamp == 0.0
         assert det.x == 100.0
         assert det.y == 50.0
-        assert det.conf == pytest.approx(0.64)
+        # HSV-fallback confidence: 0.1 + (circularity - 0.6) * 0.5 = 0.225 for
+        # circularity 0.85, and MUST stay below the 0.3 recording gate
+        # (CVService records ball detections at conf > 0.3). The old formula
+        # (0.3 + circularity * 0.4 = 0.64) crossed the gate by construction,
+        # letting every white blob through while marginal true YOLO
+        # detections were dropped.
+        assert det.conf == pytest.approx(0.225)
+        assert det.conf < 0.3
         assert det.is_prediction is False
         assert tracker.initialized is True
 

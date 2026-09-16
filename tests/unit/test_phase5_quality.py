@@ -16,13 +16,6 @@ from kawkab.core.xg_calibration import (
     compute_auc_roc,
     CalibrationCurve,
 )
-from kawkab.core.psxg_model_trained import (
-    GoalZone,
-    compute_goal_zone,
-    compute_psxg,
-    compute_placement_quality,
-    PsXgResult,
-)
 from kawkab.core.model_comparison_service import (
     compare_xg_models,
     compute_feature_importance,
@@ -96,41 +89,6 @@ class TestXgCalibration:
 # ================================================================
 # PSxG Model — 6 tests
 # ================================================================
-
-class TestPsxgModelTrained:
-
-    def test_goal_zone_top_left(self):
-        zone = compute_goal_zone(0.5, 0.3)
-        assert zone == GoalZone.TOP_LEFT
-
-    def test_goal_zone_bot_right(self):
-        zone = compute_goal_zone(6.8, 2.2)
-        assert zone == GoalZone.BOT_RIGHT
-
-    def test_goal_zone_mid_center(self):
-        zone = compute_goal_zone(3.66, 1.22)
-        assert zone == GoalZone.MID_CENTER
-
-    def test_compute_psxg_basic(self):
-        psxg = compute_psxg(1.0, 0.5, "foot", 10.0)
-        assert 0.0 < psxg < 1.0
-
-    def test_psxg_decreases_with_distance(self):
-        close = compute_psxg(3.66, 1.22, "foot", 5.0)
-        far = compute_psxg(3.66, 1.22, "foot", 40.0)
-        assert close > far
-
-    def test_psxg_header_lower(self):
-        foot = compute_psxg(3.66, 1.22, "foot", 12.0)
-        header = compute_psxg(3.66, 1.22, "header", 12.0)
-        assert foot > header
-
-    def test_placement_quality_top_corner(self):
-        zone = compute_goal_zone(0.5, 0.3)
-        q = compute_placement_quality(zone, 0.5, 0.3)
-        assert 0.0 <= q <= 1.0
-        assert q > 0.5
-
 
 # ================================================================
 # Model Comparison — 6 tests

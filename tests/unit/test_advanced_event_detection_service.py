@@ -145,19 +145,26 @@ class TestAdvancedEventDetectionService:
     @pytest.mark.asyncio
     async def test_detect_dribbles_single_player_chain(self, ae_mod):
         svc = self._svc(ae_mod)
-        # Ball detection must come FIRST so person detection sees ball_det
+        # Ball detection must come FIRST so person detection sees ball_det.
+        # Uncalibrated pixel positions are approximated to meters with
+        # CARRY_PIXEL_TO_METER_RATIO (0.015 m/px), so the ball must move
+        # ~1m-equivalent (>= ~67 px over the chain) to clear the 1.0m
+        # dribble threshold. The old version of this test moved the ball
+        # 20 px total and still passed only because raw pixels were
+        # compared against the meter threshold directly (a "dribble" of
+        # 20 meters from 20 pixels of movement).
         frames = [
             _frame(1, 0.0, [
                 _det((5, 5, 15, 15), track_id=2, class_name="sports ball"),
                 _det((0, 0, 10, 10), track_id=1),
             ]),
             _frame(2, 0.1, [
-                _det((15, 5, 25, 15), track_id=2, class_name="sports ball"),
-                _det((1, 0, 11, 10), track_id=1),
+                _det((45, 5, 55, 15), track_id=2, class_name="sports ball"),
+                _det((40, 0, 50, 10), track_id=1),
             ]),
             _frame(3, 0.2, [
-                _det((25, 5, 35, 15), track_id=2, class_name="sports ball"),
-                _det((2, 0, 12, 10), track_id=1),
+                _det((85, 5, 95, 15), track_id=2, class_name="sports ball"),
+                _det((80, 0, 90, 10), track_id=1),
             ]),
         ]
         td = _td(frames, player_teams={1: "home", 2: "unknown"})
@@ -166,6 +173,8 @@ class TestAdvancedEventDetectionService:
         assert len(dribbles) == 1
         assert dribbles[0]["track_id"] == 1
         assert dribbles[0]["distance_m"] > 0
+        # 80 px * 0.015 m/px = 1.2m -- reported as meters, not pixels.
+        assert 0.5 < dribbles[0]["distance_m"] < 5.0
 
     @pytest.mark.asyncio
     async def test_detect_dribbles_too_few_frames(self, ae_mod):

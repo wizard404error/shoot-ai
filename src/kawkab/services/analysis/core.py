@@ -405,7 +405,14 @@ class AnalysisServiceCore:
                 return math.sqrt((ox_m - sx_m) ** 2 + (oy_m - sy_m) ** 2)
             except Exception:
                 pass
-        return math.sqrt((ox - sx) ** 2 + (oy - sy) ** 2)
+        # Uncalibrated: approximate with the project-wide pixel->meter
+        # ratio rather than returning the raw pixel distance mislabeled
+        # as meters (the old behavior fed pixel distances into meter
+        # thresholds like the 2m "is_pressed" check unchanged).
+        from kawkab.core.game_constants import GAME
+
+        px_dist = math.sqrt((ox - sx) ** 2 + (oy - sy) ** 2)
+        return px_dist * GAME.CARRY_PIXEL_TO_METER_RATIO
 
     def _infer_pressure_on_events(self, track_data, typed_events, homography_matrix=None) -> None:
         if not track_data.frames or not track_data.player_teams:
@@ -600,11 +607,10 @@ class AnalysisServiceCore:
                             home_pos.append((cx, cy))
                         elif team == "away":
                             away_pos.append((cx, cy))
-                    else:
-                        if det.track_id % 2 == 0:
-                            home_pos.append((cx, cy))
-                        else:
-                            away_pos.append((cx, cy))
+                    # No team assignment: the old tid%2 parity split assigned
+                    # players to teams arbitrarily. Omit them -- Voronoi
+                    # control with fewer, honest players beats control with
+                    # half the players on the wrong teams.
 
             frame_data.append({
                 "timestamp": frame.timestamp,
@@ -725,6 +731,8 @@ class AnalysisServiceCore:
     def _detect_events(self, track_data, homography_matrix=None) -> list[dict]:
         events: list[dict] = []
         prev_possession: int | None = None
+        pending_possession: int | None = None  # candidate awaiting confirmation
+        pending_possession_frame: int | None = None
         ball_track_id: int | None = None
         frames_since_shot: int = 999
 
@@ -733,11 +741,38 @@ class AnalysisServiceCore:
         shot_speed_threshold_mps = 8.0
         goal_proximity_m = 20.0
         shot_cooldown_frames = 15
+        # Possession-flip stability: a new possessor must hold the ball for
+        # 2 consecutive real frames before the flip (and its pass) is
+        # trusted. Enforced below via the pending_possession candidate's
+        # frame gap (<= 3 frame numbers apart with frame_skip copies
+        # excluded counts as consecutive).
+        pass_completion_window = 10  # frames of look-ahead used to judge pass completion
+
+        # Skipped frames are filled with verbatim copies of the last real
+        # detection set by CVService. Re-evaluating ball possession on those
+        # frozen copies double-counts whatever the previous real frame saw and
+        # cannot add new information -- skip them entirely (same guard the
+        # stats path in analysis/tracking.py already uses).
+        _metrics = getattr(track_data, "tracking_metrics", None)
+        frame_skip = 1
+        if isinstance(_metrics, dict):
+            try:
+                frame_skip = max(1, int(_metrics.get("frame_skip", 1)))
+            except (TypeError, ValueError):
+                frame_skip = 1
 
         ball_history: list[tuple[float, float, float, float | None, float | None]] = []
         possession_ball_positions: dict[int, tuple[float, float]] = {}
 
+        # Pending passes awaiting completion verdicts:
+        # (timestamp, frame_number, passer, receiver, pass_index_in_events)
+        pending_passes: list[tuple[float, int, int | None, int | None, int]] = []
+
         for frame in track_data.frames:
+            # Frozen skip-frame copies carry no new information (see above).
+            if frame_skip > 1 and frame.frame_number % frame_skip != 0:
+                continue
+
             ball_det = None
             player_dets = []
 
@@ -825,15 +860,15 @@ class AnalysisServiceCore:
 
                     if is_shot:
                         frames_since_shot = 0
+                        # Team attribution: only report a real team. The old
+                        # tid % 2 parity fallback invented a 50/50 team split
+                        # that had no relation to actual team membership and
+                        # silently corrupted team-split shot/xG stats.
                         shot_team = "unknown"
                         if track_data.player_teams:
                             shot_team = track_data.player_teams.get(tid, "unknown")
                             if shot_team == "unknown" and prev_possession is not None:
                                 shot_team = track_data.player_teams.get(prev_possession, "unknown")
-                            if shot_team == "unknown":
-                                shot_team = "home" if tid % 2 == 0 else "away"
-                        else:
-                            shot_team = "home" if tid % 2 == 0 else "away"
 
                         shot_metadata = {}
                         on_target = False
@@ -887,40 +922,129 @@ class AnalysisServiceCore:
             if closest_player is None or closest_player.track_id is None:
                 continue
 
-            if (
+            tid_now = closest_player.track_id
+
+            if tid_now == prev_possession:
+                # Same possessor retains the ball; any pending flip
+                # candidate was single-frame jitter -- drop it.
+                pending_possession = None
+                pending_possession_frame = None
+            elif (
                 prev_possession is not None
-                and closest_player.track_id != prev_possession
                 and closest_dist < player_proximity_threshold
             ):
-                if track_data.player_teams:
-                    team = track_data.player_teams.get(
-                        closest_player.track_id, "unknown"
+                # Candidate new possessor actually near the ball.
+                if (
+                    pending_possession == tid_now
+                    and pending_possession_frame is not None
+                    and frame.frame_number - pending_possession_frame <= 3
+                ):
+                    # Confirmed: new possessor held the ball 2 frames in a row.
+                    if track_data.player_teams:
+                        team = track_data.player_teams.get(tid_now, "unknown")
+                        from_team = track_data.player_teams.get(prev_possession, "unknown")
+                    else:
+                        # No team assignment exists at all -- an honest
+                        # "unknown" beats the old tid%2 parity invention,
+                        # which split teams arbitrarily and corrupted every
+                        # downstream team-split stat.
+                        team = "unknown"
+                        from_team = "unknown"
+
+                    start_ball = possession_ball_positions.get(prev_possession, (bx, by))
+                    fw = frame.image_width or 1
+                    fh = frame.image_height or 1
+                    pass_metadata = {
+                        "start_x_pct": round(start_ball[0] / fw, 4),
+                        "start_y_pct": round(start_ball[1] / fh, 4),
+                        "end_x_pct": round(bx / fw, 4),
+                        "end_y_pct": round(by / fh, 4),
+                    }
+
+                    # Completion semantics: a possession flip straight to an
+                    # OPPOSING player is not a completed pass -- the ball was
+                    # won/intercepted. Mark it incomplete immediately so the
+                    # tackle/interception/high-turnover detectors downstream
+                    # can fire (they all key on completed=False).
+                    flip_to_opponent = (
+                        track_data.player_teams
+                        and from_team != "unknown"
+                        and team != "unknown"
+                        and from_team != team
                     )
-                else:
-                    team = "home" if prev_possession % 2 == 0 else "away"
+                    events.append({
+                        "type": "pass",
+                        "timestamp": frame.timestamp,
+                        "from_track_id": prev_possession,
+                        "to_track_id": tid_now,
+                        "completed": not flip_to_opponent,
+                        "team": team,
+                        "confidence": min(1.0, 1.0 - closest_dist / 200),
+                        "metadata": pass_metadata,
+                    })
+                    if flip_to_opponent:
+                        events[-1]["metadata"]["outcome"] = "lost_to_opponent"
+                    pending_passes.append(
+                        (
+                            frame.timestamp,
+                            frame.frame_number,
+                            prev_possession,
+                            tid_now,
+                            len(events) - 1,
+                        )
+                    )
+                    prev_possession = tid_now
+                    pending_possession = None
+                    pending_possession_frame = None
+                elif pending_possession != tid_now:
+                    # New (or third-player) candidate: start/restart pending.
+                    pending_possession = tid_now
+                    pending_possession_frame = frame.frame_number
+                # else: same candidate still waiting within the window.
+            elif prev_possession is None:
+                # First possessor of the match -- nothing to pass from.
+                prev_possession = tid_now
+            # else: ball far from every player (in flight / loose) -- keep the
+            # last possessor until someone re-establishes proximity.
 
-                start_ball = possession_ball_positions.get(prev_possession, (bx, by))
-                fw = frame.image_width or 1
-                fh = frame.image_height or 1
-                pass_metadata = {
-                    "start_x_pct": round(start_ball[0] / fw, 4),
-                    "start_y_pct": round(start_ball[1] / fh, 4),
-                    "end_x_pct": round(bx / fw, 4),
-                    "end_y_pct": round(by / fh, 4),
-                }
-
-                events.append({
-                    "type": "pass",
-                    "timestamp": frame.timestamp,
-                    "from_track_id": prev_possession,
-                    "to_track_id": closest_player.track_id,
-                    "completed": True,
-                    "team": team,
-                    "confidence": min(1.0, 1.0 - closest_dist / 200),
-                    "metadata": pass_metadata,
-                })
-
-            prev_possession = closest_player.track_id
+            # ---- Pass completion look-ahead ----
+            # Decide completion of recently-emitted passes: watch the next
+            # pass_completion_window frames of possession. Receiver keeps the
+            # ball -> completed. Possession moves straight to the other team
+            # -> intercepted (completed=False, feeds the tackle detector).
+            if pending_passes:
+                still_open: list[tuple[float, int, int | None, int | None, int]] = []
+                for p in pending_passes:
+                    pts, pfno, passer, receiver, eidx = p
+                    if frame.frame_number - pfno > pass_completion_window:
+                        # Window elapsed with the receiver (apparently)
+                        # retaining possession -- leave completed as-is.
+                        continue
+                    if tid_now == receiver:
+                        # Receiver confirmed in possession.
+                        continue
+                    cur_team = (
+                        track_data.player_teams.get(tid_now, "unknown")
+                        if track_data.player_teams else "unknown"
+                    )
+                    rcv_team = (
+                        track_data.player_teams.get(receiver, "unknown")
+                        if track_data.player_teams else "unknown"
+                    )
+                    if (
+                        receiver is not None
+                        and tid_now != receiver
+                        and cur_team != rcv_team
+                        and cur_team != "unknown"
+                        and rcv_team != "unknown"
+                    ):
+                        # A different player from a DIFFERENT team took the
+                        # ball before the receiver settled it: interception.
+                        events[eidx]["completed"] = False
+                        events[eidx]["metadata"]["outcome"] = "intercepted"
+                    # else: keep waiting; ball may just be in flight.
+                    still_open.append(p)
+                pending_passes = still_open
 
         return events
 
@@ -944,7 +1068,22 @@ class AnalysisServiceCore:
         unknown_frames = 0
         use_player_teams = bool(track_data.player_teams)
 
+        # Frozen skip-frame copies duplicate the previous real frame's
+        # detections verbatim -- counting them would multiply whatever team
+        # held the ball there by the frame-skip factor. Only real detection
+        # frames should count toward possession.
+        _metrics = getattr(track_data, "tracking_metrics", None)
+        frame_skip = 1
+        if isinstance(_metrics, dict):
+            try:
+                frame_skip = max(1, int(_metrics.get("frame_skip", 1)))
+            except (TypeError, ValueError):
+                frame_skip = 1
+
         for frame in track_data.frames:
+            if frame_skip > 1 and frame.frame_number % frame_skip != 0:
+                continue
+
             ball_det = None
             player_dets = []
 
@@ -971,6 +1110,15 @@ class AnalysisServiceCore:
                     closest = p
 
             if closest and closest.track_id is not None:
+                # Possession attribution cap: the old rule attributed the
+                # ball to the nearest player no matter how far away --
+                # a ball 500px from everyone still "belonged" to someone.
+                # Beyond this radius the ball is contested/in flight;
+                # count the frame as unknown rather than fabricating
+                # possession. ~150px at 720p is roughly 2.5m of pitch.
+                if closest_dist > 150.0:
+                    unknown_frames += 1
+                    continue
                 if use_player_teams:
                     team = track_data.player_teams.get(closest.track_id)
                     if team == "home":
@@ -979,15 +1127,17 @@ class AnalysisServiceCore:
                         away_frames += 1
                     else:
                         unknown_frames += 1
-                else:
-                    if closest.track_id % 2 == 0:
-                        home_frames += 1
-                    else:
-                        away_frames += 1
+                # No team assignment at all: the old tid%2 parity split
+                # fabricated a 50/50 possession number from track IDs that
+                # have no relation to team membership. Leave both counters
+                # untouched and report honestly below instead.
 
         total = home_frames + away_frames
         if total == 0:
-            return {"home": 50.0, "away": 50.0}
+            # No team-attributable possession evidence exists. Returning the
+            # old hardcoded 50/50 here presented a fabricated number as a
+            # measurement; report zero-information honestly instead.
+            return {"home": 0.0, "away": 0.0, "unknown": 100.0}
 
         return {
             "home": (home_frames / total) * 100,

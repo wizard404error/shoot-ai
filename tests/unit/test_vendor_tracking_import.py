@@ -217,7 +217,7 @@ class TestTrackingDataQuality:
                 {"track_id": 1, "x": ((10.0 + i) / 105.0) * 2 - 1, "y": (30.0 / 68.0) * 2 - 1},
             ]
             if i == 3:
-                players.append({"track_id": 2, "x": ((500.0 / 105.0)) * 2 - 1, "y": ((-900.0 / 68.0)) * 2 - 1})
+                players.append({"track_id": 2, "x": (500.0 / 105.0) * 2 - 1, "y": (-900.0 / 68.0) * 2 - 1})
             else:
                 players.append({"track_id": 2, "x": ((20.0 + i) / 105.0) * 2 - 1, "y": (40.0 / 68.0) * 2 - 1})
             data["frames"].append({

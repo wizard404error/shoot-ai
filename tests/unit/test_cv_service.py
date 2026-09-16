@@ -112,7 +112,7 @@ def _make_track_schedule(schedule: dict[int, list[int]], bbox_map: dict[int, tup
                   (cx = 10 + tid*60) to avoid false stitching by P0-A1.
     """
     def _factory(cv_mod):
-        async def _detect(frame, frame_number, timestamp, norfair_tracker=None):
+        async def _detect(frame, frame_number, timestamp, norfair_tracker=None, period=1):
             dets = []
             for tid, frames in schedule.items():
                 if frame_number in frames:
@@ -365,9 +365,19 @@ class TestClusterTeamColors:
         )
         mock_kmeans.return_value = mock_km
 
-        mock_cvt.side_effect = (
-            lambda img, code: np.array([[[0, 20, 80]]], dtype=np.uint8)
-        )
+        # Shape-preserving cvtColor stub: the LAB clustering path converts
+        # BOTH the per-track colors (N,1,3) and the cluster centroids
+        # (K,1,3); the old fixed-shape mock broke the centroid conversion.
+        # Pass-through with a fixed BGR->HSV-style mapping per row keeps the
+        # referee (low saturation) heuristic deterministic.
+        def _cvt(img, code):
+            arr = np.asarray(img, dtype=np.float32)
+            out = arr.reshape(-1, 3).copy()
+            # deterministic transform: keep first channel low (low "sat")
+            out[:, 1] = out[:, 1] * 0.2
+            return out.reshape(arr.shape)
+
+        mock_cvt.side_effect = _cvt
         service = cv_mod.CVService(model_size="n")
         service._initialized = True
         data = {

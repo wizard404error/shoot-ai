@@ -307,7 +307,10 @@ class TestCoreAnalysis:
     # -- _pixel_dist_to_meters --
 
     def test_pixel_dist_no_homography(self, svc):
-        assert svc._pixel_dist_to_meters(0, 0, 3, 4, None) == 5.0
+        # Without calibration, pixels are approximated to meters with
+        # CARRY_PIXEL_TO_METER_RATIO (0.015), NOT returned raw -- raw pixel
+        # distances fed the 2m "is_pressed" threshold as if they were meters.
+        assert svc._pixel_dist_to_meters(0, 0, 3, 4, None) == pytest.approx(5.0 * 0.015)
 
     def test_pixel_dist_with_homography(self, svc):
         h = MagicMock()
@@ -320,7 +323,10 @@ class TestCoreAnalysis:
         h = MagicMock()
         h.pixel_to_pitch.side_effect = ValueError("bad")
         d = svc._pixel_dist_to_meters(0, 0, 3, 4, h)
-        assert d == 5.0
+        # Conversion failed mid-match: fall back to the pixel->meter
+        # approximation, not raw pixels (a "nearest defender distance" of
+        # 5 "meters" for a 5-pixel gap made the is_pressed check useless).
+        assert d == pytest.approx(5.0 * 0.015)
 
     # -- _classify_pass_types --
 
@@ -462,14 +468,17 @@ class TestCoreAnalysis:
         td.frames = [MagicMock(detections=[MagicMock(class_name="person", track_id=1, bbox=(0, 0, 10, 20))])]
         td.player_teams = {}
         r = svc._compute_possession(td)
-        assert r["home"] == 50.0 and r["away"] == 50.0
+        # No ball detection => no possession evidence => honest zeros
+        # (the old behavior fabricated a 50/50 split from nothing).
+        assert r["home"] == 0.0 and r["away"] == 0.0
 
     def test_possession_empty_frames(self, svc):
         td = MagicMock()
         td.frames = []
         td.player_teams = {}
         r = svc._compute_possession(td)
-        assert r["home"] == 50.0 and r["away"] == 50.0
+        # No frames => no possession evidence => honest zeros.
+        assert r["home"] == 0.0 and r["away"] == 0.0
 
     def test_possession_no_player_teams(self, svc):
         td = MagicMock()
@@ -481,8 +490,10 @@ class TestCoreAnalysis:
             player = MagicMock(class_name="person", track_id=pid, bbox=(105, 200, 125, 240))
             td.frames.append(MagicMock(detections=[ball, player]))
         r = svc._compute_possession(td)
-        # even ids → home, odd ids → away
-        assert r["home"] == 50.0 and r["away"] == 50.0
+        # No team assignment exists: track-ID parity has no relation to team
+        # membership, so possession must NOT be fabricated from it -- honest
+        # zeros beat a made-up 50/50.
+        assert r["home"] == 0.0 and r["away"] == 0.0
 
     # -- PlayerStats helper --
 

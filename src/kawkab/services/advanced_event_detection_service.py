@@ -110,6 +110,70 @@ class AdvancedEventDetectionService:
         """Get team assignment for a track ID."""
         return track_data.player_teams.get(track_id, "unknown") if track_data.player_teams else "unknown"
 
+    # ------------------------------------------------------------------
+    # Normalized event accessors.
+    #
+    # Production feeds this service the typed-event to_dict() shape
+    # (core/events.py), where a pass looks like:
+    #   {"type": "pass", "timestamp": ..., "track_id": <passer>,
+    #    "to_track_id": <receiver>, "completed": bool, "team": ...,
+    #    "start_x": <pct 0-1 or meters>, ...}   # NO "from_track_id", NO "metadata"
+    # The raw internal shape used in unit tests is:
+    #   {"type": "pass", ..., "from_track_id": <passer>, "to_track_id": ...,
+    #    "metadata": {"start_x_pct": ...}}
+    # Six detectors silently produced zero events against the production
+    # shape because they read only the raw keys. These accessors read
+    # both shapes, so detectors work regardless of caller.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _passer_id(event: dict):
+        """Track id of the passer: from_track_id (raw shape) or track_id (typed shape)."""
+        return event.get("from_track_id", event.get("track_id"))
+
+    @staticmethod
+    def _receiver_id(event: dict):
+        return event.get("to_track_id")
+
+    @staticmethod
+    def _event_start_pos(event: dict) -> tuple[float | None, float | None]:
+        """Start position (x, y) of a pass/dribble/carry event.
+
+        Accepts both the typed to_dict() shape (top-level start_x/start_y,
+        which for passes are pitch-fraction 0-1 values, or meters for
+        dribbles/carries) and the raw shape (metadata.start_x/...).
+        Returns (None, None) when absent so callers can skip honestly
+        instead of treating 0.0 (the left touchline) as a real position.
+        """
+        meta = event.get("metadata")
+        if isinstance(meta, dict) and meta.get("start_x") is not None:
+            return meta.get("start_x"), meta.get("start_y")
+        sx, sy = event.get("start_x"), event.get("start_y")
+        if sx is None:
+            return None, None
+        # Typed PassEvent.start_x is a 0-1 pitch fraction; typed
+        # dribble/carry dicts carry meters. A value <= 1.0 for a
+        # fraction-shaped field is ambiguous, but passes are the only
+        # typed producers here and their to_dict() always carries the
+        # fraction; scale it to meters for the meter-based thresholds
+        # used by the detectors.
+        if event.get("type") == "pass" and 0.0 <= float(sx) <= 1.0:
+            return float(sx) * 105.0, (float(sy) if sy is not None else 0.5) * 68.0
+        return sx, sy
+
+    @staticmethod
+    def _event_end_pos(event: dict) -> tuple[float | None, float | None]:
+        """End position (x, y), same convention as _event_start_pos."""
+        meta = event.get("metadata")
+        if isinstance(meta, dict) and meta.get("end_x") is not None:
+            return meta.get("end_x"), meta.get("end_y")
+        ex, ey = event.get("end_x"), event.get("end_y")
+        if ex is None:
+            return None, None
+        if event.get("type") == "pass" and 0.0 <= float(ex) <= 1.0:
+            return float(ex) * 105.0, (float(ey) if ey is not None else 0.5) * 68.0
+        return ex, ey
+
     def _detect_dribbles(
         self, track_data: MatchTrackData, homography_matrix=None
     ) -> list[dict]:
@@ -118,7 +182,7 @@ class AdvancedEventDetectionService:
         dribble_min_frames = 3
         dribble_min_distance = 1.0  # meters
 
-        possession_chain = []  # [(timestamp, track_id, ball_x, ball_y)]
+        possession_chain: list[tuple[float, int, float, float]] = []  # [(timestamp, track_id, ball_x, ball_y)]
 
         for frame in track_data.frames:
             ball_det = None
@@ -143,8 +207,16 @@ class AdvancedEventDetectionService:
                 bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2 if ball_det else 0
                 by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2 if ball_det else 0
 
-                pitch_space_ok = True
-                if homography_matrix is not None:
+                # Spatial units: with homography, positions are real pitch
+                # meters. Without it, raw pixels were previously compared
+                # against the 1.0m threshold directly -- pixel distances
+                # trivially passed it, so any ball movement produced a
+                # "dribble" whose "distance_m" was actually pixels. Use the
+                # same pixel->meter approximation the carry detector uses
+                # (game_constants.CARRY_PIXEL_TO_METER_RATIO) so the threshold
+                # keeps its meaning, and flag the event as approximate.
+                calibrated = homography_matrix is not None
+                if calibrated:
                     try:
                         bx, by = homography_matrix.pixel_to_pitch(bx, by)
                     except Exception as e:
@@ -155,13 +227,15 @@ class AdvancedEventDetectionService:
                         # real measurement. Reset the chain instead of mixing
                         # pixel- and pitch-space points within it.
                         logger.debug(f"pixel_to_pitch failed, resetting possession chain: {e}")
-                        pitch_space_ok = False
-
-                if pitch_space_ok:
-                    possession_chain.append((frame.timestamp, closest_player.track_id, bx, by))
+                        possession_chain = []
+                        continue
                 else:
-                    possession_chain = []
+                    from kawkab.core.game_constants import GAME
+                    bx, by = bx * GAME.CARRY_PIXEL_TO_METER_RATIO, by * GAME.CARRY_PIXEL_TO_METER_RATIO
+
+                possession_chain.append((frame.timestamp, closest_player.track_id, bx, by))
             else:
+                # Ball loose or no player near it: the possession chain ends.
                 possession_chain = []
 
             # Check if we have a dribble sequence
@@ -192,6 +266,7 @@ class AdvancedEventDetectionService:
                                 "start_y": round(start_y, 1),
                                 "end_x": round(end_x, 1),
                                 "end_y": round(end_y, 1),
+                                "spatial_units": "meters" if calibrated else "pixel_approx",
                             },
                         })
                         possession_chain = []  # reset after detection
@@ -208,8 +283,8 @@ class AdvancedEventDetectionService:
         for i, event in enumerate(base_events):
             if event.get("type") != "pass":
                 continue
-            from_tid = event.get("from_track_id")
-            to_tid = event.get("to_track_id")
+            from_tid = self._passer_id(event)
+            to_tid = self._receiver_id(event)
             if from_tid is None or to_tid is None:
                 continue
 
@@ -323,6 +398,17 @@ class AdvancedEventDetectionService:
                     # points within it.
                     logger.debug(f"pixel_to_pitch failed, skipping ball position: {e}")
                     continue
+            else:
+                # No homography: raw pixel positions were previously fed
+                # straight into the meter thresholds below ("defensive
+                # third" = x < 26.25 became "left quarter of the frame",
+                # speed > 8 "m/s" became 8 px/s -- essentially any leftward
+                # ball movement qualified). Approximate meters with the
+                # same pixel->meter ratio the carry/dribble paths use so
+                # the thresholds keep their meaning.
+                from kawkab.core.game_constants import GAME
+                pitch_x = bx * GAME.CARRY_PIXEL_TO_METER_RATIO
+                pitch_y = by * GAME.CARRY_PIXEL_TO_METER_RATIO
 
             ball_history.append((frame.timestamp, pitch_x, pitch_y))
             if len(ball_history) > 5:
@@ -673,19 +759,12 @@ class AdvancedEventDetectionService:
             if event.get("type") != "pass":
                 continue
 
-            meta = event.get("metadata", {})
-            if not isinstance(meta, dict):
+            start_x, start_y = self._event_start_pos(event)
+            end_x, end_y = self._event_end_pos(event)
+            if start_x is None or start_y is None or end_x is None or end_y is None:
+                # No usable position information -- skip honestly instead of
+                # treating a missing position as the top-left corner.
                 continue
-
-            start_x = meta.get("start_x", 0)
-            start_y = meta.get("start_y", 0)
-            end_x = meta.get("end_x", 0)
-            end_y = meta.get("end_y", 0)
-
-            # Convert to pitch coordinates if available
-            if homography_matrix is not None:
-                # Already in pitch coords if meta was set that way
-                pass
 
             # Wide area: y near edges (within 10m of sideline)
             is_wide = start_y < 10 or start_y > (self.pitch_width - 10)
@@ -698,8 +777,8 @@ class AdvancedEventDetectionService:
                 events.append({
                     "type": "cross",
                     "timestamp": event["timestamp"],
-                    "from_track_id": event.get("from_track_id"),
-                    "to_track_id": event.get("to_track_id"),
+                    "from_track_id": self._passer_id(event),
+                    "to_track_id": self._receiver_id(event),
                     "team": event.get("team", "unknown"),
                     "completed": event.get("completed", False),
                     "confidence": event.get("confidence", 0.5) + 0.1,
@@ -755,7 +834,7 @@ class AdvancedEventDetectionService:
             if event.get("type") not in ("shot", "pass"):
                 continue
 
-            from_tid = event.get("from_track_id")
+            from_tid = self._passer_id(event)
             from_team = self._get_player_team(track_data, from_tid) if from_tid else "unknown"
 
             # Check if the event was NOT completed (shot blocked or pass blocked)
@@ -881,14 +960,15 @@ class AdvancedEventDetectionService:
             if ev_type not in ("pass", "dribble", "carry"):
                 continue
 
-            meta = event.get("metadata", {})
-            if not isinstance(meta, dict):
+            start_x, start_y = self._event_start_pos(event)
+            end_x, end_y = self._event_end_pos(event)
+            if start_x is None or end_x is None:
+                # No usable position -- cannot judge progress honestly.
                 continue
-
-            start_x = meta.get("start_x", 0)
-            end_x = meta.get("end_x", 0)
-            start_y = meta.get("start_y", 0)
-            end_y = meta.get("end_y", 0)
+            if start_y is None:
+                start_y = self.pitch_width / 2
+            if end_y is None:
+                end_y = self.pitch_width / 2
             team = event.get("team", "home")
             # Toward opponent goal: if home, x increases; if away, x decreases
             attacking_direction = 1 if team == "home" else -1
@@ -933,12 +1013,10 @@ class AdvancedEventDetectionService:
             if event.get("type") not in ("pass", "dribble"):
                 continue
 
-            meta = event.get("metadata", {})
-            if not isinstance(meta, dict):
+            start_x, _start_y = self._event_start_pos(event)
+            end_x, _end_y = self._event_end_pos(event)
+            if start_x is None or end_x is None:
                 continue
-
-            start_x = meta.get("start_x", 0)
-            end_x = meta.get("end_x", 0)
 
             # Entry: started before final third, ended inside final third
             if start_x < final_third_start and end_x >= final_third_start:
@@ -968,11 +1046,9 @@ class AdvancedEventDetectionService:
 
             if not event.get("completed", True):
                 # Ball lost
-                meta = event.get("metadata", {})
-                if not isinstance(meta, dict):
+                start_x, _start_y = self._event_start_pos(event)
+                if start_x is None:
                     continue
-
-                start_x = meta.get("start_x", 0)
                 team = event.get("team", "unknown")
 
                 # Check if lost in attacking area
