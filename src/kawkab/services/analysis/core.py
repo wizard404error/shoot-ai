@@ -21,7 +21,8 @@ from kawkab.core.pitch_control import MatchPitchControl, VoronoiPitchControl
 from kawkab.core.player_rating import (
     PlayerRating,
 )
-from kawkab.core.xg_model import compute_xg_from_shot_event
+from kawkab.core.xg_model import compute_xg_trained_from_shot_event
+from kawkab.core.xg_model import active_xg_model
 from kawkab.services.cv_service import MatchTrackData
 
 logger = get_logger(__name__)
@@ -201,8 +202,14 @@ class AnalysisServiceCore:
         confidence = self._compute_confidence(track_data, events)
 
         shot_events = [e for e in typed_events if isinstance(e, ShotEvent)]
+        xg_model = active_xg_model()
         for se in shot_events:
-            se.xg = compute_xg_from_shot_event(se)
+            gk_distance = None
+            if se.gk_position_x is not None and se.x is not None and se.y is not None:
+                gk_distance = math.hypot(se.gk_position_x - se.x, se.gk_position_y - se.y)
+            se.xg = compute_xg_trained_from_shot_event(
+                se, gk_distance_m=gk_distance
+            )
             se.xg = max(0.0, min(1.0, se.xg))
         home_xg = sum(e.xg for e in shot_events if e.team == "home")
         away_xg = sum(e.xg for e in shot_events if e.team == "away")
@@ -299,16 +306,37 @@ class AnalysisServiceCore:
         )
 
     def _build_typed_shot(self, event: dict, homography_matrix=None) -> ShotEvent:
+        """Build a typed ShotEvent from a raw CV-pipeline shot event.
+
+        Convention notes (see CLAUDE.md's angle-convention table):
+        - ``angle_deg`` on ShotEvent is consumed by xG models in the
+          DEVIATION-from-central convention (0° = straight at goal,
+          larger = wider) — which is what the CV pipeline's
+          ``angle_to_goal_deg`` metadata stores. StatsBomb-imported
+          events store OPENING angle under the ``angle_deg`` metadata
+          key instead and must not be fed through here unconverted.
+        - Missing spatial metadata stays None. The old code silently
+          fabricated distance=18.0 m / angle=30° and the xG model
+          happily produced a plausible-looking number for a shot whose
+          position was never known — a fabricated stat, not an estimate.
+          The trained model treats gk_distance_m=0 as "feature absent",
+          so an honestly-absent value degrades gracefully instead of
+          lying.
+        """
         meta = event.get("metadata", {})
+        distance_raw = meta.get("distance_to_goal_m")
+        angle_raw = meta.get("angle_to_goal_deg")
         return ShotEvent(
             timestamp=event.get("timestamp", 0),
             team=event.get("team", "unknown"),
             track_id=event.get("track_id"),
             on_target=event.get("on_target", False),
-            distance_m=meta.get("distance_to_goal_m", 18.0),
-            angle_deg=meta.get("angle_to_goal_deg", 30.0),
+            distance_m=float(distance_raw) if distance_raw is not None else None,
+            angle_deg=float(angle_raw) if angle_raw is not None else None,
             xg=meta.get("xg", 0.0),
             confidence=event.get("confidence", 0.5),
+            gk_position_x=meta.get("gk_pitch_x"),
+            gk_position_y=meta.get("gk_pitch_y"),
             period=1,
         )
 
@@ -735,6 +763,67 @@ class AnalysisServiceCore:
 
         return players
 
+    def _nearest_goalkeeper_pitch_pos(
+        self, track_data, frame, shot_team: str, homography_matrix,
+        ball_pixel_pos: tuple[float, float] | None = None,
+    ) -> tuple[float, float] | None:
+        """Pitch-space position of the defending team's goalkeeper at shot time.
+
+        The GK is the defending-side player whose center is closest to their
+        own goal line — a cheap, camera-free heuristic that is correct in
+        the situations that matter (GK on their line during a shot) and
+        fails soft: None when homography or a defender-side player is
+        missing, never a fabricated position.
+
+        Returns (pitch_x, pitch_y) in meters, or None.
+        """
+        if homography_matrix is None or not track_data.player_teams:
+            return None
+        # Defending side = the team that did NOT shoot. "home" shoots →
+        # the GK we want plays for "away" and defends the right-side goal
+        # (x ≈ pitch_length); vice versa for "away" shooting. When the
+        # shot's team is unknown/unassigned, fall back to picking the
+        # goal the ball is actually closest to — the old else-branch
+        # defaulted to "home" defending, which is only correct by
+        # coincidence and picked the wrong goal half the time.
+        if shot_team == "home":
+            defending = "away"
+        elif shot_team == "away":
+            defending = "home"
+        else:
+            # Unknown shooter: the ball attacks the goal it is nearest
+            # to, so the team defending that goal is the defending side.
+            # The right-side goal (x ≈ pitch_length) is the one AWAY
+            # defends — consistent with the shot-detection branch above
+            # and with _assign_teams_by_pitch_side.
+            ball_pitch = None
+            if ball_pixel_pos is not None:
+                try:
+                    ball_pitch = homography_matrix.pixel_to_pitch(*ball_pixel_pos)
+                except Exception:
+                    ball_pitch = None
+            near_right = ball_pitch is not None and ball_pitch[0] > self.pitch_length / 2
+            defending = "away" if near_right else "home"
+        goal_x = 0.0 if defending == "home" else self.pitch_length
+        best: tuple[float, float] | None = None
+        best_d = float("inf")
+        for det in frame.detections:
+            if det.class_name != "person" or det.track_id is None:
+                continue
+            if track_data.player_teams.get(det.track_id) != defending:
+                continue
+            cx = (det.bbox[0] + det.bbox[2]) / 2
+            cy = (det.bbox[1] + det.bbox[3]) / 2
+            try:
+                px, py = homography_matrix.pixel_to_pitch(cx, cy)
+            except Exception:
+                continue
+            d = abs(px - goal_x) + abs(py - self.pitch_width / 2)
+            if d < best_d:
+                best_d = d
+                best = (px, py)
+        return best
+
     def _detect_events(self, track_data, homography_matrix=None) -> list[dict]:
         events: list[dict] = []
         prev_possession: int | None = None
@@ -896,12 +985,28 @@ class AnalysisServiceCore:
                             shot_metadata["angle_to_goal_deg"] = round(angle_to_goal, 1)
                             shot_metadata["pitch_x"] = round(bx_pitch, 1)
                             shot_metadata["pitch_y"] = round(by_pitch, 1)
+                            # Goalkeeper position at shot time (pitch-space
+                            # meters) — consumed by the trained xG model via
+                            # ShotEvent.gk_position_x/y. Without this the
+                            # live path runs with gk_distance=0 = feature
+                            # absent, the strongest feature unused.
+                            gk_pitch_pos = self._nearest_goalkeeper_pitch_pos(
+                                track_data, frame, shot_team, homography_matrix,
+                                ball_pixel_pos=(bx, by),
+                            )
+                            if gk_pitch_pos is not None:
+                                shot_metadata["gk_pitch_x"] = round(gk_pitch_pos[0], 1)
+                                shot_metadata["gk_pitch_y"] = round(gk_pitch_pos[1], 1)
                             cross_line = abs(bx_pitch - near_goal_x) < 1.0
                             in_frame = abs(by_pitch - goal_cy) < goal_width_m / 2 + 1.0
                             on_target = cross_line and in_frame
                         else:
                             d_pix = math.sqrt(dx * dx + dy * dy)
                             shot_metadata["pixel_speed"] = round(d_pix / max(dt, 0.01), 1)
+                            # Honest provenance: without homography there is
+                            # no distance/angle metadata, so downstream xG is
+                            # "feature absent", not a fabricated estimate.
+                            shot_metadata["spatial_quality"] = "pixel_space"
 
                         logger.debug(
                             f"Shot by {shot_team}: d={shot_metadata.get('distance_to_goal_m', '?')}m, "

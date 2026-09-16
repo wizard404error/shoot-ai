@@ -203,6 +203,38 @@ def compute_xg_from_shot_event(event: ShotEvent) -> float:
     )
 
 
+def compute_xg_trained_from_shot_event(
+    event: ShotEvent,
+    *,
+    gk_distance_m: float | None = None,
+) -> float:
+    """xG from a typed ShotEvent using the ACTIVE (trained) model.
+
+    This is the trained-model replacement for ``compute_xg_from_shot_event``
+    (which runs the legacy heuristic and is kept only for backward
+    compatibility). The live CV pipeline's ``analyze_match`` path must use
+    this one so trained weights actually reach video-derived shots.
+
+    Convention notes — read before touching:
+    - ``ShotEvent.angle_deg`` from the CV pipeline is in the
+      DEVIATION-from-central convention (0° = central), matching both the
+      trained coefficients (negative ``angle_sin`` on ``1 − cos(angle)``)
+      and the pipeline's own ``angle_to_goal_deg`` metadata. StatsBomb
+      imports store OPENING angle in metadata ``angle_deg`` and are
+      converted by ``statsbomb_import_service`` before storage — do not
+      feed opening-angle values here unconverted (the 2026-09-16
+      wrong-angle-convention bug taught the model that wide shots score
+      more; the sanity tests in tests/unit/test_xg_model.py pin this).
+    - ``gk_distance_m``: distance from the shot origin to the nearest
+      goalkeeper track, in meters. None/0 = feature absent (the trained
+      model skips the GK terms rather than treating 0 as a real value).
+    """
+    features = active_xg_model().extract_features(event)
+    if gk_distance_m is not None:
+        features.gk_distance_m = max(float(gk_distance_m), 0.0)
+    return active_xg_model().compute_single(features)
+
+
 def compute_xg_from_dict(event_dict: dict[str, Any]) -> float:
     """Compute xG from a raw event dict (legacy)."""
     CoordinateValidator.validate_event_spatial(event_dict)

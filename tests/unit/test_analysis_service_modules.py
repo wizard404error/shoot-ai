@@ -104,8 +104,11 @@ class TestXgXtAnalysis:
             assert 0.0 <= s["xg"] <= 1.0
 
     def test_xg_missing_metadata_defaults(self, svc):
+        # Honest-absent: a shot with no spatial metadata contributes xg 0
+        # and is marked xg_available=False — never a fabricated estimate.
         r = svc.compute_xg_simple([{"type": "shot", "team": "home"}])
-        assert 0 < r["home"] < 1  # defaults: d=18, angle=30
+        assert r["home"] == 0.0
+        assert r["shot_details"][0]["xg_available"] is False
 
     def test_xt_empty_events(self, svc):
         r = svc.compute_xt_simple([])
@@ -301,8 +304,11 @@ class TestCoreAnalysis:
     def test_build_shot_defaults(self, svc):
         se = svc._build_typed_shot({})
         assert se.timestamp == 0 and se.team == "unknown"
-        assert se.on_target is False and se.distance_m == 18.0
-        assert se.angle_deg == 30.0 and se.xg == 0.0
+        # Honest-absent: no spatial metadata → None, not the old
+        # fabricated distance=18/angle=30 defaults that made the xG model
+        # produce plausible-looking numbers for unknowable shots.
+        assert se.on_target is False and se.distance_m is None
+        assert se.angle_deg is None and se.xg == 0.0
 
     # -- _pixel_dist_to_meters --
 
