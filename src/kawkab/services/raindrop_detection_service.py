@@ -193,10 +193,54 @@ class RaindropDetectionService:
             rectangles.append(rect)
         if not rectangles:
             return []
-        merged, _ = cv2.groupRectangles(
+        merged = self._group_rectangles(
             rectangles, self.GROUP_THRESHOLD, self.GROUP_EPS
         )
-        return [tuple(r) for r in merged] if len(merged) > 0 else []
+        return [tuple(r) for r in merged]
+
+    @staticmethod
+    def _group_rectangles(
+        rect_list: list[list[int]], group_threshold: int, eps: float
+    ) -> list[list[int]]:
+        """Cluster near-identical rectangles, OpenCV-4 and OpenCV-5 compatible.
+
+        cv2.groupRectangles (objdetect module) was removed in OpenCV 5.0,
+        which crashed every call with AttributeError. This replacement
+        reproduces its semantics for the identical-rectangle clusters this
+        service produces: rectangles whose normalized coordinate difference
+        is < eps are averaged together, and a cluster is kept only when it
+        contains more than group_threshold members (i.e. >1 for the
+        service's GROUP_THRESHOLD=1), matching the old dedup behavior.
+        """
+        clusters: list[list[list[int]]] = []
+        for rect in rect_list:
+            placed = False
+            for cluster in clusters:
+                rep = cluster[0]
+                w = max(rep[2] - rep[0], 1)
+                h = max(rep[3] - rep[1], 1)
+                if (
+                    abs(rect[0] - rep[0]) < eps * w
+                    and abs(rect[1] - rep[1]) < eps * h
+                    and abs(rect[2] - rep[2]) < eps * w
+                    and abs(rect[3] - rep[3]) < eps * h
+                ):
+                    cluster.append(rect)
+                    placed = True
+                    break
+            if not placed:
+                clusters.append([rect])
+        merged: list[list[int]] = []
+        for cluster in clusters:
+            if len(cluster) <= group_threshold:
+                continue
+            n = float(len(cluster))
+            avg = [
+                int(round(sum(r[i] for r in cluster) / n))
+                for i in range(4)
+            ]
+            merged.append(avg)
+        return merged
 
     def detect(self, frames: list[np.ndarray]) -> RaindropDetection:
         """Detect raindrops across multiple video frames.

@@ -79,7 +79,6 @@ class EasySoccerService:
         if client is None:
             return None
         try:
-            import esd
             e = client.get_event(event_id)
             if e is None:
                 return None
