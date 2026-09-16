@@ -156,3 +156,39 @@ psxg_model_trained.py — zone-grid heuristics, kept for backward compat).
 Sparse matches now get a league-wide threat prior instead of an all-zero
 grid; data-rich matches still learn from their own events (reference only
 blends in below the 200-action threshold).
+
+---
+
+## Player Tracking (NorfairTracker) — association benchmark
+
+First measured tracking benchmark (2026-09-16). Run the production
+`NorfairTracker` — the exact code path used on user video, including
+MotionEstimator camera compensation — over ground-truth player positions
+from the committed Metrica sample fixture, and score with the project's own
+`compute_mot_metrics` (MOTA/MOTP/IDF1).
+
+| Property | Value |
+|---|---|
+| **Script** | `scripts/benchmark_production_tracking.py` (deterministic, seeded) |
+| **Corpus** | Metrica sample 2 home+away CSV (committed fixture), 22 players, 43,978 GT positions, 200 frames @ 25 fps, 20 px/m |
+| **Rows** | *Ceiling* = GT as perfect detections; *Degraded* = 3 px jitter σ, 10% drop, 2% false positives (realistic detector noise at this scale) |
+
+| Row | MOTA ↑ | MOTP ↓ | IDF1 ↑ | ID swaps | Fragments | FP / FN |
+|---|---|---|---|---|---|---|
+| **Ceiling** | **0.9903** | 0.08 px | **0.9954** | 24 | 12 | 280 / 122 |
+| **Degraded** | **0.9155** | 4.62 px | **0.9620** | 268 | 52 | 3,101 / 347 |
+
+**Reading:** with perfect detections the tracker's association is
+near-perfect (MOTA 0.99) — the ceiling on pipeline quality is the detector,
+not the tracker. Under realistic noise, identity survives well (IDF1 0.962;
+swap rate ≈ 0.6% of positions) and MOTA degrades gracefully (−8.5 pp, most
+of it the injected false positives). The regression test
+(`tests/unit/test_tracking_benchmark.py`) pins ceiling > degraded on both
+MOTA and IDF1, and pins the degraded row against collapse (the unphysical
+10 px-jitter config that zeroed it during development).
+
+**Honest scope:** this measures *tracker association quality on synthetic
+detections derived from GT* — not end-to-end camera→detection→tracking
+accuracy. A true end-to-end MOTA on labeled match video (e.g. SoccerNet
+tracking) remains open work, as does ball tracking (the fixture is players
+only). Numbers are reproducible offline in ~25 s.

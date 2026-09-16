@@ -1057,6 +1057,32 @@ bug, caught by the committed sanity guard shipping in the same commit):**
   CV pipeline stores `angle_to_goal_deg` (deviation) — a known wart,
   documented rather than silently renamed.
 
+**P0.1 — first measured tracking benchmark (mot_metrics finally exercised
+in anger).** `mot_metrics` was complete and tested but nothing ever ran the
+*production* tracker through it. New
+`scripts/benchmark_production_tracking.py`: drives the real
+`NorfairTracker` (norfair installed into `.venv-linux` via uv — declared
+dependency) over GT player positions from the committed Metrica fixture,
+converted to a 20 px/m pixel grid, scored with the project's own
+`compute_mot_metrics`. Two rows: *ceiling* (GT as perfect detections —
+MOTA 0.9903, IDF1 0.9954: association is near-perfect, the detector is the
+ceiling) and *degraded* (3 px jitter σ, 10% drop, 2% FPs — MOTA 0.9155,
+IDF1 0.9620, 268 swaps / 43,978 positions ≈ 0.6%). Deterministic (same
+seed → byte-identical metrics). Numbers + honest scope caveats published in
+MODEL_CARD.md ("Player Tracking — association benchmark"). Regression test
+`tests/unit/test_tracking_benchmark.py` (9 tests): pins ceiling > degraded
+on MOTA + IDF1, pins degraded against collapse (the first degraded config
+used 10 px jitter on ~20 px boxes — consecutive-frame IoU fell below the
+tracker's 0.6 match threshold so no track ever initialized: physically
+unrealistic, caught by the test, calibrated to 3 px), and pops/restores
+norfair stubs around the real-norfair e2e test so it neither depends on
+import order nor leaks real norfair into stubbed tests (the leak direction
+that bit test_cv_service). E2E window sized at 120 frames deliberately:
+the tracker's 3-frame init costs a fixed ~66 FN, which is 3.75% of an
+80-frame window (ceiling MOTA 0.899 there) but amortized at 120. Still
+open, honestly scoped: end-to-end camera→detection→tracking MOTA on
+labeled video, and ball tracking (fixture is players only).
+
 **Environment note:** this session ran in `.venv-linux` (Python 3.12).
 5 `test_raindrop_detection_service.py` failures are env-only (this venv's
 opencv build lacks `groupRectangles`; Windows CI has it) and 1
@@ -1311,9 +1337,7 @@ bugs; not chased further.
     `uncertainty`
   - Also fully untouched: `ball_physics_pitch_control`, `match_scripting`,
     `match_timeline`, `model_comparison_service`, `model_manager`,
-    `mot_metrics`, `pattern_detection`, `psxg_improved`/`psxg_model_trained`
-    (two complete, independently-tested alternate PSxG approaches — see
-    below), `scoreline_distribution`, `scout_report_upgrade`, `xg_chain`,
+    `pattern_detection`, `scoreline_distribution`, `scout_report_upgrade`, `xg_chain`,
     `xt_confidence`, `game_state`, `event_schema`, `export_converters`,
     `config` (the *tracking-pipeline* config, unrelated to the
     `Settings` class reconstructed this session), `fatigue_model`,
@@ -1326,18 +1350,14 @@ bugs; not chased further.
     `storage_service` param — not the default path. Wiring these without
     checking for that data first would silently show an empty/misleading
     report for most matches.
-  - **Three independent PSxG implementations exist** (`core/psxg_model.py`,
-    used by `analysis/goalkeeper_analytics.py`; `core/psxg_improved.py` and
-    `core/psxg_model_trained.py`, both fully tested but never imported by
-    anything). **Partially resolved 2026-09-07:** `psxg_model.py` now loads
-    fitted coefficients (`trained_psxg_coefficients.json`, trained from
-    2,768 StatsBomb on-target shots; Brier 0.167 / AUC 0.753) while
-    keeping its legacy API. The other two files still exist as hand-tuned
-    zone-grid heuristics with different signatures/return shapes — full
-    unification (deleting them or folding their zone taxonomy into the
-    fitted model) is still open. None of the three is used by the live
-    CV pipeline's event path yet (goalkeeper_analytics is the only
-    consumer of psxg_model).
+  - **PSxG unification completed 2026-09-16 (earlier pass):** the two
+    hand-tuned alternate implementations (`core/psxg_improved.py`,
+    `core/psxg_model_trained.py`) were DELETED; their behavioral contracts
+    were ported into `tests/unit/test_psxg_contracts.py`. `core/psxg_model.py`
+    (fitted coefficients, kept legacy API for `goalkeeper_analytics`) is
+    now the single PSxG implementation. Still open: none of the PSxG path
+    is used by the live CV pipeline's event path yet
+    (goalkeeper_analytics is the only consumer of psxg_model).
 - **113 of 325+ `@Slot` methods are never called from any JS file**
   (down from the original audit's count as this session wired a few more
   in) — includes the entire tactical whiteboard feature (19 slots, 45
