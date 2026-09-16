@@ -118,6 +118,7 @@ data/ground_truth/
 
 # Local-only tool config (not project content) and scratch/generated data
 .opencode/
+.freebuff/
 data/ball_detector/
 data/soccernet/
 data/pg_ordered.sql

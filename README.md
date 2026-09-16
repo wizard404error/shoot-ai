@@ -2,7 +2,7 @@
 
 > **The AI Football Coach for Amateur Teams** — 100% Private, 100% Offline, $0 Cost
 
-> 📊 **Current state:** 100+ services, 8 external data sources, 4,850+ unit tests, full Arabic+English support.
+> 📊 **Current state:** 100+ services, 8 external data sources, 5,164 unit tests (5,122 passing + 42 documented skips), full Arabic+English support.
 > 🚧 **Status:** Production-aiming. See [CLAUDE.md](CLAUDE.md) for the full, accurate report (what's fixed, what's known-broken, what's untested).
 
 [![Tests](https://github.com/wizard404error/shoot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/wizard404error/shoot-ai/actions/workflows/ci.yml)
@@ -37,7 +37,7 @@
 ## ⚠️ Status
 
 This project is under active development toward production quality.
-- 100+ backend services, 4,850+ unit tests (69% measured coverage), full Arabic+English UI
+- 100+ backend services, 5,164 unit tests (69% measured coverage), full Arabic+English UI
 - Multi-phase roadmap: ✅ Phase 1 (test coverage), 🚧 Phase 2 (real-time), Phase 3 (pro analytics), Phase 4 (UX polish)
 
 **What works:**

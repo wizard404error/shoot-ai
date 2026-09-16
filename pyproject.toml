@@ -98,8 +98,12 @@ graph = [
     "python-louvain>=0.16",
 ]
 dev = [
-    "ruff>=0.3.0",
-    "mypy>=1.8.0",
+    # Hard-pinned (not ranges): CI runs `uv run ruff/mypy` against these
+    # extras, and an unpinned range means a new upstream release can flip
+    # the lint/typecheck gates without any code change. The pinned
+    # versions are the ones the gates were verified green against.
+    "ruff==0.16.6",
+    "mypy==2.3.1",
     "typeguard>=4.0.0",
 ]
 build = [

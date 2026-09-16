@@ -20,9 +20,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
+        # Pinned tool versions (match pyproject [dev] extra + test.yml):
+        # an unpinned `pip install ruff mypy` floats to the latest release,
+        # which can flip the gate without any code change.
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy
+          pip install ruff==0.16.6 mypy==2.3.1
       - name: ruff lint
         run: ruff check src/ tests/ --ignore E501
       - name: ruff format check

@@ -36,9 +36,12 @@ jobs:
           pip install uv
           uv sync --extra dev
       - name: ruff check
-        run: uv run ruff check src/ tests/
+        # Pinned tool versions (see pyproject.toml [project.optional-dependencies].dev):
+        # `uv run` re-resolves `ruff>=X` to the latest release otherwise, so a new
+        # upstream version can flip the gate without any code change.
+        run: uv run --with ruff==0.16.6 ruff check src/ tests/
       - name: ruff format --check
-        run: uv run ruff format --check src/ tests/
+        run: uv run --with ruff==0.16.6 ruff format --check src/ tests/
 
   typecheck:
     runs-on: ubuntu-latest
@@ -65,7 +68,7 @@ jobs:
           pip install uv
           uv sync --extra dev
       - name: mypy
-        run: uv run mypy src/ --ignore-missing-imports
+        run: uv run --with mypy==2.3.1 mypy src/ --ignore-missing-imports
 
   test-core:
     runs-on: ubuntu-latest
