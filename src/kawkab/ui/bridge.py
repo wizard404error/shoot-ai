@@ -1146,6 +1146,62 @@ class Bridge(QObject):
     async def get_shortlist(self) -> str:
         return await self._analysis.get_shortlist()
 
+    @Slot(str, str, result=str)
+    async def add_shortlist_entry(self, entry_json: str, _unused: str = "") -> str:
+        return await self._analysis.add_shortlist_entry(entry_json)
+
+    @Slot(int, str, result=str)
+    async def update_shortlist_entry(self, entry_id: int, updates_json: str) -> str:
+        return await self._analysis.update_shortlist_entry(entry_id, updates_json)
+
+    @Slot(int, result=str)
+    async def delete_shortlist_entry(self, entry_id: int) -> str:
+        return await self._analysis.delete_shortlist_entry(entry_id)
+
+    @Slot(result=str)
+    async def get_contracts(self) -> str:
+        return await self._analysis.get_contracts()
+
+    @Slot(str, result=str)
+    async def add_contract(self, contract_json: str) -> str:
+        return await self._analysis.add_contract(contract_json)
+
+    @Slot(result=str)
+    async def get_contract_alerts(self) -> str:
+        return await self._analysis.get_contract_alerts()
+
+    # ================================================================
+    # Recruitment hub — external scouting sources
+    # ================================================================
+
+    @Slot(str, result=str)
+    async def transfermarkt_search_players(self, name: str) -> str:
+        return await self._analysis.transfermarkt_search(name)
+
+    @Slot(str, str, str, result=str)
+    async def recruit_from_search(self, player_id: str, source: str, player_json: str) -> str:
+        return await self._analysis.recruit_from_search(player_id, source, player_json)
+
+    # ================================================================
+    # Settings — model cache manager + updates
+    # ================================================================
+
+    @Slot(result=str)
+    async def get_model_cache_info(self) -> str:
+        return await self._analysis.get_model_cache_info()
+
+    @Slot(str, result=str)
+    async def download_model(self, model_name: str) -> str:
+        return await self._analysis.download_model_slot(model_name)
+
+    @Slot(str, result=str)
+    async def delete_cached_model(self, model_name: str) -> str:
+        return await self._analysis.delete_cached_model(model_name)
+
+    @Slot(result=str)
+    async def get_settings_overview(self) -> str:
+        return await self._analysis.get_settings_overview()
+
     @Slot(int, int, result=str)
     async def generate_scout_report(self, track_id: int, match_id: int = 0) -> str:
         return await self._analysis.generate_scout_report_pdf(track_id, match_id)

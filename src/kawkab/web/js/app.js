@@ -2936,6 +2936,12 @@
         if (window.KawkabWhiteboard) return window.KawkabWhiteboard.initWhiteboardWorkspace();
     }
 
+    // ── Settings (delegated to app-settings.js) ──
+
+    function initSettingsWorkspace() {
+        if (window.KawkabSettings) return window.KawkabSettings.initSettingsWorkspace();
+    }
+
     // ── 3D Pitch Visualization (delegated to app-3d.js) ──
 
     function loadPitch3dMatchSelect() {
@@ -4867,6 +4873,10 @@
             saveFilterState();
             initWhiteboardWorkspace();
         });
+        router.register('settings', 'settings-section', function() {
+            saveFilterState();
+            initSettingsWorkspace();
+        });
 
         // Initialize PWA on load
         initPWA();
@@ -4947,6 +4957,7 @@
         // ── Phase 2.3-4 & 3-4 Init ──
         initTacticsWorkspace();
         initWhiteboardWorkspace();
+        initSettingsWorkspace();
         initAiWorkspace();
         initSquadWorkspace();
         initSquadHealthTab();

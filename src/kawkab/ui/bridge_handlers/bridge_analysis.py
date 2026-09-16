@@ -2946,13 +2946,235 @@ class AnalysisHandler:
     async def get_shortlist(self):
         self._check_rate_limit()
         try:
-            if self._services.get("shortlist_service"):
-                sl = self._services["shortlist_service"]
-                players = sl.get_shortlist()
-                return json.dumps({"players": players, "total": len(players)})
-            return json.dumps({"players": [], "total": 0})
+            storage = self.storage_service
+            players = await storage.get_shortlist() if storage else []
+            return json.dumps({"players": players, "total": len(players)})
         except Exception as e:
             logger.error(f"get_shortlist failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def add_shortlist_entry(self, entry_json):
+        self._check_rate_limit()
+        try:
+            entry = json.loads(entry_json or "{}")
+            if not entry.get("player_id") or not entry.get("player_name"):
+                return json.dumps({"success": False, "error": "player_id and player_name are required"})
+            entry.setdefault("status", "shortlisted")
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"success": False, "error": "Storage not initialized"})
+            entry_id = await storage.save_shortlist_entry(entry)
+            return json.dumps({"success": entry_id > 0, "id": entry_id})
+        except Exception as e:
+            logger.error(f"add_shortlist_entry failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def update_shortlist_entry(self, entry_id, updates_json):
+        self._check_rate_limit()
+        try:
+            updates = json.loads(updates_json or "{}")
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"success": False, "error": "Storage not initialized"})
+            ok = await storage.update_shortlist_entry(int(entry_id), updates)
+            return json.dumps({"success": ok})
+        except Exception as e:
+            logger.error(f"update_shortlist_entry failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def delete_shortlist_entry(self, entry_id):
+        self._check_rate_limit()
+        try:
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"success": False, "error": "Storage not initialized"})
+            ok = await storage.delete_shortlist_entry(int(entry_id))
+            return json.dumps({"success": ok})
+        except Exception as e:
+            logger.error(f"delete_shortlist_entry failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_contracts(self):
+        self._check_rate_limit()
+        try:
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"contracts": [], "expiring_soon": []})
+            contracts = await storage.get_contracts()
+            expiring = await storage.get_contracts_expiring_soon(90)
+            return json.dumps({"contracts": contracts, "expiring_soon": expiring})
+        except Exception as e:
+            logger.error(f"get_contracts failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def add_contract(self, contract_json):
+        self._check_rate_limit()
+        try:
+            contract = json.loads(contract_json or "{}")
+            required = ("player_profile_id", "player_name", "start_date", "end_date")
+            missing = [k for k in required if not contract.get(k)]
+            if missing:
+                return json.dumps({"success": False, "error": f"missing required fields: {missing}"})
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"success": False, "error": "Storage not initialized"})
+            contract_id = await storage.save_contract(contract)
+            return json.dumps({"success": contract_id > 0, "id": contract_id})
+        except Exception as e:
+            logger.error(f"add_contract failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_contract_alerts(self):
+        self._check_rate_limit()
+        try:
+            storage = self.storage_service
+            if not storage:
+                return json.dumps({"alerts": []})
+            expiring = await storage.get_contracts_expiring_soon(180)
+            alerts = [
+                {
+                    "level": "critical" if self._days_until(c["end_date"]) <= 30 else "warning",
+                    "player": c["player_name"],
+                    "end_date": c["end_date"],
+                    "message": f"Contract ends {c['end_date']}",
+                }
+                for c in expiring
+            ]
+            return json.dumps({"alerts": alerts})
+        except Exception as e:
+            logger.error(f"get_contract_alerts failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    @staticmethod
+    def _days_until(date_str):
+        try:
+            from datetime import date
+            y, m, d = str(date_str).split("-")
+            return (date(int(y), int(m), int(d)) - date.today()).days
+        except Exception:
+            return 9999
+
+    async def recruit_from_search(self, player_id, source, player_json):
+        """One-click recruit: an external search result becomes a shortlist row.
+
+        Bridges the external scouting sources (Transfermarkt / scout network)
+        into the local shortlist so a coach can act on what they find without
+        retyping it.
+        """
+        self._check_rate_limit()
+        try:
+            data = json.loads(player_json or "{}")
+            entry = {
+                "player_id": f"{source}:{player_id}",
+                "player_name": data.get("player_name") or data.get("name") or str(player_id),
+                "position": data.get("position", ""),
+                "team": data.get("team") or data.get("club", ""),
+                "league": data.get("league", ""),
+                "priority": "medium",
+                "status": "scouted",
+                "notes": f"Recruited from {source} search",
+                "scout_rating": float(data.get("scout_rating", 0.0) or 0.0),
+                "estimated_value": data.get("estimated_value") or data.get("market_value"),
+                "age": data.get("age"),
+                "nationality": data.get("nationality", ""),
+            }
+            return await self.add_shortlist_entry(json.dumps(entry))
+        except Exception as e:
+            logger.error(f"recruit_from_search failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ================================================================
+    # Settings — model cache manager + app overview
+    # ================================================================
+
+    def _get_model_manager(self):
+        try:
+            from kawkab.core.model_manager import ModelManager
+            return self._services.get("model_manager") or ModelManager()
+        except Exception:
+            return None
+
+    async def get_model_cache_info(self):
+        """Cache size, per-model availability, and download candidates.
+
+        Powers the Settings model-cache manager UI: which models are on disk,
+        how much space they use, and which variants can be fetched.
+        """
+        try:
+            mm = self._get_model_manager()
+            if mm is None:
+                return json.dumps({"error": "ModelManager unavailable"})
+            cached = {}
+            for name in mm.list_cached_models():
+                path = mm.get_model_path(name)
+                cached[name] = {
+                    "size_mb": round(path.stat().st_size / (1024 * 1024), 1) if path else 0,
+                }
+            variants = []
+            for name, info in mm.DEFAULT_MODELS.items():
+                variants.append({
+                    "name": name,
+                    "size_mb": info.get("size_mb", 0),
+                    "cached": name in cached,
+                    "checksum_pinned": info.get("sha256") is not None,
+                })
+            return json.dumps({
+                "cache_size_mb": round(mm.get_cache_size_mb(), 1),
+                "models": variants,
+                "current_variant": (self._services.get("cv_service").model_size
+                                    if self._services.get("cv_service") and hasattr(self._services.get("cv_service"), "model_size") else None),
+            })
+        except Exception as e:
+            logger.error(f"get_model_cache_info failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def download_model_slot(self, model_name):
+        """Download a model into the local cache (blocking; called from UI)."""
+        try:
+            mm = self._get_model_manager()
+            if mm is None:
+                return json.dumps({"success": False, "error": "ModelManager unavailable"})
+            path = mm.download_model(str(model_name))
+            return json.dumps({"success": True, "path": str(path), "name": str(model_name)})
+        except ValueError as e:
+            return json.dumps({"success": False, "error": str(e)})
+        except Exception as e:
+            logger.error(f"download_model failed: {e}")
+            return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
+
+    async def delete_cached_model(self, model_name):
+        """Remove one model from the cache (keep-lists nothing)."""
+        try:
+            mm = self._get_model_manager()
+            if mm is None:
+                return json.dumps({"success": False, "error": "ModelManager unavailable"})
+            removed = mm.cleanup_cache(keep_models=[str(model_name)])
+            return json.dumps({"success": True, "removed": removed})
+        except Exception as e:
+            logger.error(f"delete_cached_model failed: {e}")
+            return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_settings_overview(self):
+        """One-call Settings payload: app info, GPU, model variant, cache size."""
+        try:
+            info = json.loads(await self.get_app_info())
+            gpu = json.loads(await self.get_gpu_tier())
+            current = json.loads(await self.get_current_yolo_variant())
+            recommended = json.loads(await self.get_recommended_yolo_variant())
+            cache = json.loads(await self.get_model_cache_info())
+            return json.dumps({
+                "app": {k: info.get(k) for k in ("name", "version", "platform", "python")},
+                "gpu": {k: gpu.get(k) for k in ("backend", "tier") if k in gpu},
+                "model": {
+                    "current": current.get("variant"),
+                    "recommended": recommended.get("recommended"),
+                    "tier": recommended.get("tier"),
+                },
+                "cache_size_mb": cache.get("cache_size_mb", 0),
+                "checksum_pinned": any(m.get("checksum_pinned") for m in cache.get("models", [])),
+            })
+        except Exception as e:
+            logger.error(f"get_settings_overview failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_scout_report_pdf(self, track_id, match_id=0):

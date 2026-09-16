@@ -59,13 +59,16 @@ describe('nav integrity', () => {
   test('no nav link still points at a removed/never-built section id', () => {
     // These ids were never real <section> elements. If a future change
     // re-adds them as real sections, update this list deliberately.
+    // (settings-section was re-added as a real section in the elite push;
+    // shortlist/contracts/recruitment live inside scout-section + settings,
+    // not as standalone sections.)
     const removedIds = [
       'timeline-section', 'xg-section', 'xt-section', 'vaep-section',
       'charts-section', 'heatmap-section', 'pass-network-section',
       'momentum-section', 'transitions-section', 'finishing-section',
       'set-piece-section', 'phases-section', 'tactics-report-section',
       'game-plan-section', 'player-compare-section', 'shortlist-section',
-      'contracts-section', 'recruitment-section', 'settings-section',
+      'contracts-section', 'recruitment-section',
       'search-section', 'import-section', 'data-export-section',
       'tactical-sandbox-section',
     ];

@@ -147,6 +147,7 @@
           <div class="nav-group">
             <span class="nav-group-title">Admin</span>
             <a href="#calibration-section" class="nav-item" data-section="calibration-section">Calibration</a>
+            <a href="#settings-section" class="nav-item" data-section="settings-section">Settings</a>
             <!-- Search removed: the global search box is permanently visible
                  in the app header on every section. -->
             <a href="#results-section" class="nav-item" data-section="results-section">Import</a>
@@ -1030,6 +1031,32 @@
                             <button id="edit-event-save" class="btn btn-primary" data-i18n="btnSave">Save</button>
                             <button id="edit-event-cancel" class="btn btn-secondary" data-i18n="btnCancel">Cancel</button>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="settings-section" class="section hidden">
+                <h2 data-i18n="settingsTitle">⚙️ Settings</h2>
+                <div class="pro-card">
+                    <h3 data-i18n="settingsSystemTitle">System</h3>
+                    <div id="settings-overview" class="settings-overview">
+                        <p class="hint">Loading system information…</p>
+                    </div>
+                </div>
+                <div class="pro-card">
+                    <h3 data-i18n="settingsModelsTitle">AI Models (download on demand)</h3>
+                    <p class="hint" data-i18n="settingsModelsHint">Models download on first use. Remove unused variants to reclaim disk space; the pinned checksum protects every download.</p>
+                    <div id="settings-model-list" class="settings-model-list" aria-live="polite">
+                        <p class="hint">Loading model cache…</p>
+                    </div>
+                    <div class="form-row" style="margin-top:0.5rem">
+                        <span id="settings-cache-size" class="hint"></span>
+                    </div>
+                </div>
+                <div class="pro-card">
+                    <h3 data-i18n="settingsContractsTitle">Contract Alerts</h3>
+                    <div id="settings-contract-alerts" aria-live="polite">
+                        <p class="hint">No contract alerts.</p>
                     </div>
                 </div>
             </section>

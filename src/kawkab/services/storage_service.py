@@ -2089,6 +2089,152 @@ class StorageService:
         tracker = InjuryTrackerService(self._conn)
         return tracker.get_squad_injury_report(player_ids)
 
+    # ── Player Shortlist (migration 016) ─────────────────────────────────
+
+    async def save_shortlist_entry(self, entry: dict) -> int:
+        """Insert a scouting-shortlist row, returning its id (0 on failure)."""
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """INSERT INTO player_shortlist (player_id, player_name, position, team, league,
+                   priority, status, notes, scout_rating, estimated_value, age, nationality)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                entry["player_id"], entry["player_name"],
+                entry.get("position", ""), entry.get("team", ""),
+                entry.get("league", ""),
+                entry.get("priority", "medium"),
+                entry.get("status", "scouted"),
+                entry.get("notes", ""),
+                entry.get("scout_rating", 0.0),
+                entry.get("estimated_value"),
+                entry.get("age"),
+                entry.get("nationality", ""),
+            ),
+        )
+        self._conn.commit()
+        return int(cursor.lastrowid or 0)
+
+    async def update_shortlist_entry(self, entry_id: int, updates: dict) -> bool:
+        """Update whitelisted shortlist fields; False when nothing changed."""
+        if self._conn is None:
+            return False
+        allowed = {"priority", "status", "notes", "scout_rating", "estimated_value"}
+        sets = ["last_updated = datetime('now')"]
+        vals: list[Any] = []
+        for k, v in updates.items():
+            if k not in allowed:
+                continue
+            sets.append(f"{k} = ?")
+            vals.append(v)
+        if len(sets) == 1:
+            return False
+        vals.append(entry_id)
+        cursor = self._conn.cursor()
+        cursor.execute(
+            f"UPDATE player_shortlist SET {', '.join(sets)} WHERE id = ?", vals
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    async def get_shortlist(
+        self, status: str | None = None, priority: str | None = None
+    ) -> list[dict]:
+        """List shortlist entries, newest-updated first."""
+        if self._conn is None:
+            return []
+        conditions: list[str] = []
+        args: list[Any] = []
+        if status:
+            conditions.append("status = ?")
+            args.append(status)
+        if priority:
+            conditions.append("priority = ?")
+            args.append(priority)
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, player_id, player_name, position, team, league, added_date, "
+            "priority, status, notes, scout_rating, estimated_value, age, nationality, "
+            f"last_updated FROM player_shortlist{where} ORDER BY last_updated DESC",
+            args,
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def delete_shortlist_entry(self, entry_id: int) -> bool:
+        if self._conn is None:
+            return False
+        cursor = self._conn.cursor()
+        cursor.execute("DELETE FROM player_shortlist WHERE id = ?", (entry_id,))
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    # ── Player Contracts (migration 017) ─────────────────────────────────
+
+    async def save_contract(self, contract: dict) -> int:
+        """Insert a player-contract row, returning its id (0 on failure)."""
+        if self._conn is None:
+            return 0
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """INSERT INTO player_contracts (player_profile_id, player_name, contract_type,
+                   start_date, end_date, club_option_years, player_option_years,
+                   release_clause_millions, wage_weekly_pounds, agent_name, notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                contract["player_profile_id"], contract["player_name"],
+                contract.get("contract_type", "permanent"),
+                contract["start_date"], contract["end_date"],
+                contract.get("club_option_years", 0),
+                contract.get("player_option_years", 0),
+                contract.get("release_clause_millions"),
+                contract.get("wage_weekly_pounds"),
+                contract.get("agent_name", ""),
+                contract.get("notes", ""),
+            ),
+        )
+        self._conn.commit()
+        return int(cursor.lastrowid or 0)
+
+    async def get_contracts(self, profile_id: int | None = None) -> list[dict]:
+        """List contracts (all, or for one player profile), soonest-expiring first."""
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        if profile_id:
+            cursor.execute(
+                "SELECT id, player_profile_id, player_name, contract_type, start_date, "
+                "end_date, club_option_years, player_option_years, release_clause_millions, "
+                "wage_weekly_pounds, agent_name, notes, last_updated "
+                "FROM player_contracts WHERE player_profile_id = ? ORDER BY end_date ASC",
+                (profile_id,),
+            )
+        else:
+            cursor.execute(
+                "SELECT id, player_profile_id, player_name, contract_type, start_date, "
+                "end_date, club_option_years, player_option_years, release_clause_millions, "
+                "wage_weekly_pounds, agent_name, notes, last_updated "
+                "FROM player_contracts ORDER BY end_date ASC"
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+    async def get_contracts_expiring_soon(self, days: int = 90) -> list[dict]:
+        """Contracts ending within *days* from today, soonest first."""
+        if self._conn is None:
+            return []
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT id, player_profile_id, player_name, contract_type, start_date, "
+            "end_date, club_option_years, player_option_years, release_clause_millions, "
+            "wage_weekly_pounds, agent_name, notes, last_updated "
+            "FROM player_contracts "
+            "WHERE date(end_date) <= date('now', '+' || ? || ' days') "
+            "AND date(end_date) >= date('now') ORDER BY end_date ASC",
+            (days,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
     async def close(self) -> None:
         """Close database connection."""
         if self._conn:
