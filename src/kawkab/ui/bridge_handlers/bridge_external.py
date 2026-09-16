@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 
 from kawkab.core.logging import get_logger
-from kawkab.core.security import SecurityValidator, ErrorSanitizer
+from kawkab.core.security import ErrorSanitizer, SecurityValidator
 
 logger = get_logger(__name__)
 

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict, Counter
-from typing import Any
+from collections import Counter, defaultdict
 
 from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
-from kawkab.core.player_rating import compute_rating, PlayerRating
+from kawkab.core.player_rating import PlayerRating, compute_rating
 
 logger = get_logger(__name__)
 
@@ -145,7 +144,6 @@ class TrackingMixin:
     def _compute_player_ratings(
         self, players, typed_events, pitch_control, track_data, homography_matrix=None
     ):
-        from .core import PlayerStats
 
         ratings: dict[int, PlayerRating] = {}
 
@@ -171,7 +169,7 @@ class TrackingMixin:
                     "xg": 0.0,
                 }
             d = event_by_player[tid]
-            from kawkab.core.events import PassEvent, ShotEvent, CarryEvent
+            from kawkab.core.events import CarryEvent, PassEvent, ShotEvent
 
             if isinstance(ev, PassEvent):
                 d["passes"] += 1
@@ -379,8 +377,6 @@ class TrackingMixin:
         }
 
     def detect_formation(self, track_data, team="home", n_players=11, homography_matrix=None):
-        import math as _math
-        from collections import defaultdict
 
         team_player_positions: dict[int, list[tuple[float, float]]] = defaultdict(list)
         track_first_seen: dict[int, float] = {}
@@ -587,7 +583,6 @@ class TrackingMixin:
         return "unknown"
 
     def _detect_formation(self, detections):
-        from collections import Counter
 
         thirds = Counter()
         for d in detections:

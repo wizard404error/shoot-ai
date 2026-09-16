@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import json
-import math
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from kawkab.core.model_comparison import compare_xg_models, _compute_metrics
-
+from kawkab.core.model_comparison import _compute_metrics
 
 DRIFT_THRESHOLD_BRIER = 0.05
 DRIFT_THRESHOLD_LOG_LOSS = 0.10

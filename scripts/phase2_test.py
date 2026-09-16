@@ -18,15 +18,14 @@ async def main() -> int:
     print("=" * 60)
 
     from kawkab.services import (
-        CVService,
-        LLMService,
-        LLMConfig,
         AnalysisService,
+        CVService,
         KnowledgeService,
-        StorageService,
+        LLMConfig,
+        LLMService,
         ReasoningService,
+        StorageService,
     )
-    from kawkab.core.paths import get_paths
 
     video_path = Path("data/real_match.mp4")
     if not video_path.exists():
@@ -119,7 +118,7 @@ async def main() -> int:
             if drills:
                 print(f"       Recommended: {', '.join(drills)}")
 
-    print(f"\n  Priority actions:")
+    print("\n  Priority actions:")
     for action in diagnosis_report.priority_actions[:3]:
         print(f"    - {action}")
 

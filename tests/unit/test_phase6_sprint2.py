@@ -1,11 +1,7 @@
 """Phase 6 Sprint 2: Live Tagging Dashboard tests."""
 
-import json
 import re
-import os
 from pathlib import Path
-
-import pytest
 
 BASE = Path(__file__).resolve().parent.parent.parent
 SRC = BASE / "src"
@@ -18,7 +14,7 @@ SERVICE = BASE / "src" / "kawkab" / "services" / "live_tagging_service.py"
 
 
 def _read(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 

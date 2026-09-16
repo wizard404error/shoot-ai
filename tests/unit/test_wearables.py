@@ -31,7 +31,6 @@ from kawkab.services.wearables import (
     detect_parser,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixture writers — synthesize the kind of files each vendor produces.
 # ---------------------------------------------------------------------------
@@ -441,7 +440,11 @@ class TestWearableImportService:
         # The old import path must still work
         from kawkab.services.wearable_import_service import (
             WearableDataPoint as ShimDataPoint,
+        )
+        from kawkab.services.wearable_import_service import (
             WearableImportService as ShimService,
+        )
+        from kawkab.services.wearable_import_service import (
             WearableSession as ShimSession,
         )
 

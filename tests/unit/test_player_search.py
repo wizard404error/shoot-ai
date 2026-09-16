@@ -5,17 +5,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 SRC_DIR = Path(__file__).resolve().parent.parent.parent / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 from kawkab.core.player_search import (
     SearchCriteria,
-    SearchResult,
     search_players,
 )
-
 
 SAMPLE_DB = [
     {

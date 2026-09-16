@@ -1,12 +1,7 @@
 """Tests for pressing trap detection module — zone classification,
 trigger detection, and full pipeline."""
 
-import math
-
-import pytest
 from kawkab.core.pressing_traps import (
-    PITCH_LENGTH,
-    PITCH_WIDTH,
     PressingTrap,
     PressingTrapReport,
     _classify_trap_zone,
@@ -14,7 +9,6 @@ from kawkab.core.pressing_traps import (
     _find_trigger_events,
     detect_pressing_traps,
 )
-
 
 # ── Constants ──────────────────────────────────────────────────────────────
 

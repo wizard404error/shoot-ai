@@ -1,10 +1,10 @@
 """Tests for League Simulation — Monte Carlo simulation from xG."""
 
 from kawkab.core.league_simulation import (
+    _poisson_goals,
+    _poisson_knuth,
     simulate_league,
     simulate_match,
-    _poisson_knuth,
-    _poisson_goals,
 )
 
 

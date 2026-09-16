@@ -10,7 +10,6 @@ from kawkab.services.video_review_service import (  # noqa: E402
     Annotation,
     AnnotationKind,
     Clip,
-    ClipTag,
     ReviewSession,
     VideoReviewService,
 )

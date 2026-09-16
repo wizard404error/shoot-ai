@@ -9,8 +9,6 @@ import math
 from collections import defaultdict
 from typing import Any
 
-import numpy as np
-
 from kawkab.core.game_constants import GAME
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M

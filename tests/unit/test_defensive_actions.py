@@ -1,13 +1,12 @@
 """Tests for defensive actions and final third entry analysis."""
 
 from kawkab.core.defensive_actions import (
-    extract_defensive_actions,
-    build_defensive_heatmap,
-    analyze_final_third_entries,
     DefensiveAction,
     DefensiveHeatmap,
     FinalThirdReport,
-    FinalThirdEntry,
+    analyze_final_third_entries,
+    build_defensive_heatmap,
+    extract_defensive_actions,
 )
 
 

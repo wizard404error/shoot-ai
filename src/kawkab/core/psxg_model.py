@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 # Hand-tuned fallback coefficients (superseded by fitted weights when
 # trained_psxg_coefficients.json exists — auto-loaded below).
 PSXG_COEFFICIENTS: dict[str, float] = {

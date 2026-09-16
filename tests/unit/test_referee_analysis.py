@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-from kawkab.core.referee_analysis import analyze_referee, RefereeProfile, RefereeAnalysisReport
+from kawkab.core.referee_analysis import analyze_referee
 
 
 def make_match(

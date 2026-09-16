@@ -21,7 +21,7 @@ class SkillCornerTrackingFrame:
 class SkillCornerImporter:
     def import_tracking_data(self, path: str | Path) -> list[SkillCornerTrackingFrame]:
         try:
-            with open(str(path), "r", encoding="utf-8") as f:
+            with open(str(path), encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as exc:
             logger.error(f"Failed to read SkillCorner file {path}: {exc}")

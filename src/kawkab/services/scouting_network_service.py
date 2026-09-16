@@ -6,7 +6,6 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -48,7 +47,7 @@ class ScoutingNetworkService:
         os.makedirs(os.path.dirname(self._data_file), exist_ok=True)
         try:
             if os.path.exists(self._data_file):
-                with open(self._data_file, "r", encoding="utf-8") as f:
+                with open(self._data_file, encoding="utf-8") as f:
                     data = json.load(f)
                 for p in data:
                     self._players[p["id"]] = NetworkPlayer(**p)

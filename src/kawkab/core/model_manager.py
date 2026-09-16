@@ -16,10 +16,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths

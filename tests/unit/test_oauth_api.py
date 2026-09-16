@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import pytest
-from unittest.mock import patch, MagicMock
-
 import os
 import tempfile
+from unittest.mock import patch
+
+import pytest
 
 os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-testing-purposes-only")
-os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), f"kawkab_test_oauth_api.db")
+os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), "kawkab_test_oauth_api.db")
 os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
 
 from fastapi.testclient import TestClient
-from kawkab.cloud.server import app
+
 from kawkab.cloud.oauth import PROVIDERS, OAuthProvider, OAuthProviderConfig
-from kawkab.cloud.auth import _jwt_secret
+from kawkab.cloud.server import app
 
 
 @pytest.fixture(autouse=True)
@@ -106,20 +106,22 @@ class TestOAuthAPI:
     def test_callback_creates_new_user(self):
         resp = client.get("/auth/oauth/test_prov/authorize")
         state = resp.json()["state"]
-        with patch.object(
-            OAuthProvider,
-            "exchange_code",
-            return_value={"access_token": "tok1", "refresh_token": "rt1"},
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                OAuthProvider,
+                "exchange_code",
+                return_value={"access_token": "tok1", "refresh_token": "rt1"},
+            ),
+            patch.object(
                 OAuthProvider,
                 "get_userinfo",
                 return_value={"id": "ext123", "email": "ext@test.com", "name": "External User"},
-            ):
-                resp2 = client.post(
-                    "/auth/oauth/test_prov/callback",
-                    json={"code": "abc", "state": state, "provider": "test_prov"},
-                )
+            ),
+        ):
+            resp2 = client.post(
+                "/auth/oauth/test_prov/callback",
+                json={"code": "abc", "state": state, "provider": "test_prov"},
+            )
         assert resp2.status_code == 200
         data = resp2.json()
         assert "access_token" in data

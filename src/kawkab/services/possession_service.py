@@ -13,9 +13,8 @@ Outputs per-team possession with confidence + per-player touches.
 
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.game_constants import GAME

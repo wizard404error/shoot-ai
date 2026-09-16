@@ -6,12 +6,10 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import httpx
-
 
 WEBHOOKS_DB_PATH = None
 
@@ -53,7 +51,7 @@ class WebhookService:
             "secret": secret,
             "events": events or ["*"],
             "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         webhooks.append(wh)
         self._save(webhooks)
@@ -86,7 +84,7 @@ class WebhookService:
         body = json.dumps(
             {
                 "event": event_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "payload": payload,
             },
             default=str,

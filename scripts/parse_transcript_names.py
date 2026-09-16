@@ -94,7 +94,6 @@ SKIP_WORDS = {
     "When",
     "Really",
     "Just",
-    "Very",
     "Over",
     "Under",
     "About",
@@ -217,7 +216,7 @@ def main():
     for m in unique_mentions:
         print(f'  {m["name"]} @ {m["timestamp"]:.1f}s — "{m["context"]}"')
 
-    print(f"\nName frequency:")
+    print("\nName frequency:")
     for name, count in sorted(name_counts.items(), key=lambda x: -x[1]):
         print(f"  {name}: {count}x")
 

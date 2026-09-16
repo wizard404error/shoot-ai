@@ -1,6 +1,7 @@
 """Tests for corner kick xG model."""
 
 import pytest
+
 from kawkab.core.corner_xg import CornerKickXgModel, _classify_delivery_zone
 
 

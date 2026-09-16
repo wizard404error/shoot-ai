@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
 from kawkab.core.suspension_tracker import (
-    PlayerDiscipline,
-    SuspensionReport,
     analyze_suspensions,
 )
 

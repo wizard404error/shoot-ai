@@ -7,7 +7,7 @@ and throw-in contributions, and compares expected vs actual assists.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.game_constants import GAME

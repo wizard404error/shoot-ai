@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -19,8 +17,8 @@ TOKEN_FILE = Path.home() / ".kawkab" / "cloud_token"
 class CloudSyncService:
     def __init__(self, cloud_url: str = CLOUD_URL):
         self.cloud_url = cloud_url
-        self._token: Optional[str] = None
-        self._user: Optional[dict] = None
+        self._token: str | None = None
+        self._user: dict | None = None
         self._load_token()
 
     def _load_token(self):

@@ -9,7 +9,6 @@ install_kawkab_stubs()
 from kawkab.services.workload_service import (  # noqa: E402
     RiskLevel,
     WorkloadRecord,
-    WorkloadReport,
     WorkloadService,
     WorkloadSource,
 )

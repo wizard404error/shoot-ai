@@ -8,8 +8,8 @@ import uuid
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
-from kawkab.services.video_sync_service import MultiAngleSyncService
 from kawkab.services.highlight_reel_service import HighlightReelService
+from kawkab.services.video_sync_service import MultiAngleSyncService
 
 logger = get_logger(__name__)
 
@@ -89,6 +89,7 @@ class VideoHandler:
             if not path:
                 return json.dumps({"error": "Invalid video path"})
             import asyncio
+
             from kawkab.services.clip_service import ClipExtractionService
 
             svc = ClipExtractionService()
@@ -107,6 +108,7 @@ class VideoHandler:
         self._check_rate_limit()
         try:
             import asyncio
+
             from kawkab.services.highlight_reel_service import ReelClip
 
             clips_data = json.loads(clips_json)
@@ -144,8 +146,6 @@ class VideoHandler:
                     "progress": 0.3,
                     "output_path": "",
                 }
-
-            import asyncio
 
             result_str = self._highlight_reel.make_reel_from_events(match_id, events, video_path)
             result = json.loads(result_str)

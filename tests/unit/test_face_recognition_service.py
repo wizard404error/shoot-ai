@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import json
 import sys
-import types
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from conftest import install_kawkab_stubs, load_service_module

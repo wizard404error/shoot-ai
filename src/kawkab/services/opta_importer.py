@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Any, Optional
-from zipfile import ZipFile
 
 from kawkab.services.data_provider_base import (
     BaseDataProvider,
@@ -200,11 +198,11 @@ class OptaF7Importer(BaseDataProvider):
 
     async def search_matches(
         self,
-        team: Optional[str] = None,
-        competition: Optional[str] = None,
-        season: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
+        team: str | None = None,
+        competition: str | None = None,
+        season: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         limit: int = 50,
     ) -> list[ProviderMatch]:
         logger.warning(

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any
 
 from kawkab.core.logging import get_logger
 

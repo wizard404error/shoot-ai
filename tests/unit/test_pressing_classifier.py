@@ -1,13 +1,13 @@
 """Tests for Pressing Classifier — block type, man/zonal, trigger pressing."""
 
+from kawkab.core.game_constants import GAME
 from kawkab.core.pressing_classifier import (
-    classify_pressing_system,
-    _classify_block_type,
     _avg_defensive_line_x,
+    _classify_block_type,
     _detect_man_or_zonal,
     _detect_trigger_pressing_moments,
+    classify_pressing_system,
 )
-from kawkab.core.game_constants import GAME
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M
 

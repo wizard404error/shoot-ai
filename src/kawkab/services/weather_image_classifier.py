@@ -119,7 +119,7 @@ class WeatherImageClassifier:
         """Classify weather from a single video frame."""
         if frame is None or frame.size == 0:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, dict.fromkeys(WEATHER_CLASSES, 0.2), 0.0, 0.0, 0.0, "feature_based"
             )
         if self._cnn_available:
             try:
@@ -132,15 +132,15 @@ class WeatherImageClassifier:
         """Classify weather across multiple frames; majority vote on class."""
         if not frames:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, dict.fromkeys(WEATHER_CLASSES, 0.2), 0.0, 0.0, 0.0, "feature_based"
             )
         results = [self.classify(f) for f in frames if f is not None and f.size > 0]
         if not results:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, dict.fromkeys(WEATHER_CLASSES, 0.2), 0.0, 0.0, 0.0, "feature_based"
             )
         votes: dict[str, int] = {}
-        avg_probs: dict[str, float] = {c: 0.0 for c in WEATHER_CLASSES}
+        avg_probs: dict[str, float] = dict.fromkeys(WEATHER_CLASSES, 0.0)
         for r in results:
             votes[r.predicted_class] = votes.get(r.predicted_class, 0) + 1
             for c, p in r.class_probabilities.items():
@@ -180,7 +180,7 @@ class WeatherImageClassifier:
     def _classify_features(self, frame: np.ndarray) -> WeatherClassification:
         """Feature-based weather classification (no ML model needed)."""
         brightness, edge_density, blue_dom = compute_features(frame)
-        scores = {c: 0.0 for c in WEATHER_CLASSES}
+        scores = dict.fromkeys(WEATHER_CLASSES, 0.0)
         if brightness < 90:
             scores["rainy"] += 0.3
             scores["snowy"] += 0.2

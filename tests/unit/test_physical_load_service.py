@@ -6,9 +6,7 @@ import sys
 import types
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import MagicMock
 
-import numpy as np
 import pytest
 
 from tests.conftest import install_kawkab_stubs, load_service_module

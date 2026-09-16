@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
 from kawkab.services.feedback_service import (
-    FeedbackService,
     CoachFeedback,
+    FeedbackService,
     IssueReport,
     UsageSession,
 )

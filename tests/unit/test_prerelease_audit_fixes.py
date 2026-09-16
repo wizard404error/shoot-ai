@@ -12,7 +12,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()

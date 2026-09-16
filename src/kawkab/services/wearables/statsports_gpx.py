@@ -34,10 +34,8 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Optional
 
 from kawkab.core.logging import get_logger
-
 from kawkab.services.wearables.base import BaseWearableParser
 from kawkab.services.wearables.models import WearableDataPoint, WearableSession
 
@@ -83,7 +81,7 @@ class StatsportsGpxParser(BaseWearableParser):
 
     # -- internals ---------------------------------------------------------
 
-    def _trkpt_to_datapoint(self, trkpt: ET.Element) -> Optional[WearableDataPoint]:
+    def _trkpt_to_datapoint(self, trkpt: ET.Element) -> WearableDataPoint | None:
         lat = self._parse_float(trkpt.get("lat"))
         lon = self._parse_float(trkpt.get("lon"))
         if lat is None and lon is None:
@@ -119,7 +117,7 @@ class StatsportsGpxParser(BaseWearableParser):
         return dp
 
     @staticmethod
-    def _find(parent: ET.Element, tag: str) -> Optional[ET.Element]:
+    def _find(parent: ET.Element, tag: str) -> ET.Element | None:
         """Find a child by tag, trying both bare and namespaced forms."""
         # Bare (no namespace) — common in Sonra exports
         el = parent.find(tag)
@@ -129,7 +127,7 @@ class StatsportsGpxParser(BaseWearableParser):
         return parent.find(f"{{*}}{tag}")
 
     @staticmethod
-    def _find_prefixed(parent: ET.Element, tag: str, namespaces: list[str]) -> Optional[ET.Element]:
+    def _find_prefixed(parent: ET.Element, tag: str, namespaces: list[str]) -> ET.Element | None:
         for ns in namespaces:
             el = parent.find(f"{{{ns}}}{tag}")
             if el is not None:
@@ -140,7 +138,7 @@ class StatsportsGpxParser(BaseWearableParser):
     @staticmethod
     def _find_recursive_prefixed(
         parent: ET.Element, tag: str, namespaces: list[str]
-    ) -> Optional[ET.Element]:
+    ) -> ET.Element | None:
         """Recursively search for ``tag`` under ``parent`` across namespaces.
 
         Handles elements nested at arbitrary depth (e.g. ``gpxtpx:hr`` living
@@ -156,7 +154,7 @@ class StatsportsGpxParser(BaseWearableParser):
         return None
 
     @staticmethod
-    def _parse_dt(text: str) -> Optional[datetime]:
+    def _parse_dt(text: str) -> datetime | None:
         text = text.strip()
         if not text:
             return None

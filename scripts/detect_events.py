@@ -18,9 +18,8 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from math import dist, atan2, pi
+from math import atan2, dist
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -431,7 +430,7 @@ def main():
             gt_events = load_statsbomb_events(gt_dir)
             if gt_events:
                 comparison = compare_with_ground_truth(shots + passes, gt_events)
-                print(f"\n  --- COMPARISON vs GROUND TRUTH ---")
+                print("\n  --- COMPARISON vs GROUND TRUTH ---")
                 for k, v in comparison.items():
                     print(f"    {k}: {v}")
 

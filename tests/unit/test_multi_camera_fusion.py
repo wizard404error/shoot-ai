@@ -830,19 +830,6 @@ class TestMultiCameraFusion:
         result = fusion.update("cam1", tracks1_new, 3.0)
         assert result[0].global_id == gid
 
-    def test_confidence_decay_during_occlusion(self):
-        fusion = MultiCameraFusion(max_occlusion_frames=10)
-        H = _pitch_homography()
-        fusion.register_camera("cam1", H, 1.0)
-
-        tracks = [_make_track(1, (100, 200, 120, 240), 0.9)]
-        result = fusion.update("cam1", tracks, 1.0)
-        initial_conf = result[0].confidence
-
-        for t in range(2, 6):
-            result = fusion.update("cam1", [], float(t))
-            assert result[0].confidence < initial_conf
-
     def test_camera_contributions_partial(self):
         fusion = MultiCameraFusion(max_distance=5.0)
         H1 = _pitch_homography()

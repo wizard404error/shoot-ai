@@ -7,7 +7,7 @@ from pathlib import Path
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
-from kawkab.core.security import SecurityValidator, ErrorSanitizer
+from kawkab.core.security import ErrorSanitizer, SecurityValidator
 
 logger = get_logger(__name__)
 

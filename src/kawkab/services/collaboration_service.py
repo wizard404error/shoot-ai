@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import sqlite3
-import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from kawkab.core.logging import get_logger
 

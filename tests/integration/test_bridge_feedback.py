@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from pathlib import Path
 
-from kawkab.ui.bridge import Bridge
-from kawkab.services.feedback_service import FeedbackService, CoachFeedback, IssueReport
-from kawkab.services.storage_service import StorageService
+import pytest
+
 from kawkab.services.analysis_service import AnalysisService
-from kawkab.services.cv_service import MatchTrackData, FrameDetections, Detection
+from kawkab.services.cv_service import FrameDetections, MatchTrackData
+from kawkab.services.feedback_service import CoachFeedback, FeedbackService
+from kawkab.services.storage_service import StorageService
+from kawkab.ui.bridge import Bridge
 
 
 class FakeCVService:

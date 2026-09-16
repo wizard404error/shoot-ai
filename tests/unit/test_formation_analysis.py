@@ -1,6 +1,7 @@
 """Tests for formation shape analysis."""
 
 import pytest
+
 from kawkab.core.formation_analysis import (
     FormationAnalyzer,
     FormationMatchReport,

@@ -7,9 +7,7 @@ isokinetic dynamometry, and manual entries. Supports limb symmetry index
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.logging import get_logger

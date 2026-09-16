@@ -23,7 +23,6 @@ from kawkab.core.config import (
     _parse_value,
 )
 
-
 # ── DetectionConfig ───────────────────────────────────────────────────────
 
 

@@ -1,6 +1,6 @@
 """Tests for tactical period detection."""
 
-from kawkab.core.tactical_periods import detect_tactical_periods, TacticalPeriodReport
+from kawkab.core.tactical_periods import TacticalPeriodReport, detect_tactical_periods
 
 
 class TestTacticalPeriods:

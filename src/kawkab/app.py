@@ -18,25 +18,26 @@ import asyncio
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtCore import QSize, QUrl
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon, QMenu
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineSettings, QWebEnginePage
 from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QSystemTrayIcon
 
 from kawkab.core.config import get_settings
 from kawkab.core.logging import get_logger, setup_logging
+from kawkab.core.model_manager import ModelManager
 from kawkab.core.paths import get_paths
-from kawkab.utils.profiler import Profiler
 from kawkab.services import (
     AdvancedEventDetectionService,
+    AnalysisService,
     AnomalyDetectionService,
     ApiFootballService,
     AudioService,
-    AnalysisService,
     BenchmarkService,
     BzzoiroService,
+    CardDetectionService,
     ClipExtractionService,
     CVService,
     DataExportService,
@@ -47,13 +48,14 @@ from kawkab.services import (
     FluidX3DService,
     FootballDataService,
     FootballRulesService,
+    GoalkeeperService,
     HomographyService,
     KnowledgeService,
     LightGlueHomographyService,
     LLMConfig,
     LLMService,
-    MultiMatchAnalysisService,
     MuJoCoBallService,
+    MultiMatchAnalysisService,
     OpenFootballDataService,
     PhysicalLoadService,
     PlayerProfileService,
@@ -65,17 +67,15 @@ from kawkab.services import (
     RealtimeService,
     RoboflowSportsService,
     SetPieceService,
-    GoalkeeperService,
     StatsBombService,
     StorageService,
     SubstitutionService,
     TheSportsDBService,
     VisualizationService,
     WeatherService,
-    CardDetectionService,
 )
-from kawkab.core.model_manager import ModelManager
 from kawkab.ui.bridge import Bridge
+from kawkab.utils.profiler import Profiler
 
 logger = get_logger(__name__)
 

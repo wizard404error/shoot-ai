@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 from kawkab.core.xg_model import compute_xg_trained_from_dict
 
 

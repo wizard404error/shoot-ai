@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import pytest
-
 from kawkab.services.tag_analytics_service import (
-    TagTemplate,
     DEFAULT_TAG_TEMPLATES,
+    _format_timecode,
+    _guess_category,
+    _parse_timecode,
     compute_tag_analytics,
-    TagAnalytics,
-    tags_to_csv,
-    tags_from_csv,
     export_tags_sportscode,
     import_tags_sportscode,
-    _format_timecode,
-    _parse_timecode,
-    _guess_category,
+    tags_from_csv,
+    tags_to_csv,
 )
 
 

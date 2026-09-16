@@ -1,15 +1,16 @@
 """Tests for set piece analysis module — delivery quality scoring."""
 
 import pytest
+
 from kawkab.core.set_piece_analysis import (
+    DeliveryZone,
+    SetPieceReport,
+    SetPieceSummary,
     _classify_set_piece_type,
     _compute_delivery_quality,
     _delivery_zone_label,
     _estimate_set_piece_xg,
     analyze_set_pieces,
-    DeliveryZone,
-    SetPieceReport,
-    SetPieceSummary,
 )
 from kawkab.core.xg_model import EnhancedXgModel
 

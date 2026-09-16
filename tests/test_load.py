@@ -7,10 +7,8 @@ pass network construction, pitch control computation.
 from __future__ import annotations
 
 import json
-import time
 import math
 import random
-from pathlib import Path
 
 import pytest
 
@@ -89,7 +87,7 @@ def large_match_list():
 
 def test_xg_computation_throughput(benchmark):
     """Benchmark xG computation for 1000 shots."""
-    from kawkab.services.xg_model import compute_xg, XGConfig
+    from kawkab.services.xg_model import XGConfig, compute_xg
 
     config = XGConfig()
 
@@ -136,7 +134,6 @@ def test_xg_computation_throughput(benchmark):
 
 def test_event_storage_bulk_throughput(large_event_set, benchmark, tmp_path):
     """Benchmark bulk storage of 10,000 events."""
-    from kawkab.services.storage_service import StorageService
     from kawkab.core.database_sharding import SeasonShardManager
 
     db_path = tmp_path / "load_test.db"
@@ -215,8 +212,9 @@ def test_pitch_control_throughput(benchmark):
 
 def test_database_shard_throughput(large_match_list, benchmark):
     """Benchmark storing and retrieving 500 matches across shards."""
-    from kawkab.core.database_sharding import SeasonShardManager
     import tempfile
+
+    from kawkab.core.database_sharding import SeasonShardManager
 
     with tempfile.TemporaryDirectory() as tmpdir:
         shard = SeasonShardManager(tmpdir)
@@ -263,8 +261,9 @@ def test_json_serialization_throughput(large_event_set, benchmark):
 
 def test_shard_migration_throughput(large_match_list, large_event_set, benchmark, tmp_path):
     """Benchmark migration from monolithic to sharded database."""
-    from kawkab.core.database_sharding import SeasonShardManager
     import sqlite3
+
+    from kawkab.core.database_sharding import SeasonShardManager
 
     source_db = tmp_path / "monolithic.db"
     conn = sqlite3.connect(str(source_db))

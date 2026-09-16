@@ -11,10 +11,10 @@ Tests clip extraction, playlist creation, and storage integration.
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
@@ -22,7 +22,6 @@ install_kawkab_stubs()
 from kawkab.services.clip_extraction_service import (
     ClipLibraryService,
     VideoClip,
-    ClipPlaylist,
 )
 from kawkab.services.storage_service import StorageService
 

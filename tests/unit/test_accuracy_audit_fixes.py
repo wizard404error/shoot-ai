@@ -409,7 +409,6 @@ class TestTrainedXgCoefficientsSanity:
         close-range difficulty signal, so evaluating without them
         (gk_distance_m=0 -> feature inactive) understates the decay.
         """
-        from kawkab.core.events import ShotEvent
         from kawkab.core.xg_model import EnhancedXgModel
 
         model = EnhancedXgModel()

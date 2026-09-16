@@ -17,12 +17,12 @@ from pathlib import Path
 
 async def main() -> int:
     from kawkab.services import (
-        CVService,
         AnalysisService,
+        CVService,
         HomographyService,
-        VRAMManager,
-        LLMService,
         LLMConfig,
+        LLMService,
+        VRAMManager,
     )
 
     print("=" * 70)
@@ -32,7 +32,7 @@ async def main() -> int:
 
     video_path = Path("data/sweden_test_60s.mp4")
     if not video_path.exists():
-        print(f"[ERROR] Video not found")
+        print("[ERROR] Video not found")
         return 1
 
     print("\n[1/4] Initializing services...")

@@ -23,8 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import pickle
-import sys
-from collections import defaultdict, deque
+from collections import deque
 from pathlib import Path
 from typing import Any
 

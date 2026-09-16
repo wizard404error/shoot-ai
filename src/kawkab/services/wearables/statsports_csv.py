@@ -33,10 +33,8 @@ Reference: https://elitesupport.statsports.com/hc/en-us/articles/13494616698141-
 from __future__ import annotations
 
 import csv
-from typing import Optional
 
 from kawkab.core.logging import get_logger
-
 from kawkab.services.wearables.base import BaseWearableParser
 from kawkab.services.wearables.models import WearableDataPoint, WearableSession
 
@@ -135,8 +133,8 @@ class StatsportsCsvParser(BaseWearableParser):
     # -- internals ---------------------------------------------------------
 
     def _row_to_datapoint(
-        self, row: dict, col: dict[str, Optional[str]], row_idx: int
-    ) -> Optional[WearableDataPoint]:
+        self, row: dict, col: dict[str, str | None], row_idx: int
+    ) -> WearableDataPoint | None:
         # Timestamp: aggregate CSVs have no per-second timestamps. Use row
         # index as a synthetic timestamp (1-indexed, 1s intervals).
         dp = WearableDataPoint(timestamp_s=float(row_idx))
@@ -170,8 +168,8 @@ class StatsportsCsvParser(BaseWearableParser):
         return dp
 
     @staticmethod
-    def _resolve_columns(lowered: list[str], raw_headers: list[str]) -> dict[str, Optional[str]]:
-        col: dict[str, Optional[str]] = {}
+    def _resolve_columns(lowered: list[str], raw_headers: list[str]) -> dict[str, str | None]:
+        col: dict[str, str | None] = {}
         for field_name, aliases in _SONRA_ALIASES.items():
             for alias in aliases:
                 if alias in lowered:

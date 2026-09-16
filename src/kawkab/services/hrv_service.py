@@ -7,8 +7,7 @@ HRV metrics from R-R interval data. Used for fatigue monitoring and recovery tra
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 from kawkab.core.logging import get_logger
 

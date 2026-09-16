@@ -11,12 +11,12 @@ from pathlib import Path
 
 async def main() -> int:
     from kawkab.services import (
-        CVService,
         AnalysisService,
+        CVService,
         HomographyService,
-        VRAMManager,
-        LLMService,
         LLMConfig,
+        LLMService,
+        VRAMManager,
     )
 
     print("=" * 70)
@@ -30,8 +30,8 @@ async def main() -> int:
 
     print(f"\nVideo: {video_path.name}")
     print(f"Size: {video_path.stat().st_size / 1e6:.1f} MB")
-    print(f"Duration: 60s (clipped from 16:35 highlight reel)")
-    print(f"Resolution: 1920x1080 @ 50 FPS (broadcast quality)")
+    print("Duration: 60s (clipped from 16:35 highlight reel)")
+    print("Resolution: 1920x1080 @ 50 FPS (broadcast quality)")
 
     print("\n[1/5] Initializing services...")
     vram = VRAMManager()
@@ -98,7 +98,7 @@ async def main() -> int:
         key=lambda p: p.distance_covered_m,
         reverse=True,
     )[:5]
-    print(f"\n  Top 5 players by distance (real meters):")
+    print("\n  Top 5 players by distance (real meters):")
     for p in top_players:
         print(
             f"    Track {p.track_id:3d}: {p.distance_covered_m:6.0f}m, "
@@ -159,7 +159,7 @@ Focus on formations, key players, and one observation.
     print("\n" + "=" * 70)
     print("REAL MATCH VIDEO TEST SUMMARY")
     print("=" * 70)
-    print(f"  Video: Sweden vs Tunisia 2026 (60s clip)")
+    print("  Video: Sweden vs Tunisia 2026 (60s clip)")
     print(f"  CV: {cv_time:.1f}s | Analysis: {analysis_time:.1f}s")
     print(
         f"  Tracks: {metrics['validated_player_tracks']} (quality: {metrics['tracking_quality']})"

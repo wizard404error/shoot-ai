@@ -6,7 +6,6 @@ formations and computes tactical flexibility scores. All numpy-only.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 

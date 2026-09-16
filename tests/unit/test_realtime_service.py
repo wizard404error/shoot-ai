@@ -34,7 +34,7 @@ ConsoleSubscriber = _rt.ConsoleSubscriber
 RealtimeSubscriber = _rt.RealtimeSubscriber
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import pytest

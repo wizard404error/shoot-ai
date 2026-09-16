@@ -8,16 +8,16 @@ Tracks accuracy metrics over time to measure improvement.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-import json
 
-from kawkab.core.logging import get_logger
 from kawkab.core.coordinate_validator import CoordinateValidator
+from kawkab.core.logging import get_logger
 
 try:
-    import pandas as pd
+    import pandas as pd  # noqa: F401  (availability probe)
 
     _HAS_PANDAS = True
 except ImportError:

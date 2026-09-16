@@ -7,13 +7,12 @@ and structures them into a progressive overload program.
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from kawkab.core.logging import get_logger
-from kawkab.services.knowledge_service import KnowledgeService, Drill
+from kawkab.services.knowledge_service import KnowledgeService
 from kawkab.services.reasoning_service import Diagnosis, DiagnosisReport
 
 logger = get_logger(__name__)

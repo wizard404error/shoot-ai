@@ -1,12 +1,9 @@
 """Tests for carry expected threat (Carry xT) module."""
 
-import pytest
-
 from kawkab.core.carry_xt import (
+    CarryXTMatchReport,
     compute_carry_xt,
     compute_carry_xt_from_tracking,
-    CarryXTResult,
-    CarryXTMatchReport,
 )
 from kawkab.core.xt_model import ExpectedThreatModel
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
 
@@ -407,11 +406,10 @@ def _generate_areas_for_improvement(
             phase_xg_report.get("home_set_piece_xg", 0) > 0
             and phase_xg_report.get("away_set_piece_xg", 0) > 0
         ):
-            if phase_xg_report["home_set_piece_xg"] > phase_xg_report["away_set_piece_xg"] * 2:
-                areas.append(
-                    "Improve set piece defending — conceded significant xG from dead-ball situations."
-                )
-            elif phase_xg_report["away_set_piece_xg"] > phase_xg_report["home_set_piece_xg"] * 2:
+            if (
+                phase_xg_report["home_set_piece_xg"] > phase_xg_report["away_set_piece_xg"] * 2
+                or phase_xg_report["away_set_piece_xg"] > phase_xg_report["home_set_piece_xg"] * 2
+            ):
                 areas.append(
                     "Improve set piece defending — conceded significant xG from dead-ball situations."
                 )

@@ -11,8 +11,7 @@ Output: list of CardEvents with confidence and source attribution.
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -354,7 +353,7 @@ class CardDetectionService:
                                         team=e.team,
                                         source=CardSource.EXTERNAL,
                                         confidence=0.95,
-                                        description=f"StatsBomb verified card event",
+                                        description="StatsBomb verified card event",
                                     )
                                 )
                         return cards

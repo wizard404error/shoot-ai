@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Literal
 
 from kawkab.core.logging import get_logger
-from kawkab.services.llm_service import LLMService, LLMConfig
+from kawkab.services.llm_service import LLMConfig, LLMService
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,7 @@ class AIAssistantV2Service:
         filepath = os.path.join(path, "ai_conversations.json")
         try:
             if os.path.exists(filepath):
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     data = json.load(f)
                 for conv_data in data:
                     conv = Conversation(

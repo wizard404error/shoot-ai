@@ -1,6 +1,6 @@
 """Tests for Expected Assists model — Poisson pass-to-shot sequence model."""
 
-from kawkab.core.xa_model import ExpectedAssistModel, XAResult, XAMatchReport
+from kawkab.core.xa_model import ExpectedAssistModel, XAMatchReport, XAResult
 from kawkab.core.xg_model import EnhancedXgModel
 
 

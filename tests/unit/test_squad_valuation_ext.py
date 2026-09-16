@@ -1,10 +1,10 @@
 """Tests for Transfer Fee Extension - estimate_player_transfer_fee."""
 
 from kawkab.core.squad_valuation import (
-    estimate_player_transfer_fee,
     _transfer_age_factor,
-    _transfer_performance_score,
     _transfer_contract_factor,
+    _transfer_performance_score,
+    estimate_player_transfer_fee,
 )
 
 

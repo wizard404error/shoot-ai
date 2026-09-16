@@ -20,10 +20,11 @@ import asyncio
 import logging
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Deque
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .cv_service import CVService, FrameDetections
@@ -341,7 +342,7 @@ class RealtimeService:
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> StreamStats:
         """Core loop: read frames, run alert rules, dispatch events."""
-        buffer: Deque[FrameDetections] = deque(maxlen=self.buffer_size)
+        buffer: deque[FrameDetections] = deque(maxlen=self.buffer_size)
         frames_processed = 0
         frames_dropped = 0
         events_emitted = 0

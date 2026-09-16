@@ -231,7 +231,7 @@ class PassNetwork:
 
         max_val = max(betweenness.values())
         if max_val == 0:
-            return {tid: 0.0 for tid in betweenness}
+            return dict.fromkeys(betweenness, 0.0)
 
         return {tid: round(val / max_val, 4) for tid, val in betweenness.items()}
 

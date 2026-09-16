@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 
 class GamePlanGenerator:
     def generate(self, events: list[dict], opponent: str = "") -> dict:

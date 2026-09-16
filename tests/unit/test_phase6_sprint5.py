@@ -13,18 +13,13 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from kawkab.services.collaboration_service import (
     CollaborationService,
-    CollabUser,
-    Comment,
-    Mention,
-    ActivityEntry,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
 

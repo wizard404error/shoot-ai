@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -135,7 +134,7 @@ class TestSimulateAvailable:
     @pytest.mark.asyncio
     async def test_timeout(self, available_svc, monkeypatch):
         mock_proc = AsyncMock()
-        mock_proc.communicate.side_effect = asyncio.TimeoutError()
+        mock_proc.communicate.side_effect = TimeoutError()
         monkeypatch.setattr(
             _fluidx3d_mod.asyncio,
             "create_subprocess_exec",

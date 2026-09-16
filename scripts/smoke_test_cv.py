@@ -3,8 +3,8 @@
 import asyncio
 import sys
 
-from kawkab.services.cv_service import CVService
 from kawkab.core.logging import setup_logging
+from kawkab.services.cv_service import CVService
 
 setup_logging(debug=False)
 

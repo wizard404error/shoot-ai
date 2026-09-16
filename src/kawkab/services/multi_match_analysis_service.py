@@ -16,11 +16,9 @@ over time.
 from __future__ import annotations
 
 import json
-import math
 import sqlite3
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.logging import get_logger

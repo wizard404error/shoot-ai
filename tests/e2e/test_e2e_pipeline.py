@@ -13,8 +13,6 @@ import ast
 import json
 from pathlib import Path
 
-import pytest
-
 
 def _get_mc():
     from kawkab.core.observability import MetricsCollector

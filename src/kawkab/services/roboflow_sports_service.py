@@ -41,9 +41,9 @@ class RoboflowSportsService:
 
     def _try_import(self) -> None:
         try:
-            from sports.configs.soccer import SoccerPitchConfiguration  # type: ignore
             from sports.annotators import soccer as soccer_annotators  # type: ignore
             from sports.common import ball as ball_module  # type: ignore
+            from sports.configs.soccer import SoccerPitchConfiguration  # type: ignore
 
             self._soccer_config = SoccerPitchConfiguration
             self._soccer_annotators = soccer_annotators

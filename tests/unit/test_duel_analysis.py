@@ -11,9 +11,8 @@ from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
-from kawkab.core.duel_analysis import classify_duel_type, analyze_duels
 
-import pytest
+from kawkab.core.duel_analysis import analyze_duels, classify_duel_type
 
 
 class TestClassifyDuelType:

@@ -5,10 +5,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
-import tempfile
-import time
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

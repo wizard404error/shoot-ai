@@ -1,11 +1,11 @@
 """Tests for Finishing Analysis — shot quality tiers, streaks, placement."""
 
 from kawkab.core.finishing_analysis import (
-    analyze_finishing,
-    _tier_for_xg,
-    _detect_streaks,
-    _compute_placement_skill,
     DEFAULT_TIER_THRESHOLDS,
+    _compute_placement_skill,
+    _detect_streaks,
+    _tier_for_xg,
+    analyze_finishing,
 )
 
 

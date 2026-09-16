@@ -22,8 +22,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -163,7 +161,7 @@ class FluidX3DService:
                 notes=f"Simulation complete. Output in {out}",
                 error=None,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CfdResult(
                 success=False,
                 method="fluidx3d",

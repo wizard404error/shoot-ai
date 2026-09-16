@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import sys
 import types
 from pathlib import Path
@@ -19,7 +18,6 @@ def _install_cv_stub() -> None:
     if "kawkab.services" in sys.modules:
         return
     from dataclasses import dataclass, field
-    from typing import Any
 
     services_mod = types.ModuleType("kawkab.services")
     sys.modules["kawkab.services"] = services_mod
@@ -67,7 +65,6 @@ PressureMetrics = _mod.PressureMetrics
 MatchTrackData = _mod.MatchTrackData
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helper builders

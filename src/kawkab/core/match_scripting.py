@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Any
-import math
-import random
 
 
 @dataclass
@@ -143,9 +142,9 @@ def generate_possession_phase(
         end_minute=start_minute + duration_minutes,
         team_focus=team,
         intensity=intensity,
-        description=f"Patient possession phase with progressive build-up",
+        description="Patient possession phase with progressive build-up",
         events=events,
-        coaching_notes=f"Focus on maintaining shape and creating passing lanes",
+        coaching_notes="Focus on maintaining shape and creating passing lanes",
     )
 
 

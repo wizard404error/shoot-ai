@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -16,10 +15,10 @@ class CorrelationResult:
     event_type: str = ""
     pre_event_avg_speed: float = 0.0
     post_event_avg_speed: float = 0.0
-    pre_event_avg_hr: Optional[float] = None
-    post_event_avg_hr: Optional[float] = None
+    pre_event_avg_hr: float | None = None
+    post_event_avg_hr: float | None = None
     speed_delta_pct: float = 0.0
-    hr_delta_pct: Optional[float] = None
+    hr_delta_pct: float | None = None
     sample_count: int = 0
 
 
@@ -56,7 +55,7 @@ class PhysioTacticalCorrelationService:
         self,
         events: list[dict],
         speed_timeline: list[dict],
-        hr_timeline: Optional[list[dict]] = None,
+        hr_timeline: list[dict] | None = None,
         window_s: float = 5.0,
     ) -> str:
         try:

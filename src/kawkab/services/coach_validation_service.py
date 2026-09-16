@@ -7,9 +7,8 @@ which features are actually used vs ignored.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from kawkab.core.logging import get_logger
 
@@ -62,7 +61,7 @@ class CoachValidationService:
         self, name: str, email: str, club: str = "", level: str = "amateur"
     ) -> CoachProfile:
         coach_id = f"coach_{int(time.time())}_{hash(email) % 10000}"
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         profile = CoachProfile(
             coach_id=coach_id,
             name=name,
@@ -93,7 +92,7 @@ class CoachValidationService:
     def submit_feedback(
         self, coach_id: str, match_id: int, rating: int, comments: str, category: str = "general"
     ) -> CoachFeedback:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         fb = CoachFeedback(
             feedback_id=f"fb_{int(time.time())}_{len(self._feedback)}",
             coach_id=coach_id,
@@ -130,7 +129,7 @@ class CoachValidationService:
         return [f for f in self._feedback if f.is_critical]
 
     def track_usage(self, coach_id: str, feature_name: str):
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if coach_id not in self._usage:
             self._usage[coach_id] = {}
         if feature_name not in self._usage[coach_id]:

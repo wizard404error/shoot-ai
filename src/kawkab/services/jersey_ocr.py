@@ -6,7 +6,6 @@ Maps numbers to track IDs and optionally to known squad rosters.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import cv2

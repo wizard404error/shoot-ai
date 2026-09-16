@@ -1,6 +1,6 @@
 """Tests for momentum index."""
 
-from kawkab.core.momentum import compute_momentum_index, MomentumPoint, MomentumReport
+from kawkab.core.momentum import MomentumPoint, MomentumReport, compute_momentum_index
 
 
 class TestMomentumIndex:

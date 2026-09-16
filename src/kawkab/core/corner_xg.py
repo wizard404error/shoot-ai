@@ -9,8 +9,6 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-import numpy as np
-
 from kawkab.core.game_constants import GAME
 
 PITCH_LENGTH = getattr(GAME, "PITCH_LENGTH_M", 105.0)

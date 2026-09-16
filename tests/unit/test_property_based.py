@@ -3,23 +3,22 @@
 import math
 
 import numpy as np
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
-from hypothesis import given, assume, strategies as st
-from kawkab.core.vaep import compute_vaep
-from kawkab.core.epv import EPVModel
-from kawkab.core.pitch_control import VoronoiPitchControl, WeightedPitchControl
-from kawkab.core.xg_model import compute_xg
-from kawkab.core.xt_model import ExpectedThreatModel
 from kawkab.core.coords import (
     STANDARD_PITCH,
-    is_normalized,
-    norm_to_meters,
     clamp_pitch,
+    euclidean_distance_m,
+    norm_to_meters,
     pitch_third,
     zone_label,
-    euclidean_distance_m,
 )
-
+from kawkab.core.epv import EPVModel
+from kawkab.core.pitch_control import VoronoiPitchControl, WeightedPitchControl
+from kawkab.core.vaep import compute_vaep
+from kawkab.core.xg_model import compute_xg
+from kawkab.core.xt_model import ExpectedThreatModel
 
 # ── xG model ──────────────────────────────────────────────────────────
 

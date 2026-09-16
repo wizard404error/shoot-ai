@@ -64,11 +64,12 @@ class AutoUpdaterService:
                 system = platform.system().lower()
                 for asset in assets:
                     name = asset.get("name", "").lower()
-                    if system == "windows" and (name.endswith(".exe") or "setup" in name):
-                        download_url = asset["browser_download_url"]
-                        digest = asset.get("digest") or ""
-                        break
-                    elif system == "darwin" and name.endswith(".dmg"):
+                    if (
+                        system == "windows"
+                        and (name.endswith(".exe") or "setup" in name)
+                        or system == "darwin"
+                        and name.endswith(".dmg")
+                    ):
                         download_url = asset["browser_download_url"]
                         digest = asset.get("digest") or ""
                         break

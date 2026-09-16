@@ -7,7 +7,6 @@ on event metadata, and analyzing duel patterns across both teams.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
 
 
 def classify_duel_type(event_metadata: dict) -> str:

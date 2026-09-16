@@ -1,17 +1,10 @@
 """Tests for Switch of Play + Box Entries Detection module."""
 
-import pytest
-
 from kawkab.core.switch_of_play import (
-    SwitchOfPlayDetector,
-    _classify_zone,
-    PITCH_LENGTH,
-    PITCH_WIDTH,
     SWITCH_MIN_LATERAL_M,
     SWITCH_MIN_TOTAL_M,
-    BOX_X_THRESHOLD,
-    BOX_Y_LO,
-    BOX_Y_HI,
+    SwitchOfPlayDetector,
+    _classify_zone,
 )
 
 

@@ -6,7 +6,6 @@ and builds passing triangle network analysis. All numpy-only.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from typing import Any
 
@@ -213,7 +212,7 @@ class PassingTriangleAnalyzer:
             "final_third_center",
             "final_third_right",
         ]
-        zone_counts: dict[str, int] = {z: 0 for z in zones}
+        zone_counts: dict[str, int] = dict.fromkeys(zones, 0)
         for t in triangles:
             z = _zone_hex(
                 sum(e.get("end_x", 0) for e in team_events if e.get("type") == "pass")

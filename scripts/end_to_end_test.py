@@ -121,11 +121,11 @@ async def run_full_pipeline(
         Summary dict with all results
     """
     from kawkab.services import (
-        CVService,
-        LLMService,
-        LLMConfig,
         AnalysisService,
+        CVService,
         KnowledgeService,
+        LLMConfig,
+        LLMService,
         StorageService,
     )
 
@@ -160,7 +160,7 @@ async def run_full_pipeline(
     )
     print(f"  [OK] Match saved: id={match_id}")
 
-    print(f"\nStep 3/6: Run CV pipeline on video...")
+    print("\nStep 3/6: Run CV pipeline on video...")
     t0 = time.time()
 
     async def progress_cb(p: float, msg: str) -> None:

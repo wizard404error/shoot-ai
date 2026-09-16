@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 async def main() -> int:
-    from kawkab.services import CVService, AnalysisService, HomographyService, VRAMManager
+    from kawkab.services import AnalysisService, CVService, HomographyService, VRAMManager
 
     print("=" * 60)
     print("KAWKAB AI - HOMOGRAPHY INTEGRATION TEST")

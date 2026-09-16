@@ -58,8 +58,6 @@ def detect_gpu() -> GPUBackend:
     except (ImportError, AttributeError):
         pass
 
-    import os
-
     try:
         import cv2
 

@@ -19,9 +19,13 @@ import argparse
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    import torch  # for static annotations only; runtime import stays lazy
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("train_jersey_cnn")
@@ -30,7 +34,11 @@ CNN_INPUT_SIZE = 28
 NUM_CLASSES = 11  # -1 (no digit) + 0-9
 
 
-def build_model() -> "torch.nn.Module":
+def build_model() -> torch.nn.Module:
+    # torch is deliberately lazy-imported (heavy; not needed for --help or
+    # download-only runs). Static checkers resolve the annotation via the
+    # TYPE_CHECKING-only import above.
+    import torch
     import torch.nn as nn
 
     class GNetDeep(nn.Module):
@@ -51,6 +59,9 @@ def build_model() -> "torch.nn.Module":
             self.fc2 = nn.Linear(128, NUM_CLASSES)
 
         def forward(self, x):
+            # `torch` here is the module imported inside build_model() above --
+            # the module-level `import torch.nn as nn` alone used to leave this
+            # name undefined (latent NameError on the first forward pass).
             x = torch.relu(self.bn1(self.conv1(x)))
             x = self.pool1(x)
             x = torch.relu(self.bn2(self.conv2(x)))
@@ -205,7 +216,7 @@ def train_model(
 ):
     import torch
     import torch.nn as nn
-    from torch.utils.data import Dataset, DataLoader
+    from torch.utils.data import DataLoader, Dataset
 
     class DigitDataset(Dataset):
         def __init__(self, patches, labels):
@@ -283,8 +294,6 @@ def main():
             return
 
     if args.train:
-        import torch
-
         train_imgs, train_labels = load_dataset(data_dir, "train")
         if not train_imgs:
             logger.error("No training data found. Use --download first.")

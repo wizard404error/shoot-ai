@@ -4,7 +4,6 @@ import json
 import time
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional
 
 from kawkab.core.logging import get_logger
 
@@ -44,8 +43,8 @@ class LiveTag:
     team: str = ""
     player_track_id: int = 0
     period: int = 1
-    x: Optional[float] = None
-    y: Optional[float] = None
+    x: float | None = None
+    y: float | None = None
     notes: str = ""
 
     def to_dict(self):

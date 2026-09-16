@@ -6,15 +6,19 @@ So we expect:
 - away_cluster should be RED (Tunisia)
 """
 
-import asyncio, os, sys, time
+import asyncio
+import os
+import sys
+import time
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 from pathlib import Path
 
 
 async def main() -> int:
-    from kawkab.services import CVService, AnalysisService, HomographyService
     import numpy as np
+
+    from kawkab.services import CVService
 
     cv = CVService(model_size="l", gpu_enabled=True)
     await cv.initialize()
@@ -104,7 +108,7 @@ async def main() -> int:
         for c in away_colors[:5]:
             print(f"  Sample: {c} -> {color_name(c)}")
 
-    print(f"\nExpected: home=YELLOW (Sweden), away=RED (Tunisia)")
+    print("\nExpected: home=YELLOW (Sweden), away=RED (Tunisia)")
     if home_colors and away_colors:
         h = np.mean(home_colors, axis=0)
         a = np.mean(away_colors, axis=0)

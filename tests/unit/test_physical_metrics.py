@@ -1,17 +1,17 @@
 """Tests for PhysicalMetricsAnalyzer."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 import math
-import numpy as np
+
 from kawkab.core.physical_metrics import (
+    SPEED_ZONES,
     PhysicalMetricsAnalyzer,
     PlayerPhysicalMetrics,
     TeamPhysicalReport,
-    SPEED_ZONES,
 )
 
 

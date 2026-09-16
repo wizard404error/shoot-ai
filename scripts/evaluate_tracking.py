@@ -14,7 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import csv
 import json
 import logging
 import sys
@@ -66,7 +65,7 @@ def parse_metrica_csv(csv_path: Path, team_label: str) -> dict[str, GroundTruthT
     Coordinates are normalized 0-1 (pitch-relative).
     """
     # Read all lines and parse
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     if len(lines) < 4:
@@ -125,7 +124,7 @@ def load_metrica_ground_truth(data_dir: Path) -> GroundTruthMatch:
         gt.away_tracks = parse_metrica_csv(away_csv[0], "away")
 
     if home_csv:
-        with open(home_csv[0], "r", encoding="utf-8") as f:
+        with open(home_csv[0], encoding="utf-8") as f:
             lines = f.readlines()
             data_end = len(lines) - 3  # after 3 header rows
         # Estimate total frames and fps from last row
@@ -160,7 +159,7 @@ def load_self_tracking(tracking_dir: Path) -> dict[str, Any]:
 
     result = {}
     if summary_path.exists():
-        with open(summary_path, "r") as f:
+        with open(summary_path) as f:
             result["summary"] = json.load(f)
         logger.info(f"Loaded tracking summary: {len(result['summary'].get('tracks', {}))} tracks")
 

@@ -7,8 +7,6 @@ detect as people. Uses colored silhouettes on a green field.
 from __future__ import annotations
 
 import argparse
-import math
-import os
 import random
 import subprocess
 import sys
@@ -156,7 +154,7 @@ def generate_better_synthetic_video(
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            print(f"  [WARN] Complex filter failed, trying simpler approach...")
+            print("  [WARN] Complex filter failed, trying simpler approach...")
             return _generate_simple_animated_video(output_path, duration_sec, fps, width, height)
         print(f"  [OK] Video saved: {output_path}")
         return output_path
@@ -183,7 +181,7 @@ def _generate_simple_animated_video(
         "-i",
         f"color=c=green:s={width}x{height}:r={fps}:d={duration_sec}",
         "-vf",
-        f"drawbox=x='if(lt(t,5),100+t*100,if(lt(t,10),600-(t-5)*100,if(lt(t,15),600,100+(t-15)*100)))':y='if(lt(t,3),200,if(lt(t,8),300+t*30,if(lt(t,13),450,400)))':w=30:h=60:color=red:t=fill,drawbox=x='if(lt(t,5),200+t*80,if(lt(t,10),600-(t-5)*80,if(lt(t,15),600,200+(t-15)*80)))':y='if(lt(t,3),250,if(lt(t,8),350+t*20,if(lt(t,13),400,350)))':w=30:h=60:color=blue:t=fill,drawbox=x='if(lt(t,5),400+t*60,if(lt(t,10),700-(t-5)*60,if(lt(t,15),700,400+(t-15)*60)))':y='if(lt(t,3),300,if(lt(t,8),400,if(lt(t,13),500,400)))':w=30:h=60:color=red:t=fill,drawbox=x=640:y=360:w=20:h=20:color=white:t=fill,drawtext=text='%{{eif\\:t\\:d}}':fontsize=40:fontcolor=white:x=20:y=20:box=1:boxcolor=black@0.5:boxborderw=5",
+        "drawbox=x='if(lt(t,5),100+t*100,if(lt(t,10),600-(t-5)*100,if(lt(t,15),600,100+(t-15)*100)))':y='if(lt(t,3),200,if(lt(t,8),300+t*30,if(lt(t,13),450,400)))':w=30:h=60:color=red:t=fill,drawbox=x='if(lt(t,5),200+t*80,if(lt(t,10),600-(t-5)*80,if(lt(t,15),600,200+(t-15)*80)))':y='if(lt(t,3),250,if(lt(t,8),350+t*20,if(lt(t,13),400,350)))':w=30:h=60:color=blue:t=fill,drawbox=x='if(lt(t,5),400+t*60,if(lt(t,10),700-(t-5)*60,if(lt(t,15),700,400+(t-15)*60)))':y='if(lt(t,3),300,if(lt(t,8),400,if(lt(t,13),500,400)))':w=30:h=60:color=red:t=fill,drawbox=x=640:y=360:w=20:h=20:color=white:t=fill,drawtext=text='%{eif\\:t\\:d}':fontsize=40:fontcolor=white:x=20:y=20:box=1:boxcolor=black@0.5:boxborderw=5",
         "-c:v",
         "libx264",
         "-preset",

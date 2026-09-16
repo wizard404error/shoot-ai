@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +18,6 @@ from conftest import install_kawkab_stubs
 install_kawkab_stubs()
 
 from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
-
 
 # ========================================================================
 # Fixtures

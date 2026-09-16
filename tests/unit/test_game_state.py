@@ -1,6 +1,6 @@
 """Tests for game state analysis."""
 
-from kawkab.core.game_state import analyze_game_state, GameStateReport
+from kawkab.core.game_state import GameStateReport, analyze_game_state
 
 
 class TestGameState:

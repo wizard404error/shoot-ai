@@ -16,7 +16,7 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +100,7 @@ def run_benchmark(data_dir: Path) -> dict[str, Any]:
 
     return {
         "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "data_dir": str(data_dir),
         "ground_truth": {
             "home_players": len(gt.home_tracks),
@@ -136,7 +136,7 @@ def print_summary(report: dict[str, Any]) -> None:
     )
 
     mot = report.get("mot_metrics", {})
-    print(f"\n  ── MOT Metrics ──")
+    print("\n  ── MOT Metrics ──")
     print(f"    MOTA:              {mot.get('mota', 'N/A')}")
     print(f"    MOTP:              {mot.get('motp', 'N/A')}")
     print(f"    IDF1:              {mot.get('idf1', 'N/A')}")
@@ -148,7 +148,7 @@ def print_summary(report: dict[str, Any]) -> None:
 
     frag = report.get("fragmentation", {})
     if "error" not in frag:
-        print(f"\n  ── Fragmentation ──")
+        print("\n  ── Fragmentation ──")
         print(f"    Tracks:            {frag.get('n_tracks', 'N/A')}")
         print(f"    Avg Lifetime:      {frag.get('avg_lifetime_frames', 'N/A')} frames")
         buckets = frag.get("quality_buckets", {})
@@ -157,7 +157,7 @@ def print_summary(report: dict[str, Any]) -> None:
 
     stab = report.get("id_stability", {})
     if "error" not in stab:
-        print(f"\n  ── ID Stability ──")
+        print("\n  ── ID Stability ──")
         print(f"    Switch Rate:       {stab.get('switch_rate', 'N/A')}")
         print(f"    Total Switches:    {stab.get('total_id_switches', 'N/A')}")
 
@@ -194,7 +194,7 @@ def main() -> None:
     if not _has_ground_truth(data_dir):
         report: dict[str, Any] = {
             "status": "no_data",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data_dir": str(data_dir),
             "message": "No Metrica ground truth CSV files found in data directory",
         }

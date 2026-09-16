@@ -5,7 +5,6 @@ import os
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Any, Optional
 
 CLOUD_DB_PATH = os.environ.get("KAWKAB_CLOUD_DB", str(Path.home() / ".kawkab" / "cloud.db"))
 
@@ -25,7 +24,7 @@ class _ResultRow(dict):
 class _PostgresCursor:
     """Sync cursor wrapper around asyncpg result, mimicking sqlite3.Cursor."""
 
-    def __init__(self, rows: Optional[list[dict]] = None, lastrowid: int = 0):
+    def __init__(self, rows: list[dict] | None = None, lastrowid: int = 0):
         self._rows = rows or []
         self._idx = 0
         self._lastrowid = lastrowid
@@ -34,7 +33,7 @@ class _PostgresCursor:
     def lastrowid(self) -> int:
         return self._lastrowid
 
-    def fetchone(self) -> Optional[_ResultRow]:
+    def fetchone(self) -> _ResultRow | None:
         if self._idx >= len(self._rows):
             return None
         row = _ResultRow(self._rows[self._idx])

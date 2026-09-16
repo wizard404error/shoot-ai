@@ -5,17 +5,15 @@ Fails if models regress beyond tolerance thresholds."""
 
 from __future__ import annotations
 
+import glob
 import json
 import math
-import glob
-import os
 from pathlib import Path
 
-import numpy as np
 import pytest
 
-from kawkab.core.xg_model import compute_xg, compute_xg_enhanced
 from kawkab.core.dl_xg_model import predict_dl_xg
+from kawkab.core.xg_model import compute_xg
 
 GT_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "ground_truth" / "statsbomb"
 EVENT_DIR = GT_DIR / "events"
@@ -189,8 +187,7 @@ class TestXgRegression:
 
     def test_enhanced_model_mae_within_tolerance(self, all_shots):
         errors = []
-        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS, EnhancedXgFeatures, EnhancedXgModel
 
         em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
         for s in all_shots:
@@ -209,8 +206,7 @@ class TestXgRegression:
         assert mae < TOLERANCE_MAE + 0.03, f"Enhanced MAE {mae:.4f} >= {TOLERANCE_MAE + 0.03}"
 
     def test_enhanced_model_rmse_within_tolerance(self, all_shots):
-        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        from kawkab.core.xg_model import ENHANCED_COEFFICIENTS, EnhancedXgFeatures, EnhancedXgModel
 
         em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
         errors = [

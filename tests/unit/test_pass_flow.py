@@ -1,6 +1,6 @@
 """Tests for pass flow analysis."""
 
-from kawkab.core.pass_flow import compute_pass_flow, PassFlowLink
+from kawkab.core.pass_flow import PassFlowLink, compute_pass_flow
 
 
 class TestPassFlow:

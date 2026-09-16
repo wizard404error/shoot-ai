@@ -15,18 +15,6 @@ def main() -> int:
     print()
 
     print("1. Service imports:")
-    from kawkab.services import (
-        CVService,
-        LLMService,
-        LLMConfig,
-        EnhancementService,
-        AnalysisService,
-        KnowledgeService,
-        StorageService,
-        AudioService,
-    )
-    from kawkab.app import MainWindow
-    from kawkab.ui.bridge import Bridge
     from kawkab.core.config import get_settings
 
     print("   [OK] All services + app + bridge import")
@@ -54,7 +42,7 @@ def main() -> int:
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
         models = [m["name"] for m in r.json().get("models", [])][:5]
-        print(f"   Status: online")
+        print("   Status: online")
         print(f"   Models: {models}")
     except Exception as e:
         print(f"   Status: offline ({e})")
@@ -87,7 +75,7 @@ def main() -> int:
         files = list(graph_path.rglob("*"))
         print(f"   [OK] {len(files)} graph files in graphify-out/")
     else:
-        print(f"   [INFO] Not yet built (needs LLM for docs)")
+        print("   [INFO] Not yet built (needs LLM for docs)")
     print()
 
     print("=" * 60)

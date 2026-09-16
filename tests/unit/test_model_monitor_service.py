@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
 import tempfile
-from pathlib import Path
+
+import numpy as np
 
 from kawkab.services.model_monitor_service import ModelMonitor, ModelMonitoringService
 

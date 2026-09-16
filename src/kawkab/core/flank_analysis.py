@@ -6,7 +6,6 @@ flank effectiveness, and switch-of-play detection. All numpy-only.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 from kawkab.core.game_constants import GAME

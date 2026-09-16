@@ -1,6 +1,5 @@
 """Tests for off-ball metrics."""
 
-import pytest
 from kawkab.core.offball_metrics import OffBallAnalyzer, OffBallMatchReport, OffBallPlayerMetrics
 
 

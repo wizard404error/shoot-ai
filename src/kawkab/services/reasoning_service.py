@@ -10,14 +10,12 @@ This is the "Detective" layer of Kawkab AI. It:
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from kawkab.core.logging import get_logger
-from kawkab.services.knowledge_service import KnowledgeService, TacticalRule, Drill
 from kawkab.services.analysis_service import MatchAnalysis
+from kawkab.services.knowledge_service import KnowledgeService, TacticalRule
 
 logger = get_logger(__name__)
 

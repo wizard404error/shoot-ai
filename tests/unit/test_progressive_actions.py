@@ -1,13 +1,8 @@
 """Tests for progressive passes and carries — ball-advancement analysis."""
 
-import math
-
-import pytest
-
 from kawkab.core.progressive_actions import (
     CORRIDOR_WIDTH,
     MIN_CARRY_PROGRESSION_M,
-    MIN_PROGRESSION_RATIO,
     PITCH_LENGTH,
     PITCH_WIDTH,
     ProgressiveAction,

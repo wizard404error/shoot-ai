@@ -12,7 +12,7 @@ Flags issues with severity levels and actionable recommendations.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.logging import get_logger

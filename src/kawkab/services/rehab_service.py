@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from kawkab.core.encryption import decrypt_dict, encrypt_dict
 
@@ -108,13 +108,13 @@ class RehabService:
         d["milestones"] = json.loads(d.get("milestones", "[]"))
         return d
 
-    def get_plan(self, plan_id: int) -> Optional[dict]:
+    def get_plan(self, plan_id: int) -> dict | None:
         row = self._db.execute("SELECT * FROM rehab_plans WHERE id = ?", (plan_id,)).fetchone()
         if row is None:
             return None
         return self._decrypt_rehab(row)
 
-    def get_plan_by_injury(self, injury_id: int) -> Optional[dict]:
+    def get_plan_by_injury(self, injury_id: int) -> dict | None:
         row = self._db.execute(
             "SELECT * FROM rehab_plans WHERE injury_id = ? ORDER BY created_at DESC LIMIT 1",
             (injury_id,),
@@ -123,7 +123,7 @@ class RehabService:
             return None
         return self._decrypt_rehab(row)
 
-    def advance_phase(self, plan_id: int) -> Optional[dict]:
+    def advance_phase(self, plan_id: int) -> dict | None:
         plan = self.get_plan(plan_id)
         if plan is None:
             return None
@@ -151,7 +151,7 @@ class RehabService:
             self._db.commit()
         return plan
 
-    def complete_milestone(self, plan_id: int, milestone: str) -> Optional[dict]:
+    def complete_milestone(self, plan_id: int, milestone: str) -> dict | None:
         plan = self.get_plan(plan_id)
         if plan is None:
             return None
@@ -176,7 +176,7 @@ class RehabService:
         )
         self._db.commit()
 
-    def get_active_plans(self, player_id: Optional[int] = None) -> list[dict]:
+    def get_active_plans(self, player_id: int | None = None) -> list[dict]:
         if player_id is not None:
             rows = self._db.execute(
                 """SELECT rp.* FROM rehab_plans rp

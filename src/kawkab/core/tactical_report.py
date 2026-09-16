@@ -9,13 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from kawkab.core.build_up import BuildUpReport
 from kawkab.core.passing_triangles import PassingTriangleAnalyzer
 from kawkab.core.pressing_classifier import PressingSystemReport, classify_pressing_system
 from kawkab.core.tactical_periods import TacticalPeriodReport, detect_tactical_periods
 from kawkab.core.tactical_shape_analyzer import ShapeReport, TacticalShapeAnalyzer
 from kawkab.core.transitions import TransitionReport
-from kawkab.core.formation_analysis import FormationAnalyzer
 
 
 @dataclass

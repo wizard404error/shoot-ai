@@ -9,7 +9,6 @@ Silent degradation: returns empty results on failure.
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from typing import Any
 
@@ -106,7 +105,6 @@ class ApiFootballService:
 
     async def search_team(self, query: str) -> list[dict]:
         """Search teams by name."""
-        import json
 
         data = await self._request(f"/teams?search={query}", ttl=CACHE_TTL_LONG)
         if not data:

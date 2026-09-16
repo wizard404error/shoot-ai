@@ -1,6 +1,7 @@
 """Tests for Expected Goals Against (xGA) model."""
 
 import pytest
+
 from kawkab.core.xga_model import (
     ExpectedGoalsAgainstModel,
     XGAReport,

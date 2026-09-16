@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -30,7 +29,7 @@ class TransfermarktIntegrationService:
         cache_file = self._cache_path("_index")
         try:
             if os.path.exists(cache_file):
-                with open(cache_file, "r", encoding="utf-8") as f:
+                with open(cache_file, encoding="utf-8") as f:
                     self._cache = json.load(f)
         except Exception as e:
             logger.warning(f"Failed to load TM cache: {e}")

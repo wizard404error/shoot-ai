@@ -4,10 +4,8 @@ streak detection, and placement skill."""
 from __future__ import annotations
 
 import math
-from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 DEFAULT_TIER_THRESHOLDS: dict[str, tuple[float, float | None]] = {
     "big_chance": (0.35, None),

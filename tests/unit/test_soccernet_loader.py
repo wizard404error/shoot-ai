@@ -12,8 +12,6 @@ silently corrupts every downstream MOTA/IDF1 number. These tests pin:
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest

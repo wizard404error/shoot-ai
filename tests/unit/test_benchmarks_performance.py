@@ -1,12 +1,12 @@
 """Performance benchmarks for core analytics modules."""
 
 import time
-import numpy as np
-from kawkab.core.xg_model import compute_xg
-from kawkab.core.xt_model import ExpectedThreatModel
-from kawkab.core.pitch_control import VoronoiPitchControl
+
 from kawkab.core.heatmap import compute_player_heatmap
 from kawkab.core.momentum import compute_momentum_index
+from kawkab.core.pitch_control import VoronoiPitchControl
+from kawkab.core.xg_model import compute_xg
+from kawkab.core.xt_model import ExpectedThreatModel
 
 
 class TestBenchmarkPerformance:

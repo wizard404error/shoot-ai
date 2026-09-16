@@ -2,10 +2,6 @@
 
 from kawkab.core.box_entries import (
     BoxEntryAnalyzer,
-    PENALTY_AREA_START_X,
-    PENALTY_AREA_END_X,
-    PENALTY_AREA_START_Y,
-    PENALTY_AREA_END_Y,
 )
 
 

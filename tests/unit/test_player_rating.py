@@ -1,11 +1,10 @@
 """Tests for player rating / performance index."""
 
-import pytest
 from kawkab.core.player_rating import (
     PlayerPosition,
     PlayerRating,
-    compute_rating,
     _infer_position_from_x,
+    compute_rating,
 )
 
 

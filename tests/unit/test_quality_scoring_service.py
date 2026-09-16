@@ -6,12 +6,14 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
-from kawkab.services.quality_scoring_service import QualityScoringService, QualityScores  # noqa: E402
+from kawkab.services.quality_scoring_service import (  # noqa: E402
+    QualityScores,
+    QualityScoringService,
+)
 
 
 class FakeTrackData:

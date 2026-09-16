@@ -1,10 +1,9 @@
 """Tests for substitution impact analysis."""
 
-import pytest
 from kawkab.core.substitution_analysis import (
     SubstitutionAnalyzer,
-    SubstitutionMatchReport,
     SubstitutionEvent,
+    SubstitutionMatchReport,
 )
 
 

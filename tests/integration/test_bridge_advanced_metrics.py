@@ -8,19 +8,20 @@ Tests that Bridge.analyze_match correctly calls and stores results from:
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from pathlib import Path
 
-from kawkab.ui.bridge import Bridge
-from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
-from kawkab.services.analysis_service import AnalysisService
-from kawkab.services.llm_service import LLMService, LLMConfig
-from kawkab.services.homography_service import HomographyService, HomographyMatrix
+import pytest
+
+from kawkab.core.security import SecurityValidator
 from kawkab.services.advanced_event_detection_service import AdvancedEventDetectionService
+from kawkab.services.analysis_service import AnalysisService
+from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
+from kawkab.services.homography_service import HomographyMatrix
+from kawkab.services.llm_service import LLMConfig
 from kawkab.services.physical_load_service import PhysicalLoadService
 from kawkab.services.pressure_metrics_service import PressureMetricsService
-from kawkab.core.security import SecurityValidator
+from kawkab.ui.bridge import Bridge
 
 
 @pytest.fixture(autouse=True)
@@ -283,7 +284,6 @@ async def test_bridge_advanced_metrics_wiring():
 @pytest.mark.asyncio
 async def test_bridge_get_gpu_info():
     """Test that Bridge.get_gpu_info returns GPU info and recommendations."""
-    from kawkab.services.benchmark_service import BenchmarkService
 
     bridge = Bridge(
         cv_service=FakeCVService(create_test_tracking_data()),

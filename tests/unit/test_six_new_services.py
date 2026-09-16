@@ -72,8 +72,10 @@ ClipTag = _vr.ClipTag
 
 PitchDetector = _pd.PitchDetector
 
-import pytest
 from dataclasses import dataclass, field
+from typing import Any
+
+import pytest
 
 
 @dataclass

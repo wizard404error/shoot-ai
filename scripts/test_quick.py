@@ -1,13 +1,16 @@
 """Quick iteration test - 1 min clip. ~3 min total run time."""
 
-import asyncio, os, sys, time
+import asyncio
+import os
+import sys
+import time
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 from pathlib import Path
 
 
 async def main() -> int:
-    from kawkab.services import CVService, AnalysisService, HomographyService, LLMService, LLMConfig
+    from kawkab.services import AnalysisService, CVService, HomographyService
 
     print("=" * 60)
     print("QUICK TEST — 1-min Sweden vs Tunisia")

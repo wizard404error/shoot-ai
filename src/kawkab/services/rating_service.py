@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 
 class RatingService:
     def compute_ratings(self, events: list[dict], players: list[dict]) -> list[dict]:

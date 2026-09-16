@@ -7,7 +7,6 @@ field location, progression, and eventual outcome. All numpy-only.
 from __future__ import annotations
 
 import functools
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -70,9 +69,7 @@ def _extract_possessions(
         team = ev.get("team", current_team)
         ev_type = ev.get("type", "")
         is_switch = False
-        if ev_type in switching:
-            is_switch = True
-        elif ev_type in ("pass", "carry", "shot") and team != current_team:
+        if ev_type in switching or ev_type in ("pass", "carry", "shot") and team != current_team:
             is_switch = True
 
         if is_switch:

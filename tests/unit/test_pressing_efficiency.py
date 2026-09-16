@@ -1,6 +1,7 @@
 """Tests for pressing efficiency module."""
 
 import pytest
+
 from kawkab.core.pressing_efficiency import PressingEfficiencyAnalyzer
 
 

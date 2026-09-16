@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
 from conftest import install_kawkab_stubs, load_service_module
 
 install_kawkab_stubs()

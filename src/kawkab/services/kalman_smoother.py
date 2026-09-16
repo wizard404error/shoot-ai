@@ -14,8 +14,9 @@ References:
 
 from __future__ import annotations
 
-import numpy as np
 from collections import deque
+
+import numpy as np
 
 
 class PlayerPositionSmoother:

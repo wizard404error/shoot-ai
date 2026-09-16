@@ -13,8 +13,11 @@ Controls:
     c: clear current frame marks
 """
 
-import argparse, json, os, sys, cv2, numpy as np
+import argparse
+import json
 from pathlib import Path
+
+import cv2
 
 
 def main():
@@ -44,7 +47,7 @@ def main():
     print(f"Video: {total_frames} frames @ {fps:.1f} FPS")
     print(f"Detection frames: {len(all_det_frames)}")
     print(f"Sampling every {args.sample_every}th = {len(sampled)} frames to annotate")
-    print(f"Controls: Left-click=mark, Right-click=undo, n=next, b=prev, c=clear, q=quit")
+    print("Controls: Left-click=mark, Right-click=undo, n=next, b=prev, c=clear, q=quit")
 
     annotations = {}  # {frame_num: [{'x': x, 'y': y}, ...]}
     current_idx = 0

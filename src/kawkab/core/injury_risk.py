@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 ACWR_RISK_THRESHOLDS = [
     ("low", 0.0, 0.8),
     ("moderate", 0.8, 1.3),

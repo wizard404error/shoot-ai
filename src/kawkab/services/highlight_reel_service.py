@@ -4,8 +4,7 @@ import asyncio
 import json
 import os
 import tempfile
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import SecurityValidator
@@ -30,7 +29,7 @@ class ReelResult:
 
 
 class HighlightReelService:
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         self._output_dir = output_dir or tempfile.gettempdir()
 
     async def extract_clip_segment(

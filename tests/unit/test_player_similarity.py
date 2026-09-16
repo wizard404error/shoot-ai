@@ -1,11 +1,10 @@
 """Tests for Player Similarity Engine."""
 
 from kawkab.core.player_similarity import (
-    PlayerSimilarityEngine,
-    PlayerProfile,
-    STAT_NAMES,
     STAT_DIM,
     STAT_MEANS,
+    STAT_NAMES,
+    PlayerSimilarityEngine,
 )
 
 

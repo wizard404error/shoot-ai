@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import json
-import sys
-import sqlite3
 import tempfile
-import types
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -194,9 +191,9 @@ class TestDataExportService:
         def _execute(sql, params=None):
             if "FROM matches WHERE id = ?" in sql:
                 cursor.fetchone.return_value = _make_row(match_row)
-            elif "FROM events WHERE match_id = ?" in sql:
-                cursor.fetchall.return_value = []
-            elif "FROM players WHERE match_id = ?" in sql:
+            elif (
+                "FROM events WHERE match_id = ?" in sql or "FROM players WHERE match_id = ?" in sql
+            ):
                 cursor.fetchall.return_value = []
             return cursor
 
@@ -303,9 +300,9 @@ class TestDataExportService:
                 cursor.fetchone.return_value = _make_row(match_row)
             elif "FROM analysis_results WHERE match_id = ?" in sql:
                 cursor.fetchone.return_value = None
-            elif "FROM players WHERE match_id = ?" in sql:
-                cursor.fetchall.return_value = []
-            elif "FROM events WHERE match_id = ?" in sql:
+            elif (
+                "FROM players WHERE match_id = ?" in sql or "FROM events WHERE match_id = ?" in sql
+            ):
                 cursor.fetchall.return_value = []
             return cursor
 

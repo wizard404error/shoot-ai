@@ -2,7 +2,7 @@
 
 import pytest
 
-from kawkab.core.obv import OffBallValuator, OBVPlayerResult, OBVMatchReport
+from kawkab.core.obv import OBVMatchReport, OBVPlayerResult, OffBallValuator
 
 
 def _simple_frame(t, possession, ball, home_positions, away_positions):

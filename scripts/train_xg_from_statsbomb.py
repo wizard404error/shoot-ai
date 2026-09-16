@@ -26,15 +26,11 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-
 SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 from kawkab.core.xg_trainer import (
-    FEATURE_NAMES,
     FitShot,
-    batch_gradient_descent,
     fit_from_shots,
 )
 

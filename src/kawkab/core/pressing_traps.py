@@ -7,7 +7,6 @@ computation — all via numpy + stdlib only.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any

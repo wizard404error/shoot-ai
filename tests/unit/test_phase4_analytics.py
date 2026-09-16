@@ -8,32 +8,31 @@ pressing_clusters.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
 import pytest
 
+from kawkab.core.crossing_xg import CrossXgFactors, compute_cross_xg
+from kawkab.core.defensive_xt import DefensiveAction, compute_defensive_xt
+from kawkab.core.dominance_index import DominanceReport, compute_dominance_index
+from kawkab.core.pressing_clusters import PressingCluster, cluster_pressing_events
+from kawkab.core.role_classifier import PlayerRole, classify_player_role
+from kawkab.core.scout_report_upgrade import ScoutReport, generate_scout_report
+from kawkab.core.set_piece_xt import SetPieceXTReport, compute_set_piece_xt
 from kawkab.core.space_control import (
     SpaceControlReport,
     compute_pitch_control_grid,
     compute_space_gained,
     identify_hot_zones,
 )
-from kawkab.core.xg_chain import compute_xg_chain, compute_xg_buildup, XgChain, XgBuildup
 from kawkab.core.through_ball import (
     ThroughBall,
     detect_through_balls,
     value_through_ball,
 )
-from kawkab.core.defensive_xt import compute_defensive_xt, DefensiveAction
-from kawkab.core.dominance_index import compute_dominance_index, DominanceReport
-from kawkab.core.role_classifier import classify_player_role, PlayerRole
-from kawkab.core.set_piece_xt import compute_set_piece_xt, SetPieceXTReport
-from kawkab.core.crossing_xg import compute_cross_xg, CrossXgFactors
-from kawkab.core.xa_split import compute_xa_by_type, compute_xa_expected_vs_actual, XaSplit
-from kawkab.core.scout_report_upgrade import generate_scout_report, ScoutReport
-from kawkab.core.pressing_clusters import cluster_pressing_events, PressingCluster
+from kawkab.core.xa_split import XaSplit, compute_xa_by_type, compute_xa_expected_vs_actual
+from kawkab.core.xg_chain import XgBuildup, XgChain, compute_xg_buildup, compute_xg_chain
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Fixtures

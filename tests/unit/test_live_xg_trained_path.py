@@ -27,7 +27,7 @@ from conftest import install_kawkab_stubs
 install_kawkab_stubs()
 
 from kawkab.core import xg_model as xg_model_mod
-from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+from kawkab.core.xg_model import EnhancedXgModel
 from kawkab.services.analysis.core import AnalysisServiceCore
 from kawkab.services.analysis.xg_xt import XgXtMixin
 
@@ -58,8 +58,8 @@ def _patch_active_model(monkeypatch, coef_kwargs=None):
 
 class TestTrainedFromShotEvent:
     def test_exists_and_uses_active_model(self, monkeypatch):
-        from kawkab.core.xg_model import compute_xg_trained_from_shot_event
         from kawkab.core.events import ShotEvent
+        from kawkab.core.xg_model import compute_xg_trained_from_shot_event
 
         model = _patch_active_model(monkeypatch)
         se = ShotEvent(distance_m=11.0, angle_deg=0.0)
@@ -70,7 +70,6 @@ class TestTrainedFromShotEvent:
 
     def test_gk_distance_close_lowers_xg(self, monkeypatch):
         """A GK on the line (1 m away) must reduce xG vs GK absent."""
-        from kawkab.core.xg_model import compute_xg_trained_from_shot_event
         from kawkab.core.events import ShotEvent
 
         coef = dict(xg_model_mod.TRAINED_COEFFICIENTS)
@@ -88,8 +87,8 @@ class TestTrainedFromShotEvent:
 
     def test_legacy_function_untouched(self):
         """The legacy heuristic function still exists (compat callers)."""
-        from kawkab.core.xg_model import compute_xg_from_shot_event
         from kawkab.core.events import ShotEvent
+        from kawkab.core.xg_model import compute_xg_from_shot_event
 
         val = compute_xg_from_shot_event(ShotEvent(distance_m=11.0, angle_deg=0.0))
         assert 0.0 < val < 1.0

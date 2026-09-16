@@ -15,7 +15,6 @@ import numpy as np
 
 from kawkab.core.xg_model import EnhancedXgModel
 
-
 # Poisson rate parameters by destination zone (5×6 grid, attacking half)
 # λ = expected number of shots generated per pass arriving in this zone
 _SHOT_ARRIVAL_RATES: list[list[float]] = [
@@ -234,7 +233,7 @@ class ExpectedAssistModel:
         distance_m = math.sqrt((end_x - sx) ** 2 + (end_y - sy) ** 2)
         is_progressive = event.get("is_progressive", False)
         under_pressure = event.get("under_pressure", False)
-        cross_subtype = event.get("cross_subtype", None)
+        cross_subtype = event.get("cross_subtype")
         return self.compute_xa(
             end_x,
             end_y,

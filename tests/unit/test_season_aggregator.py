@@ -1,11 +1,10 @@
 """Tests for season aggregation."""
 
-import pytest
 from kawkab.core.season_aggregator import (
-    SeasonAggregator,
-    SeasonReport,
     HeadToHeadComparison,
     PlayerSeasonStats,
+    SeasonAggregator,
+    SeasonReport,
 )
 
 

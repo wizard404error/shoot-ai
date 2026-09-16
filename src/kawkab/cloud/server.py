@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from kawkab.api.api_v1 import router as api_v1_router
 from kawkab.cloud.auth import (
     create_access_token,
     decode_token,
@@ -21,22 +21,21 @@ from kawkab.cloud.auth import (
 )
 from kawkab.cloud.database import get_cloud_db
 from kawkab.cloud.middleware import RateLimitMiddleware
-from kawkab.api.api_v1 import router as api_v1_router
 from kawkab.cloud.models import (
-    UserRegister,
-    UserLogin,
-    PasswordChange,
-    SyncPayload,
-    TeamCreate,
-    TeamInvite,
-    SharedProject,
-    UserOut,
-    TokenResponse,
-    SyncResponse,
     ConflictRecord,
-    SyncOperation,
     OAuthAuthorizeResponse,
     OAuthCallbackRequest,
+    PasswordChange,
+    SharedProject,
+    SyncOperation,
+    SyncPayload,
+    SyncResponse,
+    TeamCreate,
+    TeamInvite,
+    TokenResponse,
+    UserLogin,
+    UserOut,
+    UserRegister,
 )
 
 app = FastAPI(title="Kawkab AI Cloud", version="0.1.0")
@@ -197,7 +196,8 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user)
 # ── OAuth ──
 
 import secrets
-from kawkab.cloud.oauth import get_oauth_provider, get_configured_providers
+
+from kawkab.cloud.oauth import get_configured_providers, get_oauth_provider
 
 _oauth_states: dict[str, str] = {}  # state -> provider
 
@@ -547,7 +547,7 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
             applied.append(op)
     db.commit()
     return SyncResponse(
-        sync_token=str(datetime.now(timezone.utc).timestamp()),
+        sync_token=str(datetime.now(UTC).timestamp()),
         operations=applied,
         conflicts=conflicts,
     )

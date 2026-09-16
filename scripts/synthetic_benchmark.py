@@ -11,9 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -272,7 +271,7 @@ def run_synthetic_benchmark(
 
     return {
         "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "config": {
             "max_frames": max_frames,
             "noise_std": noise_std,
@@ -303,7 +302,7 @@ def print_report(report: dict[str, Any]):
         return
 
     cfg = report.get("config", {})
-    print(f"\n  Config:")
+    print("\n  Config:")
     print(f"    Tracker:       {cfg.get('tracker', 'N/A')}")
     print(f"    Noise std:     {cfg.get('noise_std', 'N/A')}")
     print(f"    Drop rate:     {cfg.get('drop_rate', 'N/A')}")
@@ -311,14 +310,14 @@ def print_report(report: dict[str, Any]):
     print(f"    Max frames:    {cfg.get('max_frames', 'N/A')}")
 
     gt = report.get("ground_truth", {})
-    print(f"\n  Ground Truth:")
+    print("\n  Ground Truth:")
     print(f"    Players:       {gt.get('total_players', 'N/A')}")
     print(f"    Frames:        {gt.get('total_frames', 'N/A')}")
     print(f"    Detections:    {gt.get('total_detections', 'N/A')}")
     print(f"    Tracked:       {gt.get('tracked_frames', 'N/A')}")
 
     mot = report.get("mot_metrics", {})
-    print(f"\n  -- MOT Metrics --")
+    print("\n  -- MOT Metrics --")
     mota = mot.get("mota", "N/A")
     print(
         f"    MOTA:          {mota:.4f}"
@@ -351,7 +350,7 @@ def print_report(report: dict[str, Any]):
 
     frag = report.get("fragmentation", {})
     if "error" not in frag:
-        print(f"\n  -- Fragmentation --")
+        print("\n  -- Fragmentation --")
         print(f"    Tracks:        {frag.get('n_tracks', 'N/A')}")
         print(f"    Avg Lifetime:  {frag.get('avg_lifetime_frames', 'N/A')} frames")
 

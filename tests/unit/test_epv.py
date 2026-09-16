@@ -1,7 +1,5 @@
 """Tests for Expected Possession Value (EPV) module."""
 
-import pytest
-
 from kawkab.core.epv import (
     EPVModel,
     EPVReport,

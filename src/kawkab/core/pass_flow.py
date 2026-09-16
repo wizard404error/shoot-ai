@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from kawkab.core.coords import PitchConfig, STANDARD_PITCH
+from kawkab.core.coords import STANDARD_PITCH, PitchConfig
 from kawkab.core.game_constants import GAME
 
 

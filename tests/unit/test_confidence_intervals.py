@@ -1,12 +1,11 @@
 """Tests for credible-interval estimates on xG, xT, and VAEP."""
 
-import numpy as np
 import pytest
 
 from kawkab.core.confidence_intervals import (
+    vaep_credible_interval,
     xg_credible_interval,
     xt_credible_interval,
-    vaep_credible_interval,
 )
 
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 import cv2
@@ -44,9 +43,7 @@ class FaceRecognitionService:
         if self._detector is not None:
             return
         try:
-            import insightface
             from insightface.app import FaceAnalysis
-            from insightface.model_zoo import get_model
 
             app = FaceAnalysis(
                 name=INSIGHTFACE_MODEL_PACK,
@@ -269,7 +266,6 @@ class FaceRecognitionService:
 
     def _crop_face_region(self, frame_det, bbox: list[int], track_data) -> np.ndarray | None:
         """Extract the upper-body region from a frame."""
-        import cv2
 
         w = frame_det.image_width
         h = frame_det.image_height

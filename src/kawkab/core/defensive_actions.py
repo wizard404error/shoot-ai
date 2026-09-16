@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from kawkab.core.coords import FINAL_THIRD_X, STANDARD_PITCH, PitchConfig
-from kawkab.core.game_constants import GAME
 
 
 @dataclass

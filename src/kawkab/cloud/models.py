@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
-
 
 # ── Auth ──
 
@@ -24,7 +22,7 @@ class UserLogin(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: "UserOut"
+    user: UserOut
 
 
 class UserOut(BaseModel):
@@ -57,8 +55,8 @@ class PasswordChange(BaseModel):
 
 class SyncPayload(BaseModel):
     device_id: str
-    last_sync_at: Optional[str] = None
-    operations: list["SyncOperation"] = []
+    last_sync_at: str | None = None
+    operations: list[SyncOperation] = []
 
 
 class SyncOperation(BaseModel):
@@ -71,7 +69,7 @@ class SyncOperation(BaseModel):
 class SyncResponse(BaseModel):
     sync_token: str
     operations: list[SyncOperation] = []
-    conflicts: list["ConflictRecord"] = []
+    conflicts: list[ConflictRecord] = []
 
 
 class ConflictRecord(BaseModel):

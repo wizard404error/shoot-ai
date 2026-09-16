@@ -5,20 +5,16 @@ from datetime import datetime
 
 import pytest
 
-from kawkab.services.injury_tracker import (
-    InjuryTrackerService,
-    InjuryRecord,
-    InjurySeverity,
-    BodyPart,
-    InjuryStatus,
-)
-from kawkab.services.rehab_service import RehabService, RehabPhase, REHAB_MILESTONES
 from kawkab.services.concussion_protocol import (
+    STAGE_DESCRIPTIONS,
     ConcussionProtocolService,
     SCAT5Assessment,
-    ConcussionClearance,
-    STAGE_DESCRIPTIONS,
 )
+from kawkab.services.injury_tracker import (
+    InjuryRecord,
+    InjuryTrackerService,
+)
+from kawkab.services.rehab_service import RehabService
 
 
 @pytest.fixture

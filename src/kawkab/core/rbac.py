@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
 
 
 class Role(str, Enum):
@@ -103,8 +102,10 @@ def require_permission(permission: str, resource_team: str = "", allow_anonymous
     By default (allow_anonymous=False), missing or invalid credentials return 401.
     Set allow_anonymous=True for endpoints that should work without auth
     (e.g. health checks, local desktop mode)."""
-    from fastapi import Depends, HTTPException, status as http_status
+    from fastapi import Depends, HTTPException
+    from fastapi import status as http_status
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
     from kawkab.cloud.auth import decode_token
 
     _bearer = HTTPBearer(auto_error=False)

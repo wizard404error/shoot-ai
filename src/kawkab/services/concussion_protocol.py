@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from kawkab.core.encryption import decrypt_dict, encrypt_dict
 
@@ -33,7 +32,7 @@ class SCAT5Assessment:
     symptoms_score: int = 0
     cognitive_score: int = 0
     balance_score: int = 0
-    match_id: Optional[int] = None
+    match_id: int | None = None
     clearance_status: str = "not_cleared"
     notes: str = ""
     id: int = 0
@@ -96,7 +95,7 @@ class ConcussionProtocolService:
         ).fetchall()
         return [decrypt_dict(dict(r), ["notes"]) for r in rows]
 
-    def advance_clearance(self, assessment_id: int, cleared_by: str = "") -> Optional[dict]:
+    def advance_clearance(self, assessment_id: int, cleared_by: str = "") -> dict | None:
         row = self._db.execute(
             "SELECT * FROM concussion_assessments WHERE id = ?",
             (assessment_id,),

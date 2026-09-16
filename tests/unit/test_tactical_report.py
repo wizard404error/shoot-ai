@@ -1,10 +1,10 @@
 """Tests for Tactical Report — comprehensive tactical report aggregator."""
 
 from kawkab.core.tactical_report import (
-    generate_tactical_report,
     TacticalReport,
     TeamTacticalProfile,
     _generate_observations,
+    generate_tactical_report,
 )
 
 

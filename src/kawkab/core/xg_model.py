@@ -23,7 +23,7 @@ import functools
 import json
 import logging
 import math
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
@@ -32,16 +32,12 @@ from scipy.stats import beta
 
 logger = logging.getLogger(__name__)
 
-from kawkab.core.coordinate_validator import CoordinateValidator, ValidationResult
-from kawkab.core.perf_timing import timed
+from kawkab.core.coordinate_validator import CoordinateValidator
 from kawkab.core.events import (
-    AssistType,
-    BodyPart,
-    EventType,
     ShotEvent,
-    ShotType,
     event_from_dict,
 )
+from kawkab.core.perf_timing import timed
 
 # ── Named constants for magic numbers ────────────────────────────────────────
 

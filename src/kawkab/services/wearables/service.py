@@ -16,10 +16,8 @@ change. Future cycles (C10+) add a ``save()`` path that persists the parsed
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 from kawkab.core.logging import get_logger
-
 from kawkab.services.wearables.auto import detect_parser
 from kawkab.services.wearables.models import WearableSession
 
@@ -108,7 +106,7 @@ class WearableImportService:
 
     # -- structured entry point -------------------------------------------
 
-    def import_session(self, file_path: str) -> Optional[WearableSession]:
+    def import_session(self, file_path: str) -> WearableSession | None:
         """Parse a file into a structured WearableSession (or None on failure).
 
         This is the preferred path for new code (storage, fusion, metrics).

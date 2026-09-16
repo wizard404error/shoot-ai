@@ -10,14 +10,12 @@ Each benchmark:
 
 from __future__ import annotations
 
-import math
 import random
 import statistics
 import time
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ── Benchmark result dataclass ──────────────────────────────────────
 

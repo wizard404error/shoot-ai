@@ -1,10 +1,8 @@
 """Tests for JerseyNumberService."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()

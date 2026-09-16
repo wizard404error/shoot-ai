@@ -41,7 +41,7 @@ except ImportError:
 _BOXMOT_AVAILABLE = False
 try:
     from boxmot.reid import ReID
-    from boxmot.trackers import BotSort
+    from boxmot.trackers import BotSort  # noqa: F401  (availability probe)
 
     _BOXMOT_AVAILABLE = True
 except ImportError:
@@ -615,13 +615,13 @@ class CVService:
                 device="cuda:0" if gpu_ok else "cpu",
                 half=gpu_ok,
             )
-            setattr(CVService, "_cached_reid_model", reid)
+            CVService._cached_reid_model = reid
             logger.info(f"ReID model loaded on {'GPU' if gpu_ok else 'CPU'} (weights={weights})")
         except Exception as e:
             logger.debug(f"GPU ReID init failed ({e}), trying CPU fallback")
             try:
                 reid = ReID(device="cpu", half=False)
-                setattr(CVService, "_cached_reid_model", reid)
+                CVService._cached_reid_model = reid
             except Exception as e2:
                 logger.debug(f"CPU ReID fallback also failed: {e2}")
 
@@ -1028,8 +1028,6 @@ class CVService:
 
         # Resume from checkpoint if provided
         if resume_checkpoint is not None and ckpt_mgr is not None:
-            import pickle as _pk
-
             rc = resume_checkpoint
             frame_number = rc["frame_number"]
             det_idx = rc["det_idx"]
@@ -1639,7 +1637,7 @@ class CVService:
                         )
                 if cluster_avg_bgr:
                     logger.info(
-                        f"Cluster BGR colors: "
+                        "Cluster BGR colors: "
                         + ", ".join(f"{label}={color}" for label, color in cluster_avg_bgr.items())
                     )
                 for tid, label in clusters.items():
@@ -2552,7 +2550,7 @@ class CVService:
         what a person would see.
         """
         if len(color_data) < 2:
-            return {tid: 0 for tid in color_data}
+            return dict.fromkeys(color_data, 0)
 
         tids = list(color_data.keys())
         colors_bgr = np.array([color_data[tid]["primary_color"] for tid in tids])

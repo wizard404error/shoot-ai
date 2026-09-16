@@ -1,7 +1,5 @@
 """Tests for packing passes — opponent bypass count."""
 
-import pytest
-
 from kawkab.core.packing import (
     PackingReport,
     PackingResult,

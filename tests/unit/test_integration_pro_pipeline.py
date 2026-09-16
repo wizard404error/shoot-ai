@@ -42,7 +42,6 @@ def _install_cv_stub() -> None:
 
 _install_cv_stub()
 
-import asyncio
 
 # Load all pro analytics services
 _sp = load_service_module("sp_test", "setpiece_service.py")
@@ -56,8 +55,6 @@ SubstitutionService = _sub.SubstitutionService
 PossessionService = _pos.PossessionService
 
 import json
-import pytest
-
 
 SAMPLE_MATCH = {
     "home": "Kawkab FC",

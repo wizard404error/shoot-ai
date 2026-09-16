@@ -7,9 +7,7 @@ Silent degradation: returns empty results on failure.
 
 from __future__ import annotations
 
-import asyncio
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -91,7 +89,6 @@ class BzzoiroService:
 
     async def search_team(self, query: str) -> list[dict]:
         """Search teams by name. Returns list of {id, name, country, logo}."""
-        import json
 
         data = await self._get(f"teams/search/?q={query}", ttl=CACHE_TTL_LONG)
         if data is None:

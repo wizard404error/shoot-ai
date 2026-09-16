@@ -10,22 +10,18 @@ from __future__ import annotations
 
 import csv
 import json
-import math
 from io import StringIO
 from typing import Any
 
 from kawkab.core.events import (
-    AssistType,
     BodyPart,
     CarryEvent,
-    EventType,
     PassEvent,
     PassType,
     ShotEvent,
     ShotType,
     event_from_dict,
 )
-from kawkab.core.xg_model import compute_xg_from_dict
 
 
 def _norm_to_meters(val: float, pitch_dim: float) -> float:

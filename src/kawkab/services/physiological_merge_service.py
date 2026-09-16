@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
 from kawkab.core.logging import get_logger
-from kawkab.core.physical_metrics import PhysicalMetricsAnalyzer, PlayerPhysicalMetrics
+from kawkab.core.physical_metrics import PhysicalMetricsAnalyzer
 from kawkab.services.wearable_import_service import WearableDataPoint
 
 logger = get_logger(__name__)
@@ -16,11 +15,11 @@ logger = get_logger(__name__)
 @dataclass
 class UnifiedPhysiologicalData:
     timestamp_s: float = 0.0
-    video_speed_ms: Optional[float] = None
-    wearable_speed_ms: Optional[float] = None
-    heart_rate_bpm: Optional[float] = None
-    acceleration_ms2: Optional[float] = None
-    metabolic_power_w_kg: Optional[float] = None
+    video_speed_ms: float | None = None
+    wearable_speed_ms: float | None = None
+    heart_rate_bpm: float | None = None
+    acceleration_ms2: float | None = None
+    metabolic_power_w_kg: float | None = None
     source: str = "video"  # "video", "wearable", "merged"
 
     def to_dict(self):
@@ -44,14 +43,14 @@ class MergedPhysiologyReport:
     player_id: int = 0
     total_duration_s: float = 0.0
     video_total_distance_m: float = 0.0
-    wearable_total_distance_m: Optional[float] = None
-    avg_hr_bpm: Optional[float] = None
-    peak_hr_bpm: Optional[float] = None
+    wearable_total_distance_m: float | None = None
+    avg_hr_bpm: float | None = None
+    peak_hr_bpm: float | None = None
     hr_zones: dict = field(default_factory=dict)
     merged_timeline: list = field(default_factory=list)
-    video_metrics: Optional[dict] = None
-    wearable_summary: Optional[dict] = None
-    correlation_speed_r: Optional[float] = None
+    video_metrics: dict | None = None
+    wearable_summary: dict | None = None
+    correlation_speed_r: float | None = None
 
     def to_dict(self):
         return {

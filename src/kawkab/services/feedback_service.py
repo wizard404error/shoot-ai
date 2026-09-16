@@ -12,9 +12,8 @@ All data is stored locally in SQLite for privacy.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -41,7 +40,7 @@ class CoachFeedback:
         if self.issues is None:
             self.issues = []
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -61,7 +60,7 @@ class IssueReport:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -82,7 +81,7 @@ class UsageSession:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

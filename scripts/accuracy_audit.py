@@ -19,7 +19,6 @@ from loguru import logger
 
 from kawkab.core.mot_metrics import compute_mot_metrics
 
-
 logger.remove()
 logger.add(sys.stderr, format="<level>{level:8s}</level> | <message>", level="INFO")
 

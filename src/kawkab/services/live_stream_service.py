@@ -5,11 +5,9 @@ import os
 import re
 import subprocess
 import tempfile
-import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from kawkab.core.logging import get_logger
 
@@ -24,7 +22,7 @@ STREAM_TYPES = {
 
 
 class LiveStreamCaptureService:
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         self.output_dir = Path(output_dir or tempfile.gettempdir()) / "kawkab_streams"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._processes: dict[str, subprocess.Popen] = {}
@@ -185,7 +183,7 @@ class BroadcastOCRTagger:
     def is_enabled(self) -> bool:
         return self._enabled
 
-    def process_frame(self, frame) -> Optional[dict]:
+    def process_frame(self, frame) -> dict | None:
         """Analyze a video frame for scoreboard overlay text.
         Returns detected event dict or None.
         """

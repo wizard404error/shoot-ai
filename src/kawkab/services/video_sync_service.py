@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import SecurityValidator
@@ -29,7 +28,7 @@ class SyncState:
 
 class MultiAngleSyncService:
     def __init__(self):
-        self._state: Optional[SyncState] = None
+        self._state: SyncState | None = None
 
     def load_videos(self, video_paths: list[dict]) -> str:
         validated = []

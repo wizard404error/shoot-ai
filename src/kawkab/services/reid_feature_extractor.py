@@ -7,7 +7,6 @@ checkpoint is not available.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -19,7 +18,7 @@ logger = get_logger(__name__)
 
 _SOCCERNET_REID_AVAILABLE = False
 try:
-    import torch
+    import torch  # noqa: F401  (availability probe: sets _SOCCERNET_REID_AVAILABLE)
     import torch.nn as nn
     import torchvision.models as models
 

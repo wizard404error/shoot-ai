@@ -1,14 +1,12 @@
 """Tests for Territory Compounding module."""
 
-import pytest
-
-from kawkab.core.xt_model import ExpectedThreatModel
 from kawkab.core.territory_value import (
     TerritoryCell,
     TerritoryReport,
     _detect_possession_chains_full,
     compute_territory_value,
 )
+from kawkab.core.xt_model import ExpectedThreatModel
 
 
 def _ev(

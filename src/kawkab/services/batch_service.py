@@ -6,12 +6,10 @@ Useful for processing weekend matches overnight or season-wide analysis.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
-import json
-import asyncio
 
 from kawkab.core.logging import get_logger
 

@@ -6,7 +6,6 @@ intensity, and pass completion into a single 0-100 dominance score.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any

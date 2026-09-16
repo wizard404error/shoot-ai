@@ -116,9 +116,6 @@ class WeatherService:
 
     def _try_init_video_classifier(self) -> None:
         try:
-            import torch
-            import torchvision.models as models
-
             self._video_classifier_available = True
             logger.info("Video weather classifier (torch) available")
         except Exception:

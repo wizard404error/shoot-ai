@@ -1,13 +1,9 @@
 """Tests for crossing analysis module."""
 
-import pytest
 from kawkab.core.crossing_analysis import (
     CrossingAnalysis,
     CrossingReport,
-    CrossResult,
     _zone_label,
-    _six_yard_x,
-    _penalty_area_x,
 )
 
 

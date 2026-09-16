@@ -1,11 +1,9 @@
 """Tests for Scout Report Generation."""
 
 from kawkab.core.scout_reports import (
-    SCOUT_METRICS,
     SCOUT_METRIC_MEANS,
-    SCOUT_METRIC_STDS,
+    SCOUT_METRICS,
     STAT_MEANS,
-    ScoutReport,
     _z_to_percentile,
     generate_scout_report,
 )

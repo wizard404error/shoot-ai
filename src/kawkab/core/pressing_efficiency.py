@@ -6,7 +6,6 @@ All methods are numpy-only and use game_constants pitch dimensions.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 import numpy as np

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
-import re
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import BaseStorage
 

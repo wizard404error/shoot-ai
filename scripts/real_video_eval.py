@@ -16,10 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,8 +37,8 @@ IOU_THRESH = 0.5
 
 
 def _load_model():
-    from ultralytics import YOLO
     import torch
+    from ultralytics import YOLO
 
     model = YOLO("yolo11m.pt")
     if torch.cuda.is_available():
@@ -338,7 +337,7 @@ def main():
 
     report = {
         "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "config": {
             "video": args.video,
             "frame_skip": args.frame_skip,
@@ -398,7 +397,7 @@ def main():
     print(f"    F1:               {dm['f1']:.4f}")
     print(f"    TP/FP/FN:        {dm['tp']}/{dm['fp']}/{dm['fn']}")
     print()
-    print(f"  -- Tracked Metrics (ByteTrack on pipeline detections vs GT) --")
+    print("  -- Tracked Metrics (ByteTrack on pipeline detections vs GT) --")
     tm = report["tracked_detection_metrics"]
     print(f"    MOTA (tracked):   {tm['mota_tracked']:.4f}")
     print(f"    Precision:        {tm['precision']:.4f}")

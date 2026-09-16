@@ -1,42 +1,36 @@
 """Phase 5 — Model Quality & Calibration + Data Quality Pipeline tests."""
 
 import json
-import math
-from dataclasses import dataclass
 
 import pytest
-import numpy as np
 
-from kawkab.core.xg_calibration import (
-    compute_calibration_curve,
-    platt_scale,
-    apply_platt_scale,
-    compute_brier_score,
-    compute_log_loss,
-    compute_auc_roc,
-    CalibrationCurve,
-)
-from kawkab.core.model_comparison_service import (
-    compare_xg_models,
-    compute_feature_importance,
-    ModelComparisonReport,
-)
-from kawkab.core.xt_confidence import (
-    bootstrap_xt,
-    zone_xt_with_ci,
-    XtInterval,
-)
 from kawkab.core.event_schema import (
     validate_event,
     validate_events,
-    ValidationResult,
 )
 from kawkab.core.match_anomaly_detection import (
-    detect_anomalies,
-    compute_data_quality_score,
     AnomalyReport,
+    compute_data_quality_score,
+    detect_anomalies,
 )
-
+from kawkab.core.model_comparison_service import (
+    ModelComparisonReport,
+    compare_xg_models,
+    compute_feature_importance,
+)
+from kawkab.core.xg_calibration import (
+    apply_platt_scale,
+    compute_auc_roc,
+    compute_brier_score,
+    compute_calibration_curve,
+    compute_log_loss,
+    platt_scale,
+)
+from kawkab.core.xt_confidence import (
+    XtInterval,
+    bootstrap_xt,
+    zone_xt_with_ci,
+)
 
 # ================================================================
 # xG Calibration — 6 tests

@@ -4,11 +4,8 @@ player roles, and opponent analysis.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Any
-
-import numpy as np
 
 from kawkab.core.game_constants import GAME
 

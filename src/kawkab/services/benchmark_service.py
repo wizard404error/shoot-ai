@@ -7,13 +7,12 @@ for different GPU tiers. Stores results in the database for trend analysis.
 from __future__ import annotations
 
 import json
-import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import psutil
-from dataclasses import dataclass, field, asdict
 
 from kawkab.core.logging import get_logger
 

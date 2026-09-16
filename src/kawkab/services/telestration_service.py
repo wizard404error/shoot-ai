@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from kawkab.core.logging import get_logger
 
@@ -35,11 +32,11 @@ class TelestrationPreset:
 
 
 class TelestrationService:
-    def __init__(self, presets_dir: Optional[str] = None):
+    def __init__(self, presets_dir: str | None = None):
         self.presets_dir = Path(presets_dir or (Path.home() / ".kawkab" / "telestration_presets"))
         self.presets_dir.mkdir(parents=True, exist_ok=True)
         self._layers: dict[str, TelestrationLayer] = {}
-        self._current_preset: Optional[str] = None
+        self._current_preset: str | None = None
 
     def add_layer(self, layer_id: str, name: str = "") -> str:
         try:

@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 from pathlib import Path
-from typing import Any
 
-from kawkab.core.events import event_from_dict
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -33,7 +30,7 @@ class DataImportService:
     def _import_csv(self, file_path: str, match_id: str) -> dict:
         events = []
         errors = []
-        with open(file_path, "r", encoding="utf-8-sig") as f:
+        with open(file_path, encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 try:
@@ -57,7 +54,7 @@ class DataImportService:
         }
 
     def _import_json(self, file_path: str, match_id: str) -> dict:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         events = []
@@ -270,7 +267,7 @@ class DataImportService:
         return event
 
     def detect_format(self, file_path: str) -> str:
-        with open(file_path, "r", encoding="utf-8-sig") as f:
+        with open(file_path, encoding="utf-8-sig") as f:
             first_chunk = f.read(4096)
 
         if not first_chunk.strip():

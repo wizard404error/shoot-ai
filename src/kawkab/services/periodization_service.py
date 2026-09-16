@@ -14,7 +14,6 @@ to provide macro-level planning insight:
 from __future__ import annotations
 
 import logging
-import math
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field

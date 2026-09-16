@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-import tempfile
 
 from kawkab.core.model_manager import ModelManager
 

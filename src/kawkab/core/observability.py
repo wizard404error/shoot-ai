@@ -17,11 +17,8 @@ Usage:
 from __future__ import annotations
 
 import math
-import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ── Metric primitives ────────────────────────────────────────────────
 
@@ -117,7 +114,7 @@ class Histogram:
         return sorted_vals[f] * (c - k) + sorted_vals[c] * (k - f)
 
     def bucket_counts(self) -> dict[float, int]:
-        counts: dict[float, int] = {b: 0 for b in self.buckets}
+        counts: dict[float, int] = dict.fromkeys(self.buckets, 0)
         for v in self.values:
             for b in self.buckets:
                 if v <= b:

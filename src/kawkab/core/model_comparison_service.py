@@ -6,22 +6,20 @@ Service-layer wrapper that uses existing xG models
 
 from __future__ import annotations
 
-import math
 import random
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import numpy as np
 
 from kawkab.core.dl_xg_model import DLXgModel
-from kawkab.core.xg_model import EnhancedXgModel, compute_xg
 from kawkab.core.xg_calibration import (
+    CalibrationCurve,
+    compute_auc_roc,
     compute_brier_score,
     compute_calibration_curve,
     compute_log_loss,
-    compute_auc_roc,
-    CalibrationCurve,
 )
+from kawkab.core.xg_model import EnhancedXgModel, compute_xg
 
 
 @dataclass

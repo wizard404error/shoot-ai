@@ -6,8 +6,6 @@ Sofascore module is stable (PyPI v0.0.8); FBref in development.
 
 from __future__ import annotations
 
-from typing import Any
-
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)

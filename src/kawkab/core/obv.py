@@ -11,8 +11,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
-
 from kawkab.core.game_constants import GAME
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M

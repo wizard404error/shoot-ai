@@ -6,7 +6,6 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -70,12 +69,12 @@ class OpponentDatabaseService:
         matchups_file = self._data_path("matchups.json")
         try:
             if os.path.exists(profiles_file):
-                with open(profiles_file, "r", encoding="utf-8") as f:
+                with open(profiles_file, encoding="utf-8") as f:
                     data = json.load(f)
                 for p in data:
                     self._profiles[p["id"]] = OpponentProfile(**p)
             if os.path.exists(matchups_file):
-                with open(matchups_file, "r", encoding="utf-8") as f:
+                with open(matchups_file, encoding="utf-8") as f:
                     data = json.load(f)
                 for m in data:
                     self._matchups[m["id"]] = MatchUpRecord(**m)
@@ -250,7 +249,7 @@ class OpponentDatabaseService:
         for kp in profile.get("key_players", []):
             report += f"\n- **{kp.get('name', 'Unknown')}** ({kp.get('position', 'N/A')}) — {kp.get('notes', '')}"
 
-        report += f"""
+        report += """
 
 ## Match History"""
         for m in matchups[:5]:

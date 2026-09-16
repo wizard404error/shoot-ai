@@ -16,12 +16,12 @@ from pathlib import Path
 
 async def main() -> int:
     from kawkab.services import (
-        CVService,
         AnalysisService,
+        CVService,
         HomographyService,
-        VRAMManager,
-        LLMService,
         LLMConfig,
+        LLMService,
+        VRAMManager,
     )
 
     print("=" * 70)

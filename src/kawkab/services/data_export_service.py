@@ -16,10 +16,8 @@ import csv
 import json
 import math
 import sqlite3
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
@@ -286,7 +284,7 @@ class DataExportService:
                 meta = {}
 
             # Period detection: use explicit field or compute from timestamp
-            period = meta.get("period", None)
+            period = meta.get("period")
             if period is None:
                 try:
                     period = e["period"]
@@ -315,10 +313,10 @@ class DataExportService:
 
             if event_type == "pass":
                 # Compute pass length and angle from positions
-                start_x = meta.get("start_x", None)
-                start_y = meta.get("start_y", None)
-                end_x = meta.get("end_x", None)
-                end_y = meta.get("end_y", None)
+                start_x = meta.get("start_x")
+                start_y = meta.get("start_y")
+                end_x = meta.get("end_x")
+                end_y = meta.get("end_y")
                 if (
                     start_x is not None
                     and start_y is not None

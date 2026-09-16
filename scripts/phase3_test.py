@@ -20,14 +20,14 @@ async def main() -> int:
     print("=" * 60)
 
     from kawkab.services import (
-        CVService,
-        LLMService,
-        LLMConfig,
         AnalysisService,
-        KnowledgeService,
-        StorageService,
-        ReasoningService,
         ClipExtractionService,
+        CVService,
+        KnowledgeService,
+        LLMConfig,
+        LLMService,
+        ReasoningService,
+        StorageService,
         TrainingPlanGenerator,
     )
 

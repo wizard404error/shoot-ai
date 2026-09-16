@@ -7,7 +7,7 @@ passes of a scoring chance.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.xg_model import compute_xg_from_dict

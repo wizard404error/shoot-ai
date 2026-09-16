@@ -15,11 +15,9 @@ A player can be identified by:
 
 from __future__ import annotations
 
-import json
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -226,7 +224,7 @@ class PlayerProfileService:
         if not updates:
             return await self.get_profile(profile_id)
 
-        set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [profile_id]
 
         cursor.execute(

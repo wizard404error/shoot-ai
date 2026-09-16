@@ -1,12 +1,11 @@
 """Tests for Tactical Shape Analyzer — shape classification, diamond detection, support angles."""
 
-import math
 from kawkab.core.tactical_shape_analyzer import (
     TacticalShapeAnalyzer,
     _classify_attacking_shape,
     _classify_line_count,
-    _detect_diamond_midfield,
     _compute_support_angles,
+    _detect_diamond_midfield,
     _find_triangles_in_shape,
 )
 

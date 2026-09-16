@@ -1,6 +1,6 @@
 """Tests for phase transition analysis."""
 
-from kawkab.core.transitions import detect_transitions, PhaseTransition, TransitionReport
+from kawkab.core.transitions import PhaseTransition, TransitionReport, detect_transitions
 
 
 class TestTransitions:

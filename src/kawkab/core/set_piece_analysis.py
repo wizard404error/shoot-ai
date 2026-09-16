@@ -11,10 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
-
 from kawkab.core.xg_model import EnhancedXgModel
-
 
 SET_PIECE_TYPES = {"corner_kick", "free_kick", "throw_in", "goal_kick", "penalty"}
 

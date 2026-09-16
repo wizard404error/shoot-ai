@@ -17,8 +17,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 
@@ -56,8 +54,8 @@ class VisualizationService:
             Path to the generated PNG file, or None if generation failed
         """
         try:
-            from daimon_runtime import setup_plot
             import matplotlib.pyplot as plt
+            from daimon_runtime import setup_plot
         except ImportError:
             logger.error("matplotlib not available for visualization")
             return None
@@ -111,9 +109,9 @@ class VisualizationService:
             output_name: Output filename
         """
         try:
+            import matplotlib.pyplot as plt
             import networkx as nx
             from daimon_runtime import setup_plot
-            import matplotlib.pyplot as plt
         except ImportError:
             logger.error("networkx or matplotlib not available")
             return None
@@ -223,7 +221,7 @@ class VisualizationService:
         falls back to matplotlib polar plots.
         """
         try:
-            import matplotlib.pyplot as plt
+            import matplotlib.pyplot as plt  # noqa: F401  (availability probe + fallback renderer)
         except ImportError:
             logger.error("matplotlib not available")
             return None
@@ -234,7 +232,7 @@ class VisualizationService:
         # Try soccerplots for enhanced rendering
         _HAS_SOCCERPLOTS = False
         try:
-            from soccerplots.radar_chart import Radar
+            from soccerplots.radar_chart import Radar  # noqa: F401  (availability probe)
 
             _HAS_SOCCERPLOTS = True
         except ImportError:
@@ -289,8 +287,8 @@ class VisualizationService:
             output_name: Output filename
         """
         try:
-            from daimon_runtime import setup_plot
             import matplotlib.pyplot as plt
+            from daimon_runtime import setup_plot
         except ImportError:
             return None
 
@@ -423,8 +421,8 @@ class VisualizationService:
         output_name: str,
     ) -> Path | None:
         """Render pass sonar using soccerplots for professional-quality output."""
-        from soccerplots.radar_chart import Radar
         import matplotlib.pyplot as plt
+        from soccerplots.radar_chart import Radar
 
         n_players = len(player_passes)
         cols = min(3, n_players)

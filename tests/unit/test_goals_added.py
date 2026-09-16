@@ -1,9 +1,9 @@
 """Tests for Goals Added (g+) — on-ball contribution in goals."""
 
 from kawkab.core.goals_added import (
-    compute_goals_added,
     _compute_g_plus_from_match,
     _percentile_value,
+    compute_goals_added,
 )
 
 

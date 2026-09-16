@@ -21,8 +21,7 @@ from kawkab.core.pitch_control import MatchPitchControl, VoronoiPitchControl
 from kawkab.core.player_rating import (
     PlayerRating,
 )
-from kawkab.core.xg_model import compute_xg_trained_from_shot_event
-from kawkab.core.xg_model import active_xg_model
+from kawkab.core.xg_model import active_xg_model, compute_xg_trained_from_shot_event
 from kawkab.services.cv_service import MatchTrackData
 
 logger = get_logger(__name__)

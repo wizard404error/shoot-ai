@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import math
 import sys
 import types
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 

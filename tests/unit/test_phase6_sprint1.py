@@ -1,8 +1,9 @@
 """Tests for Phase 6 Sprint 1 — Injury Risk Dashboard + Training Auto-Generate."""
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from kawkab.core.injury_risk import InjuryRiskPredictor
 

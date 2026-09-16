@@ -1,6 +1,7 @@
 """Tests for Expected Threat (xT) model."""
 
 import numpy as np
+
 from kawkab.core.xt_model import ExpectedThreatModel
 
 

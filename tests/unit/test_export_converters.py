@@ -1,13 +1,12 @@
 """Tests for export converters."""
 
 import json
-import pytest
+
 from kawkab.core.export_converters import (
-    to_statsbomb_json,
-    to_spadl_csv,
     to_opta_csv,
+    to_spadl_csv,
+    to_statsbomb_json,
 )
-from kawkab.core.events import PassEvent, ShotEvent, CarryEvent
 
 
 class TestStatsBombExport:

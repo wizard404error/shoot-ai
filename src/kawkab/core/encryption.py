@@ -10,7 +10,6 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
-from typing import Callable
 
 import keyring
 import keyring.errors

@@ -1,6 +1,6 @@
 """Tests for PSxG model."""
 
-from kawkab.core.psxg_model import compute_psxg, compute_match_psxg, PSxGResult
+from kawkab.core.psxg_model import compute_match_psxg, compute_psxg
 
 
 class TestPSxG:

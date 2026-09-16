@@ -19,15 +19,15 @@ from __future__ import annotations
 
 import pytest
 
-from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
-from kawkab.services.analysis_service import AnalysisService, PlayerStats, TeamStats, MatchAnalysis
 from kawkab.services.advanced_event_detection_service import AdvancedEventDetectionService
+from kawkab.services.analysis_service import AnalysisService
+from kawkab.services.anomaly_detection_service import AnomalyDetectionService
+from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
+from kawkab.services.data_export_service import DataExportService
+from kawkab.services.homography_service import HomographyMatrix
 from kawkab.services.physical_load_service import PhysicalLoadService
 from kawkab.services.pressure_metrics_service import PressureMetricsService
-from kawkab.services.anomaly_detection_service import AnomalyDetectionService
 from kawkab.services.quality_scoring_service import QualityScoringService
-from kawkab.services.homography_service import HomographyMatrix
-from kawkab.services.data_export_service import DataExportService
 
 
 def make_detection(track_id, class_name, x, y, w=20.0, h=40.0, confidence=0.9):

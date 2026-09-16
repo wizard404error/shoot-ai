@@ -8,7 +8,7 @@ import sys
 import types
 
 try:
-    from PySide6.QtCore import QObject, Signal, Slot
+    from PySide6.QtCore import QObject, Signal, Slot  # noqa: F401  (probe: real Qt vs stubs)
 except ImportError:
     # Minimal stubs so bridge module can be imported for testing
     class _QObjectStub:

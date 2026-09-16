@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -138,7 +136,7 @@ class WyscoutImporter:
         self, path: str | Path
     ) -> tuple[WyscoutMatch | None, list[WyscoutEvent], list[dict]]:
         try:
-            with open(str(path), "r", encoding="utf-8") as f:
+            with open(str(path), encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as exc:
             logger.error(f"Failed to read Wyscout file {path}: {exc}")

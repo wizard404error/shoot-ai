@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -99,9 +100,9 @@ class SAMLAuthService:
             f'<samlp:NameIDPolicy Format="{idp.name_id_format}" AllowCreate="true"/>'
             f"</samlp:AuthnRequest>"
         )
+        import base64
         import urllib.parse
         import zlib
-        import base64
 
         deflated = zlib.compress(saml_request.encode("utf-8"))
         encoded = base64.b64encode(deflated).decode("utf-8")
@@ -139,6 +140,6 @@ class SAMLAuthService:
 
     @staticmethod
     def _now_iso() -> str:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

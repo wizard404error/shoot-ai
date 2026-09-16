@@ -17,9 +17,8 @@ Used by professional analysts to:
 from __future__ import annotations
 
 import math
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any
 
 from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
@@ -155,9 +154,7 @@ class SetPieceService:
             style = "driven"
         if distance >= 12 and (delivery_y < 10 or delivery_y > 58):
             if delivery_x > 50 and target_x > 90:
-                if delivery_y < 10 and target_y > 30:
-                    style = "inswinging"
-                elif delivery_y > 58 and target_y < 38:
+                if delivery_y < 10 and target_y > 30 or delivery_y > 58 and target_y < 38:
                     style = "inswinging"
                 else:
                     style = "outswinging"

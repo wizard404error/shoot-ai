@@ -12,19 +12,16 @@ from conftest import install_kawkab_stubs
 install_kawkab_stubs()
 
 from kawkab.core.events import (
-    EventType,
-    BodyPart,
-    PassType,
-    ShotType,
     AssistType,
-    TackleType,
+    BodyPart,
+    EventType,
+    PassType,
     PressureContext,
     ShotEvent,
-    PassEvent,
+    ShotType,
+    TackleType,
     event_from_dict,
 )
-
-import pytest
 
 
 class TestEventType:

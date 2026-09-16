@@ -28,7 +28,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from kawkab.core.model_manager import ModelManager
 from kawkab.services.cv_service import CVService
 
 # Default tolerances (relative, e.g., 0.15 = 15% tolerance)
@@ -114,7 +113,7 @@ async def run_regression(video_path: str, baseline_path: str | None = None, upda
         "processing_time_s": round(elapsed, 1),
     }
 
-    print(f"\n=== RESULTS ===")
+    print("\n=== RESULTS ===")
     for k, v in results.items():
         print(f"  {k}: {v}")
 
@@ -135,7 +134,7 @@ async def run_regression(video_path: str, baseline_path: str | None = None, upda
 
     # Compare
     failures = 0
-    print(f"\n=== COMPARISON vs BASELINE ===")
+    print("\n=== COMPARISON vs BASELINE ===")
     for k, v in results.items():
         base_val = baseline.get(k)
         tol = DEFAULT_TOLERANCES.get(k, 0.25)

@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 from kawkab.core.logging import get_logger
-from kawkab.core.paths import get_paths
 from kawkab.core.security import ErrorSanitizer
 
 logger = get_logger(__name__)

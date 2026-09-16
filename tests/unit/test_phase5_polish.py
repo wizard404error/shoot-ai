@@ -7,11 +7,8 @@ Tests cover:
 - Loading skeletons (all sections registered, show/hide)
 """
 
-import json
 import re
-import os
 from pathlib import Path
-
 
 BASE = Path(__file__).resolve().parent.parent.parent
 WEB_JS = BASE / "src" / "kawkab" / "web" / "js"
@@ -25,7 +22,7 @@ INDEX = BASE / "src" / "kawkab" / "web" / "index.html"
 
 
 def _read(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         return f.read()
 
 

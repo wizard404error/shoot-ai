@@ -20,7 +20,7 @@ import sys
 import types
 from dataclasses import dataclass, field
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -252,7 +252,6 @@ def install_cv_stub() -> None:
     svc_mod = sys.modules.get("kawkab.services.cv_service")
     if svc_mod is not None and hasattr(svc_mod, "MatchTrackData"):
         return
-    from conftest import load_service_module as _lsm
 
     _mod = types.ModuleType("kawkab.services.cv_service")
 

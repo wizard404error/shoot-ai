@@ -1,14 +1,11 @@
 """Tests for Build-Up Analysis module."""
 
-import pytest
-
 from kawkab.core.build_up import (
-    BuildUpAction,
     BuildUpReport,
     _classify_zone,
+    _is_under_pressure,
     _lines_bypassed,
     _passes_through_line,
-    _is_under_pressure,
     analyze_build_up,
 )
 

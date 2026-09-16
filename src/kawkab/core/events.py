@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum, auto
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 from kawkab.core.logging import get_logger

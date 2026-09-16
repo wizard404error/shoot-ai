@@ -8,7 +8,6 @@ entering the penalty area). All numpy-only.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from typing import Any
 
 from kawkab.core.game_constants import GAME

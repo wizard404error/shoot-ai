@@ -264,13 +264,3 @@ async def test_invalid_json_handling(handler, svc):
 
     result = json.loads(await handler.update_tag(1, "not-json"))
     assert "error" in result
-
-
-@pytest.mark.asyncio
-async def test_invalid_json_handling(handler, svc):
-    mid = await _mid(svc)
-    result = json.loads(await handler.save_tag(mid, "not-json"))
-    assert "error" in result
-
-    result = json.loads(await handler.update_tag(1, "not-json"))
-    assert "error" in result

@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
-from kawkab.services.player_profile_service import PlayerProfileService, PlayerProfile
-from kawkab.services.multi_match_analysis_service import MultiMatchAnalysisService
-from kawkab.services.data_export_service import DataExportService
+from kawkab.services.analysis_service import MatchAnalysis, PlayerStats, TeamStats
 from kawkab.services.anomaly_detection_service import AnomalyDetectionService
-from kawkab.services.quality_scoring_service import QualityScoringService
-from kawkab.services.analysis_service import AnalysisService, PlayerStats, TeamStats, MatchAnalysis
 from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
+from kawkab.services.data_export_service import DataExportService
+from kawkab.services.multi_match_analysis_service import MultiMatchAnalysisService
+from kawkab.services.player_profile_service import PlayerProfileService
+from kawkab.services.quality_scoring_service import QualityScoringService
 
 
 def make_detection(track_id, class_name, x, y, w=20.0, h=40.0, confidence=0.9):

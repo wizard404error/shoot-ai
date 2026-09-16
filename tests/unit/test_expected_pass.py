@@ -3,7 +3,6 @@
 import math
 
 import numpy as np
-import pytest
 
 from kawkab.core.expected_pass import (
     EP_COEFFICIENTS,
@@ -14,7 +13,6 @@ from kawkab.core.expected_pass import (
     compute_ep,
     compute_ep_batch,
 )
-
 
 # ── Difficulty classification ─────────────────────────────────────────────────
 

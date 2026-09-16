@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -19,7 +18,6 @@ WeatherSource = _svc.WeatherSource
 PitchState = _svc.PitchState
 
 import numpy as np
-import pytest
 
 
 class TestManualWeather:

@@ -2,9 +2,7 @@
 
 from kawkab.core.benchmarks import (
     compute_player_benchmarks,
-    PlayerBenchmark,
     get_position_groups,
-    POSITION_GROUPS,
 )
 
 

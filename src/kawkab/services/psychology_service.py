@@ -13,12 +13,9 @@ Uses score events + xG events + possession data to derive insights.
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-
-import numpy as np
 
 from kawkab.core.logging import get_logger
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -14,8 +14,8 @@ class ProviderMatch:
     competition: str
     season: str
     date: datetime
-    home_score: Optional[int] = None
-    away_score: Optional[int] = None
+    home_score: int | None = None
+    away_score: int | None = None
     status: str = "scheduled"
 
 
@@ -53,11 +53,11 @@ class BaseDataProvider(ABC):
     @abstractmethod
     async def search_matches(
         self,
-        team: Optional[str] = None,
-        competition: Optional[str] = None,
-        season: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
+        team: str | None = None,
+        competition: str | None = None,
+        season: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         limit: int = 50,
     ) -> list[ProviderMatch]: ...
 
@@ -99,7 +99,7 @@ class DataProviderRegistry:
         name = provider.get_provider_name()
         self._providers[name] = provider
 
-    def get(self, name: str) -> Optional[BaseDataProvider]:
+    def get(self, name: str) -> BaseDataProvider | None:
         return self._providers.get(name)
 
     def list_providers(self) -> list[str]:

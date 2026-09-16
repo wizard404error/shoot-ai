@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
+
 from kawkab.services.postgres_storage import PostgresStorageAdapter
 
 

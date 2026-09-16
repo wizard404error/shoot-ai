@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-from numpy.random import Generator, PCG64, SeedSequence
+from numpy.random import PCG64, Generator, SeedSequence
 
 # Module-level local RNG to avoid global seed contamination
 _rng = Generator(PCG64(SeedSequence(42)))

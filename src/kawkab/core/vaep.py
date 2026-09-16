@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import random
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -72,13 +72,15 @@ def _identify_possession_phases(
         ev_team = ev.get("team", current_team)
         # Check for possession switch
         is_switch = False
-        if ev_type in switching:
-            is_switch = True
-        elif ev_type == "pass" and ev_team != current_team:
-            is_switch = True
-        elif ev_type == "shot" and ev_team != current_team:
-            is_switch = True
-        elif ev_team != current_team and ev_type in ("carry", "dribble", "receival"):
+        if (
+            ev_type in switching
+            or ev_type == "pass"
+            and ev_team != current_team
+            or ev_type == "shot"
+            and ev_team != current_team
+            or ev_team != current_team
+            and ev_type in ("carry", "dribble", "receival")
+        ):
             is_switch = True
 
         if is_switch:

@@ -1,13 +1,10 @@
 """Tests for Phase xG Breakdown module."""
 
-import pytest
-
 from kawkab.core.phase_xg import (
-    PossessionPhase,
     PhaseXgBreakdown,
     PhaseXgReport,
+    PossessionPhase,
     _detect_possession_chains,
-    _measure_chain,
     _find_chain_for_shot,
     classify_possession_phase,
     compute_phase_xg,

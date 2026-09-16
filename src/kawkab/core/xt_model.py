@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import functools
 import json
-import math
 import random
 from collections import defaultdict
 from pathlib import Path

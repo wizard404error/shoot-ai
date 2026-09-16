@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
 from kawkab.services.analysis_service import (
     AnalysisService,
-    MatchAnalysis,
-    PlayerStats,
-    TeamStats,
 )
 from kawkab.services.cv_service import Detection, FrameDetections, MatchTrackData
 

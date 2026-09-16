@@ -6,7 +6,6 @@ within matches, and finds cross-match patterns. All numpy-only.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 from kawkab.core.game_constants import GAME

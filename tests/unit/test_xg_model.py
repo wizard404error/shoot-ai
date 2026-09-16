@@ -1,14 +1,13 @@
 """Tests for the xG model."""
 
-import pytest
+from kawkab.core.events import BodyPart, ShotEvent, ShotType
 from kawkab.core.xg_model import (
     XG_COEFFICIENTS,
+    batch_compute_xg,
     compute_xg,
     compute_xg_from_dict,
     compute_xg_from_shot_event,
-    batch_compute_xg,
 )
-from kawkab.core.events import ShotEvent, BodyPart, ShotType
 
 
 class TestComputeXg:
@@ -171,7 +170,7 @@ class TestEnhancedXgModel:
         return EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS, coeffs_source="test")
 
     def test_central_higher_than_wide(self):
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures, PENALTY_XG
+        from kawkab.core.xg_model import EnhancedXgFeatures
 
         model = self._enhanced_model_for_test()
         central = model.compute_single(
@@ -192,7 +191,7 @@ class TestEnhancedXgModel:
 
     def test_monotonic_decreasing_with_angle(self):
         """xG must never increase as shooting angle widens, all else equal."""
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        from kawkab.core.xg_model import EnhancedXgFeatures
 
         model = self._enhanced_model_for_test()
         angles = [0, 10, 20, 30, 45, 60, 75, 89]
@@ -213,7 +212,7 @@ class TestEnhancedXgModel:
             )
 
     def test_near_distance_penalty(self):
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        from kawkab.core.xg_model import EnhancedXgFeatures
 
         model = self._enhanced_model_for_test()
         close = model.compute_single(
@@ -233,7 +232,7 @@ class TestEnhancedXgModel:
         assert close > far, "Close shot should have higher xG"
 
     def test_penalty_constant(self):
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures, PENALTY_XG
+        from kawkab.core.xg_model import PENALTY_XG, EnhancedXgFeatures
 
         model = self._enhanced_model_for_test()
         xg = model.compute_single(
@@ -246,7 +245,7 @@ class TestEnhancedXgModel:
         assert xg == PENALTY_XG
 
     def test_one_on_one_bonus(self):
-        from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+        from kawkab.core.xg_model import EnhancedXgFeatures
 
         model = self._enhanced_model_for_test()
         normal = model.compute_single(
@@ -267,8 +266,7 @@ class TestEnhancedXgModel:
         assert one_on_one > normal, "One-on-one should increase xG"
 
     def test_batch_monotonicity(self):
-        from kawkab.core.xg_model import EnhancedXgModel
-        from kawkab.core.events import ShotEvent, BodyPart, ShotType
+        from kawkab.core.events import BodyPart, ShotEvent, ShotType
 
         model = self._enhanced_model_for_test()
         angles = [0, 30, 60, 89]

@@ -6,7 +6,6 @@ intensity, and key passes into a single momentum score per window.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Any
 

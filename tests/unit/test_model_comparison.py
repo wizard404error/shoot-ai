@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from kawkab.core.model_comparison import (
-    ModelMetrics,
     ModelComparisonReport,
-    CrossValidationFold,
-    compare_xg_models,
-    _compute_metrics,
     _compute_buckets,
     _compute_calibration_chart,
+    _compute_metrics,
+    compare_xg_models,
 )
 
 

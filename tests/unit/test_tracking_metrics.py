@@ -1,7 +1,5 @@
 """Tests for tracking self-consistency metrics."""
 
-import pytest
-
 from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()

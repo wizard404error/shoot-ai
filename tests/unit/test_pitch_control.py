@@ -1,11 +1,10 @@
 """Tests for Voronoi pitch control."""
 
-import pytest
 from kawkab.core.pitch_control import (
+    MatchPitchControl,
+    PitchControlFrame,
     VoronoiPitchControl,
     WeightedPitchControl,
-    PitchControlFrame,
-    MatchPitchControl,
 )
 
 

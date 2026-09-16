@@ -1572,14 +1572,14 @@ class PostgresStorageAdapter:
         if not self._pool:
             return None
         row = await self.fetchrow(
-            f"SELECT {_USER_COLUMNS} FROM users WHERE username = $1", username
+            f"SELECT {self._USER_COLUMNS} FROM users WHERE username = $1", username
         )
         return dict(row) if row else None
 
     async def get_user_by_id(self, user_id: int) -> dict | None:
         if not self._pool:
             return None
-        row = await self.fetchrow(f"SELECT {_USER_COLUMNS} FROM users WHERE id = $1", user_id)
+        row = await self.fetchrow(f"SELECT {self._USER_COLUMNS} FROM users WHERE id = $1", user_id)
         return dict(row) if row else None
 
     async def get_all_users(self) -> list[dict]:

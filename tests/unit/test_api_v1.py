@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import os
 import tempfile
-import pytest
+
 from fastapi.testclient import TestClient
 
 # Use isolated temp DB for testing
 os.environ.setdefault("KAWKAB_JWT_SECRET", "test-secret-for-testing-purposes-only")
-os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), f"kawkab_test_api_v1.db")
+os.environ["KAWKAB_CLOUD_DB"] = os.path.join(tempfile.gettempdir(), "kawkab_test_api_v1.db")
 os.environ["KAWKAB_RATE_LIMIT_DISABLE"] = "1"
 os.environ.pop("KAWKAB_DB_URL", None)  # tests use SQLite for analytics
 
 from kawkab.cloud.auth import create_access_token
 from kawkab.cloud.database import get_cloud_db
 from kawkab.cloud.server import app
-
 
 client = TestClient(app)
 
@@ -181,8 +180,9 @@ class TestApiGamePlan:
         import asyncio
         import sqlite3
         from pathlib import Path
-        from kawkab.core.migration_manager import MigrationManager
+
         from kawkab.api.api_v1 import _get_storage
+        from kawkab.core.migration_manager import MigrationManager
 
         svc = _get_storage()
         if svc._conn is None:

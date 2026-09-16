@@ -33,7 +33,7 @@ class TacticalRule:
     sources: list[str] = None
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path) -> "TacticalRule":
+    def from_yaml(cls, yaml_path: Path) -> TacticalRule:
         """Load a tactical rule from a YAML file."""
         with open(yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
@@ -76,7 +76,7 @@ class Drill:
     video_reference: str = None
 
     @classmethod
-    def from_yaml(cls, yaml_path: Path) -> "Drill":
+    def from_yaml(cls, yaml_path: Path) -> Drill:
         """Load a drill from a YAML file."""
         with open(yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)

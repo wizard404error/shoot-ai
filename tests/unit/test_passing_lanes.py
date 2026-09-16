@@ -1,13 +1,9 @@
 """Tests for Passing Lane Analysis module."""
 
-import pytest
-
 from kawkab.core.passing_lanes import (
     PassingLaneAnalysis,
-    _estimate_player_positions,
     _classify_zone,
-    PITCH_LENGTH,
-    PITCH_WIDTH,
+    _estimate_player_positions,
 )
 
 

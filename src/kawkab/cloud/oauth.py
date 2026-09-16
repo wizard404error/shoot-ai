@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import httpx
 
@@ -33,7 +32,7 @@ class OAuthProvider:
             f"access_type=offline"
         )
 
-    def exchange_code(self, code: str, redirect_uri: str) -> Optional[dict]:
+    def exchange_code(self, code: str, redirect_uri: str) -> dict | None:
         resp = httpx.post(
             self.config.token_url,
             data={
@@ -50,7 +49,7 @@ class OAuthProvider:
             return None
         return resp.json()
 
-    def get_userinfo(self, access_token: str) -> Optional[dict]:
+    def get_userinfo(self, access_token: str) -> dict | None:
         resp = httpx.get(
             self.config.userinfo_url,
             headers={"Authorization": f"Bearer {access_token}"},
@@ -60,7 +59,7 @@ class OAuthProvider:
             return None
         return resp.json()
 
-    def refresh_token(self, refresh_token: str) -> Optional[dict]:
+    def refresh_token(self, refresh_token: str) -> dict | None:
         resp = httpx.post(
             self.config.token_url,
             data={
@@ -129,7 +128,7 @@ _register_provider(
 )
 
 
-def get_oauth_provider(name: str) -> Optional[OAuthProvider]:
+def get_oauth_provider(name: str) -> OAuthProvider | None:
     return PROVIDERS.get(name)
 
 

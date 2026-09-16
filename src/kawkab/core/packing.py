@@ -7,7 +7,7 @@ based on the Impect packing metric methodology.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from kawkab.core.game_constants import GAME

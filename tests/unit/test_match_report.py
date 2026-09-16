@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 from kawkab.core.match_report import (
     DayAfterMatchReport,
-    MatchMoment,
-    ReportSection,
     ReportTemplate,
     generate_match_report,
 )

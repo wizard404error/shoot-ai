@@ -7,12 +7,9 @@ opponent impact.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
-import numpy as np
 
 from kawkab.core.game_constants import GAME
 

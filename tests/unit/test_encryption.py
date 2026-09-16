@@ -7,17 +7,17 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
 
 from kawkab.core.encryption import (
     _derive_key,
-    encrypt,
     decrypt,
-    encrypt_dict,
     decrypt_dict,
-    init_fernet,
+    encrypt,
+    encrypt_dict,
     get_fernet,
+    init_fernet,
 )
-from cryptography.fernet import Fernet
 
 
 @pytest.fixture(autouse=True)

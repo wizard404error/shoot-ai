@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections import defaultdict
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-
-
-import os
 
 # Maximum distinct bucket keys to retain before opportunistically pruning
 # idle ones. _buckets was previously fully unbounded -- attacker-chosen

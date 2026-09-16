@@ -26,7 +26,7 @@ async def run(
     from kawkab.services.cv_service import CVService, PipelineCheckpoint
 
     print(f"=== Processing {video_path.name} ===")
-    print(f"Resolution: checking...")
+    print("Resolution: checking...")
     import cv2
 
     cap = cv2.VideoCapture(str(video_path))
@@ -74,9 +74,11 @@ async def run(
 
     # Save detailed output for downstream use and evaluation
     try:
-        import json, pickle
-        import numpy as np
+        import json
+        import pickle
         from datetime import datetime
+
+        import numpy as np
 
         def _to_python(val):
             if isinstance(val, (np.float32, np.float64)):

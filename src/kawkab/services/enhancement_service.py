@@ -182,8 +182,8 @@ class EnhancementService:
             return input_path
 
         import cv2
-        import torch
         import numpy as np
+        import torch
 
         model = Model()
         model.load_model("rife")

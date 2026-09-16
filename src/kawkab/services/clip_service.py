@@ -7,7 +7,6 @@ Uses FFmpeg for fast, lossless extraction.
 from __future__ import annotations
 
 import asyncio
-import subprocess
 from pathlib import Path
 from typing import Any
 

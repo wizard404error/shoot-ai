@@ -1,14 +1,10 @@
 """Tests for trap → transition linkage."""
 
-import math
-
-import pytest
 from kawkab.core.pressing_traps import PressingTrap
 from kawkab.core.transitions import PhaseTransition
-
 from kawkab.core.trap_transition_linkage import (
-    TrapTransitionLink,
     TrapTransitionAnalysis,
+    TrapTransitionLink,
     analyze_trap_transitions,
     summarize_trap_transition,
 )

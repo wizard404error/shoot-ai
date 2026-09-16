@@ -9,8 +9,6 @@ Provides uncertainty estimates using:
 from __future__ import annotations
 
 import math
-from collections import defaultdict
-from typing import Any
 
 import numpy as np
 

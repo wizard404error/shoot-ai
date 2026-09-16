@@ -11,7 +11,6 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import RateLimiter
-from kawkab.utils.profiler import Profiler
 from kawkab.ui.bridge_handlers import (
     AnalysisHandler,
     AuthHandler,
@@ -20,12 +19,13 @@ from kawkab.ui.bridge_handlers import (
     ExternalHandler,
     ImportHandler,
     LifecycleHandler,
-    ProviderHandler,
     ProAnalyticsHandler,
+    ProviderHandler,
     SeasonAnalyticsHandler,
     StorageHandler,
     VideoHandler,
 )
+from kawkab.utils.profiler import Profiler
 
 logger = get_logger(__name__)
 

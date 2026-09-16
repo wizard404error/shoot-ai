@@ -6,8 +6,7 @@ import sys
 import types
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

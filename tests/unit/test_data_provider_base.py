@@ -3,10 +3,8 @@ from __future__ import annotations
 import pytest
 
 from kawkab.services.data_provider_base import (
-    BaseDataProvider,
     DataProviderRegistry,
     ProviderEvent,
-    ProviderLineup,
     ProviderMatch,
 )
 from kawkab.services.opta_importer import OptaF7Importer
