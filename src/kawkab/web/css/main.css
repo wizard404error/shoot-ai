@@ -5869,3 +5869,22 @@ body {
     border-color: #dc2626;
     background: rgba(220, 38, 38, 0.08);
 }
+
+/* ── Onboarding wizard ───────────────────────────────────────────────── */
+.onboarding-steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.onboarding-step-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+}
+
+.onboarding-step-dot.active {
+    background: var(--accent, #2563eb);
+}

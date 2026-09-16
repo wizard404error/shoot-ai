@@ -2948,25 +2948,58 @@
         </div>
     </div>
 
-    <!-- First-run wizard modal -->
-    <div id="first-run-modal" class="modal hidden">
-        <div class="modal-content" style="max-width:500px">
+    <!-- First-run wizard modal (real onboarding flow, see app-onboarding.js) -->
+    <div id="first-run-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="first-run-title">
+        <div class="modal-content" style="max-width:560px">
             <div class="modal-header">
-                <h2 data-i18n="firstRunTitle">🚀 Welcome to Kawkab AI!</h2>
+                <h2 id="first-run-title" data-i18n="firstRunTitle">🚀 Welcome to Kawkab AI!</h2>
             </div>
             <div class="modal-body">
-                <p data-i18n="firstRunIntro">Your private, offline AI football coach. Here's how to get started:</p>
-                <ol style="line-height:2;font-size:0.9rem">
-                    <li data-i18n="firstRunStep1"><strong>Import a match</strong> — Load your video and event data</li>
-                    <li data-i18n="firstRunStep2"><strong>Analyze automatically</strong> — xG, pass networks, formations, and more</li>
-                    <li data-i18n="firstRunStep3"><strong>Tag key moments</strong> — Use the Live Tagging or Coding workspace</li>
-                    <li data-i18n="firstRunStep4"><strong>Share with your team</strong> — Export projects and collaborate</li>
-                </ol>
-                <p style="margin-top:12px;font-size:0.82rem;color:var(--text-muted)" data-i18n="firstRunTip">💡 All processing happens offline on your machine. No data ever leaves your computer.</p>
+                <div id="onboarding-steps" class="onboarding-steps" aria-label="Progress">
+                    <span class="onboarding-step-dot active" data-step="1"></span>
+                    <span class="onboarding-step-dot" data-step="2"></span>
+                    <span class="onboarding-step-dot" data-step="3"></span>
+                    <span class="onboarding-step-dot" data-step="4"></span>
+                </div>
+                <div id="onboarding-pane-1">
+                    <p data-i18n="firstRunIntro">Your private, offline AI football coach. Here's how to get started:</p>
+                    <ol style="line-height:2;font-size:0.9rem">
+                        <li data-i18n="firstRunStep1"><strong>Import a match</strong> — Load your video and event data</li>
+                        <li data-i18n="firstRunStep2"><strong>Analyze automatically</strong> — xG, pass networks, formations, and more</li>
+                        <li data-i18n="firstRunStep3"><strong>Tag key moments</strong> — Use the Live Tagging or Coding workspace</li>
+                        <li data-i18n="firstRunStep4"><strong>Share with your team</strong> — Export projects and collaborate</li>
+                    </ol>
+                    <p style="margin-top:12px;font-size:0.82rem;color:var(--text-muted)" data-i18n="firstRunTip">💡 All processing happens offline on your machine. No data ever leaves your computer.</p>
+                </div>
+                <div id="onboarding-pane-2" class="hidden">
+                    <p style="font-weight:600">System check</p>
+                    <div id="onboarding-system" aria-live="polite"><p class="hint">Checking GPU and model cache…</p></div>
+                    <div id="onboarding-model-action" style="margin-top:10px"></div>
+                </div>
+                <div id="onboarding-pane-3" class="hidden">
+                    <p style="font-weight:600">Load your first match</p>
+                    <p class="hint" style="margin-top:4px">Import a video now, or load generated sample data to explore every workspace instantly.</p>
+                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                        <button id="onboarding-import-btn" class="btn btn-primary">📼 Import a video</button>
+                        <button id="onboarding-sample-btn" class="btn btn-secondary">🧪 Load sample match</button>
+                    </div>
+                    <div id="onboarding-sample-status" style="margin-top:8px" aria-live="polite"></div>
+                </div>
+                <div id="onboarding-pane-4" class="hidden">
+                    <p style="font-weight:600">You're set! 🎉</p>
+                    <p class="hint" style="margin-top:4px">A quick tour of where things live:</p>
+                    <ul style="line-height:1.9;font-size:0.88rem;margin:6px 0 0 18px">
+                        <li><strong>Analysis</strong> — timeline, xG/xT, charts after a match is analyzed</li>
+                        <li><strong>Tactics</strong> — formations, Pro Analytics, and the Whiteboard</li>
+                        <li><strong>Squad</strong> — player profiles, shortlist, contracts</li>
+                        <li><strong>Settings</strong> — GPU info and model downloads</li>
+                    </ul>
+                </div>
             </div>
             <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
-                <button id="first-run-dismiss" class="btn btn-secondary" data-i18n="firstRunDismiss">Dismiss</button>
-                <button id="first-run-start" class="btn btn-primary" data-i18n="firstRunStart">Let's Go!</button>
+                <button id="first-run-dismiss" class="btn btn-secondary" data-i18n="firstRunDismiss">Skip</button>
+                <button id="onboarding-back" class="btn btn-secondary hidden">← Back</button>
+                <button id="first-run-start" class="btn btn-primary" data-i18n="firstRunStart">Next →</button>
             </div>
         </div>
     </div>

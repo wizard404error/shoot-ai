@@ -5,6 +5,7 @@
     'use strict';
 
     let bridge = null;
+    // showFirstRunWizard is provided by app-onboarding.js (KawkabOnboarding)
     let currentLanguage = 'en';
     let currentMatchId = null;
     let currentVideoPath = null;
@@ -5022,28 +5023,7 @@
             };
         }
 
-        // ── First-run wizard ──
-        showFirstRunWizard();
+        // ── First-run wizard (real onboarding flow, delegated) ──
+        if (window.KawkabOnboarding) window.KawkabOnboarding.showFirstRunWizard();
     });
 })();
-
-function showFirstRunWizard() {
-    try {
-        if (localStorage.getItem('kawkab_first_run_done') === 'true') return;
-        var modal = document.getElementById('first-run-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-        document.getElementById('first-run-dismiss').onclick = function() {
-            localStorage.setItem('kawkab_first_run_done', 'true');
-            modal.classList.add('hidden');
-            modal.style.display = '';
-        };
-        document.getElementById('first-run-start').onclick = function() {
-            localStorage.setItem('kawkab_first_run_done', 'true');
-            modal.classList.add('hidden');
-            modal.style.display = '';
-            showToast('Welcome to Kawkab AI! Start by importing a match.', 'info');
-        };
-    } catch (e) {}
-}

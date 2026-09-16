@@ -33,6 +33,7 @@
     "js/app-briefing.js",
     "js/app-proanalytics.js",
     "js/app-whiteboard.js",
-    "js/app-settings.js"
+    "js/app-settings.js",
+    "js/app-onboarding.js"
   ]
 }
