@@ -136,8 +136,8 @@ class PeriodizationService:
         weeks_sorted = sorted(by_week.keys())
         summaries: list[WeekSummary] = []
         for wk in weeks_sorted:
-            recs = by_week[wk]
-            summary = self._build_week_summary(wk, recs)
+            week_records = by_week[wk]
+            summary = self._build_week_summary(wk, week_records)
             if weeks_sorted:
                 prev_loads = [
                     self._calc_total_load(by_week[w]) for w in weeks_sorted if w < wk

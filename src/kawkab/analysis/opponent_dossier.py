@@ -98,8 +98,8 @@ class OpponentDossier:
             lines.append("")
         if self.predicted_lineup:
             lines.append("## Predicted Lineup")
-            for i, p in enumerate(self.predicted_lineup, 1):
-                lines.append(f"{i}. {p}")
+            for i, lineup_entry in enumerate(self.predicted_lineup, 1):
+                lines.append(f"{i}. {lineup_entry}")
             lines.append("")
         if self.key_players:
             lines.append("## Key Players")

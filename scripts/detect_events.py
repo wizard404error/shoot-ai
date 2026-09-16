@@ -158,8 +158,12 @@ def segment_ball_data(ball_data: list[BallFrame]) -> list[BallSegment]:
     return segments
 
 
-def _build_segment(frames: list[BallFrame]) -> BallSegment:
-    """Build a BallSegment from contiguous ball frames."""
+def _build_segment(frames: list[BallFrame]) -> BallSegment | None:
+    """Build a BallSegment from contiguous ball frames.
+
+    Returns None when the segment is driven by single-frame noise
+    (callers guard on the return value).
+    """
     max_px_speed = 0.0
     total_px = 0.0
     frames_with_movement = 0
