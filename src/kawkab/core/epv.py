@@ -24,6 +24,13 @@ ZONE_HEIGHT = PITCH_WIDTH / Y_ZONES
 
 
 def _to_zone(x: float, y: float) -> tuple[int, int]:
+    # Events without spatial data arrive as x/y=None (storage's json_extract
+    # emits NULL when the event has no coordinates). Zone math on None
+    # raised TypeError for every such possession — treat unlocated events
+    # as pitch-center rather than crashing the whole match report.
+    if x is None or y is None:
+        x = PITCH_LENGTH / 2.0
+        y = PITCH_WIDTH / 2.0
     zx = min(int(x / ZONE_WIDTH), X_ZONES - 1)
     zy = min(int(y / ZONE_HEIGHT), Y_ZONES - 1)
     return (zx, zy)
@@ -152,11 +159,19 @@ class EPVModel:
             return EPVResult()
 
         team = possession[0].get("team", "home")
-        start_x = possession[0].get("x", 52.5)
-        start_y = possession[0].get("y", 34.0)
+        # Coordinates may be present-but-NULL for events without spatial
+        # data — fall back to the previous event's position / pitch
+        # center instead of propagating None into the progress math
+        # (end_x - start_x raised TypeError on real imported matches).
+        start_x = possession[0].get("x") if possession[0].get("x") is not None else 52.5
+        start_y = possession[0].get("y") if possession[0].get("y") is not None else 34.0
         last_ev = possession[-1]
-        end_x = last_ev.get("end_x", last_ev.get("x", start_x))
-        end_y = last_ev.get("end_y", last_ev.get("y", start_y))
+        end_x = last_ev.get("end_x") if last_ev.get("end_x") is not None else (
+            last_ev.get("x") if last_ev.get("x") is not None else start_x
+        )
+        end_y = last_ev.get("end_y") if last_ev.get("end_y") is not None else (
+            last_ev.get("y") if last_ev.get("y") is not None else start_y
+        )
 
         start_val = self._zone_value(start_x, start_y)
 

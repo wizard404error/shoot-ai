@@ -53,9 +53,16 @@ class PassingTriangleAnalyzer:
                     pk = passes[k]
                     if pk.get("timestamp", 0) - passes[i].get("timestamp", 0) > TIME_WINDOW_S:
                         break
-                    players = {passes[i].get("from_track_id"), passes[i].get("to_track_id"),
-                               passes[j].get("from_track_id"), passes[j].get("to_track_id"),
-                               pk.get("from_track_id"), pk.get("to_track_id")}
+                    # track_ids may be None (unlinked events — imports or
+                    # untracked passes); sorted([None, ...]) raised
+                    # TypeError. A triangle needs three REAL players.
+                    players = {
+                        p for p in (
+                            passes[i].get("from_track_id"), passes[i].get("to_track_id"),
+                            passes[j].get("from_track_id"), passes[j].get("to_track_id"),
+                            pk.get("from_track_id"), pk.get("to_track_id"),
+                        ) if p is not None
+                    }
                     if len(players) != 3:
                         continue
                     player_a, player_b, player_c = sorted(players)

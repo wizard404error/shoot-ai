@@ -429,6 +429,29 @@ class AnalysisHandler:
             logger.error(f"Failed to save match: {e}")
             return 0
 
+    @staticmethod
+    def _event_identity(event) -> tuple:
+        """Stable identity key for dedup between the base-event save pass and
+        the advanced-event save pass.
+
+        Uses (type, timestamp, player track id) -- the fields both passes
+        share. to_track_id/from_track_id may be renamed by the typed-event
+        to_dict() path, so they are not safe identity components here.
+        """
+        if isinstance(event, dict):
+            ev_type = event.get("type", "")
+            ts = event.get("timestamp", 0.0)
+            tid = event.get("track_id", event.get("from_track_id"))
+        else:
+            ev_type = getattr(event, "type", "")
+            ev_type = getattr(ev_type, "value", ev_type)
+            ts = getattr(event, "timestamp", 0.0)
+            tid = getattr(event, "track_id", None)
+        return (str(ev_type), round(float(ts or 0.0), 3), tid)
+
+    def _event_identity_keys(self, events) -> set[tuple]:
+        return {self._event_identity(e) for e in events}
+
     async def analyze_match(self, match_id, video_path):
         self._check_rate_limit()
         import json
@@ -466,9 +489,17 @@ class AnalysisHandler:
 
             track_data = await self.cv_service.process_video(
                 preprocessed_path,
+                match_id=match_id,
                 progress_callback=progress_cb,
                 frame_skip=self.frame_skip,
                 enable_team_detection=True,
+                # Persist per-frame tracking data by default — this is what
+                # OBV/EPV/off-ball/velocity models need (CLAUDE.md documented
+                # this as the non-default path that made those features
+                # silently empty for most matches). The bulk writer batches
+                # and the table is keyed (match_id, frame_number) so an
+                # in-place re-analysis overwrites rather than duplicates.
+                storage_service=self.storage_service,
             )
             self.profiler.end("cv_detection")
             if self.benchmark_service is not None:
@@ -542,7 +573,17 @@ class AnalysisHandler:
                     advanced_events = await self.advanced_event_detection_service.detect_all_advanced_events(
                         track_data, analysis.events, homography_matrix
                     )
+                    # detect_all_advanced_events returns the base events
+                    # (passes/shots/carries) it was handed, plus the advanced
+                    # ones it derived. The base events were already saved above
+                    # (line ~526) -- saving the returned list wholesale would
+                    # insert every base event a second time and double every
+                    # DB-derived count. Only persist events we have not saved
+                    # yet, matched on (type, timestamp, track id) identity.
+                    base_keys = self._event_identity_keys(analysis.events)
                     for event in advanced_events:
+                        if self._event_identity(event) in base_keys:
+                            continue
                         await self.storage_service.save_event(match_id=match_id, event=event)
             except Exception as e:
                 logger.warning(f"Advanced event detection failed: {e}")
@@ -2395,6 +2436,11 @@ class AnalysisHandler:
     # ================================================================
     # Phase 6 Sprint 1 — Injury Risk
     # ================================================================
+    # NOTE: this handler used to be defined TWICE (ruff F811) — the first
+    # read workload_d1..28 player fields that are never populated anywhere,
+    # the second fabricated ACWR from a synthetic sawtooth. Both deleted;
+    # this canonical version uses real GPS-import data (same source as
+    # get_squad_injury_report) with an honest insufficient-data category.
 
     async def get_injury_risk(self, match_id, track_id):
         self._check_rate_limit()
@@ -2405,37 +2451,43 @@ class AnalysisHandler:
             players = await self.storage_service.get_match_players(match_id)
             player = None
             for p in (players or []):
-                if p.get("track_id") == track_id:
+                if p.get("track_id") == track_id or p.get("id") == track_id:
                     player = p
                     break
             if not player:
                 return json.dumps({"error": "Player not found"})
-            events = await self.storage_service.get_match_events(match_id)
-            p_events = [e for e in events if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id]
-            sprint_count = sum(1 for e in p_events if e.get("event_type") == "sprint")
-            workload = [float(p.get(f"workload_d{i}", 0)) for i in range(1, 29)]
-            fatigue = float(p.get("fatigue_index", 0))
-            days_rest = int(p.get("days_since_last_rest", 0))
-            position = str(p.get("position", "MID"))
-            dist_km = float(p.get("distance_covered_m", 0)) / 1000.0
-            profile = {
-                "acwr": 1.0, "recent_sprint_count": sprint_count,
-                "recent_distance_km": dist_km, "fatigue_index": fatigue,
-                "position": position, "days_since_last_rest": days_rest,
-            }
-            acwr_result = predictor.compute_acwr_overload(workload) if len(workload) >= 7 else {"acwr": 1.0, "risk_level": "moderate", "recommendation": "insufficient data"}
-            profile["acwr"] = acwr_result["acwr"]
-            risk = predictor.predict_injury_risk(profile)
+
+            position = str(player.get("position", "MID"))
+            name = player.get("name", f"Player #{track_id}")
+
+            # Real workload source: GPS-import ACWR history (acwr_daily).
+            acwr_history = await self.storage_service.get_player_acwr(track_id, limit=1)
+            if not acwr_history:
+                return json.dumps({
+                    "risk_score": 0.0,
+                    "risk_category": "insufficient_data",
+                    "acwr": 0.0,
+                    "acwr_risk_level": "insufficient data",
+                    "recovery_recommendation": "No GPS/workload data on file for this player",
+                    "key_factors": [],
+                    "player_name": name,
+                    "position": position,
+                })
+
+            acwr = float(acwr_history[0].get("acwr", 1.0))
+            risk = predictor.predict_injury_risk({"acwr": acwr, "position": position})
             rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
             return json.dumps({
-                "success": True,
-                "track_id": track_id,
                 "risk_score": risk["risk_score"],
                 "risk_category": risk["risk_category"],
-                "acwr": round(acwr_result["acwr"], 3),
-                "acwr_risk_level": acwr_result["risk_level"],
+                "risk_level": risk["risk_category"],
+                "acwr": round(acwr, 3),
+                "acwr_risk_level": "elevated" if acwr > 1.3 else ("low" if acwr < 0.8 else "normal"),
                 "recovery_recommendation": rec,
                 "key_factors": risk["key_risk_factors"],
+                "factors": risk["key_risk_factors"],
+                "player_name": name,
+                "position": position,
             })
         except Exception as e:
             logger.error(f"get_injury_risk failed: {e}")
@@ -2511,43 +2563,10 @@ class AnalysisHandler:
     # Phase 6 Sprint 1 — Training Plan Auto-Generate
     # ================================================================
 
-    async def generate_training_plan(self, match_id):
-        self._check_rate_limit()
-        try:
-            match_id_val = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(match_id_val)
-            from kawkab.services.reasoning_service import Diagnosis, DiagnosisReport
-            mock_diag = Diagnosis(
-                rule_id="phase6_gen",
-                rule_name="Match-generated training plan",
-                rule_name_ar="خطة تدريب مولّدة من المباراة",
-                category="general",
-                severity="medium",
-                confidence=0.65,
-                evidence={"event_count": len(events)},
-                explanation="Auto-generated training plan based on match events",
-                explanation_ar="خطة تدريب مولّدة تلقائياً بناءً على أحداث المباراة",
-                recommended_drills=[],
-            )
-            report = DiagnosisReport(
-                match_id=match_id_val,
-                diagnoses=[mock_diag],
-                overall_assessment="Training plan generated from match data",
-                overall_assessment_ar="تم إنشاء خطة التدريب من بيانات المباراة",
-                priority_actions=["Improve based on match analysis"],
-                priority_actions_ar=["التحسين بناءً على تحليل المباراة"],
-                confidence=0.65,
-            )
-            gen = self.training_plan_generator
-            plan = await gen.generate_plan(report, duration_weeks=4, training_days_per_week=3, language="en")
-            return json.dumps({"success": True, "plan": gen.export_to_dict(plan)})
-        except Exception as e:
-            logger.error(f"generate_training_plan failed: {e}")
-            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
-
-    # ================================================================
-    # Wave B — Season Dashboard
-    # ================================================================
+    # NOTE: this handler used to be defined TWICE in this class (ruff F811).
+    # The first definition (a thin mock-diagnosis wrapper) was dead code —
+    # Python kept only the second, richer event-driven version below.
+    # The dead one is deleted; the event-driven one is canonical.
 
     async def _aggregate_season_stats(self) -> dict:
         """Shared match/event aggregation for get_season_summary and
@@ -2813,60 +2832,9 @@ class AnalysisHandler:
     # ================================================================
     # Sprint 1 — Injury Risk Dashboard
     # ================================================================
-
-    async def get_injury_risk(self, match_id, track_id):
-        self._check_rate_limit()
-        try:
-            match_id = SecurityValidator.validate_match_id(match_id)
-            track_id = SecurityValidator.validate_match_id(track_id)
-            events = await self.storage_service.get_match_events(match_id)
-            players = await self.storage_service.get_match_players(match_id)
-
-            player_info = None
-            for p in (players or []):
-                if p.get("track_id") == track_id or p.get("id") == track_id:
-                    player_info = p
-                    break
-
-            player_events = [e for e in events if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id]
-            recent_sprints = sum(1 for e in player_events if e.get("event_type") in ("sprint", "run") and e.get("completed", True))
-            recent_distance = sum(abs(e.get("end_x", 0) - e.get("start_x", 0)) + abs(e.get("end_y", 0) - e.get("start_y", 0)) for e in player_events if "start_x" in e) / 100.0
-            position = (player_info or {}).get("position", "MID")
-            fatigue_index = min(len(player_events) / 50.0, 1.0)
-
-            acwr_data = [100 + (i % 20 - 10) for i in range(28)]
-            for ev in player_events:
-                intensity = ev.get("intensity", 0.5) if isinstance(ev.get("intensity"), (int, float)) else 0.5
-                acwr_data.append(50 + intensity * 100)
-
-            from kawkab.core.injury_risk import InjuryRiskPredictor
-            predictor = InjuryRiskPredictor()
-            acwr_result = predictor.compute_acwr_overload(acwr_data)
-            acwr = acwr_result.get("acwr", 1.0)
-
-            profile = {
-                "acwr": acwr,
-                "recent_sprint_count": recent_sprints,
-                "recent_distance_km": recent_distance,
-                "fatigue_index": fatigue_index * 30,
-                "position": position,
-                "days_since_last_rest": getattr(player_info, "days_since_rest", 3) if hasattr(player_info, "days_since_rest") else 3,
-            }
-            risk = predictor.predict_injury_risk(profile)
-            recovery = predictor.compute_recovery_recommendation(risk["risk_score"], position)
-
-            return json.dumps({
-                "risk_score": risk["risk_score"],
-                "acwr": acwr,
-                "risk_level": risk["risk_category"],
-                "recovery_recommendation": recovery,
-                "factors": risk["key_risk_factors"],
-                "player_name": (player_info or {}).get("name", f"Player #{track_id}"),
-                "position": position,
-            })
-        except Exception as e:
-            logger.error(f"get_injury_risk failed: {e}")
-            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+    # (the duplicate get_injury_risk that used to live here fabricated
+    # ACWR from a synthetic sawtooth — deleted; the canonical GPS-backed
+    # version is defined above, next to get_squad_injury_report)
 
     # ================================================================
     # Sprint 1 — Training Plan Auto-Generate
@@ -4353,7 +4321,7 @@ class AnalysisHandler:
     async def compute_goals_added(self, match_id: int) -> str:
         try:
             from kawkab.core.goals_added import compute_goals_added
-            from kawkab.core.xg_model import compute_xg_from_dict
+            from kawkab.core.xg_model import compute_xg_trained_from_dict
             events = await self.storage_service.get_match_events(match_id) if self.storage_service else []
             players = await self.storage_service.get_match_players(match_id) if self.storage_service else []
             defensive_types = {"tackle", "interception", "clearance"}
@@ -4368,7 +4336,7 @@ class AnalysisHandler:
                     if e.get("event_type") != "shot":
                         continue
                     try:
-                        xg += compute_xg_from_dict(e)
+                        xg += compute_xg_trained_from_dict(e)
                     except Exception:
                         continue
                 defensive_actions = sum(1 for e in p_events if e.get("event_type") in defensive_types)

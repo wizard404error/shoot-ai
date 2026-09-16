@@ -58,8 +58,13 @@ class PressingEfficiencyAnalyzer:
             team_positions = np.array(
                 [
                     [
-                        float(e.get("x", e.get("start_x", 0))),
-                        float(e.get("y", e.get("start_y", 0))),
+                        # dict.get(k, default) returns None when the key
+                        # exists with a NULL value (storage's json_extract
+                        # emits x/y=None for events without spatial data) —
+                        # explicit None-check, same fix as
+                        # tactical_shape_analyzer._analyze_window.
+                        float(e["x"] if e.get("x") is not None else e.get("start_x", 0)),
+                        float(e["y"] if e.get("y") is not None else e.get("start_y", 0)),
                     ]
                     for e in team_events
                 ],

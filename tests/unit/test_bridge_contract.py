@@ -91,3 +91,76 @@ def test_unreachable_slots_inventory() -> None:
     )
     for name in unreachable:
         print(f"  {name}")
+
+
+# ── Second contract layer: slot delegations must resolve to real methods ────
+
+# bridge.py delegates like `return self._analysis.get_homography(...)`
+# or `return await self._storage.list_matches(...)`. The attribute names
+# map to handler classes (self._analysis -> AnalysisHandler etc.).
+_HANDLER_MODULES = {
+    "_analysis": "bridge_analysis.py",
+    "_auth": "bridge_auth.py",
+    "_coding": "bridge_coding.py",
+    "_export": "bridge_export.py",
+    "_external": "bridge_external.py",
+    "_lifecycle": "bridge_lifecycle.py",
+    "_provider": "bridge_provider.py",
+    "_pro_analytics": "bridge_pro_analytics.py",
+    "_season_analytics": "bridge_season_analytics.py",
+    "_storage": "bridge_storage.py",
+    "_video": "bridge_video.py",
+}
+BRIDGE_HANDLERS_DIR = PROJECT_ROOT / "src" / "kawkab" / "ui" / "bridge_handlers"
+
+# `self._analysis.method_name(` — capture attr + method
+_DELEGATION_RE = re.compile(r"self\.(_[a-z]+)\.(\w+)\s*\(")
+
+
+def _handler_method_names(module_file: str) -> set[str]:
+    """All def/async def names in a handler module (class-agnostic)."""
+    text = (BRIDGE_HANDLERS_DIR / module_file).read_text(encoding="utf-8")
+    return set(re.findall(r"(?:async\s+)?def\s+(\w+)", text))
+
+
+def _slot_method_bodies() -> dict[str, str]:
+    """Map slot name -> its (possibly multi-line) body from bridge.py."""
+    text = BRIDGE_PY.read_text(encoding="utf-8")
+    bodies: dict[str, str] = {}
+    # Match @Slot(...) decorator + def line + body up to the next decorator/def
+    pattern = re.compile(
+        r"@Slot\([^)]*\)\s*\r?\n\s*(?:async\s+)?def\s+(\w+)\s*\((?:[^)]*)\)\s*(?:->\s*[^:]+)?:\s*\r?\n(.*?)(?=\r?\n\s*(?:@Slot|def |async def |class |\Z))",
+        re.DOTALL,
+    )
+    for m in pattern.finditer(text):
+        bodies[m.group(1)] = m.group(2)
+    return bodies
+
+
+def test_every_slot_delegation_targets_a_real_handler_method() -> None:
+    """Every `self._X.method(...)` in bridge.py must exist in the handler.
+
+    This closes the gap that let `ai_v2_list_convs` ship broken: the
+    @Slot existed, its body called `self._analysis.ai_v2_list_convs`,
+    but AnalysisHandler had no such method -- AttributeError on every
+    call, invisible to the JS-vs-slot-name check above.
+    """
+    known_attrs = set(_HANDLER_MODULES)
+    method_pools = {attr: _handler_method_names(f) for attr, f in _HANDLER_MODULES.items()}
+    text = BRIDGE_PY.read_text(encoding="utf-8")
+
+    broken: list[str] = []
+    for m in _DELEGATION_RE.finditer(text):
+        attr, method = m.group(1), m.group(2)
+        if attr not in known_attrs:
+            continue  # e.g. self._rate_limiter — not a handler delegation
+        if method not in method_pools[attr]:
+            broken.append(f"self.{attr}.{method}(...) — no such method in {_HANDLER_MODULES[attr]}")
+
+    if broken:
+        raise AssertionError(
+            "bridge.py @Slot bodies delegate to handler methods that do not exist "
+            "(AttributeError at runtime, caught by broad except, silently broken "
+            "feature — the ai_v2_list_convs bug class):\n  "
+            + "\n  ".join(sorted(set(broken)))
+        )

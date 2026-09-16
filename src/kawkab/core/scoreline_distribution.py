@@ -24,8 +24,16 @@ class ScorelineDistribution:
             goals_away = sum(1 for e in events if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "away")
             key = f"{goals_home}-{goals_away}"
             return {"scorelines": {key: 1.0}, "n_sims": n_sims, "remaining_minutes": 0}
-        xg_total_home = sum(e.get("xg", 0) for e in events if e.get("team") == "home" and e.get("type") == "shot")
-        xg_total_away = sum(e.get("xg", 0) for e in events if e.get("team") == "away" and e.get("type") == "shot")
+        # xg may be present-but-NULL (json_extract) — treat as 0, never
+        # let None into the Poisson rate (TypeError killed real reports).
+        xg_total_home = sum(
+            (e.get("xg") or 0.0) for e in events
+            if e.get("team") == "home" and e.get("type") == "shot"
+        )
+        xg_total_away = sum(
+            (e.get("xg") or 0.0) for e in events
+            if e.get("team") == "away" and e.get("type") == "shot"
+        )
         elapsed_minutes = match_duration / 60.0
         xg_rate_home = xg_total_home / max(elapsed_minutes, 1)
         xg_rate_away = xg_total_away / max(elapsed_minutes, 1)

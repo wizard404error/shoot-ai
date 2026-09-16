@@ -33,6 +33,12 @@ class TestInjuryRiskBridge:
 
     @pytest.mark.asyncio
     async def test_get_injury_risk_unknown_player_still_returns(self):
+        """Unknown player: honest 'Player not found' error, never a fabricated score.
+
+        (The pre-merge duplicate fabricated ACWR from a synthetic sawtooth for
+        ANY track_id, including nonexistent ones — this test now pins the
+        honest contract instead.)
+        """
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
         bridge = MagicMock()
         services = {
@@ -43,8 +49,8 @@ class TestInjuryRiskBridge:
         services["storage_service"].get_match_events.return_value = []
         handler = AnalysisHandler(bridge, services)
         result = json.loads(await handler.get_injury_risk(1, 999))
-        assert "risk_score" in result
-        assert result.get("player_name", "").find("999") >= 0 or "risk_score" in result
+        assert "error" in result
+        assert "not found" in result["error"].lower()
 
     @pytest.mark.asyncio
     async def test_get_squad_injury_report_success(self):

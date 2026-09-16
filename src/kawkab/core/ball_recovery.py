@@ -22,6 +22,12 @@ RECOVERY_EVENT_TYPES = {"interception", "tackle", "loose_ball", "goal_kick", "cl
 
 
 def _to_zone(x: float, y: float) -> tuple[int, int]:
+    # x/y=None (events without coordinates — dict.get(key, default) returns
+    # None when the key exists with a NULL value) → pitch-center fallback,
+    # same fix as epv._to_zone / pressing_efficiency / tactical_shape.
+    if x is None or y is None:
+        x = PITCH_LENGTH / 2.0
+        y = PITCH_WIDTH / 2.0
     zx = min(int(x / ZONE_WIDTH), NUM_ZONES - 1)
     zy = min(int(y / ZONE_HEIGHT), NUM_ZONES - 1)
     return (zx, zy)
@@ -40,11 +46,19 @@ class BallRecoveryAnalyzer:
         previous_events: list[dict[str, Any]],
     ) -> tuple[str, float, float]:
         ev_type = recovery_event.get("type", "")
-        x = recovery_event.get("x", PITCH_LENGTH / 2)
-        y = recovery_event.get("y", PITCH_WIDTH / 2)
-        if not math.isfinite(x):
+        x = recovery_event.get("x")
+        y = recovery_event.get("y")
+        # x/y may be present-but-NULL (no coordinates) — isfinite(None)
+        # raises TypeError, which is what killed real-match reports.
+        try:
+            if not math.isfinite(x):
+                x = PITCH_LENGTH / 2
+        except TypeError:
             x = PITCH_LENGTH / 2
-        if not math.isfinite(y):
+        try:
+            if not math.isfinite(y):
+                y = PITCH_WIDTH / 2
+        except TypeError:
             y = PITCH_WIDTH / 2
         team = recovery_event.get("team", "home")
 

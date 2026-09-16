@@ -81,6 +81,13 @@ def compute_defensive_xt(
             ex = ev.get("x", ex)
             ey = ev.get("y", ey)
 
+        # Events without spatial data arrive as None (json_extract NULL) —
+        # zone math on None raised TypeError. Skip unlocated defensive
+        # events entirely: an xT-prevented value needs a location to mean
+        # anything (a center-zone fallback would misattribute danger).
+        if ex is None or ey is None:
+            continue
+
         z = (zone(ey, PITCH_WIDTH, xT_rows), zone(ex, PITCH_LENGTH, xT_cols))
 
         try:
