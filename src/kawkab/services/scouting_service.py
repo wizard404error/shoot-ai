@@ -91,9 +91,7 @@ class ScoutingService:
         for f in formations:
             formation_counts[f] = formation_counts.get(f, 0) + 1
         preferred = max(formation_counts.items(), key=lambda kv: kv[1])[0]
-        formation_changes = sum(
-            1 for a, b in zip(formations, formations[1:]) if a != b
-        )
+        formation_changes = sum(1 for a, b in zip(formations, formations[1:]) if a != b)
         poss = [m.get("possession_pct", 50.0) for m in matches]
         ppdas = [m.get("ppda", 10.0) for m in matches]
         sp_threats = [m.get("set_piece_threat", 0.0) for m in matches]

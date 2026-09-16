@@ -88,7 +88,9 @@ class TestApiMatches:
 
 class TestApiModelComparison:
     def test_compare_models_empty(self):
-        resp = client.post("/api/v1/model-comparison?n_folds=0", json=[], headers=_analyst_headers())
+        resp = client.post(
+            "/api/v1/model-comparison?n_folds=0", json=[], headers=_analyst_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "models" in data
@@ -100,7 +102,9 @@ class TestApiModelComparison:
             {"xg_heuristic": 0.05, "is_goal": False, "distance_m": 30.0, "angle_deg": 45.0},
             {"xg_heuristic": 0.3, "is_goal": True, "distance_m": 12.0, "angle_deg": 10.0},
         ]
-        resp = client.post("/api/v1/model-comparison?n_folds=2", json=shots, headers=_analyst_headers())
+        resp = client.post(
+            "/api/v1/model-comparison?n_folds=2", json=shots, headers=_analyst_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["models"]) >= 1
@@ -108,10 +112,14 @@ class TestApiModelComparison:
 
 class TestApiWebhooks:
     def test_create_webhook(self):
-        resp = client.post("/api/v1/webhooks", headers=_admin_headers(), json={
-            "url": "https://example.com/hook",
-            "events": ["match.analyzed"],
-        })
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers=_admin_headers(),
+            json={
+                "url": "https://example.com/hook",
+                "events": ["match.analyzed"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["url"] == "https://example.com/hook"
@@ -141,11 +149,15 @@ class TestApiMonitoring:
 
 class TestApiRecruitment:
     def test_search_players(self):
-        resp = client.post("/api/v1/recruitment/search", headers=_analyst_headers(), json={
-            "position": "forward",
-            "min_age": 20,
-            "max_age": 30,
-        })
+        resp = client.post(
+            "/api/v1/recruitment/search",
+            headers=_analyst_headers(),
+            json={
+                "position": "forward",
+                "min_age": 20,
+                "max_age": 30,
+            },
+        )
         assert resp.status_code == 200
 
     def test_transfer_fee(self):
@@ -171,6 +183,7 @@ class TestApiGamePlan:
         from pathlib import Path
         from kawkab.core.migration_manager import MigrationManager
         from kawkab.api.api_v1 import _get_storage
+
         svc = _get_storage()
         if svc._conn is None:
             # _get_storage()'s module-level singleton is never initialized
@@ -184,12 +197,16 @@ class TestApiGamePlan:
             # connection is created here on the test's own thread, but
             # TestClient runs the app -- and every subsequent request
             # using this same singleton -- on its own dedicated thread.
-            scratch_db = Path(tempfile.gettempdir()) / f"kawkab_test_api_v1_storage_{os.getpid()}.db"
+            scratch_db = (
+                Path(tempfile.gettempdir()) / f"kawkab_test_api_v1_storage_{os.getpid()}.db"
+            )
             MigrationManager(scratch_db, Path("src/kawkab/migrations")).migrate()
             svc._db_path = scratch_db
             svc._conn = sqlite3.connect(str(scratch_db), check_same_thread=False)
             svc._conn.row_factory = sqlite3.Row
-        match_id = asyncio.run(svc.save_match(name="Game Plan Test Match", video_path="gameplan_test.mp4"))
+        match_id = asyncio.run(
+            svc.save_match(name="Game Plan Test Match", video_path="gameplan_test.mp4")
+        )
         assert match_id != 0, "save_match returned 0 -- storage not initialized?"
 
         resp = client.get(f"/api/v1/game-plan/{match_id}/vs/Barcelona", headers=_analyst_headers())
@@ -210,6 +227,7 @@ def _ensure_storage_ready():
 
     from kawkab.api.api_v1 import _get_storage
     from kawkab.core.migration_manager import MigrationManager
+
     svc = _get_storage()
     if svc._conn is None:
         scratch_db = Path(tempfile.gettempdir()) / f"kawkab_test_api_v1_storage_{os.getpid()}.db"
@@ -229,14 +247,50 @@ class TestApiTacticalPressingReport:
 
     def _match_with_events(self):
         import asyncio
+
         svc = _ensure_storage_ready()
-        match_id = asyncio.run(svc.save_match(name="Tactical Test Match", video_path="tactical_test.mp4"))
+        match_id = asyncio.run(
+            svc.save_match(name="Tactical Test Match", video_path="tactical_test.mp4")
+        )
         events = [
-            {"type": "pass", "timestamp": 1.0, "team": "home", "from_track_id": 1, "to_track_id": 2, "completed": True},
-            {"type": "pass", "timestamp": 5.0, "team": "home", "from_track_id": 2, "to_track_id": 3, "completed": True},
-            {"type": "shot", "timestamp": 10.0, "team": "home", "from_track_id": 3, "completed": True},
-            {"type": "tackle", "timestamp": 15.0, "team": "away", "from_track_id": 8, "completed": True},
-            {"type": "pass", "timestamp": 20.0, "team": "away", "from_track_id": 8, "to_track_id": 9, "completed": True},
+            {
+                "type": "pass",
+                "timestamp": 1.0,
+                "team": "home",
+                "from_track_id": 1,
+                "to_track_id": 2,
+                "completed": True,
+            },
+            {
+                "type": "pass",
+                "timestamp": 5.0,
+                "team": "home",
+                "from_track_id": 2,
+                "to_track_id": 3,
+                "completed": True,
+            },
+            {
+                "type": "shot",
+                "timestamp": 10.0,
+                "team": "home",
+                "from_track_id": 3,
+                "completed": True,
+            },
+            {
+                "type": "tackle",
+                "timestamp": 15.0,
+                "team": "away",
+                "from_track_id": 8,
+                "completed": True,
+            },
+            {
+                "type": "pass",
+                "timestamp": 20.0,
+                "team": "away",
+                "from_track_id": 8,
+                "to_track_id": 9,
+                "completed": True,
+            },
         ]
         for e in events:
             asyncio.run(svc.save_event(match_id, e))
@@ -244,14 +298,18 @@ class TestApiTacticalPressingReport:
 
     def test_tactical_shapes_no_longer_500s(self):
         match_id = self._match_with_events()
-        resp = client.get(f"/api/v1/matches/{match_id}/analysis/tactical-shapes", headers=_analyst_headers())
+        resp = client.get(
+            f"/api/v1/matches/{match_id}/analysis/tactical-shapes", headers=_analyst_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert set(data["shapes"].keys()) == {"home", "away"}
 
     def test_pressing_no_longer_500s(self):
         match_id = self._match_with_events()
-        resp = client.get(f"/api/v1/matches/{match_id}/analysis/pressing", headers=_analyst_headers())
+        resp = client.get(
+            f"/api/v1/matches/{match_id}/analysis/pressing", headers=_analyst_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data["home_ppda"], float)
@@ -276,16 +334,32 @@ class TestApiPlayerFitnessAndInjuryRisk:
 
     def _match_with_player(self):
         import asyncio
+
         svc = _ensure_storage_ready()
-        match_id = asyncio.run(svc.save_match(name="Fitness Test Match", video_path="fitness_test.mp4"))
-        asyncio.run(svc.save_players_bulk(match_id, [
-            {"track_id": 501, "name": "Test Player", "team": "home", "position": "FWD", "jersey_number": 9},
-        ]))
+        match_id = asyncio.run(
+            svc.save_match(name="Fitness Test Match", video_path="fitness_test.mp4")
+        )
+        asyncio.run(
+            svc.save_players_bulk(
+                match_id,
+                [
+                    {
+                        "track_id": 501,
+                        "name": "Test Player",
+                        "team": "home",
+                        "position": "FWD",
+                        "jersey_number": 9,
+                    },
+                ],
+            )
+        )
         return match_id
 
     def test_fitness_without_gps_data_is_honest_not_500(self):
         match_id = self._match_with_player()
-        resp = client.get(f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers())
+        resp = client.get(
+            f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["player_name"] == "Test Player"
@@ -294,13 +368,18 @@ class TestApiPlayerFitnessAndInjuryRisk:
 
     def test_fitness_with_real_gps_and_acwr_data(self):
         import asyncio
+
         match_id = self._match_with_player()
         svc = _ensure_storage_ready()
         sid = asyncio.run(svc.save_gps_session(match_id, 501, "match", "catapult"))
-        asyncio.run(svc.update_gps_session_stats(sid, {"total_distance_m": 10800.0, "max_speed_kmh": 31.2}))
+        asyncio.run(
+            svc.update_gps_session_stats(sid, {"total_distance_m": 10800.0, "max_speed_kmh": 31.2})
+        )
         asyncio.run(svc.save_acwr(501, "2026-08-18", 5000.0, 4500.0, 1.11))
 
-        resp = client.get(f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers())
+        resp = client.get(
+            f"/api/v1/players/501/fitness?match_id={match_id}", headers=_admin_headers()
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["total_distance"] == 10800.0
@@ -315,6 +394,7 @@ class TestApiPlayerFitnessAndInjuryRisk:
 
     def test_injury_risk_with_real_acwr_data(self):
         import asyncio
+
         svc = _ensure_storage_ready()
         asyncio.run(svc.save_acwr(777, "2026-08-18", 6000.0, 3000.0, 2.0))
         resp = client.get("/api/v1/players/777/injury-risk", headers=_admin_headers())

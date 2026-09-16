@@ -32,6 +32,7 @@ logger = get_logger(__name__)
 @dataclass
 class CameraView:
     """A single camera's calibration and current detections."""
+
     camera_id: str
     homography: np.ndarray  # 3x3 homography matrix (pixel → pitch)
     confidence: float = 1.0  # calibration confidence 0-1
@@ -42,6 +43,7 @@ class CameraView:
 @dataclass
 class FusedTrack:
     """A globally-unique player track after fusion."""
+
     global_id: int
     pitch_x: float
     pitch_y: float
@@ -89,7 +91,9 @@ class MultiCameraFusion:
             f"min_cameras={min_cameras}, max_occlusion={max_occlusion_frames}"
         )
 
-    def register_camera(self, camera_id: str, homography: np.ndarray, confidence: float = 1.0) -> None:
+    def register_camera(
+        self, camera_id: str, homography: np.ndarray, confidence: float = 1.0
+    ) -> None:
         """Register a calibrated camera for fusion.
 
         Args:
@@ -163,15 +167,17 @@ class MultiCameraFusion:
                 pitch_y = float(transformed[1] / transformed[2])
             pitch_x = max(0.0, min(GAME.PITCH_LENGTH_M, pitch_x))
             pitch_y = max(0.0, min(GAME.PITCH_WIDTH_M, pitch_y))
-            pitch_tracks.append({
-                "camera_id": camera_id,
-                "local_track_id": track.get("track_id"),
-                "pitch_x": pitch_x,
-                "pitch_y": pitch_y,
-                "confidence": track.get("confidence", 0.5),
-                "reid_embedding": track.get("reid_embedding"),
-                "bbox": track.get("bbox"),
-            })
+            pitch_tracks.append(
+                {
+                    "camera_id": camera_id,
+                    "local_track_id": track.get("track_id"),
+                    "pitch_x": pitch_x,
+                    "pitch_y": pitch_y,
+                    "confidence": track.get("confidence", 0.5),
+                    "reid_embedding": track.get("reid_embedding"),
+                    "bbox": track.get("bbox"),
+                }
+            )
         return pitch_tracks
 
     def _match_across_cameras(self) -> list[list[tuple[str, int]]]:
@@ -250,7 +256,9 @@ class MultiCameraFusion:
                 camera = self.cameras.get(cid)
                 if camera is None:
                     continue
-                projected = self._project_to_pitch(cid, [t for t in camera.tracks if t.get("track_id") == local_tid])
+                projected = self._project_to_pitch(
+                    cid, [t for t in camera.tracks if t.get("track_id") == local_tid]
+                )
                 if projected:
                     pt = projected[0]
                     positions.append((pt["pitch_x"], pt["pitch_y"], camera.confidence, cid))
@@ -338,7 +346,8 @@ class MultiCameraFusion:
         """Remove tracks that haven't been seen for too long."""
         current_frame = self._frame_count
         stale_ids = [
-            gid for gid, ft in self.fused_tracks.items()
+            gid
+            for gid, ft in self.fused_tracks.items()
             if current_frame - ft.last_seen_timestamp > self.max_occlusion_frames
         ]
         for gid in stale_ids:

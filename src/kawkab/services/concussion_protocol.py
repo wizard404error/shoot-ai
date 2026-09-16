@@ -46,11 +46,16 @@ class SCAT5Assessment:
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id, "player_id": self.player_id, "match_id": self.match_id,
-            "symptoms_score": self.symptoms_score, "cognitive_score": self.cognitive_score,
-            "balance_score": self.balance_score, "total_score": self.total_score(),
+            "id": self.id,
+            "player_id": self.player_id,
+            "match_id": self.match_id,
+            "symptoms_score": self.symptoms_score,
+            "cognitive_score": self.cognitive_score,
+            "balance_score": self.balance_score,
+            "total_score": self.total_score(),
             "is_symptomatic": self.is_symptomatic(),
-            "clearance_status": self.clearance_status, "notes": self.notes,
+            "clearance_status": self.clearance_status,
+            "notes": self.notes,
         }
 
 
@@ -64,14 +69,22 @@ class ConcussionProtocolService:
         self._db = db
 
     def record_assessment(self, assessment: SCAT5Assessment) -> int:
-        encrypted_notes = encrypt_dict({"notes": assessment.notes}, ["notes"], in_place=False)["notes"]
+        encrypted_notes = encrypt_dict({"notes": assessment.notes}, ["notes"], in_place=False)[
+            "notes"
+        ]
         cur = self._db.execute(
             """INSERT INTO concussion_assessments
                (player_id, match_id, symptoms_score, cognitive_score, balance_score, clearance_status, notes)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (assessment.player_id, assessment.match_id, assessment.symptoms_score,
-             assessment.cognitive_score, assessment.balance_score,
-             assessment.clearance_status, encrypted_notes),
+            (
+                assessment.player_id,
+                assessment.match_id,
+                assessment.symptoms_score,
+                assessment.cognitive_score,
+                assessment.balance_score,
+                assessment.clearance_status,
+                encrypted_notes,
+            ),
         )
         self._db.commit()
         return cur.lastrowid
@@ -85,7 +98,8 @@ class ConcussionProtocolService:
 
     def advance_clearance(self, assessment_id: int, cleared_by: str = "") -> Optional[dict]:
         row = self._db.execute(
-            "SELECT * FROM concussion_assessments WHERE id = ?", (assessment_id,),
+            "SELECT * FROM concussion_assessments WHERE id = ?",
+            (assessment_id,),
         ).fetchone()
         if row is None:
             return None
@@ -117,7 +131,11 @@ class ConcussionProtocolService:
             (player_id,),
         ).fetchone()
         if row is None:
-            return {"player_id": player_id, "clearance_status": "not_cleared", "has_assessment": False}
+            return {
+                "player_id": player_id,
+                "clearance_status": "not_cleared",
+                "has_assessment": False,
+            }
         r = decrypt_dict(dict(row), ["notes"])
         r["has_assessment"] = True
         r["stage_description"] = STAGE_DESCRIPTIONS.get(r["clearance_status"], "")
@@ -134,16 +152,26 @@ class ConcussionProtocolService:
     def check_return_to_play_readiness(self, player_id: int) -> dict:
         status = self.get_clearance_status(player_id)
         if not status.get("has_assessment", False):
-            return {"ready": False, "reason": "No concussion assessment recorded", "status": "not_assessed"}
+            return {
+                "ready": False,
+                "reason": "No concussion assessment recorded",
+                "status": "not_assessed",
+            }
         if status["clearance_status"] == "full_cleared":
             return {"ready": True, "status": "full_cleared", "reason": "Full clearance granted"}
         if status["is_symptomatic"]:
-            return {"ready": False, "status": status["clearance_status"], "reason": "Player still symptomatic"}
+            return {
+                "ready": False,
+                "status": status["clearance_status"],
+                "reason": "Player still symptomatic",
+            }
         stage = status["clearance_status"]
         description = STAGE_DESCRIPTIONS.get(stage, "")
         return {
             "ready": stage == "full_cleared",
             "status": stage,
             "current_stage_description": description,
-            "reason": "Progressing through RTP protocol" if stage != "full_cleared" else "Ready for full participation",
+            "reason": "Progressing through RTP protocol"
+            if stage != "full_cleared"
+            else "Ready for full participation",
         }

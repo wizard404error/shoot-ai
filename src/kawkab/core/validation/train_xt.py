@@ -61,35 +61,50 @@ def statsbomb_events_to_kawkab(raw_events: list[dict[str, Any]]) -> list[dict[st
                 continue
             ex, ey = sb_to_meters(end_loc)
             outcome = (ev.get("pass") or {}).get("outcome")
-            out.append({
-                "type": "pass",
-                "start_x": sx, "start_y": sy, "end_x": ex, "end_y": ey,
-                "completed": outcome is None,  # SB convention: no outcome = complete
-                "team": "home",  # direction handled by normalization
-            })
+            out.append(
+                {
+                    "type": "pass",
+                    "start_x": sx,
+                    "start_y": sy,
+                    "end_x": ex,
+                    "end_y": ey,
+                    "completed": outcome is None,  # SB convention: no outcome = complete
+                    "team": "home",  # direction handled by normalization
+                }
+            )
         elif type_name == "Carry":
             end_loc = (ev.get("carry") or {}).get("end_location") or []
             if len(end_loc) < 2:
                 continue
             ex, ey = sb_to_meters(end_loc)
-            out.append({
-                "type": "carry",
-                "start_x": sx, "start_y": sy, "end_x": ex, "end_y": ey,
-                "completed": True,
-                "team": "home",
-            })
+            out.append(
+                {
+                    "type": "carry",
+                    "start_x": sx,
+                    "start_y": sy,
+                    "end_x": ex,
+                    "end_y": ey,
+                    "completed": True,
+                    "team": "home",
+                }
+            )
         elif type_name == "Shot":
             shot = ev.get("shot") or {}
-            out.append({
-                "type": "shot",
-                "start_x": sx, "start_y": sy,
-                "is_goal": shot.get("outcome", {}).get("name") == "Goal",
-                "team": "home",
-            })
+            out.append(
+                {
+                    "type": "shot",
+                    "start_x": sx,
+                    "start_y": sy,
+                    "is_goal": shot.get("outcome", {}).get("name") == "Goal",
+                    "team": "home",
+                }
+            )
     return out
 
 
-def train_reference_grid(corpus_dir: str | Path, *, rows: int = 20, cols: int = 32) -> dict[str, Any]:
+def train_reference_grid(
+    corpus_dir: str | Path, *, rows: int = 20, cols: int = 32
+) -> dict[str, Any]:
     """Build the league-wide xT grid from every match in the corpus."""
     model = ExpectedThreatModel(rows=rows, cols=cols)
     all_events: list[dict[str, Any]] = []
@@ -156,16 +171,25 @@ def main(argv: list[str] | None = None) -> int:
     n_cols = result["cols"]
     own_half = max(max(row[: n_cols // 2]) for row in grid)
     final_third = max(max(row[2 * n_cols // 3 :]) for row in grid)
-    print(f"[xt-train] max own-half zone xT {own_half:.4f} < final-third {final_third:.4f}: {own_half < final_third}")
+    print(
+        f"[xt-train] max own-half zone xT {own_half:.4f} < final-third {final_third:.4f}: {own_half < final_third}"
+    )
 
     rp = Path(args.report)
     rp.parent.mkdir(parents=True, exist_ok=True)
     with open(rp, "w") as f:
-        json.dump({**payload, "sanity": {
-            "max_own_half": own_half,
-            "max_final_third": final_third,
-            "monotonic": own_half < final_third,
-        }}, f, indent=2)
+        json.dump(
+            {
+                **payload,
+                "sanity": {
+                    "max_own_half": own_half,
+                    "max_final_third": final_third,
+                    "monotonic": own_half < final_third,
+                },
+            },
+            f,
+            indent=2,
+        )
     print(f"[xt-train] report -> {rp}")
     return 0
 

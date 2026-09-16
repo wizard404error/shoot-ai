@@ -1,4 +1,5 @@
 """Shared test helpers and stubs + StatsBomb open-data auto-fetch."""
+
 from __future__ import annotations
 
 import importlib
@@ -28,6 +29,7 @@ def pytest_addoption(parser):
         default=False,
         help="Run load/benchmark tests",
     )
+
 
 # ── StatsBomb auto-fetch ─────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ def _fetch_statsbomb_data() -> None:
             dest.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("Failed to fetch StatsBomb match %s: %s", mid, exc)
     client.close()
     _SB_FETCHED = True
@@ -69,6 +72,7 @@ def _fetch_statsbomb_data() -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     _fetch_statsbomb_data()
+
 
 # ── Stub helpers ────────────────────────────────────────────────────────────
 
@@ -85,18 +89,34 @@ def install_loguru_stub() -> None:
         return
     try:
         import loguru  # noqa: F401
+
         return
     except ImportError:
         pass
     loguru_stub = types.ModuleType("loguru")
+
     class _Logger:
-        def info(self, *a, **k): pass
-        def warning(self, *a, **k): pass
-        def error(self, *a, **k): pass
-        def debug(self, *a, **k): pass
-        def bind(self, name=""): return _Logger()
-        def remove(self, *a, **k): pass
-        def add(self, *a, **k): pass
+        def info(self, *a, **k):
+            pass
+
+        def warning(self, *a, **k):
+            pass
+
+        def error(self, *a, **k):
+            pass
+
+        def debug(self, *a, **k):
+            pass
+
+        def bind(self, name=""):
+            return _Logger()
+
+        def remove(self, *a, **k):
+            pass
+
+        def add(self, *a, **k):
+            pass
+
     loguru_stub.logger = _Logger()
     sys.modules["loguru"] = loguru_stub
 
@@ -106,15 +126,25 @@ def install_httpx_stub() -> None:
         return
     try:
         import httpx  # noqa: F401
+
         return
     except ImportError:
         pass
     httpx_stub = types.ModuleType("httpx")
+
     class _AsyncClient:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return False
-        async def get(self, *a, **k): return None
-        async def aclose(self): pass
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, *a, **k):
+            return None
+
+        async def aclose(self):
+            pass
+
     httpx_stub.AsyncClient = _AsyncClient
     sys.modules["httpx"] = httpx_stub
 
@@ -131,19 +161,34 @@ def _ensure_real_package(pkg_name: str) -> types.ModuleType | None:
 
 def _make_logging_stub() -> types.ModuleType:
     mod = _make_module("kawkab.core.logging")
+
     class _ServiceLogger:
-        def info(self, *a, **k): pass
-        def warning(self, *a, **k): pass
-        def error(self, *a, **k): pass
-        def exception(self, *a, **k): pass
-        def debug(self, *a, **k): pass
-        def bind(self, name=""): return _ServiceLogger()
+        def info(self, *a, **k):
+            pass
+
+        def warning(self, *a, **k):
+            pass
+
+        def error(self, *a, **k):
+            pass
+
+        def exception(self, *a, **k):
+            pass
+
+        def debug(self, *a, **k):
+            pass
+
+        def bind(self, name=""):
+            return _ServiceLogger()
+
     mod.get_logger = lambda name="": _ServiceLogger()
     mod.setup_logging = lambda debug=False: None
     return mod
 
+
 def _make_paths_stub() -> types.ModuleType:
     mod = _make_module("kawkab.core.paths")
+
     class _Paths:
         def __init__(self):
             tmp = Path(tempfile.gettempdir()) / "kawkab_test"
@@ -158,6 +203,7 @@ def _make_paths_stub() -> types.ModuleType:
             self.migrations = SRC_DIR / "kawkab" / "migrations"
             self.database = tmp / "kawkab.db"
             self.config_file = tmp / "config.json"
+
     mod.Paths = _Paths
     mod._default_paths = _Paths()
     mod.get_paths = lambda: mod._default_paths
@@ -165,10 +211,13 @@ def _make_paths_stub() -> types.ModuleType:
     # Private helpers expected by some tests
     def _get_appdata_dir():
         return mod._default_paths.appdata
+
     def _get_localappdata_dir():
         return mod._default_paths.localappdata
+
     def _get_documents_dir():
         return mod._default_paths.documents
+
     mod._get_appdata_dir = _get_appdata_dir
     mod._get_localappdata_dir = _get_localappdata_dir
     mod._get_documents_dir = _get_documents_dir
@@ -181,13 +230,20 @@ def _make_paths_stub() -> types.ModuleType:
     _p.knowledge_base = SRC_DIR / "kawkab" / "knowledge"
     return mod
 
+
 def _make_migration_manager_stub() -> types.ModuleType:
     mod = _make_module("kawkab.core.migration_manager")
+
     class _MigrationManager:
-        def __init__(self, db_path, migrations_dir): pass
-        def migrate(self): pass
+        def __init__(self, db_path, migrations_dir):
+            pass
+
+        def migrate(self):
+            pass
+
     mod.MigrationManager = _MigrationManager
     return mod
+
 
 def install_kawkab_stubs() -> None:
     # Isolate from PostgreSQL — all tests use SQLite by default.
@@ -216,7 +272,9 @@ def install_kawkab_stubs() -> None:
 
     _stg_dir = SRC_DIR / "kawkab" / "services" / "storage"
     if _stg_dir.exists() and "kawkab.services.storage" not in sys.modules:
-        stg_pkg = _make_module("kawkab.services.storage", str(SRC_DIR / "kawkab" / "services" / "storage"))
+        stg_pkg = _make_module(
+            "kawkab.services.storage", str(SRC_DIR / "kawkab" / "services" / "storage")
+        )
         sys.modules["kawkab.services.storage"] = stg_pkg
         for _sf in sorted(_stg_dir.glob("*.py")):
             if _sf.name == "__init__.py":
@@ -249,19 +307,25 @@ def _ensure_package_loaded(package_name: str, skip_import: frozenset[str] = froz
                     importlib.import_module(prefix)
                 except ImportError:
                     if prefix not in sys.modules:
-                        sys.modules[prefix] = _make_module(prefix, str(SRC_DIR / prefix.replace(".", "/")))
+                        sys.modules[prefix] = _make_module(
+                            prefix, str(SRC_DIR / prefix.replace(".", "/"))
+                        )
         else:
             try:
                 importlib.import_module(prefix)
             except ImportError:
                 if prefix not in sys.modules:
-                    sys.modules[prefix] = _make_module(prefix, str(SRC_DIR / prefix.replace(".", "/")))
+                    sys.modules[prefix] = _make_module(
+                        prefix, str(SRC_DIR / prefix.replace(".", "/"))
+                    )
 
 
 # ── Service module loader ───────────────────────────────────────────────────
 
 
-def load_service_module(module_name: str, file_basename: str, subdir: str = "services") -> types.ModuleType:
+def load_service_module(
+    module_name: str, file_basename: str, subdir: str = "services"
+) -> types.ModuleType:
     _ensure_package_loaded("kawkab")
     _ensure_package_loaded("kawkab.core")
     _ensure_package_loaded("kawkab.core.paths", skip_import=frozenset({"kawkab.core.paths"}))

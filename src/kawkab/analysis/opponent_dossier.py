@@ -64,12 +64,25 @@ class OpponentDossier:
             "opponent_name": self.opponent_name,
             "matches_analyzed": self.matches_analyzed,
             "formations": [
-                {"formation": f.formation, "count": f.count, "percentage": round(f.percentage, 1), "context": f.context}
+                {
+                    "formation": f.formation,
+                    "count": f.count,
+                    "percentage": round(f.percentage, 1),
+                    "context": f.context,
+                }
                 for f in self.formations
             ],
             "predicted_lineup": self.predicted_lineup,
             "key_players": [
-                {"name": p.name, "position": p.position, "goals": p.goals, "assists": p.assists, "xg": round(p.xg, 2), "threat_score": round(p.threat_score, 2), "key_stat": p.key_stat}
+                {
+                    "name": p.name,
+                    "position": p.position,
+                    "goals": p.goals,
+                    "assists": p.assists,
+                    "xg": round(p.xg, 2),
+                    "threat_score": round(p.threat_score, 2),
+                    "key_stat": p.key_stat,
+                }
                 for p in self.key_players
             ],
             "strengths": self.strengths,
@@ -90,7 +103,11 @@ class OpponentDossier:
         }
 
     def to_markdown(self) -> str:
-        lines = [f"# Opponent Dossier: {self.opponent_name}", f"*Matches analyzed: {self.matches_analyzed}*", ""]
+        lines = [
+            f"# Opponent Dossier: {self.opponent_name}",
+            f"*Matches analyzed: {self.matches_analyzed}*",
+            "",
+        ]
         if self.formations:
             lines.append("## Formation Tendencies")
             for f in self.formations:
@@ -104,7 +121,11 @@ class OpponentDossier:
         if self.key_players:
             lines.append("## Key Players")
             for p in self.key_players:
-                desc = f"⚽ {p.goals}g / 🅰 {p.assists}a / xG {p.xg:.2f}" if p.goals or p.assists else f"xG {p.xg:.2f}"
+                desc = (
+                    f"⚽ {p.goals}g / 🅰 {p.assists}a / xG {p.xg:.2f}"
+                    if p.goals or p.assists
+                    else f"xG {p.xg:.2f}"
+                )
                 lines.append(f"- **{p.name}** ({p.position}) — {desc}")
                 if p.key_stat:
                     lines[-1] += f" — {p.key_stat}"
@@ -131,7 +152,9 @@ class OpponentDossier:
         sp = self.scoreline_prediction
         lines.append("## Scoreline Prediction")
         lines.append(f"- Predicted: {sp.home_score}-{sp.away_score}")
-        lines.append(f"- Home win: {sp.home_win_prob:.0%} | Draw: {sp.draw_prob:.0%} | Away win: {sp.away_win_prob:.0%}")
+        lines.append(
+            f"- Home win: {sp.home_win_prob:.0%} | Draw: {sp.draw_prob:.0%} | Away win: {sp.away_win_prob:.0%}"
+        )
         lines.append(f"- Avg total goals: {sp.total_goals_avg:.2f}")
         lines.append(f"- Both teams score: {sp.both_teams_score_prob:.0%}")
         lines.append("")
@@ -153,10 +176,14 @@ def _detect_formations(matches: list[dict[str, Any]]) -> list[FormationTendency]
         return [FormationTendency(formation="unknown", count=0, percentage=0, context="all")]
     result = []
     for form, count in form_counts.most_common():
-        result.append(FormationTendency(
-            formation=form, count=count, percentage=count / total * 100,
-            context="all",
-        ))
+        result.append(
+            FormationTendency(
+                formation=form,
+                count=count,
+                percentage=count / total * 100,
+                context="all",
+            )
+        )
     return result
 
 
@@ -201,7 +228,13 @@ def _build_key_players(matches: list[dict[str, Any]]) -> list[KeyPlayer]:
             if not name:
                 continue
             if name not in player_data:
-                player_data[name] = {"goals": 0, "assists": 0, "xg": 0.0, "position": p.get("position", ""), "apps": 0}
+                player_data[name] = {
+                    "goals": 0,
+                    "assists": 0,
+                    "xg": 0.0,
+                    "position": p.get("position", ""),
+                    "apps": 0,
+                }
             player_data[name]["goals"] += p.get("goals", 0)
             player_data[name]["assists"] += p.get("assists", 0)
             player_data[name]["xg"] += p.get("xg", 0.0)
@@ -228,11 +261,17 @@ def _build_key_players(matches: list[dict[str, Any]]) -> list[KeyPlayer]:
             key_stat = f"Top creator ({data['assists']} assists)"
         elif data["xg"] > 1.0:
             key_stat = f"High xG ({data['xg']:.2f})"
-        players.append(KeyPlayer(
-            name=name, position=data["position"],
-            goals=data["goals"], assists=data["assists"],
-            xg=data["xg"], threat_score=threat, key_stat=key_stat,
-        ))
+        players.append(
+            KeyPlayer(
+                name=name,
+                position=data["position"],
+                goals=data["goals"],
+                assists=data["assists"],
+                xg=data["xg"],
+                threat_score=threat,
+                key_stat=key_stat,
+            )
+        )
     players.sort(key=lambda p: -p.threat_score)
     return players[:8]
 
@@ -267,7 +306,9 @@ def _detect_set_piece_tendencies(matches: list[dict[str, Any]]) -> list[str]:
     if avg_corners > 5:
         tendencies.append(f"High corner volume ({avg_corners:.1f}/game) — vary marking schemes")
     if avg_sp_threat > 0.25:
-        tendencies.append(f"Dangerous from set pieces (threat {avg_sp_threat:.3f}) — prioritize blocking")
+        tendencies.append(
+            f"Dangerous from set pieces (threat {avg_sp_threat:.3f}) — prioritize blocking"
+        )
     if avg_sp_conc > 0.2:
         tendencies.append(f"Vulnerable defending set pieces (concedes {avg_sp_conc:.3f} xG/game)")
     if not tendencies:
@@ -285,7 +326,9 @@ def _predict_scoreline(matches: list[dict[str, Any]]) -> ScorelinePrediction:
     home_score = round(avg_for)
     away_score = round(avg_against)
     total_goals = avg_for + avg_against
-    btts = sum(1 for g1, g2 in zip(goals_for, goals_against) if g1 > 0 and g2 > 0) / max(1, len(goals_for))
+    btts = sum(1 for g1, g2 in zip(goals_for, goals_against) if g1 > 0 and g2 > 0) / max(
+        1, len(goals_for)
+    )
     lam_for = max(0.1, avg_for)
     lam_against = max(0.1, avg_against)
     home_win = 1 - math.exp(-lam_for) * (1 + (1 - math.exp(-lam_against)))
@@ -297,9 +340,13 @@ def _predict_scoreline(matches: list[dict[str, Any]]) -> ScorelinePrediction:
         draw /= total
         away_win /= total
     return ScorelinePrediction(
-        home_score=home_score, away_score=away_score,
-        home_win_prob=home_win, draw_prob=draw, away_win_prob=away_win,
-        total_goals_avg=total_goals, both_teams_score_prob=btts,
+        home_score=home_score,
+        away_score=away_score,
+        home_win_prob=home_win,
+        draw_prob=draw,
+        away_win_prob=away_win,
+        total_goals_avg=total_goals,
+        both_teams_score_prob=btts,
     )
 
 
@@ -320,7 +367,9 @@ def generate_dossier(
         weaknesses.append("Low possession — may struggle to control games")
         recs.append("Dominate possession, force them to chase")
 
-    avg_ppda = statistics.mean([m.get("ppda", 10) for m in matches if m.get("ppda")]) if matches else 10
+    avg_ppda = (
+        statistics.mean([m.get("ppda", 10) for m in matches if m.get("ppda")]) if matches else 10
+    )
     if avg_ppda < 8:
         strengths.append("High pressing — aggressive out-of-possession")
         recs.append("Quick vertical passes to bypass press")

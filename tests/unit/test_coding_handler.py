@@ -1,4 +1,5 @@
 """Tests for CodingHandler bridge methods."""
+
 from __future__ import annotations
 
 import json
@@ -150,7 +151,9 @@ async def test_update_tag(handler, svc):
     save_result = json.loads(await handler.save_tag(mid, json.dumps(tag)))
     tag_id = save_result["tag_id"]
 
-    result = await handler.update_tag(tag_id, json.dumps({"event_type": "shot", "notes": "Updated"}))
+    result = await handler.update_tag(
+        tag_id, json.dumps({"event_type": "shot", "notes": "Updated"})
+    )
     data = json.loads(result)
     assert data["success"] is True
 
@@ -204,9 +207,15 @@ async def test_get_tags_by_type(handler, svc):
 @pytest.mark.asyncio
 async def test_get_tags_by_player(handler, svc):
     mid = await _mid(svc)
-    await handler.save_tag(mid, json.dumps({"event_type": "pass", "video_time": 10.0, "player_track_id": 1}))
-    await handler.save_tag(mid, json.dumps({"event_type": "shot", "video_time": 20.0, "player_track_id": 1}))
-    await handler.save_tag(mid, json.dumps({"event_type": "tackle", "video_time": 30.0, "player_track_id": 2}))
+    await handler.save_tag(
+        mid, json.dumps({"event_type": "pass", "video_time": 10.0, "player_track_id": 1})
+    )
+    await handler.save_tag(
+        mid, json.dumps({"event_type": "shot", "video_time": 20.0, "player_track_id": 1})
+    )
+    await handler.save_tag(
+        mid, json.dumps({"event_type": "tackle", "video_time": 30.0, "player_track_id": 2})
+    )
 
     result = json.loads(await handler.get_tags_by_player(mid, 1))
     assert result["success"] is True
@@ -216,8 +225,12 @@ async def test_get_tags_by_player(handler, svc):
 @pytest.mark.asyncio
 async def test_get_match_players_simple(handler, svc):
     mid = await _mid(svc)
-    await svc.save_player(mid, {"track_id": 1, "name": "Messi", "jersey_number": 10, "team": "home"})
-    await svc.save_player(mid, {"track_id": 2, "name": "Ronaldo", "jersey_number": 7, "team": "away"})
+    await svc.save_player(
+        mid, {"track_id": 1, "name": "Messi", "jersey_number": 10, "team": "home"}
+    )
+    await svc.save_player(
+        mid, {"track_id": 2, "name": "Ronaldo", "jersey_number": 7, "team": "away"}
+    )
 
     result = json.loads(await handler.get_match_players_simple(mid))
     assert result["success"] is True

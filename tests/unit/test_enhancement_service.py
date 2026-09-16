@@ -48,6 +48,7 @@ def mock_ffmpeg():
 # Init
 # ===================================================================
 
+
 class TestInit:
     def test_defaults(self):
         s = EnhancementService()
@@ -78,6 +79,7 @@ class TestInit:
 # ===================================================================
 # PreprocessVideo
 # ===================================================================
+
 
 class TestPreprocessVideo:
     @pytest.mark.asyncio
@@ -152,6 +154,7 @@ class TestPreprocessVideo:
 # UpscaleVideo
 # ===================================================================
 
+
 class TestUpscaleVideo:
     @pytest.mark.asyncio
     async def test_returns_input_when_disabled(self, fake_input, fake_output):
@@ -170,6 +173,7 @@ class TestUpscaleVideo:
 # InterpolateVideo
 # ===================================================================
 
+
 class TestInterpolateVideo:
     @pytest.mark.asyncio
     async def test_returns_input_when_disabled(self, fake_input, fake_output):
@@ -187,6 +191,7 @@ class TestInterpolateVideo:
 # ===================================================================
 # Error handling
 # ===================================================================
+
 
 class TestErrorHandling:
     @pytest.mark.asyncio

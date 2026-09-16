@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS user_corrections (
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def conn():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -151,6 +152,7 @@ def _make_storage(cls, conn):
 
 
 # ── BaseStorage ──────────────────────────────────────────────────────────────
+
 
 class TestBaseStorage:
     def test_ensure_initialized_false_when_no_conn(self):
@@ -182,15 +184,21 @@ class TestBaseStorage:
 
 # ── ClipStorage ──────────────────────────────────────────────────────────────
 
+
 class TestClipStorage:
     async def test_save_and_get_clips(self, conn):
         store = _make_storage(ClipStorage, conn)
-        cid = await store.save_clip({
-            "match_id": 1, "event_type": "goal",
-            "start_seconds": 10.0, "end_seconds": 20.0,
-            "duration_seconds": 10.0,
-            "source_video_path": "/v/src.mp4", "output_path": "/v/clip.mp4",
-        })
+        cid = await store.save_clip(
+            {
+                "match_id": 1,
+                "event_type": "goal",
+                "start_seconds": 10.0,
+                "end_seconds": 20.0,
+                "duration_seconds": 10.0,
+                "source_video_path": "/v/src.mp4",
+                "output_path": "/v/clip.mp4",
+            }
+        )
         assert cid > 0
         clips = await store.get_clips_for_match(1)
         assert len(clips) == 1
@@ -207,16 +215,24 @@ class TestClipStorage:
 
     async def test_save_and_get_playlists(self, conn):
         store = _make_storage(ClipStorage, conn)
-        cid = await store.save_clip({
-            "match_id": 1, "event_type": "goal",
-            "start_seconds": 0.0, "end_seconds": 10.0,
-            "duration_seconds": 10.0,
-            "source_video_path": "/v/s.mp4", "output_path": "/v/c.mp4",
-        })
+        cid = await store.save_clip(
+            {
+                "match_id": 1,
+                "event_type": "goal",
+                "start_seconds": 0.0,
+                "end_seconds": 10.0,
+                "duration_seconds": 10.0,
+                "source_video_path": "/v/s.mp4",
+                "output_path": "/v/c.mp4",
+            }
+        )
         assert cid > 0
-        pid = await store.save_playlist({
-            "name": "Highlights", "clip_ids": [cid],
-        })
+        pid = await store.save_playlist(
+            {
+                "name": "Highlights",
+                "clip_ids": [cid],
+            }
+        )
         assert pid > 0
         playlists = await store.get_playlists()
         assert len(playlists) == 1
@@ -239,14 +255,20 @@ class TestClipStorage:
 
     async def test_save_clip_with_thumbnail_and_player(self, conn):
         store = _make_storage(ClipStorage, conn)
-        cid = await store.save_clip({
-            "match_id": 1, "event_type": "pass",
-            "start_seconds": 5.0, "end_seconds": 8.0,
-            "duration_seconds": 3.0,
-            "source_video_path": "/v/src.mp4", "output_path": "/v/clip.mp4",
-            "thumbnail_path": "/v/thumb.jpg", "player_id": 7,
-            "description": "Nice pass",
-        })
+        cid = await store.save_clip(
+            {
+                "match_id": 1,
+                "event_type": "pass",
+                "start_seconds": 5.0,
+                "end_seconds": 8.0,
+                "duration_seconds": 3.0,
+                "source_video_path": "/v/src.mp4",
+                "output_path": "/v/clip.mp4",
+                "thumbnail_path": "/v/thumb.jpg",
+                "player_id": 7,
+                "description": "Nice pass",
+            }
+        )
         assert cid > 0
         clips = await store.get_clips_for_match(1)
         assert clips[0]["description"] == "Nice pass"
@@ -255,13 +277,20 @@ class TestClipStorage:
 
 # ── EventStorage ─────────────────────────────────────────────────────────────
 
+
 class TestEventStorage:
     async def test_save_and_get_events(self, conn):
         store = _make_storage(EventStorage, conn)
-        eid = await store.save_event(1, {
-            "type": "pass", "timestamp": 10.0, "team": "home",
-            "completed": True, "confidence": 0.9,
-        })
+        eid = await store.save_event(
+            1,
+            {
+                "type": "pass",
+                "timestamp": 10.0,
+                "team": "home",
+                "completed": True,
+                "confidence": 0.9,
+            },
+        )
         assert eid > 0
         events = await store.get_match_events(1)
         assert len(events) == 1
@@ -292,9 +321,14 @@ class TestEventStorage:
 
     async def test_update_event(self, conn):
         store = _make_storage(EventStorage, conn)
-        eid = await store.save_event(1, {
-            "type": "pass", "timestamp": 5.0, "team": "home",
-        })
+        eid = await store.save_event(
+            1,
+            {
+                "type": "pass",
+                "timestamp": 5.0,
+                "team": "home",
+            },
+        )
         assert eid > 0
         ok = await store.update_event(eid, {"team": "away"})
         assert ok is True
@@ -303,9 +337,14 @@ class TestEventStorage:
 
     async def test_update_event_no_changes(self, conn):
         store = _make_storage(EventStorage, conn)
-        eid = await store.save_event(1, {
-            "type": "pass", "timestamp": 5.0, "team": "home",
-        })
+        eid = await store.save_event(
+            1,
+            {
+                "type": "pass",
+                "timestamp": 5.0,
+                "team": "home",
+            },
+        )
         assert await store.update_event(eid, {}) is False
 
     async def test_update_event_nonexistent(self, conn):
@@ -314,9 +353,14 @@ class TestEventStorage:
 
     async def test_delete_event(self, conn):
         store = _make_storage(EventStorage, conn)
-        eid = await store.save_event(1, {
-            "type": "pass", "timestamp": 5.0, "team": "home",
-        })
+        eid = await store.save_event(
+            1,
+            {
+                "type": "pass",
+                "timestamp": 5.0,
+                "team": "home",
+            },
+        )
         assert await store.delete_event(eid) is True
         assert await store.get_match_events(1) == []
 
@@ -338,8 +382,13 @@ class TestEventStorage:
     async def test_save_advanced_metrics_with_all_fields(self, conn):
         store = _make_storage(EventStorage, conn)
         aid = await store.save_advanced_metrics(
-            1, "xG", 0.45, "attack", player_id=10,
-            pitch_zone="A1", timestamp=30.0,
+            1,
+            "xG",
+            0.45,
+            "attack",
+            player_id=10,
+            pitch_zone="A1",
+            timestamp=30.0,
             metadata={"shot_type": "header"},
         )
         assert aid > 0
@@ -373,12 +422,17 @@ class TestEventStorage:
 
 # ── FeedbackStorage ──────────────────────────────────────────────────────────
 
+
 class TestFeedbackStorage:
     async def test_save_and_get_feedback(self, conn):
         store = _make_storage(FeedbackStorage, conn)
-        fid = await store.save_feedback({
-            "coach_id": "coach1", "match_id": 1, "overall_rating": 4,
-        })
+        fid = await store.save_feedback(
+            {
+                "coach_id": "coach1",
+                "match_id": 1,
+                "overall_rating": 4,
+            }
+        )
         assert fid > 0
         feedback = await store.get_all_feedback()
         assert len(feedback) == 1
@@ -386,12 +440,19 @@ class TestFeedbackStorage:
 
     async def test_save_feedback_all_ratings(self, conn):
         store = _make_storage(FeedbackStorage, conn)
-        fid = await store.save_feedback({
-            "coach_id": "coach2", "match_id": 1,
-            "overall_rating": 5, "tracking_rating": 4,
-            "events_rating": 3, "report_rating": 5, "ui_rating": 4,
-            "comments": "Great tool - works well", "issues": ["latency"],
-        })
+        fid = await store.save_feedback(
+            {
+                "coach_id": "coach2",
+                "match_id": 1,
+                "overall_rating": 5,
+                "tracking_rating": 4,
+                "events_rating": 3,
+                "report_rating": 5,
+                "ui_rating": 4,
+                "comments": "Great tool - works well",
+                "issues": ["latency"],
+            }
+        )
         assert fid > 0
         feedback = await store.get_all_feedback()
         assert "Great tool" in feedback[0]["comments"]
@@ -402,10 +463,14 @@ class TestFeedbackStorage:
 
     async def test_save_and_get_issues(self, conn):
         store = _make_storage(FeedbackStorage, conn)
-        iid = await store.save_issue({
-            "category": "bug", "severity": "high",
-            "description": "Crash on load", "match_id": 1,
-        })
+        iid = await store.save_issue(
+            {
+                "category": "bug",
+                "severity": "high",
+                "description": "Crash on load",
+                "match_id": 1,
+            }
+        )
         assert iid > 0
         issues = await store.get_all_issues()
         assert len(issues) == 1
@@ -413,12 +478,15 @@ class TestFeedbackStorage:
 
     async def test_save_issue_with_screenshot(self, conn):
         store = _make_storage(FeedbackStorage, conn)
-        iid = await store.save_issue({
-            "category": "UI", "severity": "low",
-            "description": "Button misaligned",
-            "screenshot_path": "/screens/issue1.png",
-            "logs": "error log here",
-        })
+        iid = await store.save_issue(
+            {
+                "category": "UI",
+                "severity": "low",
+                "description": "Button misaligned",
+                "screenshot_path": "/screens/issue1.png",
+                "logs": "error log here",
+            }
+        )
         assert iid > 0
 
     async def test_save_issue_missing_required(self, conn):
@@ -434,6 +502,7 @@ class TestFeedbackStorage:
 
 
 # ── MatchStorage ─────────────────────────────────────────────────────────────
+
 
 class TestMatchStorage:
     async def test_save_and_get_match(self, conn):
@@ -495,7 +564,9 @@ class TestMatchStorage:
     async def test_update_match_apifootball(self, conn):
         store = _make_storage(MatchStorage, conn)
         mid = await store.save_match("Test", "/v/t.mp4")
-        await store.update_match_apifootball(mid, apifb_fixture_id=999, apifb_league_id=1, apifb_season=2024)
+        await store.update_match_apifootball(
+            mid, apifb_fixture_id=999, apifb_league_id=1, apifb_season=2024
+        )
         m = await store.get_match(mid)
         assert m["apifb_fixture_id"] == 999
         assert m["apifb_league_id"] == 1
@@ -526,13 +597,20 @@ class TestMatchStorage:
 
 # ── PlayerStorage ────────────────────────────────────────────────────────────
 
+
 class TestPlayerStorage:
     async def test_save_and_get_players(self, conn):
         store = _make_storage(PlayerStorage, conn)
-        pid = await store.save_player(1, {
-            "track_id": 10, "jersey_number": 7, "name": "Player1",
-            "team": "home", "position": "ST",
-        })
+        pid = await store.save_player(
+            1,
+            {
+                "track_id": 10,
+                "jersey_number": 7,
+                "name": "Player1",
+                "team": "home",
+                "position": "ST",
+            },
+        )
         assert pid > 0
         players = await store.get_match_players(1)
         assert len(players) == 1
@@ -563,12 +641,22 @@ class TestPlayerStorage:
 
     async def test_save_player_with_all_stats(self, conn):
         store = _make_storage(PlayerStorage, conn)
-        pid = await store.save_player(1, {
-            "track_id": 5, "name": "Star", "team": "away", "position": "CM",
-            "distance_covered_m": 10.5, "max_speed_kmh": 32.0,
-            "avg_speed_kmh": 8.0, "passes_attempted": 50,
-            "passes_completed": 42, "shots": 3, "tackles": 7,
-        })
+        pid = await store.save_player(
+            1,
+            {
+                "track_id": 5,
+                "name": "Star",
+                "team": "away",
+                "position": "CM",
+                "distance_covered_m": 10.5,
+                "max_speed_kmh": 32.0,
+                "avg_speed_kmh": 8.0,
+                "passes_attempted": 50,
+                "passes_completed": 42,
+                "shots": 3,
+                "tackles": 7,
+            },
+        )
         assert pid > 0
         players = await store.get_match_players(1)
         assert players[0]["distance_covered_m"] == 10.5
@@ -584,13 +672,18 @@ class TestPlayerStorage:
 
 # ── ProfileStorage ───────────────────────────────────────────────────────────
 
+
 class TestProfileStorage:
     async def test_save_and_get_profiles(self, conn):
         store = _make_storage(ProfileStorage, conn)
-        ppid = await store.save_player_profile({
-            "display_name": "Messi", "jersey_number": 10,
-            "preferred_position": "ST", "team": "home",
-        })
+        ppid = await store.save_player_profile(
+            {
+                "display_name": "Messi",
+                "jersey_number": 10,
+                "preferred_position": "ST",
+                "team": "home",
+            }
+        )
         assert ppid > 0
         profiles = await store.get_all_player_profiles()
         assert len(profiles) == 1
@@ -607,12 +700,14 @@ class TestProfileStorage:
 
     async def test_save_profile_with_face(self, conn):
         store = _make_storage(ProfileStorage, conn)
-        ppid = await store.save_player_profile({
-            "display_name": "Ronaldo",
-            "global_id": "cr7",
-            "face_embedding": "[0.1,0.2,0.3]",
-            "face_confidence": 0.95,
-        })
+        ppid = await store.save_player_profile(
+            {
+                "display_name": "Ronaldo",
+                "global_id": "cr7",
+                "face_embedding": "[0.1,0.2,0.3]",
+                "face_confidence": 0.95,
+            }
+        )
         assert ppid > 0
         profiles = await store.get_all_player_profiles()
         assert profiles[0]["global_id"] == "cr7"
@@ -638,6 +733,7 @@ class TestProfileStorage:
 
 # ── Cross-module / Multi-table scenario ──────────────────────────────────────
 
+
 class TestIntegration:
     async def test_save_match_then_event_then_player_then_clip(self, conn):
         match_store = _make_storage(MatchStorage, conn)
@@ -648,23 +744,38 @@ class TestIntegration:
         mid = await match_store.save_match("Integration", "/v/int.mp4", "TeamA", "TeamB")
         assert mid > 0
 
-        eid = await event_store.save_event(mid, {
-            "type": "goal", "timestamp": 42.0, "team": "home",
-            "completed": True,
-        })
+        eid = await event_store.save_event(
+            mid,
+            {
+                "type": "goal",
+                "timestamp": 42.0,
+                "team": "home",
+                "completed": True,
+            },
+        )
         assert eid > 0
 
-        pid = await player_store.save_player(mid, {
-            "track_id": 99, "name": "Scorer", "team": "home",
-        })
+        pid = await player_store.save_player(
+            mid,
+            {
+                "track_id": 99,
+                "name": "Scorer",
+                "team": "home",
+            },
+        )
         assert pid > 0
 
-        cid = await clip_store.save_clip({
-            "match_id": mid, "event_type": "goal",
-            "start_seconds": 40.0, "end_seconds": 45.0,
-            "duration_seconds": 5.0,
-            "source_video_path": "/v/s.mp4", "output_path": "/v/c.mp4",
-        })
+        cid = await clip_store.save_clip(
+            {
+                "match_id": mid,
+                "event_type": "goal",
+                "start_seconds": 40.0,
+                "end_seconds": 45.0,
+                "duration_seconds": 5.0,
+                "source_video_path": "/v/s.mp4",
+                "output_path": "/v/c.mp4",
+            }
+        )
         assert cid > 0
 
         # Verify cross-table reads

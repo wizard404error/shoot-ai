@@ -43,9 +43,16 @@ class CloudSyncService:
 
     def register(self, username: str, email: str, password: str, display_name: str = "") -> str:
         try:
-            resp = httpx.post(f"{self.cloud_url}/auth/register", json={
-                "username": username, "email": email, "password": password, "display_name": display_name,
-            }, timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/auth/register",
+                json={
+                    "username": username,
+                    "email": email,
+                    "password": password,
+                    "display_name": display_name,
+                },
+                timeout=10.0,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 self._token = data["access_token"]
@@ -57,7 +64,11 @@ class CloudSyncService:
 
     def login(self, email: str, password: str) -> str:
         try:
-            resp = httpx.post(f"{self.cloud_url}/auth/login", json={"email": email, "password": password}, timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/auth/login",
+                json={"email": email, "password": password},
+                timeout=10.0,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 self._token = data["access_token"]
@@ -102,15 +113,20 @@ class CloudSyncService:
     def oauth_authorize_url(self, provider: str, redirect_uri: str = "") -> str:
         try:
             params = f"?redirect_uri={redirect_uri}" if redirect_uri else ""
-            resp = httpx.get(f"{self.cloud_url}/auth/oauth/{provider}/authorize{params}", timeout=10.0)
+            resp = httpx.get(
+                f"{self.cloud_url}/auth/oauth/{provider}/authorize{params}", timeout=10.0
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})
 
     def oauth_exchange(self, provider: str, code: str, state: str) -> str:
         try:
-            resp = httpx.post(f"{self.cloud_url}/auth/oauth/{provider}/callback",
-                              json={"code": code, "state": state, "provider": provider}, timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/auth/oauth/{provider}/callback",
+                json={"code": code, "state": state, "provider": provider},
+                timeout=10.0,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 self._token = data["access_token"]
@@ -126,8 +142,12 @@ class CloudSyncService:
         if not self._token:
             return json.dumps({"error": "Not logged in"})
         try:
-            resp = httpx.post(f"{self.cloud_url}/sync/push", headers=self._headers(),
-                              json={"device_id": device_id, "operations": operations}, timeout=30.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/sync/push",
+                headers=self._headers(),
+                json={"device_id": device_id, "operations": operations},
+                timeout=30.0,
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -136,8 +156,12 @@ class CloudSyncService:
         if not self._token:
             return json.dumps({"error": "Not logged in"})
         try:
-            resp = httpx.post(f"{self.cloud_url}/sync/pull", headers=self._headers(),
-                              json={"device_id": device_id, "operations": []}, timeout=30.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/sync/pull",
+                headers=self._headers(),
+                json={"device_id": device_id, "operations": []},
+                timeout=30.0,
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -148,8 +172,12 @@ class CloudSyncService:
         if not self._token:
             return json.dumps({"error": "Not logged in"})
         try:
-            resp = httpx.post(f"{self.cloud_url}/teams", headers=self._headers(),
-                              json={"name": name, "description": description}, timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/teams",
+                headers=self._headers(),
+                json={"name": name, "description": description},
+                timeout=10.0,
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -167,8 +195,12 @@ class CloudSyncService:
         if not self._token:
             return json.dumps({"error": "Not logged in"})
         try:
-            resp = httpx.post(f"{self.cloud_url}/teams/{team_id}/invite", headers=self._headers(),
-                              json={"email": email, "role": "member"}, timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/teams/{team_id}/invite",
+                headers=self._headers(),
+                json={"email": email, "role": "member"},
+                timeout=10.0,
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -177,7 +209,9 @@ class CloudSyncService:
         if not self._token:
             return json.dumps({"error": "Not logged in"})
         try:
-            resp = httpx.post(f"{self.cloud_url}/teams/join/{token}", headers=self._headers(), timeout=10.0)
+            resp = httpx.post(
+                f"{self.cloud_url}/teams/join/{token}", headers=self._headers(), timeout=10.0
+            )
             return resp.text
         except Exception as e:
             return json.dumps({"error": str(e)})

@@ -20,14 +20,32 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CORPUS = PROJECT_ROOT / "data" / "statsbomb_corpus"
 
 ALL_BLOCKS = [
-    "epv", "obv", "off_ball", "pass_flow", "pressing_clusters",
-    "duels", "ball_recovery", "box_entries", "switch_of_play",
-    "crossing", "set_pieces", "through_balls",
+    "epv",
+    "obv",
+    "off_ball",
+    "pass_flow",
+    "pressing_clusters",
+    "duels",
+    "ball_recovery",
+    "box_entries",
+    "switch_of_play",
+    "crossing",
+    "set_pieces",
+    "through_balls",
     # tranche 2
-    "carry_xt", "xg_chain", "game_state", "flank_analysis",
-    "defensive_xt", "corner_xg", "crossing_xg", "expected_pass",
-    "passing_triangles", "scoreline",
-    "velocity", "influence_map", "lineup_optimizer",
+    "carry_xt",
+    "xg_chain",
+    "game_state",
+    "flank_analysis",
+    "defensive_xt",
+    "corner_xg",
+    "crossing_xg",
+    "expected_pass",
+    "passing_triangles",
+    "scoreline",
+    "velocity",
+    "influence_map",
+    "lineup_optimizer",
 ]
 
 
@@ -146,13 +164,21 @@ class TestProAnalyticsReport:
             {
                 "timestamp": float(t),
                 "player_detections": [
-                    {"track_id": i, "class_name": "person", "confidence": 0.9,
-                     "bbox": [10.0 * i, 20.0, 10.0 * i + 5.0, 30.0]}
+                    {
+                        "track_id": i,
+                        "class_name": "person",
+                        "confidence": 0.9,
+                        "bbox": [10.0 * i, 20.0, 10.0 * i + 5.0, 30.0],
+                    }
                     for i in range(6)
                 ],
                 "ball_detections": [
-                    {"track_id": 99, "class_name": "sports ball", "confidence": 0.8,
-                     "bbox": [40.0, 24.0, 45.0, 29.0]}
+                    {
+                        "track_id": 99,
+                        "class_name": "sports ball",
+                        "confidence": 0.8,
+                        "bbox": [40.0, 24.0, 45.0, 29.0],
+                    }
                 ],
             }
             for t in range(30)
@@ -219,16 +245,54 @@ class TestProAnalyticsReport:
         from kawkab.core.scoreline_distribution import ScorelineDistribution
 
         events = [
-            {"type": "pass", "team": "home", "timestamp": 10.0, "x": None, "y": None,
-             "from_track_id": 1, "to_track_id": 2, "completed": True},
-            {"type": "pass", "team": "home", "timestamp": 20.0, "x": None, "y": None,
-             "from_track_id": 2, "to_track_id": 3, "completed": True},
-            {"type": "pass", "team": "home", "timestamp": 30.0, "x": None, "y": None,
-             "from_track_id": 3, "to_track_id": 1, "completed": True},
-            {"type": "interception", "team": "away", "timestamp": 35.0,
-             "x": None, "y": None, "start_x": None, "start_y": None},
-            {"type": "shot", "team": "home", "timestamp": 40.0, "is_goal": True,
-             "x": None, "y": None, "xg": None},
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 10.0,
+                "x": None,
+                "y": None,
+                "from_track_id": 1,
+                "to_track_id": 2,
+                "completed": True,
+            },
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 20.0,
+                "x": None,
+                "y": None,
+                "from_track_id": 2,
+                "to_track_id": 3,
+                "completed": True,
+            },
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 30.0,
+                "x": None,
+                "y": None,
+                "from_track_id": 3,
+                "to_track_id": 1,
+                "completed": True,
+            },
+            {
+                "type": "interception",
+                "team": "away",
+                "timestamp": 35.0,
+                "x": None,
+                "y": None,
+                "start_x": None,
+                "start_y": None,
+            },
+            {
+                "type": "shot",
+                "team": "home",
+                "timestamp": 40.0,
+                "is_goal": True,
+                "x": None,
+                "y": None,
+                "xg": None,
+            },
         ]
         # defensive_xt: unlocated events are skipped, located ones valued
         grid = np.zeros((4, 4))
@@ -240,6 +304,5 @@ class TestProAnalyticsReport:
         assert isinstance(tris, list)
 
         # scoreline: xg=None treated as 0
-        result = ScorelineDistribution().compute_scoreline_probabilities(
-            events, n_sims=100)
+        result = ScorelineDistribution().compute_scoreline_probabilities(events, n_sims=100)
         assert isinstance(result, dict)

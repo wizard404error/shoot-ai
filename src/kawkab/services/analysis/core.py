@@ -191,12 +191,15 @@ class AnalysisServiceCore:
 
         carry_events_list = [c.to_dict() for c in typed_events if isinstance(c, CarryEvent)]
         progressive_carries_list = [
-            c.to_dict() for c in typed_events
-            if isinstance(c, CarryEvent) and c.is_progressive
+            c.to_dict() for c in typed_events if isinstance(c, CarryEvent) and c.is_progressive
         ]
 
-        home_formation = self.detect_formation(track_data, team="home", homography_matrix=homography_matrix)
-        away_formation = self.detect_formation(track_data, team="away", homography_matrix=homography_matrix)
+        home_formation = self.detect_formation(
+            track_data, team="home", homography_matrix=homography_matrix
+        )
+        away_formation = self.detect_formation(
+            track_data, team="away", homography_matrix=homography_matrix
+        )
         home_ppda = self.compute_ppda(track_data, team="home", homography_matrix=homography_matrix)
         away_ppda = self.compute_ppda(track_data, team="away", homography_matrix=homography_matrix)
         confidence = self._compute_confidence(track_data, events)
@@ -207,9 +210,7 @@ class AnalysisServiceCore:
             gk_distance = None
             if se.gk_position_x is not None and se.x is not None and se.y is not None:
                 gk_distance = math.hypot(se.gk_position_x - se.x, se.gk_position_y - se.y)
-            se.xg = compute_xg_trained_from_shot_event(
-                se, gk_distance_m=gk_distance
-            )
+            se.xg = compute_xg_trained_from_shot_event(se, gk_distance_m=gk_distance)
             se.xg = max(0.0, min(1.0, se.xg))
         home_xg = sum(e.xg for e in shot_events if e.team == "home")
         away_xg = sum(e.xg for e in shot_events if e.team == "away")
@@ -231,10 +232,7 @@ class AnalysisServiceCore:
         }
 
         xt_data = self.compute_xt_simple(events)
-        logger.info(
-            f"xG: home={xg_data['home']} away={xg_data['away']} "
-            f"({len(shot_events)} shots)"
-        )
+        logger.info(f"xG: home={xg_data['home']} away={xg_data['away']} ({len(shot_events)} shots)")
         logger.info(f"xT: home={xt_data['home']} away={xt_data['away']}")
 
         pitch_control = self._compute_pitch_control(track_data, homography_matrix)
@@ -405,28 +403,35 @@ class AnalysisServiceCore:
                             try:
                                 cx, cy = homography_matrix.pixel_to_pitch(bx, by)
                             except Exception as e:
-                                logger.warning("Failed to convert ball pixel-to-pitch in carry detection: %s", e)
+                                logger.warning(
+                                    "Failed to convert ball pixel-to-pitch in carry detection: %s",
+                                    e,
+                                )
                         scx, scy = cbx, cby
                         if homography_matrix is not None:
                             try:
                                 scx, scy = homography_matrix.pixel_to_pitch(cbx, cby)
                             except Exception as e:
-                                logger.warning("Failed to convert carry-start pixel-to-pitch: %s", e)
+                                logger.warning(
+                                    "Failed to convert carry-start pixel-to-pitch: %s", e
+                                )
                         team = "unknown"
                         if track_data.player_teams:
                             team = track_data.player_teams.get(tid, "unknown")
-                        carries.append(CarryEvent(
-                            timestamp=cts,
-                            team=team,
-                            track_id=tid,
-                            start_x=scx,
-                            start_y=scy,
-                            end_x=cx,
-                            end_y=cy,
-                            distance_m=cd if homography_matrix else cd * 0.015,
-                            is_progressive=False,
-                            confidence=0.5,
-                        ))
+                        carries.append(
+                            CarryEvent(
+                                timestamp=cts,
+                                team=team,
+                                track_id=tid,
+                                start_x=scx,
+                                start_y=scy,
+                                end_x=cx,
+                                end_y=cy,
+                                distance_m=cd if homography_matrix else cd * 0.015,
+                                is_progressive=False,
+                                confidence=0.5,
+                            )
+                        )
                     carry_start.pop(tid, None)
                     ball_tracker.pop(tid, None)
         return carries
@@ -606,7 +611,9 @@ class AnalysisServiceCore:
             "assists": assist_count,
         }
 
-    def _compute_pitch_control(self, track_data, homography_matrix=None) -> MatchPitchControl | None:
+    def _compute_pitch_control(
+        self, track_data, homography_matrix=None
+    ) -> MatchPitchControl | None:
         if not track_data.frames:
             return None
 
@@ -629,13 +636,19 @@ class AnalysisServiceCore:
                         try:
                             ball_pos = homography_matrix.pixel_to_pitch(cx, cy)
                         except Exception as e:
-                            logger.warning("Failed to convert ball pixel-to-pitch in frame data: %s", e)
+                            logger.warning(
+                                "Failed to convert ball pixel-to-pitch in frame data: %s", e
+                            )
                 elif det.class_name == "person" and det.track_id is not None:
                     if has_homography:
                         try:
                             cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
                         except Exception as e:
-                            logger.warning("Failed to convert player pixel-to-pitch (track_id=%s): %s", det.track_id, e)
+                            logger.warning(
+                                "Failed to convert player pixel-to-pitch (track_id=%s): %s",
+                                det.track_id,
+                                e,
+                            )
                     if use_player_teams:
                         team = track_data.player_teams.get(det.track_id)
                         if team == "home":
@@ -647,12 +660,14 @@ class AnalysisServiceCore:
                     # control with fewer, honest players beats control with
                     # half the players on the wrong teams.
 
-            frame_data.append({
-                "timestamp": frame.timestamp,
-                "home_positions": home_pos,
-                "away_positions": away_pos,
-                "ball_pos": ball_pos,
-            })
+            frame_data.append(
+                {
+                    "timestamp": frame.timestamp,
+                    "home_positions": home_pos,
+                    "away_positions": away_pos,
+                    "ball_pos": ball_pos,
+                }
+            )
 
         pc = VoronoiPitchControl()
         return pc.compute_match_control(frame_data)
@@ -668,7 +683,9 @@ class AnalysisServiceCore:
                 pitch_x, _ = homography_matrix.pixel_to_pitch(px, 0)
                 x_per_team[team].append(pitch_x)
             except Exception as e:
-                logger.warning("Failed to convert pixel x for team assignment (track_id=%s): %s", tid, e)
+                logger.warning(
+                    "Failed to convert pixel x for team assignment (track_id=%s): %s", tid, e
+                )
                 continue
 
         if len(x_per_team["home"]) < 3 or len(x_per_team["away"]) < 3:
@@ -689,7 +706,9 @@ class AnalysisServiceCore:
                 f"away at x={away_med:.0f}m (right) -> already correct"
             )
 
-    def _compute_player_stats_kalman(self, track_data, homography_matrix, max_frame_delta_m: float) -> dict[int, PlayerStats]:
+    def _compute_player_stats_kalman(
+        self, track_data, homography_matrix, max_frame_delta_m: float
+    ) -> dict[int, PlayerStats]:
         from kawkab.services.kalman_smoother import PlayerPositionSmoother
 
         players: dict[int, PlayerStats] = {}
@@ -757,14 +776,16 @@ class AnalysisServiceCore:
 
         for tid, player in players.items():
             if track_data.duration_seconds > 0:
-                player.avg_speed_kmh = (
-                    player.distance_covered_m / track_data.duration_seconds * 3.6
-                )
+                player.avg_speed_kmh = player.distance_covered_m / track_data.duration_seconds * 3.6
 
         return players
 
     def _nearest_goalkeeper_pitch_pos(
-        self, track_data, frame, shot_team: str, homography_matrix,
+        self,
+        track_data,
+        frame,
+        shot_team: str,
+        homography_matrix,
         ball_pixel_pos: tuple[float, float] | None = None,
     ) -> tuple[float, float] | None:
         """Pitch-space position of the defending team's goalkeeper at shot time.
@@ -977,7 +998,9 @@ class AnalysisServiceCore:
                             near_goal_x = 0 if bx_pitch <= pitch_len / 2 else pitch_len
                             goal_cx = near_goal_x
                             goal_cy = pitch_wid / 2
-                            d_to_goal = math.sqrt((bx_pitch - goal_cx) ** 2 + (by_pitch - goal_cy) ** 2)
+                            d_to_goal = math.sqrt(
+                                (bx_pitch - goal_cx) ** 2 + (by_pitch - goal_cy) ** 2
+                            )
                             angle_to_goal = math.degrees(
                                 math.atan2(abs(by_pitch - goal_cy), abs(bx_pitch - goal_cx))
                             )
@@ -991,7 +1014,10 @@ class AnalysisServiceCore:
                             # live path runs with gk_distance=0 = feature
                             # absent, the strongest feature unused.
                             gk_pitch_pos = self._nearest_goalkeeper_pitch_pos(
-                                track_data, frame, shot_team, homography_matrix,
+                                track_data,
+                                frame,
+                                shot_team,
+                                homography_matrix,
                                 ball_pixel_pos=(bx, by),
                             )
                             if gk_pitch_pos is not None:
@@ -1012,14 +1038,16 @@ class AnalysisServiceCore:
                             f"Shot by {shot_team}: d={shot_metadata.get('distance_to_goal_m', '?')}m, "
                             f"on_target={on_target}, conf={shot_conf:.2f}"
                         )
-                        events.append({
-                            "type": "shot",
-                            "timestamp": frame.timestamp,
-                            "team": shot_team,
-                            "on_target": on_target,
-                            "confidence": shot_conf,
-                            "metadata": shot_metadata,
-                        })
+                        events.append(
+                            {
+                                "type": "shot",
+                                "timestamp": frame.timestamp,
+                                "team": shot_team,
+                                "on_target": on_target,
+                                "confidence": shot_conf,
+                                "metadata": shot_metadata,
+                            }
+                        )
 
             closest_player = None
             closest_dist = float("inf")
@@ -1041,10 +1069,7 @@ class AnalysisServiceCore:
                 # candidate was single-frame jitter -- drop it.
                 pending_possession = None
                 pending_possession_frame = None
-            elif (
-                prev_possession is not None
-                and closest_dist < player_proximity_threshold
-            ):
+            elif prev_possession is not None and closest_dist < player_proximity_threshold:
                 # Candidate new possessor actually near the ball.
                 if (
                     pending_possession == tid_now
@@ -1084,16 +1109,18 @@ class AnalysisServiceCore:
                         and team != "unknown"
                         and from_team != team
                     )
-                    events.append({
-                        "type": "pass",
-                        "timestamp": frame.timestamp,
-                        "from_track_id": prev_possession,
-                        "to_track_id": tid_now,
-                        "completed": not flip_to_opponent,
-                        "team": team,
-                        "confidence": min(1.0, 1.0 - closest_dist / 200),
-                        "metadata": pass_metadata,
-                    })
+                    events.append(
+                        {
+                            "type": "pass",
+                            "timestamp": frame.timestamp,
+                            "from_track_id": prev_possession,
+                            "to_track_id": tid_now,
+                            "completed": not flip_to_opponent,
+                            "team": team,
+                            "confidence": min(1.0, 1.0 - closest_dist / 200),
+                            "metadata": pass_metadata,
+                        }
+                    )
                     if flip_to_opponent:
                         events[-1]["metadata"]["outcome"] = "lost_to_opponent"
                     pending_passes.append(
@@ -1137,11 +1164,13 @@ class AnalysisServiceCore:
                         continue
                     cur_team = (
                         track_data.player_teams.get(tid_now, "unknown")
-                        if track_data.player_teams else "unknown"
+                        if track_data.player_teams
+                        else "unknown"
                     )
                     rcv_team = (
                         track_data.player_teams.get(receiver, "unknown")
-                        if track_data.player_teams else "unknown"
+                        if track_data.player_teams
+                        else "unknown"
                     )
                     if (
                         receiver is not None
@@ -1160,7 +1189,9 @@ class AnalysisServiceCore:
 
         return events
 
-    def _compute_team_stats(self, players, events, track_data, homography_matrix=None) -> dict[str, TeamStats]:
+    def _compute_team_stats(
+        self, players, events, track_data, homography_matrix=None
+    ) -> dict[str, TeamStats]:
         home = TeamStats(team_name="Home")
         away = TeamStats(team_name="Away")
 
@@ -1261,14 +1292,10 @@ class AnalysisServiceCore:
             return 0.0
 
         frames_with_ball = sum(
-            1
-            for f in track_data.frames
-            if any(d.class_name == "sports ball" for d in f.detections)
+            1 for f in track_data.frames if any(d.class_name == "sports ball" for d in f.detections)
         )
         frames_with_players = sum(
-            1
-            for f in track_data.frames
-            if any(d.class_name == "person" for d in f.detections)
+            1 for f in track_data.frames if any(d.class_name == "person" for d in f.detections)
         )
 
         ball_pct = frames_with_ball / track_data.total_frames

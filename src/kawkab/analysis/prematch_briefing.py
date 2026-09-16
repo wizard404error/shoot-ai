@@ -47,8 +47,12 @@ class InjuryEntry:
     severity: str = ""
 
     def to_dict(self) -> dict:
-        return {"player": self.player, "injury": self.injury,
-                "expected_return": self.expected_return, "severity": self.severity}
+        return {
+            "player": self.player,
+            "injury": self.injury,
+            "expected_return": self.expected_return,
+            "severity": self.severity,
+        }
 
 
 @dataclass
@@ -59,8 +63,12 @@ class PredictedLineupPlayer:
     rating: float = 0.0
 
     def to_dict(self) -> dict:
-        return {"position": self.position, "player_name": self.player_name,
-                "number": self.number, "rating": round(self.rating, 1)}
+        return {
+            "position": self.position,
+            "player_name": self.player_name,
+            "number": self.number,
+            "rating": round(self.rating, 1),
+        }
 
 
 @dataclass
@@ -72,9 +80,13 @@ class KeyBattle:
     notes: str = ""
 
     def to_dict(self) -> dict:
-        return {"our_player": self.our_player, "opponent_player": self.opponent_player,
-                "importance": self.importance, "our_advantage": self.our_advantage,
-                "notes": self.notes}
+        return {
+            "our_player": self.our_player,
+            "opponent_player": self.opponent_player,
+            "importance": self.importance,
+            "our_advantage": self.our_advantage,
+            "notes": self.notes,
+        }
 
 
 @dataclass
@@ -191,6 +203,7 @@ class PreMatchBriefing:
             self.generated_at = datetime.now(UTC).isoformat()
         if not self.briefing_id:
             import uuid
+
             self.briefing_id = uuid.uuid4().hex[:12]
 
     def to_dict(self) -> dict[str, Any]:
@@ -198,9 +211,12 @@ class PreMatchBriefing:
             "briefing_id": self.briefing_id,
             "generated_at": self.generated_at,
             "match_info": {
-                "home_team": self.home_team, "away_team": self.away_team,
-                "competition": self.competition, "venue": self.venue,
-                "match_date": self.match_date, "kickoff": self.kickoff,
+                "home_team": self.home_team,
+                "away_team": self.away_team,
+                "competition": self.competition,
+                "venue": self.venue,
+                "match_date": self.match_date,
+                "kickoff": self.kickoff,
                 "referee_name": self.referee_name,
             },
             "our_team": {
@@ -261,8 +277,10 @@ class PreMatchBriefing:
         md.append(f"**Venue:** {self.venue}")
         md.append(f"**Referee:** {self.referee_name}")
         if self.weather_condition:
-            md.append(f"**Weather:** {self.weather_condition}" +
-                      (f" ({self.weather_temperature}°C)" if self.weather_temperature else ""))
+            md.append(
+                f"**Weather:** {self.weather_condition}"
+                + (f" ({self.weather_temperature}°C)" if self.weather_temperature else "")
+            )
         md.append("")
         md.append("---")
         md.append("")
@@ -297,8 +315,9 @@ class PreMatchBriefing:
         if self.our_predicted_lineup:
             md.append("**Predicted XI:**")
             for p in self.our_predicted_lineup:
-                md.append(f"  {p.position} — {p.player_name}" +
-                          (f" (⭐{p.rating})" if p.rating else ""))
+                md.append(
+                    f"  {p.position} — {p.player_name}" + (f" (⭐{p.rating})" if p.rating else "")
+                )
         md.append("")
 
         md.append("---")
@@ -333,21 +352,27 @@ class PreMatchBriefing:
         md.append("## 🤝 Head-to-Head")
         md.append("")
         md.append(f"Total meetings: **{self.h2h_total_meetings}**")
-        md.append(f"Home wins: **{self.h2h_home_wins}** | Away wins: **{self.h2h_away_wins}** | Draws: **{self.h2h_draws}**")
+        md.append(
+            f"Home wins: **{self.h2h_home_wins}** | Away wins: **{self.h2h_away_wins}** | Draws: **{self.h2h_draws}**"
+        )
         md.append(f"Avg goals per game: **{self.h2h_avg_goals:.2f}**")
         if self.h2h_recent:
             md.append("")
             md.append("**Recent meetings:**")
             for h in self.h2h_recent[-5:]:
-                md.append(f"- {h.get('date', '')}: {h.get('home', '')} {h.get('home_score', '')}-{h.get('away_score', '')} {h.get('away', '')}")
+                md.append(
+                    f"- {h.get('date', '')}: {h.get('home', '')} {h.get('home_score', '')}-{h.get('away_score', '')} {h.get('away', '')}"
+                )
         md.append("")
 
         md.append("---")
         md.append("## 👨‍⚖️ Referee: {self.referee_name}")
         md.append("")
         md.append(f"- Avg cards per game: {self.referee_avg_cards:.1f}")
-        md.append(f"- Home bias: {self.referee_home_bias:.2f}" +
-                  (" (slight home favor)" if self.referee_home_bias > 0.05 else ""))
+        md.append(
+            f"- Home bias: {self.referee_home_bias:.2f}"
+            + (" (slight home favor)" if self.referee_home_bias > 0.05 else "")
+        )
         md.append(f"- Foul threshold: {self.referee_foul_threshold:.1f}")
         md.append("")
 
@@ -380,11 +405,13 @@ class PreMatchBriefing:
         md.append("---")
         md.append("## 📈 Match Prediction")
         md.append("")
-        md.append(f"**Score:** {self.home_team} {self.prediction.home_score:.1f} — {self.prediction.away_score:.1f} {self.away_team}")
-        md.append(f"- Win: **{self.prediction.win_probability*100:.0f}%**")
-        md.append(f"- Draw: **{self.prediction.draw_probability*100:.0f}%**")
-        md.append(f"- Loss: **{self.prediction.loss_probability*100:.0f}%**")
-        md.append(f"- Both teams to score: **{self.prediction.btts_probability*100:.0f}%**")
+        md.append(
+            f"**Score:** {self.home_team} {self.prediction.home_score:.1f} — {self.prediction.away_score:.1f} {self.away_team}"
+        )
+        md.append(f"- Win: **{self.prediction.win_probability * 100:.0f}%**")
+        md.append(f"- Draw: **{self.prediction.draw_probability * 100:.0f}%**")
+        md.append(f"- Loss: **{self.prediction.loss_probability * 100:.0f}%**")
+        md.append(f"- Both teams to score: **{self.prediction.btts_probability * 100:.0f}%**")
         md.append(f"- Confidence: **{self.prediction.confidence}**")
         md.append("")
         md.append("---")
@@ -398,66 +425,80 @@ class PreMatchBriefing:
         lines.append('<div class="manager-briefing">')
 
         lines.append('<div class="briefing-header">')
-        lines.append(f'<h2>⚽ {self.home_team} vs {self.away_team}</h2>')
-        lines.append(f'<p class="briefing-meta">{self.competition} — {self.match_date} | {self.kickoff} | {self.venue}</p>')
+        lines.append(f"<h2>⚽ {self.home_team} vs {self.away_team}</h2>")
+        lines.append(
+            f'<p class="briefing-meta">{self.competition} — {self.match_date} | {self.kickoff} | {self.venue}</p>'
+        )
         lines.append(f'<p class="briefing-meta">Ref: {self.referee_name}')
         if self.weather_condition:
-            lines.append(f' | 🌤 {self.weather_condition}{f" {self.weather_temperature}°C" if self.weather_temperature else ""}')
-        lines.append('</p></div>')
+            lines.append(
+                f" | 🌤 {self.weather_condition}{f' {self.weather_temperature}°C' if self.weather_temperature else ''}"
+            )
+        lines.append("</p></div>")
 
         lines.append('<div class="briefing-grid">')
 
         lines.append('<div class="briefing-column"><h3>📊 Form</h3>')
         lines.append(f'<h4>{self.our_team} ({self.our_streak})</h4><table class="briefing-table">')
         for f in self.our_form[-5:]:
-            lines.append(f'<tr><td>{f.result}</td><td>{f.home_score}-{f.away_score}</td><td>vs {f.opponent}</td></tr>')
-        lines.append('</table></div>')
+            lines.append(
+                f"<tr><td>{f.result}</td><td>{f.home_score}-{f.away_score}</td><td>vs {f.opponent}</td></tr>"
+            )
+        lines.append("</table></div>")
 
         lines.append('<div class="briefing-column"><h3>🏥 Team News</h3>')
         if self.our_injuries:
             for i in self.our_injuries:
-                lines.append(f'<p>🩹 {i.player} — {i.injury} ({i.expected_return})</p>')
+                lines.append(f"<p>🩹 {i.player} — {i.injury} ({i.expected_return})</p>")
         else:
-            lines.append('<p>✅ No injuries</p>')
+            lines.append("<p>✅ No injuries</p>")
         if self.our_predicted_lineup:
             lines.append('<h4>Predicted XI</h4><table class="briefing-table">')
             for p in self.our_predicted_lineup:
-                lines.append(f'<tr><td>{p.position}</td><td>{p.player_name}</td></tr>')
-            lines.append('</table>')
-        lines.append('</div>')
+                lines.append(f"<tr><td>{p.position}</td><td>{p.player_name}</td></tr>")
+            lines.append("</table>")
+        lines.append("</div>")
 
         lines.append('<div class="briefing-column"><h3>🏴 Opponent</h3>')
         opp_name = self.away_team if self.our_team == self.home_team else self.home_team
-        lines.append(f'<p>Formation: {self.opponent_preferred_formation} | Press: {self.opponent_pressing}</p>')
+        lines.append(
+            f"<p>Formation: {self.opponent_preferred_formation} | Press: {self.opponent_pressing}</p>"
+        )
         if self.opponent_key_players:
-            lines.append('<h4>Key Threats</h4>')
+            lines.append("<h4>Key Threats</h4>")
             for kp in self.opponent_key_players[:3]:
-                lines.append(f'<p>⚠ {kp.get("name","")} — {kp.get("key_stat","")}</p>')
-        lines.append('</div>')
+                lines.append(f"<p>⚠ {kp.get('name', '')} — {kp.get('key_stat', '')}</p>")
+        lines.append("</div>")
 
         lines.append('<div class="briefing-column"><h3>🧠 Tactical Plan</h3>')
         if self.tactical.suggested_formation:
-            lines.append(f'<p><b>Formation:</b> {self.tactical.suggested_formation}</p>')
+            lines.append(f"<p><b>Formation:</b> {self.tactical.suggested_formation}</p>")
         if self.tactical.pressing_strategy:
-            lines.append(f'<p><b>Press:</b> {self.tactical.pressing_strategy}</p>')
+            lines.append(f"<p><b>Press:</b> {self.tactical.pressing_strategy}</p>")
         if self.tactical.attacking_focus:
-            lines.append(f'<p><b>Attack:</b> {self.tactical.attacking_focus}</p>')
+            lines.append(f"<p><b>Attack:</b> {self.tactical.attacking_focus}</p>")
         if self.tactical.defensive_focus:
-            lines.append(f'<p><b>Defend:</b> {self.tactical.defensive_focus}</p>')
-        lines.append('</div>')
+            lines.append(f"<p><b>Defend:</b> {self.tactical.defensive_focus}</p>")
+        lines.append("</div>")
 
         lines.append('<div class="briefing-column"><h3>🤝 Head-to-Head</h3>')
-        lines.append(f'<p>{self.h2h_total_meetings} meetings | {self.h2h_home_wins}W {self.h2h_draws}D {self.h2h_away_wins}L</p>')
-        lines.append(f'<p>Avg goals: {self.h2h_avg_goals:.2f}</p>')
-        lines.append('</div>')
+        lines.append(
+            f"<p>{self.h2h_total_meetings} meetings | {self.h2h_home_wins}W {self.h2h_draws}D {self.h2h_away_wins}L</p>"
+        )
+        lines.append(f"<p>Avg goals: {self.h2h_avg_goals:.2f}</p>")
+        lines.append("</div>")
 
         lines.append('<div class="briefing-column"><h3>📈 Prediction</h3>')
-        lines.append(f'<p class="prediction-score">{self.prediction.home_score:.1f} — {self.prediction.away_score:.1f}</p>')
-        lines.append(f'<p>W {self.prediction.win_probability*100:.0f}% | D {self.prediction.draw_probability*100:.0f}% | L {self.prediction.loss_probability*100:.0f}%</p>')
-        lines.append(f'<p>BTTS: {self.prediction.btts_probability*100:.0f}%</p>')
-        lines.append('</div>')
+        lines.append(
+            f'<p class="prediction-score">{self.prediction.home_score:.1f} — {self.prediction.away_score:.1f}</p>'
+        )
+        lines.append(
+            f"<p>W {self.prediction.win_probability * 100:.0f}% | D {self.prediction.draw_probability * 100:.0f}% | L {self.prediction.loss_probability * 100:.0f}%</p>"
+        )
+        lines.append(f"<p>BTTS: {self.prediction.btts_probability * 100:.0f}%</p>")
+        lines.append("</div>")
 
-        lines.append('</div></div>')
+        lines.append("</div></div>")
         return "\n".join(lines)
 
 
@@ -484,7 +525,6 @@ class PreMatchBriefingService:
         match_date: str = "",
         kickoff: str = "",
         referee_name: str = "",
-
         # Our team data
         our_form_data: list[dict] | None = None,
         our_injuries_data: list[dict] | None = None,
@@ -493,7 +533,6 @@ class PreMatchBriefingService:
         our_formation: str = "",
         our_predicted_lineup_data: list[dict] | None = None,
         our_avg_possession: float = 0.0,
-
         # Opponent data
         opponent_form_data: list[dict] | None = None,
         opponent_preferred_formation: str = "",
@@ -504,22 +543,18 @@ class PreMatchBriefingService:
         opponent_set_piece_tendencies: list[str] | None = None,
         opponent_vulnerabilities: list[str] | None = None,
         opponent_strengths: list[str] | None = None,
-
         # H2H data
         h2h_data: list[dict] | None = None,
-
         # Referee data
         referee_avg_cards: float = 0.0,
         referee_home_bias: float = 0.0,
         referee_foul_threshold: float = 0.0,
         referee_inconsistency: float = 0.0,
-
         # Weather
         weather_condition: str = "",
         weather_temperature: float | None = None,
         weather_wind: float | None = None,
         weather_precipitation: float | None = None,
-
         # Tactical
         suggested_formation: str = "",
         pressing_strategy: str = "",
@@ -528,7 +563,6 @@ class PreMatchBriefingService:
         set_piece_plans: list[str] | None = None,
         key_battles_data: list[dict] | None = None,
         tactical_notes: list[str] | None = None,
-
         # Prediction
         home_score_pred: float = 0.0,
         away_score_pred: float = 0.0,
@@ -542,9 +576,12 @@ class PreMatchBriefingService:
         opp_name = away_team if our_side == "home" else home_team
 
         briefing = PreMatchBriefing(
-            home_team=home_team, away_team=away_team,
-            competition=competition, venue=venue,
-            match_date=match_date, kickoff=kickoff,
+            home_team=home_team,
+            away_team=away_team,
+            competition=competition,
+            venue=venue,
+            match_date=match_date,
+            kickoff=kickoff,
             referee_name=referee_name,
             our_team=our_team_name,
             our_formation=our_formation,
@@ -575,19 +612,34 @@ class PreMatchBriefingService:
 
         # Parse injuries
         if our_injuries_data:
-            briefing.our_injuries = [InjuryEntry(**{k: v for k, v in i.items() if k in InjuryEntry.__dataclass_fields__}) for i in our_injuries_data]
+            briefing.our_injuries = [
+                InjuryEntry(**{k: v for k, v in i.items() if k in InjuryEntry.__dataclass_fields__})
+                for i in our_injuries_data
+            ]
         if our_suspensions_data:
             briefing.our_suspensions = our_suspensions_data
 
         # Parse predicted lineups
         if our_predicted_lineup_data:
             briefing.our_predicted_lineup = [
-                PredictedLineupPlayer(**{k: v for k, v in p.items() if k in PredictedLineupPlayer.__dataclass_fields__})
+                PredictedLineupPlayer(
+                    **{
+                        k: v
+                        for k, v in p.items()
+                        if k in PredictedLineupPlayer.__dataclass_fields__
+                    }
+                )
                 for p in our_predicted_lineup_data
             ]
         if opponent_predicted_lineup_data:
             briefing.opponent_predicted_lineup = [
-                PredictedLineupPlayer(**{k: v for k, v in p.items() if k in PredictedLineupPlayer.__dataclass_fields__})
+                PredictedLineupPlayer(
+                    **{
+                        k: v
+                        for k, v in p.items()
+                        if k in PredictedLineupPlayer.__dataclass_fields__
+                    }
+                )
                 for p in opponent_predicted_lineup_data
             ]
 
@@ -602,7 +654,7 @@ class PreMatchBriefingService:
             for h in h2h_data:
                 hs = h.get("home_score", 0) or 0
                 aws = h.get("away_score", 0) or 0
-                briefing.h2h_avg_goals += (hs + aws)
+                briefing.h2h_avg_goals += hs + aws
                 if our_side == "home":
                     if hs > aws:
                         briefing.h2h_home_wins += 1
@@ -626,16 +678,21 @@ class PreMatchBriefingService:
             attacking_focus=attacking_focus,
             defensive_focus=defensive_focus,
             set_piece_plans=set_piece_plans or [],
-            key_battles=[KeyBattle(**{k: v for k, v in kb.items() if k in KeyBattle.__dataclass_fields__})
-                        for kb in (key_battles_data or [])],
+            key_battles=[
+                KeyBattle(**{k: v for k, v in kb.items() if k in KeyBattle.__dataclass_fields__})
+                for kb in (key_battles_data or [])
+            ],
             notes=tactical_notes or [],
         )
 
         # Prediction
         briefing.prediction = MatchPrediction(
-            home_score=home_score_pred, away_score=away_score_pred,
-            win_probability=win_prob, draw_probability=draw_prob,
-            loss_probability=loss_prob, btts_probability=btts_prob,
+            home_score=home_score_pred,
+            away_score=away_score_pred,
+            win_probability=win_prob,
+            draw_probability=draw_prob,
+            loss_probability=loss_prob,
+            btts_probability=btts_prob,
             confidence=prediction_confidence,
         )
 

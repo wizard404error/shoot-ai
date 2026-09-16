@@ -80,7 +80,7 @@ class ModelManager:
     }
 
     def __init__(self, cache_dir: Path | None = None) -> None:
-        self.cache_dir = (cache_dir or get_paths().cache / "models")
+        self.cache_dir = cache_dir or get_paths().cache / "models"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.manifest_path = self.cache_dir / "models.json"
         self._manifest: dict = {}
@@ -193,7 +193,9 @@ class ModelManager:
 
         info = self.DEFAULT_MODELS.get(name)
         if info is None:
-            raise ValueError(f"Unknown model: {name}. Available: {list(self.DEFAULT_MODELS.keys())}")
+            raise ValueError(
+                f"Unknown model: {name}. Available: {list(self.DEFAULT_MODELS.keys())}"
+            )
 
         url = info["url"]
         logger.info(f"Downloading {name} from {url}...")
@@ -277,10 +279,7 @@ class ModelManager:
 
     def list_cached_models(self) -> list[str]:
         """List all models currently in the cache."""
-        return [
-            f.stem for f in self.cache_dir.glob("*.pt")
-            if f.name != "models.json"
-        ]
+        return [f.stem for f in self.cache_dir.glob("*.pt") if f.name != "models.json"]
 
     def cleanup_cache(self, keep_models: list[str] | None = None) -> int:
         """Remove old/unused models from cache.

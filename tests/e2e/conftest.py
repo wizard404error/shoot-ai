@@ -17,21 +17,26 @@ except ImportError:
     def _slot(*args, **kwargs):
         def decorator(f):
             return f
+
         return decorator
 
     def _signal(*args, **kwargs):
         class SignalDescriptor:
             def __init__(self, *types):
                 self.types = types
+
             def __get__(self, obj, objtype=None):
                 return _SignalInstance()
+
             def emit(self, *args):
                 pass
+
         return SignalDescriptor(*args)
 
     class _SignalInstance:
         def emit(self, *args):
             pass
+
         def connect(self, f):
             pass
 

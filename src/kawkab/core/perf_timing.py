@@ -28,6 +28,7 @@ def timed(log_level: str = "DEBUG") -> Callable[[F], F]:
     Returns:
         Decorated function with timing instrumentation.
     """
+
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -48,4 +49,5 @@ def timed(log_level: str = "DEBUG") -> Callable[[F], F]:
                 _depth.reset(token)
 
         return wrapper  # type: ignore[return-value]
+
     return decorator

@@ -24,6 +24,7 @@ from cryptography.fernet import Fernet
 def _reset_fernet():
     """Reset global Fernet instance and override key file path before each test."""
     import kawkab.core.encryption as enc_mod
+
     enc_mod._fernet = None
     # Redirect fallback key to temp dir
     tmp = tempfile.mkdtemp()

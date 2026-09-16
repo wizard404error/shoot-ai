@@ -47,14 +47,16 @@ class PassingMixin:
                 if start_x < line_x <= end_x:
                     lines_crossed += 1
             if lines_crossed >= 2:
-                line_breaks.append({
-                    "team": event.get("team", "home"),
-                    "player_track_id": event.get("player_track_id"),
-                    "start_x_pct": round(metadata.get("start_x_pct", 0.5), 3),
-                    "end_x_pct": round(metadata.get("end_x_pct", 0.6), 3),
-                    "lines_crossed": lines_crossed,
-                    "vertical_gain_pct": round(end_x / plen - start_x / plen, 3),
-                })
+                line_breaks.append(
+                    {
+                        "team": event.get("team", "home"),
+                        "player_track_id": event.get("player_track_id"),
+                        "start_x_pct": round(metadata.get("start_x_pct", 0.5), 3),
+                        "end_x_pct": round(metadata.get("end_x_pct", 0.6), 3),
+                        "lines_crossed": lines_crossed,
+                        "vertical_gain_pct": round(end_x / plen - start_x / plen, 3),
+                    }
+                )
         return line_breaks
 
     def attribute_possession_robust(self, events, frames=None):
@@ -69,15 +71,19 @@ class PassingMixin:
                 continue
             inferred = last_known.get(team)
             if inferred is not None:
-                attributed.append({
-                    **event,
-                    "player_track_id": inferred,
-                    "attribution_source": "last_known",
-                })
+                attributed.append(
+                    {
+                        **event,
+                        "player_track_id": inferred,
+                        "attribution_source": "last_known",
+                    }
+                )
             else:
-                attributed.append({
-                    **event,
-                    "player_track_id": -1,
-                    "attribution_source": "unknown",
-                })
+                attributed.append(
+                    {
+                        **event,
+                        "player_track_id": -1,
+                        "attribution_source": "unknown",
+                    }
+                )
         return attributed

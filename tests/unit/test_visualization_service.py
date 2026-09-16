@@ -29,6 +29,7 @@ _ensure_package_loaded("kawkab.services.storage")
 # Stub matplotlib + networkx so lazy imports inside service methods resolve
 # ---------------------------------------------------------------------------
 
+
 def _install_stubs():
     # Build matplotlib.pyplot as a module with MagicMock for every attribute
     # the VisualizationService touches: subplots, savefig, close, etc.
@@ -50,6 +51,7 @@ def _install_stubs():
         sys.modules["daimon_runtime"] = _drm
 
     if "networkx" not in sys.modules:
+
         def _make_digraph():
             g = MagicMock()
             g.nodes = [1, 2, 3]
@@ -77,9 +79,13 @@ VisualizationService = _mod.VisualizationService
 
 def _make_pass_events(n: int = 5):
     return [
-        {"type": "pass", "completed": True,
-         "from_track_id": i % 2, "to_track_id": (i + 1) % 2,
-         "metadata": {"end_x": 50 + i * 5, "end_y": 30 + i * 3}}
+        {
+            "type": "pass",
+            "completed": True,
+            "from_track_id": i % 2,
+            "to_track_id": (i + 1) % 2,
+            "metadata": {"end_x": 50 + i * 5, "end_y": 30 + i * 3},
+        }
         for i in range(n)
     ]
 
@@ -120,7 +126,9 @@ class TestGenerateHeatmap:
 
     @pytest.mark.asyncio
     async def test_heatmap_none_on_import_error(self):
-        with patch.dict("sys.modules", {"matplotlib": None, "matplotlib.pyplot": None, "daimon_runtime": None}):
+        with patch.dict(
+            "sys.modules", {"matplotlib": None, "matplotlib.pyplot": None, "daimon_runtime": None}
+        ):
             svc = VisualizationService()
             result = await svc.generate_heatmap([(10.0, 20.0)], output_name="no_mpl.png")
         assert result is None
@@ -154,8 +162,9 @@ class TestGeneratePassNetwork:
     @pytest.mark.asyncio
     async def test_pass_network_handles_exception(self):
         svc = VisualizationService()
-        with patch.object(sys.modules["networkx"], "DiGraph",
-                          MagicMock(side_effect=Exception("Graph error"))):
+        with patch.object(
+            sys.modules["networkx"], "DiGraph", MagicMock(side_effect=Exception("Graph error"))
+        ):
             result = await svc.generate_pass_network(
                 _make_pass_events(), _make_player_positions(), output_name="err.png"
             )
@@ -190,8 +199,11 @@ class TestGeneratePassSonar:
     @pytest.mark.asyncio
     async def test_pass_sonar_handles_exception(self):
         svc = VisualizationService()
-        with patch.object(sys.modules["matplotlib.pyplot"], "subplots",
-                          MagicMock(side_effect=Exception("Plot error"))):
+        with patch.object(
+            sys.modules["matplotlib.pyplot"],
+            "subplots",
+            MagicMock(side_effect=Exception("Plot error")),
+        ):
             result = await svc.generate_pass_sonar(
                 _make_pass_events(), _make_player_positions(), output_name="err.png"
             )
@@ -232,8 +244,11 @@ class TestGenerateFormationDiagram:
     @pytest.mark.asyncio
     async def test_formation_diagram_exception_handling(self):
         svc = VisualizationService()
-        with patch.object(sys.modules["matplotlib.pyplot"], "subplots",
-                          MagicMock(side_effect=Exception("Subplots error"))):
+        with patch.object(
+            sys.modules["matplotlib.pyplot"],
+            "subplots",
+            MagicMock(side_effect=Exception("Subplots error")),
+        ):
             result = await svc.generate_formation_diagram(
                 {"defenders": [1], "midfielders": [], "attackers": []}, output_name="err.png"
             )

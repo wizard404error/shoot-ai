@@ -132,6 +132,7 @@ def test_recommendations_exist():
 def test_datetime_handling():
     """Sessions with datetime objects should be handled."""
     from datetime import datetime
+
     sessions = [
         {"start_time": datetime(2026, 1, 1, 14, 0), "total_distance_m": 5000},
         {"start_time": datetime(2026, 1, 2, 15, 30), "total_distance_m": 6000},

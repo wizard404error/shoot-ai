@@ -107,12 +107,8 @@ def compute_space_gained(
 
     passing_team = 0 if pass_event.get("team", "home") == "home" else 1
 
-    _, before_pcts = compute_pitch_control_grid(
-        before_positions, team_ids, grid_rows, grid_cols
-    )
-    _, after_pcts = compute_pitch_control_grid(
-        after_positions, team_ids, grid_rows, grid_cols
-    )
+    _, before_pcts = compute_pitch_control_grid(before_positions, team_ids, grid_rows, grid_cols)
+    _, after_pcts = compute_pitch_control_grid(after_positions, team_ids, grid_rows, grid_cols)
 
     before = before_pcts.get(passing_team, 50.0)
     after = after_pcts.get(passing_team, 50.0)
@@ -149,11 +145,13 @@ def identify_hot_zones(
             continue
         center_x = float(np.mean(cells[:, 1]))
         center_y = float(np.mean(cells[:, 0]))
-        hot_zones.append({
-            "cells": len(cells),
-            "center_x": round(center_x, 1),
-            "center_y": round(center_y, 1),
-            "area_pct": round(area_pct, 2),
-        })
+        hot_zones.append(
+            {
+                "cells": len(cells),
+                "center_x": round(center_x, 1),
+                "center_y": round(center_y, 1),
+                "area_pct": round(area_pct, 2),
+            }
+        )
 
     return hot_zones

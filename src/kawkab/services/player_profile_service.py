@@ -132,11 +132,22 @@ class PlayerProfileService:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                global_id, display_name, jersey_number, preferred_position,
-                height_cm, weight_kg, dominant_foot, date_of_birth, nationality, team,
-                football_data_person_id, football_data_team_id,
-                bzzoiro_person_id, bzzoiro_team_id,
-                apifb_person_id, apifb_team_id,
+                global_id,
+                display_name,
+                jersey_number,
+                preferred_position,
+                height_cm,
+                weight_kg,
+                dominant_foot,
+                date_of_birth,
+                nationality,
+                team,
+                football_data_person_id,
+                football_data_team_id,
+                bzzoiro_person_id,
+                bzzoiro_team_id,
+                apifb_person_id,
+                apifb_team_id,
             ),
         )
         conn.commit()
@@ -179,7 +190,9 @@ class PlayerProfileService:
         conn = self._get_conn()
         cursor = conn.cursor()
         if team:
-            cursor.execute("SELECT * FROM player_profiles WHERE team = ? AND is_active = 1", (team,))
+            cursor.execute(
+                "SELECT * FROM player_profiles WHERE team = ? AND is_active = 1", (team,)
+            )
         else:
             cursor.execute("SELECT * FROM player_profiles WHERE is_active = 1")
         rows = cursor.fetchall()
@@ -191,12 +204,23 @@ class PlayerProfileService:
         cursor = conn.cursor()
 
         allowed_fields = {
-            "display_name", "jersey_number", "preferred_position",
-            "height_cm", "weight_kg", "dominant_foot", "date_of_birth",
-            "nationality", "photo_path", "team", "is_active",
-            "football_data_person_id", "football_data_team_id",
-            "bzzoiro_person_id", "bzzoiro_team_id",
-            "apifb_person_id", "apifb_team_id",
+            "display_name",
+            "jersey_number",
+            "preferred_position",
+            "height_cm",
+            "weight_kg",
+            "dominant_foot",
+            "date_of_birth",
+            "nationality",
+            "photo_path",
+            "team",
+            "is_active",
+            "football_data_person_id",
+            "football_data_team_id",
+            "bzzoiro_person_id",
+            "bzzoiro_team_id",
+            "apifb_person_id",
+            "apifb_team_id",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed_fields}
         if not updates:
@@ -352,15 +376,17 @@ class PlayerProfileService:
             profile = cursor.fetchone()
 
             if profile:
-                proposals.append({
-                    "track_id": track_id,
-                    "profile_id": profile["id"],
-                    "profile_name": profile["display_name"],
-                    "jersey_number": jersey,
-                    "team": player_team,
-                    "confidence": 0.7,  # jersey match is reasonably confident
-                    "method": "jersey_number",
-                })
+                proposals.append(
+                    {
+                        "track_id": track_id,
+                        "profile_id": profile["id"],
+                        "profile_name": profile["display_name"],
+                        "jersey_number": jersey,
+                        "team": player_team,
+                        "confidence": 0.7,  # jersey match is reasonably confident
+                        "method": "jersey_number",
+                    }
+                )
 
         return proposals
 

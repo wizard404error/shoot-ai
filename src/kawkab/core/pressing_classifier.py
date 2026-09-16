@@ -86,22 +86,31 @@ def _detect_trigger_pressing_moments(
                 next_ev = sorted_ev[j]
                 if next_ev.get("timestamp", 0.0) - ts > trigger_window_s:
                     break
-                if next_ev.get("team") != team and next_ev.get("type") in ("tackle", "interception", "foul"):
+                if next_ev.get("team") != team and next_ev.get("type") in (
+                    "tackle",
+                    "interception",
+                    "foul",
+                ):
                     pressed = True
-                    triggers.append({
-                        "trigger_time": round(ts, 1),
-                        "trigger_event": etype,
-                        "response_time_s": round(next_ev.get("timestamp", 0.0) - ts, 1),
-                        "regained_possession": next_ev.get("type") in ("tackle", "interception"),
-                    })
+                    triggers.append(
+                        {
+                            "trigger_time": round(ts, 1),
+                            "trigger_event": etype,
+                            "response_time_s": round(next_ev.get("timestamp", 0.0) - ts, 1),
+                            "regained_possession": next_ev.get("type")
+                            in ("tackle", "interception"),
+                        }
+                    )
                     break
             if not pressed:
-                triggers.append({
-                    "trigger_time": round(ts, 1),
-                    "trigger_event": etype,
-                    "response_time_s": None,
-                    "regained_possession": False,
-                })
+                triggers.append(
+                    {
+                        "trigger_time": round(ts, 1),
+                        "trigger_event": etype,
+                        "response_time_s": None,
+                        "regained_possession": False,
+                    }
+                )
     return triggers
 
 
@@ -129,7 +138,9 @@ class PressingSystemReport:
         }
 
 
-def classify_pressing_system(events: list[dict[str, Any]], team: str = "home") -> PressingSystemReport:
+def classify_pressing_system(
+    events: list[dict[str, Any]], team: str = "home"
+) -> PressingSystemReport:
     """Full pressing system classification for a team."""
     team_events = [e for e in events if e.get("team") == team]
     opp_events = [e for e in events if e.get("team") != team]

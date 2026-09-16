@@ -40,16 +40,14 @@ class TestNoKeyboardTrap:
     def test_modal_helpers_wire_escape_and_tab_cycle(self):
         code = UI_JS.read_text(encoding="utf-8")
         assert "Escape" in code, "ui.js modal helper must close on Escape (2.1.2)"
-        assert "e.key !== \"Tab\"" in code.replace("'", '"'), (
+        assert 'e.key !== "Tab"' in code.replace("'", '"'), (
             "ui.js modal helper must intercept Tab for focus cycling (2.1.2)"
         )
         assert "shiftKey" in code, "Shift+Tab must cycle backwards (2.1.2)"
 
     def test_focus_trap_behavior_is_tested(self):
         code = UI_TEST.read_text(encoding="utf-8")
-        assert "modal focus trap" in code, (
-            "ui.test.js must contain the behavioral focus-trap suite"
-        )
+        assert "modal focus trap" in code, "ui.test.js must contain the behavioral focus-trap suite"
         for needed in ("Escape closes the modal", "Shift+Tab on the first"):
             assert needed in code, f"focus-trap test missing: {needed}"
 

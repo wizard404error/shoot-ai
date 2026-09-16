@@ -40,11 +40,13 @@ class SeasonAnalyticsHandler:
         try:
             matches = await self.storage_service.get_all_matches()
             if not matches or len(matches) < 2:
-                return json.dumps({
-                    "success": False,
-                    "data_available": False,
-                    "reason": "season analytics needs at least 2 stored matches",
-                })
+                return json.dumps(
+                    {
+                        "success": False,
+                        "data_available": False,
+                        "reason": "season analytics needs at least 2 stored matches",
+                    }
+                )
 
             report: dict[str, Any] = {
                 "success": True,
@@ -120,8 +122,11 @@ class SeasonAnalyticsHandler:
                     continue
 
                 def _formation_from_events(team_events: list[dict]) -> str:
-                    xs = [e["x"] for e in team_events
-                          if e.get("x") is not None and 0.0 <= e.get("x", -1) <= 105.0]
+                    xs = [
+                        e["x"]
+                        for e in team_events
+                        if e.get("x") is not None and 0.0 <= e.get("x", -1) <= 105.0
+                    ]
                     if len(xs) < 20:
                         return "unknown"
                     xs_sorted = sorted(xs)
@@ -133,33 +138,47 @@ class SeasonAnalyticsHandler:
                         return "flat-4"
                     return ["deep-block", "mid-block", "high-line", "very-high-line"][min(depth, 3)]
 
-                goals_h = sum(1 for e in events if e.get("type") == "goal" and e.get("team") == "home")
-                goals_a = sum(1 for e in events if e.get("type") == "goal" and e.get("team") == "away")
-                history.append({
-                    "match_id": mid,
-                    "formation": _formation_from_events([e for e in events if e.get("team") == "home"]),
-                    "opponent_formation": _formation_from_events([e for e in events if e.get("team") == "away"]),
-                    "result": "W" if goals_h > goals_a else ("L" if goals_h < goals_a else "D"),
-                    "goals_for": goals_h,
-                    "goals_against": goals_a,
-                })
+                goals_h = sum(
+                    1 for e in events if e.get("type") == "goal" and e.get("team") == "home"
+                )
+                goals_a = sum(
+                    1 for e in events if e.get("type") == "goal" and e.get("team") == "away"
+                )
+                history.append(
+                    {
+                        "match_id": mid,
+                        "formation": _formation_from_events(
+                            [e for e in events if e.get("team") == "home"]
+                        ),
+                        "opponent_formation": _formation_from_events(
+                            [e for e in events if e.get("team") == "away"]
+                        ),
+                        "result": "W" if goals_h > goals_a else ("L" if goals_h < goals_a else "D"),
+                        "goals_for": goals_h,
+                        "goals_against": goals_a,
+                    }
+                )
             usable = [h for h in history if h["formation"] != "unknown"]
             if len(usable) < 2:
-                return {"data_available": False,
-                        "reason": "fewer than 2 matches with enough located events "
-                                  "to approximate a shape (approximation from event "
-                                  "positions; the true formation detector needs "
-                                  "tracking data)"}
+                return {
+                    "data_available": False,
+                    "reason": "fewer than 2 matches with enough located events "
+                    "to approximate a shape (approximation from event "
+                    "positions; the true formation detector needs "
+                    "tracking data)",
+                }
 
             analyzer = FormationEffectivenessAnalyzer()
             comparisons = analyzer.compare_formation_performances(usable)
             flexibility = analyzer.compute_formation_flexibility_score(usable)
-            return {"data_available": True,
-                    "method": "approximated from event x-distributions (not tracking)",
-                    "n_matches_with_shapes": len(usable),
-                    "formation_history": usable[:40],
-                    "comparisons": comparisons,
-                    "flexibility_score": flexibility}
+            return {
+                "data_available": True,
+                "method": "approximated from event x-distributions (not tracking)",
+                "n_matches_with_shapes": len(usable),
+                "formation_history": usable[:40],
+                "comparisons": comparisons,
+                "flexibility_score": flexibility,
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"formation_trends: {exc}"}
 
@@ -176,12 +195,12 @@ class SeasonAnalyticsHandler:
                     if e.get("type") in ("card", "yellow_card", "red_card", "foul"):
                         card_events.append(e)
             if not card_events:
-                return {"data_available": False,
-                        "reason": "no card events stored in any match — "
-                                  "live tagging or event import needed"}
-            report = analyze_suspensions(
-                card_events, competition="default", team_id="home"
-            )
+                return {
+                    "data_available": False,
+                    "reason": "no card events stored in any match — "
+                    "live tagging or event import needed",
+                }
+            report = analyze_suspensions(card_events, competition="default", team_id="home")
             data = report.to_dict() if hasattr(report, "to_dict") else vars(report)
             return {"data_available": True, **data}
         except Exception as exc:
@@ -206,18 +225,23 @@ class SeasonAnalyticsHandler:
                 if not events:
                     continue
                 away = m.get("away_team") or "Away"
-                goals_h = sum(1 for e in events if e.get("type") == "goal" and e.get("team") == "home")
-                goals_a = sum(1 for e in events if e.get("type") == "goal" and e.get("team") == "away")
+                goals_h = sum(
+                    1 for e in events if e.get("type") == "goal" and e.get("team") == "home"
+                )
+                goals_a = sum(
+                    1 for e in events if e.get("type") == "goal" and e.get("team") == "away"
+                )
                 pts = 3.0 if goals_h > goals_a else (1.0 if goals_h == goals_a else 0.0)
                 results_by_opp.setdefault(away, []).append(pts)
-                fixtures.append({"opponent_id": away, "venue": "home",
-                                "match_id": mid})
+                fixtures.append({"opponent_id": away, "venue": "home", "match_id": mid})
             for opp, pts_list in results_by_opp.items():
                 opponent_strength[opp] = round(33.3 * (sum(pts_list) / max(len(pts_list), 1)), 1)
             if len(fixtures) < 2:
-                return {"data_available": False,
-                        "reason": "fewer than 2 played fixtures with events to "
-                                  "infer opponent strength from"}
+                return {
+                    "data_available": False,
+                    "reason": "fewer than 2 played fixtures with events to "
+                    "infer opponent strength from",
+                }
 
             report = analyze_fixture_difficulty(
                 team_id="home", fixtures=fixtures, opponent_strength=opponent_strength

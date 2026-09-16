@@ -137,7 +137,10 @@ def analyze_game_state(
             possession_pct=(pf / tf) * 100.0,
             pass_completion_pct=(pass_completed.get(state, 0) / pa) * 100.0,
             shots_per_10min=(shots.get(state, 0) / dur) * 600.0 if dur > 0 else 0.0,
-            defensive_line_height_m=def_line_sum.get(state, 0) / max(def_line_count.get(state, 1), 1) if def_line_count.get(state, 0) > 0 else 0.0,
+            defensive_line_height_m=def_line_sum.get(state, 0)
+            / max(def_line_count.get(state, 1), 1)
+            if def_line_count.get(state, 0) > 0
+            else 0.0,
             duration_s=dur,
         )
 

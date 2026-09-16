@@ -101,10 +101,14 @@ class TestState:
 class TestAnnotations:
     def test_add_annotation(self, tw):
         s = tw.create_state("A")
-        ann = tw.add_annotation(s.id, {
-            "type": "arrow", "points": [{"x": 10, "y": 10}, {"x": 50, "y": 50}],
-            "color": "#ff0000",
-        })
+        ann = tw.add_annotation(
+            s.id,
+            {
+                "type": "arrow",
+                "points": [{"x": 10, "y": 10}, {"x": 50, "y": 50}],
+                "color": "#ff0000",
+            },
+        )
         assert ann is not None
         assert ann.type == "arrow"
 
@@ -191,12 +195,20 @@ class TestSVG:
 
     def test_generate_svg_with_annotations(self, tw):
         s = tw.create_state("Annotated")
-        tw.add_annotation(s.id, {
-            "type": "arrow", "points": [{"x": 10, "y": 10}, {"x": 50, "y": 50}],
-        })
-        tw.add_annotation(s.id, {
-            "type": "circle", "points": [{"x": 50, "y": 50, "radius": 10}],
-        })
+        tw.add_annotation(
+            s.id,
+            {
+                "type": "arrow",
+                "points": [{"x": 10, "y": 10}, {"x": 50, "y": 50}],
+            },
+        )
+        tw.add_annotation(
+            s.id,
+            {
+                "type": "circle",
+                "points": [{"x": 50, "y": 50, "radius": 10}],
+            },
+        )
         svg = tw.generate_svg(s.id)
         assert "polygon" in svg or "line" in svg
         assert "circle" in svg
@@ -247,6 +259,7 @@ class TestSerialization:
         result = tw.to_json(s.id)
         assert result is not None
         import json
+
         data = json.loads(result)
         assert data["name"] == "JSON Test"
         assert data["formation_home"] == "4-3-3"
@@ -266,29 +279,46 @@ class TestEdgeCases:
 
     def test_generate_svg_line_annotation(self, tw):
         s = tw.create_state("Lines")
-        tw.add_annotation(s.id, {
-            "type": "line", "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}],
-        })
+        tw.add_annotation(
+            s.id,
+            {
+                "type": "line",
+                "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}],
+            },
+        )
         svg = tw.generate_svg(s.id)
         assert "line" in svg
 
     def test_generate_svg_text_annotation(self, tw):
         s = tw.create_state("Text")
-        tw.add_annotation(s.id, {
-            "type": "text", "points": [{"x": 50, "y": 30}],
-            "label": "Press Here", "color": "#ffff00",
-        })
+        tw.add_annotation(
+            s.id,
+            {
+                "type": "text",
+                "points": [{"x": 50, "y": 30}],
+                "label": "Press Here",
+                "color": "#ffff00",
+            },
+        )
         svg = tw.generate_svg(s.id)
         assert "Press Here" in svg
 
     def test_generate_svg_zone_annotation(self, tw):
         s = tw.create_state("Zone")
-        tw.add_annotation(s.id, {
-            "type": "zone",
-            "points": [{"x": 20, "y": 20}, {"x": 40, "y": 20},
-                       {"x": 40, "y": 40}, {"x": 20, "y": 40}],
-            "color": "#ff0000", "opacity": 0.3,
-        })
+        tw.add_annotation(
+            s.id,
+            {
+                "type": "zone",
+                "points": [
+                    {"x": 20, "y": 20},
+                    {"x": 40, "y": 20},
+                    {"x": 40, "y": 40},
+                    {"x": 20, "y": 40},
+                ],
+                "color": "#ff0000",
+                "opacity": 0.3,
+            },
+        )
         svg = tw.generate_svg(s.id)
         assert "Z" in svg
 

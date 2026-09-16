@@ -68,16 +68,24 @@ class ProviderHealthService:
         self._statuses.pop(name, None)
 
     def record_call(
-        self, provider: str, method: str, duration_ms: float,
-        success: bool, status_code: int = 200,
+        self,
+        provider: str,
+        method: str,
+        duration_ms: float,
+        success: bool,
+        status_code: int = 200,
     ) -> None:
         self._reset_daily_if_needed()
-        self._call_log.append(ProviderCallRecord(
-            provider=provider, method=method,
-            duration_ms=duration_ms, success=success,
-            status_code=status_code,
-            timestamp=datetime.now(UTC).isoformat(),
-        ))
+        self._call_log.append(
+            ProviderCallRecord(
+                provider=provider,
+                method=method,
+                duration_ms=duration_ms,
+                success=success,
+                status_code=status_code,
+                timestamp=datetime.now(UTC).isoformat(),
+            )
+        )
         self._daily_counts[provider] += 1
 
         if provider in self._statuses:
@@ -160,12 +168,17 @@ class ProviderHealthService:
         return list(self._statuses.values())
 
     def get_recent_calls(self, n: int = 20) -> list[dict]:
-        return [{
-            "provider": r.provider, "method": r.method,
-            "duration_ms": round(r.duration_ms, 1),
-            "success": r.success, "status_code": r.status_code,
-            "timestamp": r.timestamp,
-        } for r in list(self._call_log)[-n:]]
+        return [
+            {
+                "provider": r.provider,
+                "method": r.method,
+                "duration_ms": round(r.duration_ms, 1),
+                "success": r.success,
+                "status_code": r.status_code,
+                "timestamp": r.timestamp,
+            }
+            for r in list(self._call_log)[-n:]
+        ]
 
     def get_summary(self) -> dict[str, Any]:
         statuses = self.get_all_statuses()

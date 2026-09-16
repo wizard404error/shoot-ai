@@ -36,10 +36,7 @@ def setup_logging(debug: bool = False) -> None:
     logger.add(
         log_file,
         level="DEBUG",
-        format=(
-            "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-            "{name}:{function}:{line} - {message}"
-        ),
+        format=("{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"),
         rotation="10 MB",
         retention="1 week",
         compression="zip",

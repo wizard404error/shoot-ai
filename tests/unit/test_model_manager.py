@@ -1,5 +1,4 @@
-"""Tests for ModelManager - model download, caching, and validation.
-"""
+"""Tests for ModelManager - model download, caching, and validation."""
 
 from __future__ import annotations
 

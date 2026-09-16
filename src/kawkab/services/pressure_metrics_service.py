@@ -100,9 +100,7 @@ class PressureMetricsService:
             )
 
             # Time to regain
-            metrics.avg_time_to_regain = self._compute_time_to_regain(
-                track_data, events, team
-            )
+            metrics.avg_time_to_regain = self._compute_time_to_regain(track_data, events, team)
 
             # Defensive line and compactness
             line_height, team_width, compactness = self._compute_defensive_shape(
@@ -123,7 +121,11 @@ class PressureMetricsService:
         return results
 
     def _get_player_team(self, track_data: MatchTrackData, track_id: int) -> str:
-        return track_data.player_teams.get(track_id, "unknown") if track_data.player_teams else "unknown"
+        return (
+            track_data.player_teams.get(track_id, "unknown")
+            if track_data.player_teams
+            else "unknown"
+        )
 
     def _compute_ppda(
         self, track_data: MatchTrackData, events: list[dict], team: str, homography_matrix=None
@@ -132,13 +134,18 @@ class PressureMetricsService:
         # PPDA = opponent passes / defensive actions
         opponent = "away" if team == "home" else "home"
 
-        opponent_passes = [e for e in events
-                          if e.get("type") == "pass" and e.get("team") == opponent and e.get("completed")]
+        opponent_passes = [
+            e
+            for e in events
+            if e.get("type") == "pass" and e.get("team") == opponent and e.get("completed")
+        ]
 
         # Defensive actions: tackles, interceptions, fouls, duels won by this team
-        defensive_actions = [e for e in events
-                            if e.get("type") in ("tackle", "interception", "foul")
-                            and e.get("team") == team]
+        defensive_actions = [
+            e
+            for e in events
+            if e.get("type") in ("tackle", "interception", "foul") and e.get("team") == team
+        ]
 
         if not defensive_actions:
             return 999.0  # No pressing at all
@@ -146,7 +153,12 @@ class PressureMetricsService:
         return round(len(opponent_passes) / len(defensive_actions), 2)
 
     def _compute_ppda_by_zone(
-        self, track_data: MatchTrackData, events: list[dict], team: str, zone: str, homography_matrix=None
+        self,
+        track_data: MatchTrackData,
+        events: list[dict],
+        team: str,
+        zone: str,
+        homography_matrix=None,
     ) -> float:
         """Compute PPDA in a specific zone."""
         opponent = "away" if team == "home" else "home"
@@ -188,14 +200,15 @@ class PressureMetricsService:
         self, track_data: MatchTrackData, events: list[dict], team: str, homography_matrix=None
     ) -> float:
         """Compute percentage of passes completed while under pressure."""
-        team_passes = [e for e in events
-                      if e.get("type") == "pass" and e.get("team") == team]
+        team_passes = [e for e in events if e.get("type") == "pass" and e.get("team") == team]
 
         if not team_passes:
             return 0.0
 
         # A pass is under pressure if explicitly flagged, or if incomplete
-        under_pressure = [e for e in team_passes if e.get("is_pressed", False) or not e.get("completed", True)]
+        under_pressure = [
+            e for e in team_passes if e.get("is_pressed", False) or not e.get("completed", True)
+        ]
 
         return round(len(under_pressure) / len(team_passes) * 100, 1)
 
@@ -252,7 +265,11 @@ class PressureMetricsService:
             # Check if any opponent is within 2m
             opponent = "away" if carrier_team == "home" else "home"
             for det in frame.detections:
-                if det.class_name != "person" or det.track_id is None or det.track_id == carrier.track_id:
+                if (
+                    det.class_name != "person"
+                    or det.track_id is None
+                    or det.track_id == carrier.track_id
+                ):
                     continue
                 px = (det.bbox[0] + det.bbox[2]) / 2
                 py = (det.bbox[1] + det.bbox[3]) / 2
@@ -361,11 +378,17 @@ class PressureMetricsService:
 
         # Defensive line height: average x of back-most players (lowest x for home, highest for away)
         if team == "home":
-            back_positions = sorted(positions, key=lambda p: p[0])[:len(positions) // 3]
-            line_height = sum(p[0] for p in back_positions) / len(back_positions) if back_positions else 0
+            back_positions = sorted(positions, key=lambda p: p[0])[: len(positions) // 3]
+            line_height = (
+                sum(p[0] for p in back_positions) / len(back_positions) if back_positions else 0
+            )
         else:
-            back_positions = sorted(positions, key=lambda p: -p[0])[:len(positions) // 3]
-            line_height = sum(p[0] for p in back_positions) / len(back_positions) if back_positions else self.pitch_length
+            back_positions = sorted(positions, key=lambda p: -p[0])[: len(positions) // 3]
+            line_height = (
+                sum(p[0] for p in back_positions) / len(back_positions)
+                if back_positions
+                else self.pitch_length
+            )
 
         # Team width: spread in y direction
         ys = [p[1] for p in positions]
@@ -404,10 +427,13 @@ class PressureMetricsService:
                 continue
 
             # Count defensive actions in this period
-            period_events = [e for e in events
-                           if start <= e.get("timestamp", 0) < end
-                           and e.get("type") in ("tackle", "interception", "duel")
-                           and e.get("team") == team]
+            period_events = [
+                e
+                for e in events
+                if start <= e.get("timestamp", 0) < end
+                and e.get("type") in ("tackle", "interception", "duel")
+                and e.get("team") == team
+            ]
 
             # Normalize by time (actions per minute)
             period_duration = min(end, duration) - start

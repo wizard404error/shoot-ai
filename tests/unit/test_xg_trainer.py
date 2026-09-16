@@ -133,10 +133,16 @@ class TestFitFromShots:
         coeffs = fit_from_shots(shots)
         model = EnhancedXgModel(coefficients=coeffs, coeffs_source="trained")
         assert model.coeffs_source == "trained"
-        xg = model.compute_single(model.extract_features({
-            "type": "shot", "distance_m": 12.0, "angle_deg": 30.0,
-            "is_goal": False,
-        }))
+        xg = model.compute_single(
+            model.extract_features(
+                {
+                    "type": "shot",
+                    "distance_m": 12.0,
+                    "angle_deg": 30.0,
+                    "is_goal": False,
+                }
+            )
+        )
         assert 0.0 < xg < 1.0
 
     def test_goal_rate_reported(self):
@@ -148,12 +154,22 @@ class TestFitFromShots:
 class TestFitFromEvents:
     def test_from_shot_dicts(self):
         events = [
-            {"type": "shot", "distance_m": 5.0, "angle_deg": 10.0,
-             "is_goal": True, "body_part": "right_foot",
-             "shot_type": "open_play"},
-            {"type": "shot", "distance_m": 25.0, "angle_deg": 75.0,
-             "is_goal": False, "body_part": "left_foot",
-             "shot_type": "open_play"},
+            {
+                "type": "shot",
+                "distance_m": 5.0,
+                "angle_deg": 10.0,
+                "is_goal": True,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "distance_m": 25.0,
+                "angle_deg": 75.0,
+                "is_goal": False,
+                "body_part": "left_foot",
+                "shot_type": "open_play",
+            },
         ]
         coeffs = fit_from_events(events)
         assert "intercept" in coeffs
@@ -161,9 +177,14 @@ class TestFitFromEvents:
     def test_non_shot_filtered(self):
         events = [
             {"type": "pass", "timestamp": 10.0},
-            {"type": "shot", "distance_m": 10.0, "angle_deg": 20.0,
-             "is_goal": False, "body_part": "right_foot",
-             "shot_type": "open_play"},
+            {
+                "type": "shot",
+                "distance_m": 10.0,
+                "angle_deg": 20.0,
+                "is_goal": False,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+            },
         ]
         coeffs = fit_from_events(events)
         assert "intercept" in coeffs
@@ -201,7 +222,13 @@ class TestEnhancedXgModelLoadTrained:
             path = f.name
         trained = EnhancedXgModel.load_trained(path)
         heuristic = EnhancedXgModel()
-        ev = {"type": "shot", "distance_m": 12.0, "angle_deg": 30.0,
-              "is_goal": False, "body_part": "right_foot", "shot_type": "open_play"}
+        ev = {
+            "type": "shot",
+            "distance_m": 12.0,
+            "angle_deg": 30.0,
+            "is_goal": False,
+            "body_part": "right_foot",
+            "shot_type": "open_play",
+        }
         assert abs(trained.compute(ev) - heuristic.compute(ev)) < 0.5
         Path(path).unlink(missing_ok=True)

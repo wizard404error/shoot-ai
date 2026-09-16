@@ -95,15 +95,17 @@ def compute_defensive_xt(
         except (IndexError, TypeError):
             xt_val = 0.0
 
-        results.append(DefensiveAction(
-            event_idx=idx,
-            event_type=etype,
-            team=ev.get("team", ""),
-            xT_prevented=xt_val,
-            zone=z,
-            x=ex,
-            y=ey,
-        ))
+        results.append(
+            DefensiveAction(
+                event_idx=idx,
+                event_type=etype,
+                team=ev.get("team", ""),
+                xT_prevented=xt_val,
+                zone=z,
+                x=ex,
+                y=ey,
+            )
+        )
 
     results.sort(key=lambda a: a.xT_prevented, reverse=True)
     return results

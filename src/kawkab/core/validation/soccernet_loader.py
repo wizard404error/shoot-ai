@@ -21,6 +21,7 @@ Data license: SoccerNet is provided for research purposes — see
 docs/DATA_CARD.md. The benchmark published numbers must cite the exact
 game/half/frames used.
 """
+
 from __future__ import annotations
 
 import logging

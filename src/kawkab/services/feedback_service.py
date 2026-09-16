@@ -115,7 +115,9 @@ class FeedbackService:
         """Submit an issue report. Returns issue ID."""
         if self.storage is not None:
             issue_id = await self.storage.save_issue(issue.to_dict())
-            logger.warning(f"Issue reported: ID={issue_id}, category={issue.category}, severity={issue.severity}")
+            logger.warning(
+                f"Issue reported: ID={issue_id}, category={issue.category}, severity={issue.severity}"
+            )
             return issue_id
         else:
             self._pending_issues.append(issue)

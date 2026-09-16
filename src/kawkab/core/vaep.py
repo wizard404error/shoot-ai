@@ -35,8 +35,17 @@ def _to_zone(x: float, y: float) -> tuple[int, int]:
 
 
 def _possession_switching_events() -> set[str]:
-    return {"tackle", "interception", "clearance", "block", "ball_recovery",
-            "dribble_past", "miscontrol", "foul", "own_goal"}
+    return {
+        "tackle",
+        "interception",
+        "clearance",
+        "block",
+        "ball_recovery",
+        "dribble_past",
+        "miscontrol",
+        "foul",
+        "own_goal",
+    }
 
 
 def _identify_possession_phases(
@@ -300,8 +309,9 @@ def compute_vaep(
     phases = _identify_possession_phases(sorted_ev)
 
     # 2. Estimate Poisson rates
-    home_attack_rate, away_attack_rate, home_defend_rate, away_defend_rate = \
+    home_attack_rate, away_attack_rate, home_defend_rate, away_defend_rate = (
         _estimate_poisson_rates(sorted_ev)
+    )
 
     def _survival_prob(zone: tuple[int, int], team: str, dt: float) -> tuple[float, float]:
         """Survival probability: P(no goal conceded) over dt seconds."""
@@ -313,8 +323,8 @@ def compute_vaep(
             def_rate = home_defend_rate.get(zone, 0.001)
 
         # Poisson process: P(0 goals) = exp(-λ * dt), decay applied per-second
-        score_prob = 1.0 - math.exp(-atk_rate * dt * SURVIVAL_DECAY ** dt)
-        concede_prob = 1.0 - math.exp(-def_rate * dt * SURVIVAL_DECAY ** dt)
+        score_prob = 1.0 - math.exp(-atk_rate * dt * SURVIVAL_DECAY**dt)
+        concede_prob = 1.0 - math.exp(-def_rate * dt * SURVIVAL_DECAY**dt)
         return score_prob, concede_prob
 
     # 3. Compute VAEP for each event
@@ -342,7 +352,12 @@ def compute_vaep(
             ev, i, sorted_ev, possession_events_map.get(pid, [])
         )
 
-        adj_score = 1.0 + 0.05 * features["num_teammates_nearby"] + 0.2 * int(features["is_through_ball"]) + 0.15 * int(features["space_behind"])
+        adj_score = (
+            1.0
+            + 0.05 * features["num_teammates_nearby"]
+            + 0.2 * int(features["is_through_ball"])
+            + 0.15 * int(features["space_behind"])
+        )
         adj_concede = 1.0 + 0.1 * features["num_defenders_ahead"]
 
         if team == "home":
@@ -353,7 +368,7 @@ def compute_vaep(
             def_rate = home_defend_rate.get(zone, 0.001) * adj_concede
 
         def _prob(rate: float, dt: float) -> float:
-            return 1.0 - math.exp(-rate * dt * SURVIVAL_DECAY ** dt)
+            return 1.0 - math.exp(-rate * dt * SURVIVAL_DECAY**dt)
 
         pre_score_prob = _prob(atk_rate, lookahead)
         pre_concede_prob = _prob(def_rate, lookahead)
@@ -408,26 +423,28 @@ def compute_vaep(
         delta_away = post_concede_prob - pre_concede_prob
         vaep = delta_home - delta_away
 
-        results.append(VaepepResult(
-            event_index=i,
-            event_type=ev.get("type", "unknown"),
-            timestamp=ts,
-            team=team,
-            zone_x=zx,
-            zone_y=zy,
-            delta_home=delta_home,
-            delta_away=delta_away,
-            vaep_value=vaep,
-            is_goal=ev.get("is_goal", False),
-            possession_id=pid,
-            survival_pre=pre_value,
-            survival_post=post_value,
-            num_defenders_ahead=features["num_defenders_ahead"],
-            num_teammates_nearby=features["num_teammates_nearby"],
-            speed_of_attack=features["speed_of_attack"],
-            is_through_ball=features["is_through_ball"],
-            space_behind=features["space_behind"],
-        ))
+        results.append(
+            VaepepResult(
+                event_index=i,
+                event_type=ev.get("type", "unknown"),
+                timestamp=ts,
+                team=team,
+                zone_x=zx,
+                zone_y=zy,
+                delta_home=delta_home,
+                delta_away=delta_away,
+                vaep_value=vaep,
+                is_goal=ev.get("is_goal", False),
+                possession_id=pid,
+                survival_pre=pre_value,
+                survival_post=post_value,
+                num_defenders_ahead=features["num_defenders_ahead"],
+                num_teammates_nearby=features["num_teammates_nearby"],
+                speed_of_attack=features["speed_of_attack"],
+                is_through_ball=features["is_through_ball"],
+                space_behind=features["space_behind"],
+            )
+        )
 
     return [r.to_dict() for r in results]
 
@@ -497,12 +514,14 @@ def compute_vaep_with_ci(
         else:
             ci_lower = float(np.percentile(vals, 2.5))
             ci_upper = float(np.percentile(vals, 97.5))
-        final_results.append({
-            **r,
-            "ci_lower": round(ci_lower, 4),
-            "ci_upper": round(ci_upper, 4),
-            "n_bootstrap": n_bootstrap,
-        })
+        final_results.append(
+            {
+                **r,
+                "ci_lower": round(ci_lower, 4),
+                "ci_upper": round(ci_upper, 4),
+                "n_bootstrap": n_bootstrap,
+            }
+        )
 
     return final_results
 
@@ -545,13 +564,15 @@ def compute_vaep_v2(
 
         frame = _find_closest_frame(frames, ts)
         if frame is None:
-            results.append({
-                "timestamp": ts,
-                "team": team,
-                "type": ev.get("type", "unknown"),
-                "vaep": 0.0,
-                "method": "fallback",
-            })
+            results.append(
+                {
+                    "timestamp": ts,
+                    "team": team,
+                    "type": ev.get("type", "unknown"),
+                    "vaep": 0.0,
+                    "method": "fallback",
+                }
+            )
             continue
 
         home_pos = frame.get("home_positions", [])
@@ -580,34 +601,36 @@ def compute_vaep_v2(
             delta_home = post_control.home_control_pct - pre_control.home_control_pct
             delta_away = post_control.away_control_pct - pre_control.away_control_pct
 
-            dist_to_goal = math.sqrt(
-                (PITCH_LENGTH - ball_x) ** 2 + (PITCH_WIDTH / 2 - ball_y) ** 2
-            )
+            dist_to_goal = math.sqrt((PITCH_LENGTH - ball_x) ** 2 + (PITCH_WIDTH / 2 - ball_y) ** 2)
             angle_to_goal = math.degrees(
                 math.atan2(PITCH_WIDTH / 2 - ball_y, PITCH_LENGTH - ball_x)
             )
             # Trained xG as the scoring-probability term (the legacy
             # compute_xg heuristic underestimated xG ~5x, deflating every
             # frame-based VAEP value with it).
-            scoring_prob = compute_xg_trained_from_dict({
-                "type": "shot",
-                "distance_m": dist_to_goal,
-                "angle_deg": abs(angle_to_goal),
-            })
+            scoring_prob = compute_xg_trained_from_dict(
+                {
+                    "type": "shot",
+                    "distance_m": dist_to_goal,
+                    "angle_deg": abs(angle_to_goal),
+                }
+            )
 
             vaep = (delta_home - delta_away) * scoring_prob
         else:
             vaep = 0.0
 
-        results.append({
-            "timestamp": ts,
-            "team": team,
-            "type": ev.get("type", "unknown"),
-            "vaep": round(vaep, 4),
-            "method": "frame_based",
-            "pre_home_control": round(pre_control.home_control_pct, 1),
-            "pre_away_control": round(pre_control.away_control_pct, 1),
-        })
+        results.append(
+            {
+                "timestamp": ts,
+                "team": team,
+                "type": ev.get("type", "unknown"),
+                "vaep": round(vaep, 4),
+                "method": "frame_based",
+                "pre_home_control": round(pre_control.home_control_pct, 1),
+                "pre_away_control": round(pre_control.away_control_pct, 1),
+            }
+        )
 
     return results
 
@@ -627,4 +650,3 @@ def _find_closest_frame(
             best_dist = dist
             best = f
     return best
-

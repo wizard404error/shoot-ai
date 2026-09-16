@@ -83,7 +83,7 @@ def compute_pass_flow(
         link.count += 1
         if ev.get("completed", False):
             link.completed += 1
-        link.avg_progress += (ex - sx)
+        link.avg_progress += ex - sx
 
     for link in links.values():
         link.avg_progress /= max(link.count, 1)

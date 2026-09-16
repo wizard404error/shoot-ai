@@ -3,7 +3,13 @@ from __future__ import annotations
 import pytest
 from unittest.mock import patch, MagicMock
 
-from kawkab.cloud.oauth import OAuthProvider, OAuthProviderConfig, get_oauth_provider, get_configured_providers, PROVIDERS
+from kawkab.cloud.oauth import (
+    OAuthProvider,
+    OAuthProviderConfig,
+    get_oauth_provider,
+    get_configured_providers,
+    PROVIDERS,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +39,10 @@ class TestOAuthProviderConfig:
         prov = OAuthProvider(make_config())
         url = prov.get_authorize_url("http://localhost:8741/callback", "abc123")
         assert "client_id=test_id" in url
-        assert "redirect_uri=http%3A%2F%2Flocalhost%3A8741%2Fcallback" in url or "redirect_uri=http://localhost:8741/callback" in url
+        assert (
+            "redirect_uri=http%3A%2F%2Flocalhost%3A8741%2Fcallback" in url
+            or "redirect_uri=http://localhost:8741/callback" in url
+        )
         assert "state=abc123" in url
         assert "response_type=code" in url
         assert "access_type=offline" in url
@@ -118,12 +127,14 @@ class TestProviderRegistry:
 
     def test_register_provider_with_empty_credentials_skips(self):
         from kawkab.cloud.oauth import _register_provider
+
         PROVIDERS.clear()
         _register_provider("empty", make_config(client_id="", client_secret=""))
         assert "empty" not in PROVIDERS
 
     def test_google_provider_has_correct_urls(self):
         from kawkab.cloud.oauth import _register_provider
+
         cfg = make_config(
             client_id="g_id",
             client_secret="g_secret",
@@ -138,8 +149,10 @@ class TestProviderRegistry:
 
     def test_github_provider_has_correct_scopes(self):
         from kawkab.cloud.oauth import _register_provider
+
         cfg = make_config(
-            client_id="gh_id", client_secret="gh_secret",
+            client_id="gh_id",
+            client_secret="gh_secret",
             scopes=["read:user", "user:email"],
         )
         PROVIDERS.clear()
@@ -149,6 +162,3 @@ class TestProviderRegistry:
         url = prov.get_authorize_url("http://localhost/cb", "st")
         assert "read:user" in url
         assert "user:email" in url
-
-
-

@@ -19,6 +19,7 @@ not degrade silently.
 Pure text parsing (regex), no kawkab imports needed -- this test only reads
 source files, so it doesn't need install_kawkab_stubs().
 """
+
 from __future__ import annotations
 
 import re
@@ -161,6 +162,5 @@ def test_every_slot_delegation_targets_a_real_handler_method() -> None:
         raise AssertionError(
             "bridge.py @Slot bodies delegate to handler methods that do not exist "
             "(AttributeError at runtime, caught by broad except, silently broken "
-            "feature — the ai_v2_list_convs bug class):\n  "
-            + "\n  ".join(sorted(set(broken)))
+            "feature — the ai_v2_list_convs bug class):\n  " + "\n  ".join(sorted(set(broken)))
         )

@@ -8,6 +8,7 @@ NOTE: Test files should NOT import from this conftest. The parent
 tests/conftest.py is loaded automatically by pytest and provides
 install_kawkab_stubs, load_service_module, etc.
 """
+
 import importlib.util
 import os
 import sys
@@ -33,4 +34,3 @@ _ensure_package_loaded = _parent_mod._ensure_package_loaded
 
 # Install stubs immediately
 install_kawkab_stubs()
-

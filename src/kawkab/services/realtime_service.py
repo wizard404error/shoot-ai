@@ -401,7 +401,9 @@ class RealtimeService:
                         total_frames=total_frames,
                         elapsed_s=elapsed,
                         events_emitted=events_emitted,
-                        avg_track_count=float(len(detection.detections) if detection.detections else 0),
+                        avg_track_count=float(
+                            len(detection.detections) if detection.detections else 0
+                        ),
                         low_confidence_frames=low_conf_frames,
                     )
                     await self._dispatch_stats(stats)

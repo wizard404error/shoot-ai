@@ -1,8 +1,10 @@
 """Phase 2 pipeline test - tests CV + Analysis (formations, PPDA, xG/xT) + Reasoning + LLM."""
+
 from __future__ import annotations
 
 import asyncio
 import os
+
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 import sys
@@ -45,12 +47,14 @@ async def main() -> int:
     print(f"  KB: {knowledge.stats}")
     reasoning = ReasoningService(knowledge)
     await reasoning.initialize()
-    llm = LLMService(LLMConfig(
-        provider="ollama",
-        ollama_model="ministral-3:14b",
-        max_tokens=4000,
-        num_gpu=99,
-    ))
+    llm = LLMService(
+        LLMConfig(
+            provider="ollama",
+            ollama_model="ministral-3:14b",
+            max_tokens=4000,
+            num_gpu=99,
+        )
+    )
 
     print("\n[2/7] Saving match to database...")
     match_id = await storage.save_match(
@@ -66,12 +70,14 @@ async def main() -> int:
 
     async def progress_cb(p: float, msg: str) -> None:
         if int(p * 100) % 10 == 0:
-            print(f"  {p*100:.0f}% - {msg}")
+            print(f"  {p * 100:.0f}% - {msg}")
 
     track_data = await cv.process_video(video_path, progress_callback=progress_cb)
     cv_time = time.time() - t0
-    print(f"  CV done: {len(track_data.frames)} frames, "
-          f"{len(track_data.track_registry)} tracks in {cv_time:.1f}s")
+    print(
+        f"  CV done: {len(track_data.frames)} frames, "
+        f"{len(track_data.track_registry)} tracks in {cv_time:.1f}s"
+    )
 
     await storage.update_match_analysis(
         match_id=match_id,
@@ -85,12 +91,16 @@ async def main() -> int:
     match_analysis = await analysis.analyze_match(track_data, match_id=match_id)
     analysis_time = time.time() - t0
 
-    print(f"  Possession: Home {match_analysis.home_team.possession_pct:.1f}% / "
-          f"Away {match_analysis.away_team.possession_pct:.1f}%")
-    print(f"  Formations: Home {match_analysis.formations.get('home', {}).get('formation', '?')} "
-          f"({match_analysis.formations.get('home', {}).get('confidence', 0):.0%}) / "
-          f"Away {match_analysis.formations.get('away', {}).get('formation', '?')} "
-          f"({match_analysis.formations.get('away', {}).get('confidence', 0):.0%})")
+    print(
+        f"  Possession: Home {match_analysis.home_team.possession_pct:.1f}% / "
+        f"Away {match_analysis.away_team.possession_pct:.1f}%"
+    )
+    print(
+        f"  Formations: Home {match_analysis.formations.get('home', {}).get('formation', '?')} "
+        f"({match_analysis.formations.get('home', {}).get('confidence', 0):.0%}) / "
+        f"Away {match_analysis.formations.get('away', {}).get('formation', '?')} "
+        f"({match_analysis.formations.get('away', {}).get('confidence', 0):.0%})"
+    )
     print(f"  PPDA: {match_analysis.pressing_intensity:.1f}")
     print(f"  Players: {len(match_analysis.players)}, Events: {len(match_analysis.events)}")
     print(f"  Confidence: {match_analysis.confidence_overall:.1%}")
@@ -116,9 +126,11 @@ async def main() -> int:
     print("\n[6/7] Freeing GPU before LLM...")
     await cv.shutdown()
     import gc
+
     gc.collect()
     try:
         import torch
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
@@ -141,8 +153,8 @@ async def main() -> int:
     llm_summary = f"""Match: Phase 2 Test
 Duration: {track_data.duration_seconds:.0f}s
 Possession: Home {match_analysis.home_team.possession_pct:.1f}%, Away {match_analysis.away_team.possession_pct:.1f}%
-Formation Home: {match_analysis.formations.get('home', {}).get('formation', 'unknown')}
-Formation Away: {match_analysis.formations.get('away', {}).get('formation', 'unknown')}
+Formation Home: {match_analysis.formations.get("home", {}).get("formation", "unknown")}
+Formation Away: {match_analysis.formations.get("away", {}).get("formation", "unknown")}
 PPDA: {match_analysis.pressing_intensity:.1f}
 Events: {len(match_analysis.events)}, Players tracked: {len(match_analysis.players)}
 Confidence: {match_analysis.confidence_overall:.1%}
@@ -165,7 +177,7 @@ TACTICAL DIAGNOSES (top 3):
         print("=" * 60)
         print(report[:2000])
         if len(report) > 2000:
-            print(f"... ({len(report)-2000} more chars)")
+            print(f"... ({len(report) - 2000} more chars)")
         print("=" * 60)
     except Exception as e:
         print(f"  [WARN] LLM failed: {e}")
@@ -178,8 +190,10 @@ TACTICAL DIAGNOSES (top 3):
     print(f"  Unique tracks:    {len(track_data.track_registry)}")
     print(f"  Players:          {len(match_analysis.players)}")
     print(f"  Events:           {len(match_analysis.events)}")
-    print(f"  Formations:       {match_analysis.formations.get('home', {}).get('formation', '?')} "
-          f"vs {match_analysis.formations.get('away', {}).get('formation', '?')}")
+    print(
+        f"  Formations:       {match_analysis.formations.get('home', {}).get('formation', '?')} "
+        f"vs {match_analysis.formations.get('away', {}).get('formation', '?')}"
+    )
     print(f"  PPDA:             {match_analysis.pressing_intensity:.1f}")
     print(f"  Diagnoses:        {len(diagnosis_report.diagnoses)}")
     print(f"  Confidence:       {match_analysis.confidence_overall:.1%}")

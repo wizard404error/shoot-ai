@@ -149,15 +149,21 @@ def test_train_with_sklearn():
     for _ in range(100):
         dist = random.uniform(2, 35)
         angle = random.uniform(0, 50)
-        is_goal = 1 if (dist < 10 and random.random() > 0.3) or (dist > 20 and random.random() > 0.85) else 0
-        shots.append({
-            "distance_m": dist,
-            "angle_deg": angle,
-            "placement_x": random.uniform(0, 1),
-            "placement_y": random.uniform(0, 1),
-            "body_part": random.choice(["right_foot", "left_foot", "head"]),
-            "is_goal": is_goal,
-        })
+        is_goal = (
+            1
+            if (dist < 10 and random.random() > 0.3) or (dist > 20 and random.random() > 0.85)
+            else 0
+        )
+        shots.append(
+            {
+                "distance_m": dist,
+                "angle_deg": angle,
+                "placement_x": random.uniform(0, 1),
+                "placement_y": random.uniform(0, 1),
+                "body_part": random.choice(["right_foot", "left_foot", "head"]),
+                "is_goal": is_goal,
+            }
+        )
     result = model.train(shots, calibrate=True, bootstrap=True)
     if model._sk_model is not None:
         assert result["trained"] is True
@@ -196,11 +202,56 @@ def test_confidence_interval_narrower_with_more_data():
 
     # With bootstrap samples, CI should contain xgot
     model._bootstrap_coefs = [
-        {"intercept": -1.2, "distance_m": -0.06, "angle_deg": 0.015, "placement_dist_center": 2.0, "is_header": -0.5, "one_on_one": 0.4, "shot_speed_mps": 0.04, "defender_proximity": -0.15},
-        {"intercept": -1.0, "distance_m": -0.05, "angle_deg": 0.012, "placement_dist_center": 1.8, "is_header": -0.4, "one_on_one": 0.35, "shot_speed_mps": 0.035, "defender_proximity": -0.12},
-        {"intercept": -1.4, "distance_m": -0.07, "angle_deg": 0.018, "placement_dist_center": 2.2, "is_header": -0.6, "one_on_one": 0.45, "shot_speed_mps": 0.045, "defender_proximity": -0.18},
-        {"intercept": -1.1, "distance_m": -0.055, "angle_deg": 0.014, "placement_dist_center": 1.9, "is_header": -0.45, "one_on_one": 0.38, "shot_speed_mps": 0.038, "defender_proximity": -0.13},
-        {"intercept": -1.3, "distance_m": -0.065, "angle_deg": 0.016, "placement_dist_center": 2.1, "is_header": -0.55, "one_on_one": 0.42, "shot_speed_mps": 0.042, "defender_proximity": -0.16},
+        {
+            "intercept": -1.2,
+            "distance_m": -0.06,
+            "angle_deg": 0.015,
+            "placement_dist_center": 2.0,
+            "is_header": -0.5,
+            "one_on_one": 0.4,
+            "shot_speed_mps": 0.04,
+            "defender_proximity": -0.15,
+        },
+        {
+            "intercept": -1.0,
+            "distance_m": -0.05,
+            "angle_deg": 0.012,
+            "placement_dist_center": 1.8,
+            "is_header": -0.4,
+            "one_on_one": 0.35,
+            "shot_speed_mps": 0.035,
+            "defender_proximity": -0.12,
+        },
+        {
+            "intercept": -1.4,
+            "distance_m": -0.07,
+            "angle_deg": 0.018,
+            "placement_dist_center": 2.2,
+            "is_header": -0.6,
+            "one_on_one": 0.45,
+            "shot_speed_mps": 0.045,
+            "defender_proximity": -0.18,
+        },
+        {
+            "intercept": -1.1,
+            "distance_m": -0.055,
+            "angle_deg": 0.014,
+            "placement_dist_center": 1.9,
+            "is_header": -0.45,
+            "one_on_one": 0.38,
+            "shot_speed_mps": 0.038,
+            "defender_proximity": -0.13,
+        },
+        {
+            "intercept": -1.3,
+            "distance_m": -0.065,
+            "angle_deg": 0.016,
+            "placement_dist_center": 2.1,
+            "is_header": -0.55,
+            "one_on_one": 0.42,
+            "shot_speed_mps": 0.042,
+            "defender_proximity": -0.16,
+        },
     ]
     r2 = model.compute(distance_m=15, angle_deg=20)
     assert r2.ci_lower < r2.xgot < r2.ci_upper

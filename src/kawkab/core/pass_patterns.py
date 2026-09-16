@@ -99,15 +99,16 @@ class PassPatternAnalyzer:
         last_pass = sequence[-1]
         lx = last_pass.get("end_x", PITCH_LENGTH / 2)
         ly = last_pass.get("end_y", PITCH_WIDTH / 2)
-        is_cross = (
-            lx >= PITCH_LENGTH * 0.8
-            and (ly <= PITCH_WIDTH * 0.25 or ly >= PITCH_WIDTH * 0.75)
+        is_cross = lx >= PITCH_LENGTH * 0.8 and (
+            ly <= PITCH_WIDTH * 0.25 or ly >= PITCH_WIDTH * 0.75
         )
         if is_cross:
             return "cross_sequence"
 
         # Detect switch of play: large lateral movement across midfield
-        ys = [e.get("start_y", PITCH_WIDTH / 2) for e in sequence] + [sequence[-1].get("end_y", PITCH_WIDTH / 2)]
+        ys = [e.get("start_y", PITCH_WIDTH / 2) for e in sequence] + [
+            sequence[-1].get("end_y", PITCH_WIDTH / 2)
+        ]
         if max(ys) - min(ys) >= PITCH_WIDTH * 0.55:
             return "switch_of_play"
 
@@ -160,7 +161,9 @@ class PassPatternAnalyzer:
     ) -> dict[str, Any]:
         team_events = [e for e in events if e.get("team") == team and e.get("type") == "pass"]
         sequences = self.extract_pass_sequences(team_events)
-        build_up_seqs = [s for s in sequences if self.classify_sequence_pattern(s).startswith("build_up")]
+        build_up_seqs = [
+            s for s in sequences if self.classify_sequence_pattern(s).startswith("build_up")
+        ]
 
         if not build_up_seqs:
             return {
@@ -221,15 +224,19 @@ class PassPatternAnalyzer:
             p2_from = p2.get("from_track_id")
             p2_to = p2.get("to_track_id")
             if p1_from == p2_to and p1_to == p2_from:
-                zone_x = (p1.get("start_x", PITCH_LENGTH / 2) + p1.get("end_x", PITCH_LENGTH / 2)) / 2
+                zone_x = (
+                    p1.get("start_x", PITCH_LENGTH / 2) + p1.get("end_x", PITCH_LENGTH / 2)
+                ) / 2
                 zone_y = (p1.get("start_y", PITCH_WIDTH / 2) + p1.get("end_y", PITCH_WIDTH / 2)) / 2
-                combos.append({
-                    "zone_x": round(zone_x, 1),
-                    "zone_y": round(zone_y, 1),
-                    "player_1_track_id": p1_from,
-                    "player_2_track_id": p1_to,
-                    "timestamp": p1.get("timestamp", 0),
-                })
+                combos.append(
+                    {
+                        "zone_x": round(zone_x, 1),
+                        "zone_y": round(zone_y, 1),
+                        "player_1_track_id": p1_from,
+                        "player_2_track_id": p1_to,
+                        "timestamp": p1.get("timestamp", 0),
+                    }
+                )
 
         zones: list[dict[str, Any]] = []
         for c in combos:
@@ -245,5 +252,7 @@ class PassPatternAnalyzer:
             "team": team,
             "total_combinations": len(combos),
             "combinations_per_90": round(len(combos) / 90 * 90, 1),
-            "zones": [{"zone": k, "count": v} for k, v in sorted(zone_counts.items(), key=lambda x: -x[1])],
+            "zones": [
+                {"zone": k, "count": v} for k, v in sorted(zone_counts.items(), key=lambda x: -x[1])
+            ],
         }

@@ -40,49 +40,86 @@ from kawkab.services.quality_scoring_service import QualityScoringService
 from kawkab.services.batch_service import BatchService, BatchJob, BatchStatus
 from kawkab.services.lightglue_homography_service import LightGlueHomographyService
 from kawkab.services.face_recognition_service import FaceRecognitionService
+
 try:
     from kawkab.services.norfair_tracker import NorfairTracker
 except ImportError:
     NorfairTracker = None  # type: ignore
 from kawkab.services.pose_analysis_service import (
-    PoseAnalysisService, PoseResult, ActivitySegment, FallEvent,
+    PoseAnalysisService,
+    PoseResult,
+    ActivitySegment,
+    FallEvent,
 )
 from kawkab.services.mujoco_ball_service import (
-    MuJoCoBallService, TrajectoryResult, TrajectoryPoint,
+    MuJoCoBallService,
+    TrajectoryResult,
+    TrajectoryPoint,
 )
 from kawkab.services.fluidx3d_service import FluidX3DService, CfdResult
 from kawkab.services.weather_service import (
-    WeatherService, WeatherConditions, WeatherImpact, WeatherSource, PitchState,
+    WeatherService,
+    WeatherConditions,
+    WeatherImpact,
+    WeatherSource,
+    PitchState,
     VideoWeatherPrediction,
 )
 from kawkab.services.psychology_service import (
-    PsychologyService, PsychologyReport, PsychologyEvent,
-    ScoreStateTransition, MomentumPoint, ScoreState, PsychologyEventType,
+    PsychologyService,
+    PsychologyReport,
+    PsychologyEvent,
+    ScoreStateTransition,
+    MomentumPoint,
+    ScoreState,
+    PsychologyEventType,
 )
 from kawkab.services.football_rules_service import (
-    FootballRulesService, Law, RestartType, RuleReference, OffsideCheck,
+    FootballRulesService,
+    Law,
+    RestartType,
+    RuleReference,
+    OffsideCheck,
 )
 from kawkab.services.card_detection_service import (
-    CardDetectionService, CardEvent, CardType, CardSource, AudioCardSignal,
+    CardDetectionService,
+    CardEvent,
+    CardType,
+    CardSource,
+    AudioCardSignal,
 )
 from kawkab.services.raindrop_detection_service import (
-    RaindropDetectionService, RaindropDetection,
+    RaindropDetectionService,
+    RaindropDetection,
 )
 from kawkab.services.weather_image_classifier import (
-    WeatherImageClassifier, WeatherClassification, WEATHER_CLASSES,
+    WeatherImageClassifier,
+    WeatherClassification,
+    WEATHER_CLASSES,
     compute_features,
 )
 from kawkab.services.setpiece_service import (
-    SetPieceService, SetPieceEvent, SetPieceStats, SetPieceReport,
+    SetPieceService,
+    SetPieceEvent,
+    SetPieceStats,
+    SetPieceReport,
 )
 from kawkab.services.goalkeeper_service import (
-    GoalkeeperService, GoalkeeperAction, GoalkeeperStats,
+    GoalkeeperService,
+    GoalkeeperAction,
+    GoalkeeperStats,
 )
 from kawkab.services.substitution_service import (
-    SubstitutionService, SubstitutionEvent, SubstitutionImpact, SubstitutionReport,
+    SubstitutionService,
+    SubstitutionEvent,
+    SubstitutionImpact,
+    SubstitutionReport,
 )
 from kawkab.services.possession_service import (
-    PossessionService, PossessionChain, PlayerPossessionStats, PossessionReport,
+    PossessionService,
+    PossessionChain,
+    PlayerPossessionStats,
+    PossessionReport,
 )
 from kawkab.services.feedback_service import FeedbackService
 from kawkab.services.football_data_service import FootballDataService

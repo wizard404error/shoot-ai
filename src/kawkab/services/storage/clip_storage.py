@@ -9,15 +9,23 @@ from kawkab.services.storage.base import BaseStorage
 
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
+
     SecurityValidator = _SecVal
 except ImportError:
+
     class _SecurityValidator:
         @staticmethod
-        def validate_match_id(mid): return int(mid)
+        def validate_match_id(mid):
+            return int(mid)
+
         @staticmethod
-        def sanitize_string(s, max_length=255): return str(s)[:max_length]
+        def sanitize_string(s, max_length=255):
+            return str(s)[:max_length]
+
         @staticmethod
-        def validate_positive_float(v, n="v"): return max(0.0, float(v))
+        def validate_positive_float(v, n="v"):
+            return max(0.0, float(v))
+
     SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
@@ -32,12 +40,28 @@ class ClipStorage(BaseStorage):
         try:
             SecurityValidator.validate_match_id(clip["match_id"])
             event_type = SecurityValidator.sanitize_string(str(clip["event_type"]), max_length=100)
-            start_seconds = SecurityValidator.validate_positive_float(clip["start_seconds"], "start_seconds")
-            end_seconds = SecurityValidator.validate_positive_float(clip["end_seconds"], "end_seconds")
-            duration_seconds = SecurityValidator.validate_positive_float(clip["duration_seconds"], "duration_seconds")
-            source_video_path = SecurityValidator.sanitize_string(str(clip["source_video_path"]), max_length=500)
-            output_path = SecurityValidator.sanitize_string(str(clip["output_path"]), max_length=500)
-            thumbnail_path = SecurityValidator.sanitize_string(str(clip.get("thumbnail_path", "")), max_length=500) if clip.get("thumbnail_path") else None
+            start_seconds = SecurityValidator.validate_positive_float(
+                clip["start_seconds"], "start_seconds"
+            )
+            end_seconds = SecurityValidator.validate_positive_float(
+                clip["end_seconds"], "end_seconds"
+            )
+            duration_seconds = SecurityValidator.validate_positive_float(
+                clip["duration_seconds"], "duration_seconds"
+            )
+            source_video_path = SecurityValidator.sanitize_string(
+                str(clip["source_video_path"]), max_length=500
+            )
+            output_path = SecurityValidator.sanitize_string(
+                str(clip["output_path"]), max_length=500
+            )
+            thumbnail_path = (
+                SecurityValidator.sanitize_string(
+                    str(clip.get("thumbnail_path", "")), max_length=500
+                )
+                if clip.get("thumbnail_path")
+                else None
+            )
             cursor = self._conn.cursor()
             cursor.execute(
                 """
@@ -56,7 +80,9 @@ class ClipStorage(BaseStorage):
                     output_path,
                     thumbnail_path,
                     clip.get("player_id"),
-                    SecurityValidator.sanitize_string(str(clip.get("description", "")), max_length=500),
+                    SecurityValidator.sanitize_string(
+                        str(clip.get("description", "")), max_length=500
+                    ),
                     clip.get("created_at", ""),
                 ),
             )
@@ -88,7 +114,9 @@ class ClipStorage(BaseStorage):
             clip_ids = playlist["clip_ids"]
             if not isinstance(clip_ids, list):
                 raise ValueError("clip_ids must be a JSON array (list)")
-            description = SecurityValidator.sanitize_string(str(playlist.get("description", "")), max_length=1000)
+            description = SecurityValidator.sanitize_string(
+                str(playlist.get("description", "")), max_length=1000
+            )
             cursor = self._conn.cursor()
             cursor.execute(
                 """
@@ -114,7 +142,9 @@ class ClipStorage(BaseStorage):
             return []
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC")
+            cursor.execute(
+                "SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC"
+            )
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             self._log_error("get_playlists", e)

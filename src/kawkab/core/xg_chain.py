@@ -87,19 +87,21 @@ def compute_xg_chain(
             chain_start = i + 1
             continue
 
-        chain_events = sorted_ev[chain_start:i + 1]
+        chain_events = sorted_ev[chain_start : i + 1]
         n = len(chain_events)
         for j, cev in enumerate(chain_events):
             position_weight = (j + 1) / n
             contribution = shot_xg * position_weight * 0.5
             role = "shot" if cev.get("type") in SHOT_TYPES else "buildup"
-            results.append(XgChain(
-                event_idx=chain_events.index(cev),
-                event_type=cev.get("type", ""),
-                event_team=team,
-                xg_contribution=round(contribution, 4),
-                role=role,
-            ))
+            results.append(
+                XgChain(
+                    event_idx=chain_events.index(cev),
+                    event_type=cev.get("type", ""),
+                    event_team=team,
+                    xg_contribution=round(contribution, 4),
+                    role=role,
+                )
+            )
 
         chain_start = i + 1
 
@@ -148,14 +150,16 @@ def compute_xg_buildup(
                 break
 
         for rank, idx in enumerate(preceding):
-            is_primary = (rank == 0)
+            is_primary = rank == 0
             credit = shot_xg * (0.6 if is_primary else 0.4)
-            results.append(XgBuildup(
-                event_idx=idx,
-                event_type="pass",
-                credit=round(credit, 4),
-                is_primary_assist=is_primary,
-                is_secondary_assist=not is_primary,
-            ))
+            results.append(
+                XgBuildup(
+                    event_idx=idx,
+                    event_type="pass",
+                    credit=round(credit, 4),
+                    is_primary_assist=is_primary,
+                    is_secondary_assist=not is_primary,
+                )
+            )
 
     return results

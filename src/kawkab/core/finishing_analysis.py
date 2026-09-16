@@ -47,7 +47,7 @@ def _detect_streaks(shots: list[dict[str, Any]], window: int) -> dict:
     cold_shots_detail: list[dict] = []
 
     for i in range(len(shots)):
-        chunk = shots[max(0, i - window + 1): i + 1]
+        chunk = shots[max(0, i - window + 1) : i + 1]
         if len(chunk) < window:
             continue
         goals = sum(1 for s in chunk if s.get("goal"))
@@ -85,7 +85,7 @@ def _compute_placement_skill(shots: list[dict[str, Any]]) -> float:
             goal_w = 7.32
             goal_h = 2.44
             dist_center = math.sqrt((px - 0.0) ** 2 + (py - 0.0) ** 2)
-            max_dist = math.sqrt((goal_w / 2) ** 2 + goal_h ** 2)
+            max_dist = math.sqrt((goal_w / 2) ** 2 + goal_h**2)
             if max_dist > 0:
                 norm = dist_center / max_dist
                 placements.append(norm)

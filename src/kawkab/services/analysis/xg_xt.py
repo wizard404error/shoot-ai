@@ -40,11 +40,13 @@ class XgXtMixin:
             distance_m = metadata.get("distance_to_goal_m")
             angle_deg = metadata.get("angle_to_goal_deg")
             if distance_m is not None and angle_deg is not None:
-                xg = compute_xg_trained_from_dict({
-                    "type": "shot",
-                    "distance_m": float(distance_m),
-                    "angle_deg": float(angle_deg),
-                })
+                xg = compute_xg_trained_from_dict(
+                    {
+                        "type": "shot",
+                        "distance_m": float(distance_m),
+                        "angle_deg": float(angle_deg),
+                    }
+                )
                 xg = max(0.0, min(1.0, xg))
                 xg_available = True
             else:
@@ -56,19 +58,21 @@ class XgXtMixin:
             else:
                 away_xg += xg
 
-            shot_details.append({
-                "timestamp": timestamp,
-                "team": team,
-                "track_id": event.get("track_id") or event.get("player_id", 0),
-                "start_x": event.get("start_x", 0.0),
-                "start_y": event.get("start_y", 34.0),
-                "distance_m": distance_m,
-                "angle_deg": angle_deg,
-                "xg": round(xg, 3),
-                "xg_available": xg_available,
-                "on_target": event.get("on_target", False),
-                "is_goal": event.get("is_goal", False),
-            })
+            shot_details.append(
+                {
+                    "timestamp": timestamp,
+                    "team": team,
+                    "track_id": event.get("track_id") or event.get("player_id", 0),
+                    "start_x": event.get("start_x", 0.0),
+                    "start_y": event.get("start_y", 34.0),
+                    "distance_m": distance_m,
+                    "angle_deg": angle_deg,
+                    "xg": round(xg, 3),
+                    "xg_available": xg_available,
+                    "on_target": event.get("on_target", False),
+                    "is_goal": event.get("is_goal", False),
+                }
+            )
 
         return {
             "home": round(home_xg, 3),

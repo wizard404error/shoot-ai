@@ -101,12 +101,16 @@ def to_statsbomb_json(
                 "angle": 0.0,
                 "height": "ground" if ev.body_part != BodyPart.HEAD else "high",
                 "body_part": {"id": _body_part_id(ev.body_part), "name": ev.body_part.value},
-                "recipient": {"id": ev.to_track_id, "name": f"Player #{ev.to_track_id}"} if ev.to_track_id else None,
+                "recipient": {"id": ev.to_track_id, "name": f"Player #{ev.to_track_id}"}
+                if ev.to_track_id
+                else None,
                 "pass_type": {"id": _pass_type_id(ev.pass_type), "name": ev.pass_type.value},
                 "through_ball": ev.is_through_ball,
                 "cross": ev.is_cross,
                 "switch": ev.is_switch,
-                "outcome": {"id": 1, "name": "Complete"} if ev.completed else {"id": 2, "name": "Incomplete"},
+                "outcome": {"id": 1, "name": "Complete"}
+                if ev.completed
+                else {"id": 2, "name": "Incomplete"},
             }
             if ev.start_x is not None and ev.start_y is not None:
                 sb_event["location"] = [
@@ -123,7 +127,9 @@ def to_statsbomb_json(
                 "statsbomb_xg": round(ev.xg, 4),
                 "body_part": {"id": _body_part_id(ev.body_part), "name": ev.body_part.value},
                 "type": {"id": _shot_type_id(ev.shot_type), "name": ev.shot_type.value},
-                "outcome": {"id": 1, "name": "On Target"} if ev.on_target else {"id": 2, "name": "Off Target"},
+                "outcome": {"id": 1, "name": "On Target"}
+                if ev.on_target
+                else {"id": 2, "name": "Off Target"},
                 "one_on_one": ev.is_one_on_one,
             }
         elif isinstance(ev, CarryEvent):
@@ -157,15 +163,31 @@ def to_spadl_csv(
     """
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "game_id", "period_id", "time_seconds", "team_id", "player_id",
-        "start_x", "start_y", "end_x", "end_y",
-        "action_id", "action_name", "bodypart_id", "result_id",
-    ])
+    writer.writerow(
+        [
+            "game_id",
+            "period_id",
+            "time_seconds",
+            "team_id",
+            "player_id",
+            "start_x",
+            "start_y",
+            "end_x",
+            "end_y",
+            "action_id",
+            "action_name",
+            "bodypart_id",
+            "result_id",
+        ]
+    )
 
     SPADL_ACTIONS = {
-        "pass": 1, "shot": 2, "carry": 3, "tackle": 4,
-        "interception": 5, "foul": 6,
+        "pass": 1,
+        "shot": 2,
+        "carry": 3,
+        "tackle": 4,
+        "interception": 5,
+        "foul": 6,
     }
 
     team_ids = {"home": home_team_id, "away": away_team_id}
@@ -211,11 +233,23 @@ def to_spadl_csv(
         if isinstance(ev, PassEvent) and not ev.completed:
             result_id = 0
 
-        writer.writerow([
-            match_id, period, round(ev.timestamp, 1), team_id, ev.track_id or 0,
-            round(start_x, 1), round(start_y, 1), round(end_x, 1), round(end_y, 1),
-            action_id, ev.type.value, bodypart_id, result_id,
-        ])
+        writer.writerow(
+            [
+                match_id,
+                period,
+                round(ev.timestamp, 1),
+                team_id,
+                ev.track_id or 0,
+                round(start_x, 1),
+                round(start_y, 1),
+                round(end_x, 1),
+                round(end_y, 1),
+                action_id,
+                ev.type.value,
+                bodypart_id,
+                result_id,
+            ]
+        )
 
     return output.getvalue()
 
@@ -228,11 +262,24 @@ def to_opta_csv(
     common football analytics tools."""
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "match_id", "event_id", "type", "period", "minute", "second",
-        "team", "player_id", "x", "y", "end_x", "end_y",
-        "outcome", "value",
-    ])
+    writer.writerow(
+        [
+            "match_id",
+            "event_id",
+            "type",
+            "period",
+            "minute",
+            "second",
+            "team",
+            "player_id",
+            "x",
+            "y",
+            "end_x",
+            "end_y",
+            "outcome",
+            "value",
+        ]
+    )
 
     for i, raw in enumerate(events):
         try:
@@ -271,12 +318,24 @@ def to_opta_csv(
             value = ev.distance_m
 
         # Convert to 0-100 pitch coordinates (Opta style)
-        writer.writerow([
-            match_id, i + 1, ev.type.value, period, minute, second,
-            ev.team, ev.track_id or 0,
-            round(x, 1), round(y, 1), round(end_x, 1), round(end_y, 1),
-            outcome, round(value, 4),
-        ])
+        writer.writerow(
+            [
+                match_id,
+                i + 1,
+                ev.type.value,
+                period,
+                minute,
+                second,
+                ev.team,
+                ev.track_id or 0,
+                round(x, 1),
+                round(y, 1),
+                round(end_x, 1),
+                round(end_y, 1),
+                outcome,
+                round(value, 4),
+            ]
+        )
 
     return output.getvalue()
 

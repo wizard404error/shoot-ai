@@ -62,7 +62,9 @@ class WearableImportService:
 
     # -- persistence ------------------------------------------------------
 
-    def save_session(self, session: WearableSession, storage_service=None, match_id: int = 0) -> dict:
+    def save_session(
+        self, session: WearableSession, storage_service=None, match_id: int = 0
+    ) -> dict:
         """Persist a parsed WearableSession to the database.
 
         Requires migration 020 (wearable_sessions table). If ``storage_service``
@@ -77,7 +79,9 @@ class WearableImportService:
                     "athlete_name": session.athlete_name,
                     "device_type": session.device_type,
                     "device_serial": session.device_serial,
-                    "start_time": session.start_time.isoformat() if hasattr(session.start_time, "isoformat") else str(session.start_time or ""),
+                    "start_time": session.start_time.isoformat()
+                    if hasattr(session.start_time, "isoformat")
+                    else str(session.start_time or ""),
                     "duration_s": d["duration_s"],
                     "sample_rate_hz": d["sample_rate_hz"],
                     "avg_hr": d["avg_hr"],

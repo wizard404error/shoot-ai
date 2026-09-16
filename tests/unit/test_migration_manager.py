@@ -9,9 +9,7 @@ import pytest
 from tests.conftest import load_service_module
 
 # Load real module, bypassing conftest stub
-mm_mod = load_service_module(
-    "kawkab.core.migration_manager", "migration_manager.py", subdir="core"
-)
+mm_mod = load_service_module("kawkab.core.migration_manager", "migration_manager.py", subdir="core")
 MigrationManager = mm_mod.MigrationManager
 split_sql_statements = mm_mod.split_sql_statements
 
@@ -37,10 +35,14 @@ class TestSplitSqlStatements:
 
     def test_semicolon_inside_block_comment_does_not_split(self):
         sql = "/* notes; with semicolons; here */ CREATE TABLE t (id INTEGER);"
-        assert split_sql_statements(sql) == ["/* notes; with semicolons; here */ CREATE TABLE t (id INTEGER)"]
+        assert split_sql_statements(sql) == [
+            "/* notes; with semicolons; here */ CREATE TABLE t (id INTEGER)"
+        ]
 
     def test_semicolon_inside_string_literal_does_not_split(self):
-        sql = "INSERT INTO t (name) VALUES ('it''s; tricky'); INSERT INTO t (name) VALUES ('plain');"
+        sql = (
+            "INSERT INTO t (name) VALUES ('it''s; tricky'); INSERT INTO t (name) VALUES ('plain');"
+        )
         stmts = split_sql_statements(sql)
         assert len(stmts) == 2
         assert "it''s; tricky" in stmts[0]
@@ -96,7 +98,9 @@ class TestSplitSqlStatements:
             aware = split_sql_statements(sql)
             naive = [s.strip() for s in sql.split(";") if s.strip()]
             if "--" in sql or "/*" in sql:
-                assert len(aware) <= len(naive), f"{f.name}: aware splitter must never yield MORE statements than naive"
+                assert len(aware) <= len(naive), (
+                    f"{f.name}: aware splitter must never yield MORE statements than naive"
+                )
 
     def test_migration_030_style_comment_semicolon_survives(self):
         """End-to-end: a migration whose comment contains a semicolon now
@@ -123,6 +127,7 @@ class TestSplitSqlStatements:
 def _closing_conn(path):
     """Open and return a sqlite3 connection that uses DELETE journal mode."""
     import sqlite3
+
     conn = sqlite3.connect(str(path))
     conn.execute("PRAGMA journal_mode=DELETE")
     return conn
@@ -156,7 +161,9 @@ class TestMigrationManager:
             mgr.migrate()
             conn = _closing_conn(db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'")
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'"
+            )
             assert cursor.fetchone() is not None
             version = mgr._get_current_version(conn)
             assert version >= 1
@@ -207,11 +214,15 @@ class TestMigrationManager:
         surface as a hard failure instead of silently working by
         coincidence on someone's already-migrated dev database.
         """
-        real_migrations_dir = Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "migrations"
+        real_migrations_dir = (
+            Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "migrations"
+        )
         assert real_migrations_dir.exists(), f"expected migrations dir at {real_migrations_dir}"
         migration_files = sorted(real_migrations_dir.glob("*.sql"))
         numbered = [f for f in migration_files if f.stem.split("_")[0].isdigit()]
-        assert len(numbered) >= 20, "sanity check: expected the real migration set, not an empty/wrong dir"
+        assert len(numbered) >= 20, (
+            "sanity check: expected the real migration set, not an empty/wrong dir"
+        )
 
         tmpdir = Path(tempfile.mkdtemp())
         try:
@@ -234,11 +245,18 @@ class TestMigrationManager:
             # (e.g. a typo'd CREATE TABLE IF NOT EXISTS) as well as one
             # that raises.
             for expected_table in [
-                "matches", "players", "events",              # 001
-                "coding_tags",                                # 018
-                "player_shortlist", "player_contracts",       # 016, 017
-                "gps_sessions", "gps_samples", "acwr_daily",  # 026
-                "users", "user_sessions", "audit_events_local",  # 027
+                "matches",
+                "players",
+                "events",  # 001
+                "coding_tags",  # 018
+                "player_shortlist",
+                "player_contracts",  # 016, 017
+                "gps_sessions",
+                "gps_samples",
+                "acwr_daily",  # 026
+                "users",
+                "user_sessions",
+                "audit_events_local",  # 027
             ]:
                 assert expected_table in tables, f"migration chain never created '{expected_table}'"
 
@@ -253,10 +271,15 @@ class TestMigrationManager:
             migrations_dir = tmpdir / "migrations"
             migrations_dir.mkdir()
             import sqlite3
+
             conn = _closing_conn(db_path)
             cursor = conn.cursor()
-            cursor.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, match_id INTEGER, timestamp REAL, event_type TEXT, from_track_id INTEGER)")
-            cursor.execute("CREATE TABLE user_corrections (id INTEGER PRIMARY KEY, event_id INTEGER)")
+            cursor.execute(
+                "CREATE TABLE events (id INTEGER PRIMARY KEY, match_id INTEGER, timestamp REAL, event_type TEXT, from_track_id INTEGER)"
+            )
+            cursor.execute(
+                "CREATE TABLE user_corrections (id INTEGER PRIMARY KEY, event_id INTEGER)"
+            )
             conn.commit()
             conn.close()
             mig_file = migrations_dir / "015_add_event_dedup.sql"
@@ -272,9 +295,13 @@ class TestMigrationManager:
             version = mgr._get_current_version(conn)
             assert version == 15
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO events (id, match_id, timestamp, event_type, from_track_id) VALUES (1, 1, 10.0, 'pass', 1)")
+            cursor.execute(
+                "INSERT INTO events (id, match_id, timestamp, event_type, from_track_id) VALUES (1, 1, 10.0, 'pass', 1)"
+            )
             with pytest.raises(sqlite3.IntegrityError):
-                cursor.execute("INSERT INTO events (id, match_id, timestamp, event_type, from_track_id) VALUES (2, 1, 10.0, 'pass', 1)")
+                cursor.execute(
+                    "INSERT INTO events (id, match_id, timestamp, event_type, from_track_id) VALUES (2, 1, 10.0, 'pass', 1)"
+                )
             conn.close()
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

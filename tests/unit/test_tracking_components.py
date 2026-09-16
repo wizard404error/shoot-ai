@@ -16,6 +16,7 @@ install_kawkab_stubs()
 
 # ── Module-level cv2 stub ────────────────────────────────────────────────
 
+
 def _install_cv2_stub() -> None:
     if "cv2" in sys.modules:
         return
@@ -27,10 +28,21 @@ def _install_cv2_stub() -> None:
     cv2_stub.NORM_MINMAX = 32
     cv2_stub.CAP_PROP_FPS = 5
     cv2_stub.CAP_PROP_FRAME_COUNT = 7
-    for fn in ("cvtColor", "inRange", "erode", "dilate", "findContours",
-               "minEnclosingCircle", "contourArea", "arcLength",
-               "compareHist", "calcHist", "normalize", "KalmanFilter",
-               "VideoCapture"):
+    for fn in (
+        "cvtColor",
+        "inRange",
+        "erode",
+        "dilate",
+        "findContours",
+        "minEnclosingCircle",
+        "contourArea",
+        "arcLength",
+        "compareHist",
+        "calcHist",
+        "normalize",
+        "KalmanFilter",
+        "VideoCapture",
+    ):
         setattr(cv2_stub, fn, MagicMock())
     sys.modules["cv2"] = cv2_stub
 
@@ -44,6 +56,7 @@ from kawkab.services.track_smoother import TrackSmoother
 # ═══════════════════════════════════════════════════════════════════════════
 # BallTracker
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestBallTracker:
     """BallTracker — HSV + Kalman ball detection."""
@@ -84,12 +97,17 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
-                det = tracker.update(
-                    np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
+                det = tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
         assert det is not None
         assert det.frame == 0
@@ -111,21 +129,26 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
             mock_kf.reset_mock()
-            mock_kf.statePost = np.array(
-                [101.0, 51.0, 8.0, 0.0, 0.0, 0.0], dtype=np.float32)
+            mock_kf.statePost = np.array([101.0, 51.0, 8.0, 0.0, 0.0, 0.0], dtype=np.float32)
             mock_kf.predict.return_value = mock_kf.statePost
 
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
-                det = tracker.update(
-                    np.zeros((10, 10, 3), dtype=np.uint8), 1, 0.04)
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
+                det = tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 1, 0.04)
 
         assert det is not None
         mock_kf.predict.assert_called_once()
@@ -135,17 +158,21 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
             mock_kf.reset_mock()
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[]):
-                det = tracker.update(
-                    np.zeros((10, 10, 3), dtype=np.uint8), 1, 1.0 / 24.0)
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates", return_value=[]):
+                det = tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 1, 1.0 / 24.0)
 
         assert det is not None
         assert det.is_prediction is True
@@ -156,19 +183,24 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[]):
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates", return_value=[]):
                 det = None
                 for i in range(32):
                     det = tracker.update(
-                        np.zeros((10, 10, 3), dtype=np.uint8),
-                        i + 1, (i + 1) / 24.0)
+                        np.zeros((10, 10, 3), dtype=np.uint8), i + 1, (i + 1) / 24.0
+                    )
 
         assert det is None
         assert tracker.initialized is False
@@ -176,10 +208,8 @@ class TestBallTracker:
     def test_update_no_candidate_uninitialized_returns_none(self):
         with patch("cv2.KalmanFilter", return_value=self._kalman_mock()):
             tracker = BallTracker()
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[]):
-                det = tracker.update(
-                    np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
+            with patch("kawkab.services.ball_tracker._find_hsv_candidates", return_value=[]):
+                det = tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
         assert det is None
 
     # -- Reset ---------------------------------------------------------------
@@ -188,10 +218,16 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
 
         tracker.reset()
@@ -211,10 +247,16 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 0, 0.0)
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 1, 1.0)
                 tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), 2, 2.0)
@@ -229,22 +271,27 @@ class TestBallTracker:
         mock_kf = self._kalman_mock()
         with patch("cv2.KalmanFilter", return_value=mock_kf):
             tracker = BallTracker()
-            candidate = {"x": 100.0, "y": 50.0, "radius": 8.0,
-                         "circularity": 0.85, "label": "white"}
-            with patch("kawkab.services.ball_tracker._find_hsv_candidates",
-                              return_value=[candidate]):
+            candidate = {
+                "x": 100.0,
+                "y": 50.0,
+                "radius": 8.0,
+                "circularity": 0.85,
+                "label": "white",
+            }
+            with patch(
+                "kawkab.services.ball_tracker._find_hsv_candidates", return_value=[candidate]
+            ):
                 for i in range(1001):
-                    tracker.update(
-                        np.zeros((10, 10, 3), dtype=np.uint8),
-                        i, i / 24.0)
+                    tracker.update(np.zeros((10, 10, 3), dtype=np.uint8), i, i / 24.0)
 
         assert len(tracker.trail) == 500
 
 
 class TestBallDetection:
     def test_fields(self):
-        bd = BallDetection(frame=1, timestamp=0.04, x=100.0, y=50.0,
-                           conf=0.9, is_prediction=False, radius=8.0)
+        bd = BallDetection(
+            frame=1, timestamp=0.04, x=100.0, y=50.0, conf=0.9, is_prediction=False, radius=8.0
+        )
         assert bd.frame == 1
         assert bd.x == 100.0
         assert bd.y == 50.0
@@ -262,6 +309,7 @@ class TestBallDetection:
 # TrackSmoother
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestTrackSmoother:
     """TrackSmoother — RTS Kalman smoother for track positions."""
 
@@ -272,8 +320,7 @@ class TestTrackSmoother:
         assert smoother.H.shape == (2, 4)
 
     def test_init_custom(self):
-        smoother = TrackSmoother(dt=1.0 / 30.0, process_noise=1e-2,
-                                  measurement_noise=1e-1)
+        smoother = TrackSmoother(dt=1.0 / 30.0, process_noise=1e-2, measurement_noise=1e-1)
         assert smoother.dt == pytest.approx(1.0 / 30.0)
         expected_q = np.eye(4, dtype=np.float64) * 1e-2
         expected_r = np.eye(2, dtype=np.float64) * 1e-1
@@ -314,8 +361,10 @@ class TestTrackSmoother:
 # CameraCutDetector
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _make_cap_mock(fps: float = 30.0, total_frames: int = 100,
-                   read_success: bool = True) -> MagicMock:
+
+def _make_cap_mock(
+    fps: float = 30.0, total_frames: int = 100, read_success: bool = True
+) -> MagicMock:
     """Helper: build a VideoCapture mock."""
     cap = MagicMock()
     cap.isOpened.return_value = True
@@ -340,8 +389,7 @@ class TestCameraCutDetector:
         assert detector.min_cut_interval == 0.5
 
     def test_init_custom(self):
-        detector = CameraCutDetector(
-            hue_bins=16, sat_bins=4, threshold=0.5, min_cut_interval=1.0)
+        detector = CameraCutDetector(hue_bins=16, sat_bins=4, threshold=0.5, min_cut_interval=1.0)
         assert detector.hue_bins == 16
         assert detector.sat_bins == 4
         assert detector.threshold == 0.5
@@ -351,12 +399,10 @@ class TestCameraCutDetector:
 
     def test_detect_cuts_fast_delegates(self):
         detector = CameraCutDetector()
-        with patch.object(detector, "detect_cuts",
-                          return_value=[{"frame": 5}]) as mock_dc:
+        with patch.object(detector, "detect_cuts", return_value=[{"frame": 5}]) as mock_dc:
             result = detector.detect_cuts_fast(Path("dummy.mp4"))
 
-        mock_dc.assert_called_once_with(
-            Path("dummy.mp4"), sample_every_n=6, max_frames=0)
+        mock_dc.assert_called_once_with(Path("dummy.mp4"), sample_every_n=6, max_frames=0)
         assert result == [{"frame": 5}]
 
     # -- detect_cuts ---------------------------------------------------------
@@ -381,12 +427,12 @@ class TestCameraCutDetector:
 
         with patch("cv2.VideoCapture", return_value=cap):
             detector = CameraCutDetector(threshold=0.1)
-            hists = [np.array([0.1, 0.9]), np.array([0.9, 0.1]),
-                     np.array([0.8, 0.2])]
-            with patch.object(detector, "_compute_hsv_hist",
-                              side_effect=hists), patch("cv2.compareHist", side_effect=[0.5, 0.05]):
-                cuts = detector.detect_cuts(
-                    Path("dummy.mp4"), sample_every_n=1, max_frames=3)
+            hists = [np.array([0.1, 0.9]), np.array([0.9, 0.1]), np.array([0.8, 0.2])]
+            with (
+                patch.object(detector, "_compute_hsv_hist", side_effect=hists),
+                patch("cv2.compareHist", side_effect=[0.5, 0.05]),
+            ):
+                cuts = detector.detect_cuts(Path("dummy.mp4"), sample_every_n=1, max_frames=3)
 
         assert len(cuts) == 1
         assert cuts[0]["frame"] == 1
@@ -402,11 +448,9 @@ class TestCameraCutDetector:
 
         with patch("cv2.VideoCapture", return_value=cap):
             detector = CameraCutDetector(threshold=0.5)
-            with patch.object(detector, "_compute_hsv_hist",
-                              return_value=np.array([0.5, 0.5])):
+            with patch.object(detector, "_compute_hsv_hist", return_value=np.array([0.5, 0.5])):
                 with patch("cv2.compareHist", return_value=0.0):
-                    cuts = detector.detect_cuts(
-                        Path("dummy.mp4"), sample_every_n=1, max_frames=2)
+                    cuts = detector.detect_cuts(Path("dummy.mp4"), sample_every_n=1, max_frames=2)
 
         assert len(cuts) == 0
 
@@ -459,10 +503,8 @@ class TestCameraCutDetector:
 
         cap = _make_cap_mock(fps=30.0, total_frames=200)
         with patch("cv2.VideoCapture", return_value=cap):
-            with patch.object(detector, "detect_cuts",
-                              return_value=cuts_result):
-                segments = detector.get_camera_segments(Path("dummy.mp4"),
-                                                        sample_every_n=1)
+            with patch.object(detector, "detect_cuts", return_value=cuts_result):
+                segments = detector.get_camera_segments(Path("dummy.mp4"), sample_every_n=1)
 
         assert len(segments) == 2
         assert segments[0]["start_frame"] == 0

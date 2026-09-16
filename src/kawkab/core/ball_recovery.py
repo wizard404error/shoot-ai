@@ -107,13 +107,15 @@ class BallRecoveryAnalyzer:
         events: list[dict[str, Any]],
         team: str,
     ) -> dict[str, Any]:
-        recoveries = [e for e in events if e.get("team") == team and e.get("type") in RECOVERY_EVENT_TYPES]
+        recoveries = [
+            e for e in events if e.get("team") == team and e.get("type") in RECOVERY_EVENT_TYPES
+        ]
         total = len(recoveries)
 
         by_type: dict[str, int] = defaultdict(int)
         for ev in recoveries:
             prev_idx = events.index(ev)
-            prev = events[max(0, prev_idx - 5):prev_idx]
+            prev = events[max(0, prev_idx - 5) : prev_idx]
             rtype, _, _ = self.classify_recovery(ev, prev)
             by_type[rtype] += 1
 
@@ -174,7 +176,8 @@ class BallRecoveryAnalyzer:
         counter_team = "away" if team == "home" else "home"
         pressure_end = event_time + 2.0
         pressure_events = [
-            e for e in events
+            e
+            for e in events
             if e.get("timestamp", 0) > event_time
             and e.get("timestamp", 0) <= pressure_end
             and e.get("team") == counter_team
@@ -209,8 +212,7 @@ class BallRecoveryAnalyzer:
             recoveries_per_min = total_rec / match_minutes
 
             attacking_third_recoveries = sum(
-                1 for e in recoveries
-                if e.get("x", 0) > PITCH_LENGTH * (2.0 / 3.0)
+                1 for e in recoveries if e.get("x", 0) > PITCH_LENGTH * (2.0 / 3.0)
             )
             attacking_third_pct = (attacking_third_recoveries / max(total_rec, 1)) * 100
 

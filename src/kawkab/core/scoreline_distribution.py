@@ -14,24 +14,36 @@ import numpy as np
 
 
 class ScorelineDistribution:
-    def compute_scoreline_probabilities(self, events: list[dict[str, Any]], n_sims: int = 50000) -> dict[str, Any]:
+    def compute_scoreline_probabilities(
+        self, events: list[dict[str, Any]], n_sims: int = 50000
+    ) -> dict[str, Any]:
         if not events:
             return {"scorelines": {}, "n_sims": 0}
         match_duration = max(e.get("timestamp", 0) for e in events)
         remaining_minutes = max(90.0 - match_duration / 60.0, 0)
         if remaining_minutes <= 0:
-            goals_home = sum(1 for e in events if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "home")
-            goals_away = sum(1 for e in events if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "away")
+            goals_home = sum(
+                1
+                for e in events
+                if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "home"
+            )
+            goals_away = sum(
+                1
+                for e in events
+                if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "away"
+            )
             key = f"{goals_home}-{goals_away}"
             return {"scorelines": {key: 1.0}, "n_sims": n_sims, "remaining_minutes": 0}
         # xg may be present-but-NULL (json_extract) — treat as 0, never
         # let None into the Poisson rate (TypeError killed real reports).
         xg_total_home = sum(
-            (e.get("xg") or 0.0) for e in events
+            (e.get("xg") or 0.0)
+            for e in events
             if e.get("team") == "home" and e.get("type") == "shot"
         )
         xg_total_away = sum(
-            (e.get("xg") or 0.0) for e in events
+            (e.get("xg") or 0.0)
+            for e in events
             if e.get("team") == "away" and e.get("type") == "shot"
         )
         elapsed_minutes = match_duration / 60.0
@@ -39,8 +51,16 @@ class ScorelineDistribution:
         xg_rate_away = xg_total_away / max(elapsed_minutes, 1)
         sim_goals_home = np.random.poisson(xg_rate_home * remaining_minutes, n_sims)
         sim_goals_away = np.random.poisson(xg_rate_away * remaining_minutes, n_sims)
-        goals_home_sofar = sum(1 for e in events if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "home")
-        goals_away_sofar = sum(1 for e in events if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "away")
+        goals_home_sofar = sum(
+            1
+            for e in events
+            if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "home"
+        )
+        goals_away_sofar = sum(
+            1
+            for e in events
+            if e.get("type") == "shot" and e.get("is_goal") and e.get("team") == "away"
+        )
         final_home = sim_goals_home + goals_home_sofar
         final_away = sim_goals_away + goals_away_sofar
         counts: dict[str, int] = defaultdict(int)

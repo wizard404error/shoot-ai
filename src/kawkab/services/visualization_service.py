@@ -176,14 +176,24 @@ class VisualizationService:
             for (src, dst), weight in edge_weights.items():
                 width = 1 + (weight / max_weight) * 5
                 alpha = min(0.3 + (weight / max_weight) * 0.7, 0.9)
-                nx.draw_networkx_edges(G, pos, edgelist=[(src, dst)],
-                                       width=width, alpha=alpha, edge_color="white", arrows=True,
-                                       arrowsize=15, ax=ax, connectionstyle="arc3,rad=0.1")
+                nx.draw_networkx_edges(
+                    G,
+                    pos,
+                    edgelist=[(src, dst)],
+                    width=width,
+                    alpha=alpha,
+                    edge_color="white",
+                    arrows=True,
+                    arrowsize=15,
+                    ax=ax,
+                    connectionstyle="arc3,rad=0.1",
+                )
 
             # Draw nodes
             node_sizes = [300 + edge_weights.get((n, n), 0) * 100 for n in G.nodes]
-            nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color="gold",
-                                   alpha=0.8, ax=ax)
+            nx.draw_networkx_nodes(
+                G, pos, node_size=node_sizes, node_color="gold", alpha=0.8, ax=ax
+            )
             nx.draw_networkx_labels(G, pos, font_size=10, font_color="black", ax=ax)
 
             ax.set_title(title, color="white", fontsize=14)
@@ -225,12 +235,14 @@ class VisualizationService:
         _HAS_SOCCERPLOTS = False
         try:
             from soccerplots.radar_chart import Radar
+
             _HAS_SOCCERPLOTS = True
         except ImportError:
             pass
 
         try:
             from daimon_runtime import setup_plot
+
             setup_plot({"runDir": str(self._exports_dir)})
 
             # Compute pass angles and distances by player
@@ -257,12 +269,8 @@ class VisualizationService:
                 return None
 
             if _HAS_SOCCERPLOTS and len(player_passes) <= 6:
-                return self._render_pass_sonar_soccerplots(
-                    player_passes, title, output_name
-                )
-            return self._render_pass_sonar_matplotlib(
-                player_passes, title, output_name
-            )
+                return self._render_pass_sonar_soccerplots(player_passes, title, output_name)
+            return self._render_pass_sonar_matplotlib(player_passes, title, output_name)
         except Exception as e:
             logger.error(f"Pass sonar generation failed: {e}")
             return None
@@ -306,9 +314,18 @@ class VisualizationService:
                 spacing = 68 / (n + 1)
                 for i, pid in enumerate(players):
                     y = spacing * (i + 1)
-                    ax.scatter([y_line], [y], s=400, c=color, edgecolors="white", linewidths=2, zorder=5)
-                    ax.annotate(str(pid), (y_line, y), fontsize=9, ha="center", va="center",
-                                color="white", fontweight="bold")
+                    ax.scatter(
+                        [y_line], [y], s=400, c=color, edgecolors="white", linewidths=2, zorder=5
+                    )
+                    ax.annotate(
+                        str(pid),
+                        (y_line, y),
+                        fontsize=9,
+                        ha="center",
+                        va="center",
+                        color="white",
+                        fontweight="bold",
+                    )
 
             defenders = formation.get("defenders", [])
             midfielders = formation.get("midfielders", [])
@@ -319,7 +336,9 @@ class VisualizationService:
             draw_line(midfielders, line_height + 20, "#f39c12")
             draw_line(attackers, line_height + 40, "#2ecc71")
 
-            ax.set_title(f"{title} ({formation.get('formation', 'unknown')})", color="white", fontsize=14)
+            ax.set_title(
+                f"{title} ({formation.get('formation', 'unknown')})", color="white", fontsize=14
+            )
             ax.set_xlabel("Pitch Length (m)", color="white")
             ax.set_ylabel("Pitch Width (m)", color="white")
             ax.tick_params(colors="white")
@@ -350,8 +369,9 @@ class VisualizationService:
         cols = min(4, n_players)
         rows = math.ceil(n_players / cols)
 
-        fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows),
-                                 subplot_kw=dict(polar=True))
+        fig, axes = plt.subplots(
+            rows, cols, figsize=(4 * cols, 4 * rows), subplot_kw=dict(polar=True)
+        )
         if n_players == 1:
             axes = [axes]
         else:
@@ -360,7 +380,7 @@ class VisualizationService:
         for idx, (player_id, passes) in enumerate(player_passes.items()):
             if idx >= len(axes):
                 break
-            ax = axes[idx] if hasattr(axes, '__getitem__') else axes
+            ax = axes[idx] if hasattr(axes, "__getitem__") else axes
             angles = [p[0] for p in passes]
             distances = [p[1] for p in passes]
             n_bins = 8
@@ -371,8 +391,9 @@ class VisualizationService:
                 bin_idx = int((angle + math.pi) / bin_width) % n_bins
                 bin_counts[bin_idx] += 1
                 bin_distances[bin_idx] += dist
-            avg_distances = [bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0
-                              for i in range(n_bins)]
+            avg_distances = [
+                bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0 for i in range(n_bins)
+            ]
             max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
             normalized = [d / max_dist for d in avg_distances]
             theta = [i * bin_width - math.pi for i in range(n_bins)]
@@ -384,8 +405,8 @@ class VisualizationService:
             ax.set_ylim(0, 1.2)
             ax.set_yticks([])
 
-        for idx in range(len(player_passes), len(axes) if hasattr(axes, '__len__') else 1):
-            if hasattr(axes, '__getitem__'):
+        for idx in range(len(player_passes), len(axes) if hasattr(axes, "__len__") else 1):
+            if hasattr(axes, "__getitem__"):
                 axes[idx].axis("off")
 
         fig.suptitle(title, fontsize=14)
@@ -429,19 +450,22 @@ class VisualizationService:
                 bin_idx = int((angle + math.pi) / bin_width) % n_bins
                 bin_counts[bin_idx] += 1
                 bin_distances[bin_idx] += dist
-            avg_distances = [bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0
-                              for i in range(n_bins)]
+            avg_distances = [
+                bin_distances[i] / bin_counts[i] if bin_counts[i] > 0 else 0 for i in range(n_bins)
+            ]
             max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
             normalized = [d / max_dist for d in avg_distances]
             theta = [i * bin_width - math.pi for i in range(n_bins)]
             theta_deg = [math.degrees(t) for t in theta]
-            params = [f"{i*45}°" for i in range(n_bins)]
+            params = [f"{i * 45}°" for i in range(n_bins)]
             ranges = [(0, 1.2)] * n_bins
             values = normalized
 
             radar = Radar()
             fig_radar, ax_radar = radar.plot(
-                params=params, ranges=ranges, values=[values],
+                params=params,
+                ranges=ranges,
+                values=[values],
                 title={"title": f"Player {player_id}", "color": "#1a1a1a"},
                 alphas=[0.3],  # type: ignore
             )

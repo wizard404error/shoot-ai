@@ -54,7 +54,9 @@ ROLE_DEFINITIONS: list[tuple[str, str, str]] = [
 ]
 
 
-def _avg_position(events: list[dict[str, Any]], key_x: str = "start_x", key_y: str = "start_y") -> tuple[float, float]:
+def _avg_position(
+    events: list[dict[str, Any]], key_x: str = "start_x", key_y: str = "start_y"
+) -> tuple[float, float]:
     xs = [e.get(key_x, 0) for e in events if e.get(key_x) is not None]
     ys = [e.get(key_y, 0) for e in events if e.get(key_y) is not None]
     if not xs or not ys:
@@ -117,9 +119,12 @@ def classify_player_role(
     shot_volume = len(shots) / max(total_actions, 1)
 
     # wide vs central
-    wide_pct = sum(1 for e in player_events
-                   if e.get("start_y", PITCH_WIDTH / 2) < PITCH_WIDTH * 0.25
-                   or e.get("start_y", PITCH_WIDTH / 2) > PITCH_WIDTH * 0.75)
+    wide_pct = sum(
+        1
+        for e in player_events
+        if e.get("start_y", PITCH_WIDTH / 2) < PITCH_WIDTH * 0.25
+        or e.get("start_y", PITCH_WIDTH / 2) > PITCH_WIDTH * 0.75
+    )
     wide_pct /= max(total_actions, 1)
 
     scores: dict[str, float] = {}

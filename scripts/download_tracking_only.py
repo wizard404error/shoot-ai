@@ -1,4 +1,5 @@
 """Download SoccerNet tracking-2023 train split, properly handling resumption."""
+
 import logging
 import os
 import sys
@@ -14,8 +15,8 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(log_dir, "tracking_download.log"), mode="w")
-    ]
+        logging.FileHandler(os.path.join(log_dir, "tracking_download.log"), mode="w"),
+    ],
 )
 log = logging.getLogger("soccernet_tracking")
 
@@ -24,7 +25,9 @@ zip_path = os.path.join(log_dir, "tracking-2023", "train.zip")
 if os.path.exists(zip_path):
     size_mb = os.path.getsize(zip_path) / (1024 * 1024)
     if size_mb < 8000:
-        log.warning(f"train.zip exists but only {size_mb:.1f} MB (expected ~9580 MB). Deleting for clean download.")
+        log.warning(
+            f"train.zip exists but only {size_mb:.1f} MB (expected ~9580 MB). Deleting for clean download."
+        )
         os.remove(zip_path)
 
 from SoccerNet.Downloader import SoccerNetDownloader
@@ -41,7 +44,7 @@ dl.downloadDataTask(task="tracking-2023", split=["train"], password="SoccerNet",
 
 elapsed = time.time() - start
 final_size = os.path.getsize(zip_path) / (1024 * 1024) if os.path.exists(zip_path) else 0
-log.info(f"Download complete! Elapsed: {elapsed/60:.1f} min, Final size: {final_size:.1f} MB")
+log.info(f"Download complete! Elapsed: {elapsed / 60:.1f} min, Final size: {final_size:.1f} MB")
 
 # Write a sentinel so we know it's done
 try:

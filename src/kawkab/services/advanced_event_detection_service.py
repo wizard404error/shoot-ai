@@ -69,7 +69,9 @@ class AdvancedEventDetectionService:
         duels = self._detect_duels(track_data, homography_matrix)
         carries = self._detect_carries(track_data, base_events, homography_matrix)
         progressive = self._detect_progressive_actions(track_data, base_events, homography_matrix)
-        final_third_entries = self._detect_final_third_entries(track_data, base_events, homography_matrix)
+        final_third_entries = self._detect_final_third_entries(
+            track_data, base_events, homography_matrix
+        )
         high_turnovers = self._detect_high_turnovers(track_data, base_events, homography_matrix)
         goals = self._detect_goals(track_data, base_events, homography_matrix)
         corners = self._detect_corners(track_data, homography_matrix)
@@ -100,15 +102,17 @@ class AdvancedEventDetectionService:
         counts = defaultdict(int)
         for e in all_events:
             counts[e.get("type", "unknown")] += 1
-        logger.info(
-            f"Advanced events: {dict(counts)}"
-        )
+        logger.info(f"Advanced events: {dict(counts)}")
 
         return all_events
 
     def _get_player_team(self, track_data: MatchTrackData, track_id: int) -> str:
         """Get team assignment for a track ID."""
-        return track_data.player_teams.get(track_id, "unknown") if track_data.player_teams else "unknown"
+        return (
+            track_data.player_teams.get(track_id, "unknown")
+            if track_data.player_teams
+            else "unknown"
+        )
 
     # ------------------------------------------------------------------
     # Normalized event accessors.
@@ -174,15 +178,15 @@ class AdvancedEventDetectionService:
             return float(ex) * 105.0, (float(ey) if ey is not None else 0.5) * 68.0
         return ex, ey
 
-    def _detect_dribbles(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_dribbles(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect dribbles: ball stays with same player for 3+ frames while moving."""
         events = []
         dribble_min_frames = 3
         dribble_min_distance = 1.0  # meters
 
-        possession_chain: list[tuple[float, int, float, float]] = []  # [(timestamp, track_id, ball_x, ball_y)]
+        possession_chain: list[
+            tuple[float, int, float, float]
+        ] = []  # [(timestamp, track_id, ball_x, ball_y)]
 
         for frame in track_data.frames:
             ball_det = None
@@ -231,7 +235,11 @@ class AdvancedEventDetectionService:
                         continue
                 else:
                     from kawkab.core.game_constants import GAME
-                    bx, by = bx * GAME.CARRY_PIXEL_TO_METER_RATIO, by * GAME.CARRY_PIXEL_TO_METER_RATIO
+
+                    bx, by = (
+                        bx * GAME.CARRY_PIXEL_TO_METER_RATIO,
+                        by * GAME.CARRY_PIXEL_TO_METER_RATIO,
+                    )
 
                 possession_chain.append((frame.timestamp, closest_player.track_id, bx, by))
             else:
@@ -253,22 +261,26 @@ class AdvancedEventDetectionService:
 
                     if dist >= dribble_min_distance:
                         team = self._get_player_team(track_data, tid)
-                        events.append({
-                            "type": "dribble",
-                            "timestamp": possession_chain[-1][0],
-                            "track_id": tid,
-                            "team": team,
-                            "distance_m": round(dist, 1),
-                            "duration_s": round(possession_chain[-1][0] - possession_chain[0][0], 2),
-                            "confidence": 0.6,
-                            "metadata": {
-                                "start_x": round(start_x, 1),
-                                "start_y": round(start_y, 1),
-                                "end_x": round(end_x, 1),
-                                "end_y": round(end_y, 1),
-                                "spatial_units": "meters" if calibrated else "pixel_approx",
-                            },
-                        })
+                        events.append(
+                            {
+                                "type": "dribble",
+                                "timestamp": possession_chain[-1][0],
+                                "track_id": tid,
+                                "team": team,
+                                "distance_m": round(dist, 1),
+                                "duration_s": round(
+                                    possession_chain[-1][0] - possession_chain[0][0], 2
+                                ),
+                                "confidence": 0.6,
+                                "metadata": {
+                                    "start_x": round(start_x, 1),
+                                    "start_y": round(start_y, 1),
+                                    "end_x": round(end_x, 1),
+                                    "end_y": round(end_y, 1),
+                                    "spatial_units": "meters" if calibrated else "pixel_approx",
+                                },
+                            }
+                        )
                         possession_chain = []  # reset after detection
 
         return events
@@ -295,18 +307,20 @@ class AdvancedEventDetectionService:
                 # Pass was intercepted = tackle/interception
                 # But only if the defender was close to the attacker
                 tackle_events.add(i)
-                events.append({
-                    "type": "tackle",
-                    "timestamp": event["timestamp"],
-                    "from_track_id": from_tid,
-                    "to_track_id": to_tid,
-                    "team": to_team,
-                    "confidence": min(1.0, event.get("confidence", 0.5) + 0.3),
-                    "metadata": {
-                        "derived_from_pass": True,
-                        "tackler_team": to_team,
-                    },
-                })
+                events.append(
+                    {
+                        "type": "tackle",
+                        "timestamp": event["timestamp"],
+                        "from_track_id": from_tid,
+                        "to_track_id": to_tid,
+                        "team": to_team,
+                        "confidence": min(1.0, event.get("confidence", 0.5) + 0.3),
+                        "metadata": {
+                            "derived_from_pass": True,
+                            "tackler_team": to_team,
+                        },
+                    }
+                )
 
         return events
 
@@ -341,20 +355,28 @@ class AdvancedEventDetectionService:
                 tid = closest_player.track_id
                 team = self._get_player_team(track_data, tid)
 
-                if prev_possession is not None and tid != prev_possession and team != prev_team and team != "unknown" and prev_team != "unknown":
+                if (
+                    prev_possession is not None
+                    and tid != prev_possession
+                    and team != prev_team
+                    and team != "unknown"
+                    and prev_team != "unknown"
+                ):
                     # Possession changed without a pass event
                     if frame.timestamp not in pass_timestamps:
-                        events.append({
-                            "type": "interception",
-                            "timestamp": frame.timestamp,
-                            "from_track_id": prev_possession,
-                            "to_track_id": tid,
-                            "team": team,
-                            "confidence": 0.5,
-                            "metadata": {
-                                "no_pass_detected": True,
-                            },
-                        })
+                        events.append(
+                            {
+                                "type": "interception",
+                                "timestamp": frame.timestamp,
+                                "from_track_id": prev_possession,
+                                "to_track_id": tid,
+                                "team": team,
+                                "confidence": 0.5,
+                                "metadata": {
+                                    "no_pass_detected": True,
+                                },
+                            }
+                        )
 
                 prev_possession = tid
                 prev_team = team
@@ -364,9 +386,7 @@ class AdvancedEventDetectionService:
 
         return events
 
-    def _detect_clearances(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_clearances(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect clearances: ball kicked from defensive third to safety with high speed."""
         events = []
         ball_history = []
@@ -407,6 +427,7 @@ class AdvancedEventDetectionService:
                 # same pixel->meter ratio the carry/dribble paths use so
                 # the thresholds keep their meaning.
                 from kawkab.core.game_constants import GAME
+
                 pitch_x = bx * GAME.CARRY_PIXEL_TO_METER_RATIO
                 pitch_y = by * GAME.CARRY_PIXEL_TO_METER_RATIO
 
@@ -426,17 +447,19 @@ class AdvancedEventDetectionService:
                     # In defensive third, ball moving away from goal fast
                     defensive_threshold = self.pitch_length * 0.25
                     if pitch_x < defensive_threshold and dx > 5 and speed > 8:
-                        events.append({
-                            "type": "clearance",
-                            "timestamp": frame.timestamp,
-                            "team": "unknown",  # can't determine from ball alone
-                            "confidence": min(1.0, speed / 20.0),
-                            "metadata": {
-                                "speed_mps": round(speed, 1),
-                                "defensive_zone": True,
-                                "direction": "forward",
-                            },
-                    })
+                        events.append(
+                            {
+                                "type": "clearance",
+                                "timestamp": frame.timestamp,
+                                "team": "unknown",  # can't determine from ball alone
+                                "confidence": min(1.0, speed / 20.0),
+                                "metadata": {
+                                    "speed_mps": round(speed, 1),
+                                    "defensive_zone": True,
+                                    "direction": "forward",
+                                },
+                            }
+                        )
 
         return events
 
@@ -477,7 +500,9 @@ class AdvancedEventDetectionService:
             if near_idx < 0:
                 continue
 
-            follow_positions = ball_positions[near_idx : near_idx + min(60, len(ball_positions) - near_idx)]
+            follow_positions = ball_positions[
+                near_idx : near_idx + min(60, len(ball_positions) - near_idx)
+            ]
             if len(follow_positions) < 3:
                 continue
 
@@ -500,23 +525,27 @@ class AdvancedEventDetectionService:
 
             if crossed_line and post_speed < 5.0:
                 team = shot.get("team", "unknown")
-                events.append({
-                    "type": "goal",
-                    "timestamp": ts,
-                    "team": team,
-                    "shot_confidence": shot.get("confidence", 0.5),
-                    "confidence": 0.7,
-                    "metadata": {
-                        "distance_to_goal_m": shot.get("metadata", {}).get("distance_to_goal_m", 0),
-                        "angle_to_goal_deg": shot.get("metadata", {}).get("angle_to_goal_deg", 0),
-                    },
-                })
+                events.append(
+                    {
+                        "type": "goal",
+                        "timestamp": ts,
+                        "team": team,
+                        "shot_confidence": shot.get("confidence", 0.5),
+                        "confidence": 0.7,
+                        "metadata": {
+                            "distance_to_goal_m": shot.get("metadata", {}).get(
+                                "distance_to_goal_m", 0
+                            ),
+                            "angle_to_goal_deg": shot.get("metadata", {}).get(
+                                "angle_to_goal_deg", 0
+                            ),
+                        },
+                    }
+                )
 
         return events
 
-    def _detect_corners(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_corners(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect corners: ball near corner arc after out of play."""
         events = []
         corner_radius = 5.0
@@ -544,25 +573,32 @@ class AdvancedEventDetectionService:
                         is_near_top = pitch_y < corner_radius
                         is_near_bottom = pitch_y > self.pitch_width - corner_radius
 
-                        if (is_near_left_goal or is_near_right_goal) and (is_near_top or is_near_bottom):
+                        if (is_near_left_goal or is_near_right_goal) and (
+                            is_near_top or is_near_bottom
+                        ):
                             is_left_side = is_near_left_goal
                             is_top_side = is_near_top
                             corner_team = "unknown"
 
                             corner_events = [e for e in events if e.get("type") == "corner"]
-                            if len(corner_events) == 0 or (frame.timestamp - corner_events[-1]["timestamp"]) > 5:
-                                events.append({
-                                    "type": "corner",
-                                    "timestamp": frame.timestamp,
-                                    "team": corner_team,
-                                    "confidence": 0.4,
-                                    "metadata": {
-                                        "pitch_x": round(pitch_x, 1),
-                                        "pitch_y": round(pitch_y, 1),
-                                        "side": "left" if is_left_side else "right",
-                                        "height": "top" if is_top_side else "bottom",
-                                    },
-                                })
+                            if (
+                                len(corner_events) == 0
+                                or (frame.timestamp - corner_events[-1]["timestamp"]) > 5
+                            ):
+                                events.append(
+                                    {
+                                        "type": "corner",
+                                        "timestamp": frame.timestamp,
+                                        "team": corner_team,
+                                        "confidence": 0.4,
+                                        "metadata": {
+                                            "pitch_x": round(pitch_x, 1),
+                                            "pitch_y": round(pitch_y, 1),
+                                            "side": "left" if is_left_side else "right",
+                                            "height": "top" if is_top_side else "bottom",
+                                        },
+                                    }
+                                )
                     ball_trail = []
                 continue
             else:
@@ -584,9 +620,7 @@ class AdvancedEventDetectionService:
 
         return events
 
-    def _detect_free_kicks(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_free_kicks(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect free kicks: ball stationary 2+ seconds then kicked hard."""
         events = []
         stationary_frames = 0
@@ -656,18 +690,26 @@ class AdvancedEventDetectionService:
                         if closest_player and closest_player.track_id is not None:
                             team = self._get_player_team(track_data, closest_player.track_id)
 
-                        pitch_loc = stationary_pitch_pos if stationary_pitch_pos and stationary_pitch_pos[0] >= 0 else None
-                        events.append({
-                            "type": "free_kick",
-                            "timestamp": stationary_start_time,
-                            "team": team,
-                            "confidence": 0.5,
-                            "metadata": {
-                                "stationary_duration_s": round(frame.timestamp - stationary_start_time, 2),
-                                "pitch_x": round(pitch_loc[0], 1) if pitch_loc else -1,
-                                "pitch_y": round(pitch_loc[1], 1) if pitch_loc else -1,
-                            },
-                        })
+                        pitch_loc = (
+                            stationary_pitch_pos
+                            if stationary_pitch_pos and stationary_pitch_pos[0] >= 0
+                            else None
+                        )
+                        events.append(
+                            {
+                                "type": "free_kick",
+                                "timestamp": stationary_start_time,
+                                "team": team,
+                                "confidence": 0.5,
+                                "metadata": {
+                                    "stationary_duration_s": round(
+                                        frame.timestamp - stationary_start_time, 2
+                                    ),
+                                    "pitch_x": round(pitch_loc[0], 1) if pitch_loc else -1,
+                                    "pitch_y": round(pitch_loc[1], 1) if pitch_loc else -1,
+                                },
+                            }
+                        )
 
                 stationary_frames = 0
                 stationary_start_time = 0.0
@@ -676,9 +718,7 @@ class AdvancedEventDetectionService:
 
         return events
 
-    def _detect_throw_ins(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_throw_ins(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect throw-ins: ball near sideline after going out of play."""
         events = []
         sideline_threshold = 8.0 if homography_matrix else 50
@@ -702,7 +742,10 @@ class AdvancedEventDetectionService:
                     near_sideline = False
                     side = "unknown"
                     if homography_matrix is not None and pitch_x >= 0:
-                        near_sideline = pitch_y < sideline_threshold or pitch_y > self.pitch_width - sideline_threshold
+                        near_sideline = (
+                            pitch_y < sideline_threshold
+                            or pitch_y > self.pitch_width - sideline_threshold
+                        )
                         if pitch_y < sideline_threshold:
                             side = "top"
                         elif pitch_y > self.pitch_width - sideline_threshold:
@@ -717,17 +760,23 @@ class AdvancedEventDetectionService:
 
                     if near_sideline:
                         team = "unknown"
-                        events.append({
-                            "type": "throw_in",
-                            "timestamp": frame.timestamp,
-                            "team": team,
-                            "confidence": 0.4,
-                            "metadata": {
-                                "side": side,
-                                "pitch_x": round(pitch_x, 1) if homography_matrix and pitch_x >= 0 else -1,
-                                "pitch_y": round(pitch_y, 1) if homography_matrix and pitch_y >= 0 else -1,
-                            },
-                        })
+                        events.append(
+                            {
+                                "type": "throw_in",
+                                "timestamp": frame.timestamp,
+                                "team": team,
+                                "confidence": 0.4,
+                                "metadata": {
+                                    "side": side,
+                                    "pitch_x": round(pitch_x, 1)
+                                    if homography_matrix and pitch_x >= 0
+                                    else -1,
+                                    "pitch_y": round(pitch_y, 1)
+                                    if homography_matrix and pitch_y >= 0
+                                    else -1,
+                                },
+                            }
+                        )
                     ball_trail = []
                 continue
             else:
@@ -774,21 +823,23 @@ class AdvancedEventDetectionService:
             in_penalty_area = end_x > (goal_line - 16.5) and 10 < end_y < (self.pitch_width - 10)
 
             if is_wide and in_penalty_area:
-                events.append({
-                    "type": "cross",
-                    "timestamp": event["timestamp"],
-                    "from_track_id": self._passer_id(event),
-                    "to_track_id": self._receiver_id(event),
-                    "team": event.get("team", "unknown"),
-                    "completed": event.get("completed", False),
-                    "confidence": event.get("confidence", 0.5) + 0.1,
-                    "metadata": {
-                        "from_wide": True,
-                        "into_box": True,
-                        "start_y": start_y,
-                        "end_x": end_x,
-                    },
-                })
+                events.append(
+                    {
+                        "type": "cross",
+                        "timestamp": event["timestamp"],
+                        "from_track_id": self._passer_id(event),
+                        "to_track_id": self._receiver_id(event),
+                        "team": event.get("team", "unknown"),
+                        "completed": event.get("completed", False),
+                        "confidence": event.get("confidence", 0.5) + 0.1,
+                        "metadata": {
+                            "from_wide": True,
+                            "into_box": True,
+                            "start_y": start_y,
+                            "end_x": end_x,
+                        },
+                    }
+                )
 
         return events
 
@@ -807,16 +858,18 @@ class AdvancedEventDetectionService:
 
             if prev_team is not None and team != prev_team:
                 if recovery_cooldown <= 0:
-                    events.append({
-                        "type": "ball_recovery",
-                        "timestamp": event["timestamp"],
-                        "team": team,
-                        "from_team": prev_team,
-                        "confidence": 0.5,
-                        "metadata": {
-                            "recovery_after_loss": True,
-                        },
-                    })
+                    events.append(
+                        {
+                            "type": "ball_recovery",
+                            "timestamp": event["timestamp"],
+                            "team": team,
+                            "from_team": prev_team,
+                            "confidence": 0.5,
+                            "metadata": {
+                                "recovery_after_loss": True,
+                            },
+                        }
+                    )
                     recovery_cooldown = 3  # 3-second cooldown
 
             prev_team = team
@@ -840,23 +893,23 @@ class AdvancedEventDetectionService:
             # Check if the event was NOT completed (shot blocked or pass blocked)
             if not event.get("completed", True):
                 # Look for a nearby defender in the frame
-                events.append({
-                    "type": "block",
-                    "timestamp": event["timestamp"],
-                    "team": from_team,  # team that attempted the action
-                    "defending_team": "unknown",  # would need to check nearby players
-                    "confidence": 0.5,
-                    "metadata": {
-                        "blocked_action": event.get("type"),
-                        "original_event_id": event.get("timestamp"),
-                    },
-                })
+                events.append(
+                    {
+                        "type": "block",
+                        "timestamp": event["timestamp"],
+                        "team": from_team,  # team that attempted the action
+                        "defending_team": "unknown",  # would need to check nearby players
+                        "confidence": 0.5,
+                        "metadata": {
+                            "blocked_action": event.get("type"),
+                            "original_event_id": event.get("timestamp"),
+                        },
+                    }
+                )
 
         return events
 
-    def _detect_duels(
-        self, track_data: MatchTrackData, homography_matrix=None
-    ) -> list[dict]:
+    def _detect_duels(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect duels: two players from opposite teams within 2m of each other near ball."""
         events = []
         duel_cooldown: dict[int, int] = defaultdict(int)
@@ -899,19 +952,21 @@ class AdvancedEventDetectionService:
                     d = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
                     if d < 50:  # within 50 pixels
                         if duel_cooldown[tid1] <= 0 and duel_cooldown[tid2] <= 0:
-                            events.append({
-                                "type": "duel",
-                                "timestamp": frame.timestamp,
-                                "track_id_1": tid1,
-                                "team_1": team1,
-                                "track_id_2": tid2,
-                                "team_2": team2,
-                                "confidence": min(1.0, 1.0 - d / 50),
-                                "metadata": {
-                                    "distance_px": round(d, 1),
-                                    "near_ball": True,
-                                },
-                            })
+                            events.append(
+                                {
+                                    "type": "duel",
+                                    "timestamp": frame.timestamp,
+                                    "track_id_1": tid1,
+                                    "team_1": team1,
+                                    "track_id_2": tid2,
+                                    "team_2": team2,
+                                    "confidence": min(1.0, 1.0 - d / 50),
+                                    "metadata": {
+                                        "distance_px": round(d, 1),
+                                        "near_ball": True,
+                                    },
+                                }
+                            )
                             duel_cooldown[tid1] = 15
                             duel_cooldown[tid2] = 15
 
@@ -986,19 +1041,21 @@ class AdvancedEventDetectionService:
             if is_progressive:
                 event["is_progressive"] = True
                 event["progress_m"] = round(progress, 1)
-                events.append({
-                    "type": "progressive_action",
-                    "timestamp": event["timestamp"],
-                    "original_type": ev_type,
-                    "team": team,
-                    "progress_m": round(progress, 1),
-                    "confidence": event.get("confidence", 0.5),
-                    "metadata": {
-                        "start_x": start_x,
-                        "end_x": end_x,
-                        "original_event": event,
-                    },
-                })
+                events.append(
+                    {
+                        "type": "progressive_action",
+                        "timestamp": event["timestamp"],
+                        "original_type": ev_type,
+                        "team": team,
+                        "progress_m": round(progress, 1),
+                        "confidence": event.get("confidence", 0.5),
+                        "metadata": {
+                            "start_x": start_x,
+                            "end_x": end_x,
+                            "original_event": event,
+                        },
+                    }
+                )
 
         return events
 
@@ -1020,16 +1077,18 @@ class AdvancedEventDetectionService:
 
             # Entry: started before final third, ended inside final third
             if start_x < final_third_start and end_x >= final_third_start:
-                events.append({
-                    "type": "final_third_entry",
-                    "timestamp": event["timestamp"],
-                    "original_type": event.get("type"),
-                    "team": event.get("team", "unknown"),
-                    "confidence": event.get("confidence", 0.5),
-                    "metadata": {
-                        "entry_point": round(end_x, 1),
-                    },
-                })
+                events.append(
+                    {
+                        "type": "final_third_entry",
+                        "timestamp": event["timestamp"],
+                        "original_type": event.get("type"),
+                        "team": event.get("team", "unknown"),
+                        "confidence": event.get("confidence", 0.5),
+                        "metadata": {
+                            "entry_point": round(end_x, 1),
+                        },
+                    }
+                )
 
         return events
 
@@ -1052,16 +1111,23 @@ class AdvancedEventDetectionService:
                 team = event.get("team", "unknown")
 
                 # Check if lost in attacking area
-                if team == "home" and start_x > high_turnover_line or team == "away" and start_x < (self.pitch_length - high_turnover_line):
-                    events.append({
-                        "type": "high_turnover",
-                        "timestamp": event["timestamp"],
-                        "team": team,
-                        "confidence": event.get("confidence", 0.5),
-                        "metadata": {
-                            "lost_in_final_third": True,
-                            "position_x": start_x,
-                        },
-                    })
+                if (
+                    team == "home"
+                    and start_x > high_turnover_line
+                    or team == "away"
+                    and start_x < (self.pitch_length - high_turnover_line)
+                ):
+                    events.append(
+                        {
+                            "type": "high_turnover",
+                            "timestamp": event["timestamp"],
+                            "team": team,
+                            "confidence": event.get("confidence", 0.5),
+                            "metadata": {
+                                "lost_in_final_third": True,
+                                "position_x": start_x,
+                            },
+                        }
+                    )
 
         return events

@@ -57,9 +57,7 @@ class OpponentDatabaseService:
     def __init__(self) -> None:
         self._profiles: dict[str, OpponentProfile] = {}
         self._matchups: dict[str, MatchUpRecord] = {}
-        self._data_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "opponents"
-        )
+        self._data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "opponents")
         self._load_data()
 
     def _data_path(self, *parts: str) -> str:
@@ -97,16 +95,18 @@ class OpponentDatabaseService:
     def list_profiles(self) -> list[dict]:
         results = []
         for p in self._profiles.values():
-            results.append({
-                "id": p.id,
-                "team_name": p.team_name,
-                "league": p.league,
-                "country": p.country,
-                "formation": ", ".join(p.formation_tendencies),
-                "pressing_style": p.pressing_style,
-                "matches": len(p.match_ids),
-                "updated_at": p.updated_at,
-            })
+            results.append(
+                {
+                    "id": p.id,
+                    "team_name": p.team_name,
+                    "league": p.league,
+                    "country": p.country,
+                    "formation": ", ".join(p.formation_tendencies),
+                    "pressing_style": p.pressing_style,
+                    "matches": len(p.match_ids),
+                    "updated_at": p.updated_at,
+                }
+            )
         results.sort(key=lambda x: x["team_name"])
         return results
 
@@ -133,6 +133,7 @@ class OpponentDatabaseService:
 
     def create_profile(self, team_name: str, league: str = "", country: str = "") -> dict:
         import uuid
+
         pid = str(uuid.uuid4())[:8]
         profile = OpponentProfile(id=pid, team_name=team_name, league=league, country=country)
         self._profiles[pid] = profile
@@ -157,18 +158,34 @@ class OpponentDatabaseService:
             return True
         return False
 
-    def add_matchup(self, opponent_id: str, our_team: str, date: str,
-                    competition: str = "", home_away: str = "home",
-                    our_score: int = 0, their_score: int = 0,
-                    our_xg: float = 0.0, their_xg: float = 0.0,
-                    notes: str = "") -> dict:
+    def add_matchup(
+        self,
+        opponent_id: str,
+        our_team: str,
+        date: str,
+        competition: str = "",
+        home_away: str = "home",
+        our_score: int = 0,
+        their_score: int = 0,
+        our_xg: float = 0.0,
+        their_xg: float = 0.0,
+        notes: str = "",
+    ) -> dict:
         import uuid
+
         mid = str(uuid.uuid4())[:8]
         record = MatchUpRecord(
-            id=mid, opponent_id=opponent_id, our_team=our_team, date=date,
-            competition=competition, home_away=home_away,
-            our_score=our_score, their_score=their_score,
-            our_xg=our_xg, their_xg=their_xg, notes=notes,
+            id=mid,
+            opponent_id=opponent_id,
+            our_team=our_team,
+            date=date,
+            competition=competition,
+            home_away=home_away,
+            our_score=our_score,
+            their_score=their_score,
+            our_xg=our_xg,
+            their_xg=their_xg,
+            notes=notes,
         )
         self._matchups[mid] = record
         self._save_matchups()
@@ -185,16 +202,18 @@ class OpponentDatabaseService:
         results = []
         for m in self._matchups.values():
             if m.opponent_id == opponent_id:
-                results.append({
-                    "id": m.id,
-                    "date": m.date,
-                    "competition": m.competition,
-                    "home_away": m.home_away,
-                    "score": f"{m.our_score} - {m.their_score}",
-                    "our_xg": m.our_xg,
-                    "their_xg": m.their_xg,
-                    "notes": m.notes,
-                })
+                results.append(
+                    {
+                        "id": m.id,
+                        "date": m.date,
+                        "competition": m.competition,
+                        "home_away": m.home_away,
+                        "score": f"{m.our_score} - {m.their_score}",
+                        "our_xg": m.our_xg,
+                        "their_xg": m.their_xg,
+                        "notes": m.notes,
+                    }
+                )
         results.sort(key=lambda x: x["date"], reverse=True)
         return results
 
@@ -205,23 +224,27 @@ class OpponentDatabaseService:
 
         matchups = self.get_matchups(opponent_id)
         total_matches = len(matchups)
-        wins = sum(1 for m in matchups if int(m["score"].split(" - ")[0]) > int(m["score"].split(" - ")[1]))
-        losses = sum(1 for m in matchups if int(m["score"].split(" - ")[0]) < int(m["score"].split(" - ")[1]))
+        wins = sum(
+            1 for m in matchups if int(m["score"].split(" - ")[0]) > int(m["score"].split(" - ")[1])
+        )
+        losses = sum(
+            1 for m in matchups if int(m["score"].split(" - ")[0]) < int(m["score"].split(" - ")[1])
+        )
         draws = total_matches - wins - losses
 
-        report = f"""# Scouting Report: {profile['team_name']}
+        report = f"""# Scouting Report: {profile["team_name"]}
 
 ## Overview
-- **League**: {profile.get('league', 'N/A')}
-- **Country**: {profile.get('country', 'N/A')}
+- **League**: {profile.get("league", "N/A")}
+- **Country**: {profile.get("country", "N/A")}
 - **Head-to-Head**: {wins}W / {draws}D / {losses}L ({total_matches} matches)
 
 ## Tactical Profile
-- **Preferred Formations**: {', '.join(profile.get('formation_tendencies', [])) or 'N/A'}
-- **Pressing Style**: {profile.get('pressing_style', 'N/A')}
-- **Attacking Patterns**: {', '.join(profile.get('attacking_patterns', [])) or 'N/A'}
-- **Defensive Vulnerabilities**: {', '.join(profile.get('defensive_vulnerabilities', [])) or 'N/A'}
-- **Set Piece Routines**: {', '.join(profile.get('set_piece_routines', [])) or 'N/A'}
+- **Preferred Formations**: {", ".join(profile.get("formation_tendencies", [])) or "N/A"}
+- **Pressing Style**: {profile.get("pressing_style", "N/A")}
+- **Attacking Patterns**: {", ".join(profile.get("attacking_patterns", [])) or "N/A"}
+- **Defensive Vulnerabilities**: {", ".join(profile.get("defensive_vulnerabilities", [])) or "N/A"}
+- **Set Piece Routines**: {", ".join(profile.get("set_piece_routines", [])) or "N/A"}
 
 ## Key Players"""
         for kp in profile.get("key_players", []):

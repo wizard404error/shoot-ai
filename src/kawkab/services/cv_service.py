@@ -23,6 +23,7 @@ from kawkab.services.track_smoother import TrackSmoother
 
 try:
     from kawkab.services.norfair_tracker import NorfairTracker
+
     _NORFAIR_AVAILABLE = True
 except ImportError:
     _NORFAIR_AVAILABLE = False
@@ -32,6 +33,7 @@ _FACE_REC_AVAILABLE = False
 FaceRecognitionService = None  # type: ignore
 try:
     from kawkab.services.face_recognition_service import FaceRecognitionService
+
     _FACE_REC_AVAILABLE = True
 except ImportError:
     pass
@@ -40,6 +42,7 @@ _BOXMOT_AVAILABLE = False
 try:
     from boxmot.reid import ReID
     from boxmot.trackers import BotSort
+
     _BOXMOT_AVAILABLE = True
 except ImportError:
     pass
@@ -139,9 +142,11 @@ class PipelineCheckpoint:
             cls._cached_secret = env_override.encode()
             return cls._cached_secret
         from kawkab.core.secrets import get_api_key, set_api_key
+
         key = get_api_key("checkpoint_hmac")
         if not key:
             import secrets as _stdlib_secrets
+
             key = _stdlib_secrets.token_hex(32)
             set_api_key("checkpoint_hmac", key)
         cls._cached_secret = key.encode()
@@ -188,7 +193,10 @@ class PipelineCheckpoint:
             (
                 fdet.frame_number,
                 fdet.timestamp,
-                [(d.bbox, d.confidence, d.class_id, d.class_name, d.track_id) for d in (fdet.detections or [])],
+                [
+                    (d.bbox, d.confidence, d.class_id, d.class_name, d.track_id)
+                    for d in (fdet.detections or [])
+                ],
                 fdet.image_width,
                 fdet.image_height,
             )
@@ -209,7 +217,9 @@ class PipelineCheckpoint:
             "det_idx": det_idx,
             "h": h,
             "w": w,
-            "homography_matrix_auto": np.asarray(homography_matrix_auto).tolist() if homography_matrix_auto is not None else None,
+            "homography_matrix_auto": np.asarray(homography_matrix_auto).tolist()
+            if homography_matrix_auto is not None
+            else None,
             "frames_compact": frames_compact,
             "last_detections_compact": last_dets_compact,
             "track_appearances": dict(track_appearances),
@@ -218,21 +228,29 @@ class PipelineCheckpoint:
             "track_confidence_sum": dict(track_confidence_sum),
             "track_is_person": dict(track_is_person),
             "track_color_samples": {str(k): v for k, v in track_color_samples.items()},
-            "track_face_embeddings": {str(k): [e.tolist() for e in v] for k, v in track_face_embeddings.items()},
-            "track_reid_embeddings": {str(k): [e.tolist() for e in v] for k, v in track_reid_embeddings.items()},
+            "track_face_embeddings": {
+                str(k): [e.tolist() for e in v] for k, v in track_face_embeddings.items()
+            },
+            "track_reid_embeddings": {
+                str(k): [e.tolist() for e in v] for k, v in track_reid_embeddings.items()
+            },
             "track_first_px": {str(k): v for k, v in track_first_px.items()},
         }
         try:
             import hashlib
             import hmac
             import json as _json
+
             # HMAC sign for integrity/tamper detection (not for code-exec
             # safety -- JSON can't execute code on load regardless).
             payload = _json.dumps(state).encode("utf-8")
             signature = hmac.new(self._checkpoint_secret(), payload, hashlib.sha256).hexdigest()
             with open(self._tmp_file, "wb") as f:
                 f.write(signature.encode("utf-8") + b"\n" + payload)
-            self._tmp_file.rename(self._ckpt_file) if not self._ckpt_file.exists() else (self._ckpt_file.unlink(), self._tmp_file.rename(self._ckpt_file))
+            self._tmp_file.rename(self._ckpt_file) if not self._ckpt_file.exists() else (
+                self._ckpt_file.unlink(),
+                self._tmp_file.rename(self._ckpt_file),
+            )
             logger.info(f"Checkpoint saved at frame {frame_number} (det {det_idx})")
         except Exception as e:
             logger.warning(f"Checkpoint save failed at frame {frame_number}: {e}")
@@ -245,6 +263,7 @@ class PipelineCheckpoint:
         import hashlib
         import hmac
         import json as _json
+
         ckpt_dir = video_path.resolve().parent / PipelineCheckpoint._CHECKPOINT_DIR
         ckpt_file = ckpt_dir / f"{video_path.stem}.ckpt"
         if not ckpt_file.exists():
@@ -256,8 +275,10 @@ class PipelineCheckpoint:
             if sep == -1:
                 return None
             stored_sig = raw[:sep].decode("utf-8")
-            payload = raw[sep + 1:]
-            expected_sig = hmac.new(PipelineCheckpoint._checkpoint_secret(), payload, hashlib.sha256).hexdigest()
+            payload = raw[sep + 1 :]
+            expected_sig = hmac.new(
+                PipelineCheckpoint._checkpoint_secret(), payload, hashlib.sha256
+            ).hexdigest()
             if not hmac.compare_digest(stored_sig, expected_sig):
                 logger.warning("Checkpoint HMAC mismatch — tampered or corrupted file")
                 return None
@@ -345,9 +366,7 @@ class CVService:
                 cache_key = f"gpu_{_gpu_tier}"
                 if cache_key in cache:
                     model_size = cache[cache_key]["variant"]
-                    logger.info(
-                        f"Using benchmark-cached YOLO variant: yolo11{model_size}"
-                    )
+                    logger.info(f"Using benchmark-cached YOLO variant: yolo11{model_size}")
                 else:
                     model_size = recommend_yolo_variant()
             except Exception:
@@ -378,7 +397,11 @@ class CVService:
         # silently inert. Enable boxmot when the caller explicitly chose a
         # boxmot tracker type, or automatically on capable GPUs.
         _requested_boxmot = tracker_type in (
-            "deepocsort", "strongsort", "botsort", "bytetrack", "ocsort",
+            "deepocsort",
+            "strongsort",
+            "botsort",
+            "bytetrack",
+            "ocsort",
         )
         self._use_boxmot = (
             _requested_boxmot or gpu_tier in ("medium", "high", "ultra")
@@ -444,7 +467,9 @@ class CVService:
             try:
                 self._boxmot_tracker = self._init_boxmot_tracker(self.tracker_type)
             except Exception as e:
-                logger.warning(f"boxmot {self.tracker_type} init failed: {e}, using default tracker")
+                logger.warning(
+                    f"boxmot {self.tracker_type} init failed: {e}, using default tracker"
+                )
 
         self._initialized = True
         logger.info("CVService initialized")
@@ -485,6 +510,7 @@ class CVService:
 
         if tracker_type == "deepocsort":
             from boxmot.trackers.bbox.deepocsort.deepocsort import DeepOcSort
+
             reid_arg = reid_model.model if reid_model else None
             tracker = DeepOcSort(
                 reid_model=reid_arg,
@@ -499,6 +525,7 @@ class CVService:
             )
         elif tracker_type == "strongsort":
             from boxmot.trackers.bbox.strongsort.strongsort import StrongSort
+
             reid_arg = reid_model.model if reid_model else None
             tracker = StrongSort(
                 reid_arg=reid_arg,
@@ -510,6 +537,7 @@ class CVService:
             )
         elif tracker_type == "bytetrack":
             from boxmot.trackers.bbox.bytetrack.bytetrack import ByteTrack
+
             tracker = ByteTrack(
                 track_high_thresh=self.confidence_threshold,
                 track_low_thresh=self.ball_confidence_threshold,
@@ -518,6 +546,7 @@ class CVService:
             )
         else:
             from boxmot.trackers.bbox.botsort.botsort import BotSort
+
             reid_arg = reid_model.model if reid_model else None
             tracker = BotSort(
                 reid_model=reid_arg,
@@ -530,7 +559,9 @@ class CVService:
         return tracker
 
     @staticmethod
-    def _get_reid_embedding(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
+    def _get_reid_embedding(
+        frame: np.ndarray, bbox: tuple[float, float, float, float]
+    ) -> np.ndarray | None:
         """Extract ReID embedding from a detection.
 
         Tiers:
@@ -548,7 +579,9 @@ class CVService:
         return CVService._histogram_embedding(crop)
 
     @staticmethod
-    def _crop_from_bbox(frame: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray | None:
+    def _crop_from_bbox(
+        frame: np.ndarray, bbox: tuple[float, float, float, float]
+    ) -> np.ndarray | None:
         x1, y1, x2, y2 = [int(v) for v in bbox]
         h, w = frame.shape[:2]
         x1, y1 = max(0, x1), max(0, y1)
@@ -569,6 +602,7 @@ class CVService:
         import torch
 
         from kawkab.core.paths import get_paths
+
         gpu_ok = torch.cuda.is_available()
         sportsmot_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
         if sportsmot_path.exists():
@@ -592,7 +626,9 @@ class CVService:
                 logger.debug(f"CPU ReID fallback also failed: {e2}")
 
     @staticmethod
-    def _extract_boxmot_reid(frame: np.ndarray, bbox: tuple[float, float, float, float], upscale_factor: int = 2) -> np.ndarray | None:
+    def _extract_boxmot_reid(
+        frame: np.ndarray, bbox: tuple[float, float, float, float], upscale_factor: int = 2
+    ) -> np.ndarray | None:
         """Extract ReID embedding using boxmot's built-in OSNet model.
 
         Priority: osnet_x1_0 or SportsMOT weights on GPU (fp16).
@@ -619,7 +655,9 @@ class CVService:
                     ch, cw = crop.shape[:2]
                     new_w, new_h = cw * upscale_factor, ch * upscale_factor
                     if new_w > 10 and new_h > 10:
-                        upscaled = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+                        upscaled = cv2.resize(
+                            crop, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4
+                        )
                         if hasattr(model, "get_features"):
                             emb = model.get_features(
                                 xyxys=np.array([[0, 0, new_w, new_h]], dtype=np.float32),
@@ -640,7 +678,9 @@ class CVService:
 
             # Default path: full-frame ReID (for larger regions)
             if hasattr(model, "get_features"):
-                emb = model.get_features(xyxys=np.array([[x1, y1, x2, y2]], dtype=np.float32), img=frame)
+                emb = model.get_features(
+                    xyxys=np.array([[x1, y1, x2, y2]], dtype=np.float32), img=frame
+                )
                 if emb is not None and len(emb) > 0:
                     emb_flat = np.asarray(emb[0]).flatten().astype(np.float32)
                     norm = np.linalg.norm(emb_flat)
@@ -677,7 +717,10 @@ class CVService:
         return None
 
     async def detect_frame(
-        self, frame: np.ndarray, frame_number: int, timestamp: float,
+        self,
+        frame: np.ndarray,
+        frame_number: int,
+        timestamp: float,
         norfair_tracker: Any | None = None,
         period: int = 1,
     ) -> FrameDetections:
@@ -713,15 +756,23 @@ class CVService:
         # inference resolution to the actual input resolution.
         if use_boxmot or use_norfair:
             results = self._model(
-                frame, conf=self.ball_confidence_threshold,
-                iou=self.iou_threshold, classes=[0, 32], imgsz=1280,
+                frame,
+                conf=self.ball_confidence_threshold,
+                iou=self.iou_threshold,
+                classes=[0, 32],
+                imgsz=1280,
                 verbose=False,
             )
         else:
             results = self._model.track(
-                frame, persist=True, conf=self.ball_confidence_threshold,
-                iou=self.iou_threshold, classes=[0, 32], imgsz=1280,
-                tracker="botsort.yaml", verbose=False,
+                frame,
+                persist=True,
+                conf=self.ball_confidence_threshold,
+                iou=self.iou_threshold,
+                classes=[0, 32],
+                imgsz=1280,
+                tracker="botsort.yaml",
+                verbose=False,
             )
 
         h, w = frame.shape[:2]
@@ -733,22 +784,28 @@ class CVService:
             boxes = results[0].boxes
             if boxes is not None and len(boxes) > 0:
                 import torch
-                dets_np = torch.cat([
-                    boxes.xyxy,
-                    boxes.conf.unsqueeze(1),
-                    boxes.cls.unsqueeze(1),
-                ], dim=1).cpu().numpy()
+
+                dets_np = (
+                    torch.cat(
+                        [
+                            boxes.xyxy,
+                            boxes.conf.unsqueeze(1),
+                            boxes.cls.unsqueeze(1),
+                        ],
+                        dim=1,
+                    )
+                    .cpu()
+                    .numpy()
+                )
                 tracked = self._boxmot_tracker.update(dets_np, frame)
                 # Initialize track IDs to -1 for all detections
                 boxes.id = torch.full((len(boxes),), -1, dtype=torch.int32)
                 if tracked is not None and len(tracked) > 0:
                     det_bboxes = [
-                        tuple(boxes.xyxy[i].cpu().numpy().tolist())
-                        for i in range(len(boxes))
+                        tuple(boxes.xyxy[i].cpu().numpy().tolist()) for i in range(len(boxes))
                     ]
                     track_bboxes = [
-                        (float(t[0]), float(t[1]), float(t[2]), float(t[3]))
-                        for t in tracked
+                        (float(t[0]), float(t[1]), float(t[2]), float(t[3])) for t in tracked
                     ]
                     track_ids = [int(t[4]) for t in tracked]
                     # Global optimal assignment (Hungarian) instead of
@@ -776,11 +833,15 @@ class CVService:
                         if not use_norfair and boxes.id is not None
                         else None
                     )
-                    raw.append({
-                        "bbox": bbox, "confidence": conf,
-                        "class_id": cls_id, "class_name": cls_name,
-                        "track_id": tid,
-                    })
+                    raw.append(
+                        {
+                            "bbox": bbox,
+                            "confidence": conf,
+                            "class_id": cls_id,
+                            "class_name": cls_name,
+                            "track_id": tid,
+                        }
+                    )
 
         # Filter raw detections
         filtered: list[dict[str, Any]] = []
@@ -816,8 +877,7 @@ class CVService:
         # Apply Norfair tracking if available
         if use_norfair and filtered:
             norfair_input = [
-                {"bbox": d["bbox"], "confidence": d["confidence"],
-                 "label": d["class_name"]}
+                {"bbox": d["bbox"], "confidence": d["confidence"], "label": d["class_name"]}
                 for d in filtered
             ]
             tracked = norfair_tracker.update(frame, norfair_input, period=max(1, int(period)))
@@ -825,6 +885,7 @@ class CVService:
             # per-detection greedy best-IoU -- greedy misassigns when two
             # detections compete for the same track in dense clusters.
             from collections import defaultdict
+
             track_lookup: dict[str, list[tuple[float, int]]] = defaultdict(list)
             for t in tracked:
                 track_lookup[t["label"]].append((t["track_id"], t["bbox"]))
@@ -845,16 +906,21 @@ class CVService:
         # Build Detection objects
         detections = [
             Detection(
-                bbox=d["bbox"], confidence=d["confidence"],
-                class_id=d["class_id"], class_name=d["class_name"],
+                bbox=d["bbox"],
+                confidence=d["confidence"],
+                class_id=d["class_id"],
+                class_name=d["class_name"],
                 track_id=d.get("track_id"),
             )
             for d in filtered
         ]
 
         return FrameDetections(
-            frame_number=frame_number, timestamp=timestamp,
-            detections=detections, image_width=w, image_height=h,
+            frame_number=frame_number,
+            timestamp=timestamp,
+            detections=detections,
+            image_width=w,
+            image_height=h,
         )
 
     async def process_video(
@@ -907,6 +973,7 @@ class CVService:
         # Ball tracker — dedicated HSV + Kalman filter, runs at full FPS
         try:
             from kawkab.services.ball_tracker import BallDetection, BallTracker
+
             self._ball_tracker = BallTracker(fps=fps)
             # update() is only called on detection frames (every frame_skip-th
             # frame), so the Kalman time step is frame_skip/fps, not 1/fps.
@@ -924,6 +991,7 @@ class CVService:
         camera_cuts: list[int] = []
         try:
             from kawkab.services.camera_cut_detector import CameraCutDetector
+
             ccd = CameraCutDetector(threshold=0.35, min_cut_interval=0.5)
             cuts_raw = ccd.detect_cuts_fast(video_path)
             camera_cuts = [c["frame"] for c in cuts_raw]
@@ -951,12 +1019,17 @@ class CVService:
         h, w = 0, 0
         last_detections: list[Detection] = []
 
-        ckpt_mgr = PipelineCheckpoint(video_path, frame_skip, interval=checkpoint_interval) if checkpoint_interval > 0 else None
+        ckpt_mgr = (
+            PipelineCheckpoint(video_path, frame_skip, interval=checkpoint_interval)
+            if checkpoint_interval > 0
+            else None
+        )
         resumed_from_checkpoint = False
 
         # Resume from checkpoint if provided
         if resume_checkpoint is not None and ckpt_mgr is not None:
             import pickle as _pk
+
             rc = resume_checkpoint
             frame_number = rc["frame_number"]
             det_idx = rc["det_idx"]
@@ -979,14 +1052,20 @@ class CVService:
             track_is_person.update({int(k): v for k, v in rc["track_is_person"].items()})
             track_first_px.update({int(k): v for k, v in rc["track_first_px"].items()})
             track_color_samples.update({int(k): v for k, v in rc["track_color_samples"].items()})
-            track_face_embeddings.update({int(k): [np.array(e) for e in v] for k, v in rc["track_face_embeddings"].items()})
-            track_reid_embeddings.update({int(k): [np.array(e) for e in v] for k, v in rc["track_reid_embeddings"].items()})
+            track_face_embeddings.update(
+                {int(k): [np.array(e) for e in v] for k, v in rc["track_face_embeddings"].items()}
+            )
+            track_reid_embeddings.update(
+                {int(k): [np.array(e) for e in v] for k, v in rc["track_reid_embeddings"].items()}
+            )
             # Restore frames & last_detections
             for fn, ts, dets, iw, ih in rc["frames_compact"]:
                 frame_dets = FrameDetections(
-                    frame_number=fn, timestamp=ts,
+                    frame_number=fn,
+                    timestamp=ts,
                     detections=[Detection(*d[:2], d[2], d[3], d[4]) for d in dets] if dets else [],
-                    image_width=iw, image_height=ih,
+                    image_width=iw,
+                    image_height=ih,
                 )
                 frames.append(frame_dets)
             last_dets_compact = rc.get("last_detections_compact", [])
@@ -1045,10 +1124,7 @@ class CVService:
                 if frame_number % frame_skip == 0:
                     # Camera cut: if a cut falls between this detection and previous,
                     # reset boxmot tracker to avoid ID fragmentation across angles.
-                    cut_hit = any(
-                        cf > prev_det_frame and cf <= frame_number
-                        for cf in camera_cuts
-                    )
+                    cut_hit = any(cf > prev_det_frame and cf <= frame_number for cf in camera_cuts)
                     if cut_hit:
                         # P1.7: Don't reset tracker on cuts — let max_age handle transitions.
                         # Post-hoc track stitching merges fragments across segments.
@@ -1071,10 +1147,14 @@ class CVService:
                                     lg_matrix = self._lightglue.auto_calibrate(frame, 105.0, 68.0)
                                     if lg_matrix is not None:
                                         segment_homography[current_segment] = lg_matrix.matrix
-                                        logger.debug(f"Segment {current_segment} homography via LightGlue")
+                                        logger.debug(
+                                            f"Segment {current_segment} homography via LightGlue"
+                                        )
                                         lightglue_used = True
                                 except Exception as e:
-                                    logger.debug(f"Segment {current_segment} LightGlue auto-calibration failed: {e}")
+                                    logger.debug(
+                                        f"Segment {current_segment} LightGlue auto-calibration failed: {e}"
+                                    )
                             if not lightglue_used:
                                 # P2.12: Try persisted per-segment calibrations second.
                                 # Note the match_id > 0 guard: the old
@@ -1087,14 +1167,21 @@ class CVService:
                                         from kawkab.services.homography_service import (
                                             HomographyService,
                                         )
+
                                         hs = HomographyService()
                                         seg_cals = hs.load_segment_calibrations(match_id)
                                         if current_segment in seg_cals:
-                                            segment_homography[current_segment] = seg_cals[current_segment].matrix
-                                            logger.debug(f"Segment {current_segment} homography loaded from persisted calibration")
+                                            segment_homography[current_segment] = seg_cals[
+                                                current_segment
+                                            ].matrix
+                                            logger.debug(
+                                                f"Segment {current_segment} homography loaded from persisted calibration"
+                                            )
                                             loaded = True
                                     except Exception as e:
-                                        logger.debug(f"Segment {current_segment} persisted calibration load failed: {e}")
+                                        logger.debug(
+                                            f"Segment {current_segment} persisted calibration load failed: {e}"
+                                        )
                                 if not loaded:
                                     try:
                                         from kawkab.services.homography_service import (
@@ -1103,34 +1190,51 @@ class CVService:
                                         from kawkab.services.pitch_detector import (
                                             PitchDetector as _PitchDetector,
                                         )
+
                                         pd = _PitchDetector()
                                         guess = pd.detect(frame)
                                         if guess.confidence >= 0.15 and len(guess.corners) >= 4:
                                             required_keys = ("tl", "tr", "bl", "br")
                                             if not all(k in guess.corners for k in required_keys):
-                                                logger.warning(f"Missing corner keys in calibration guess: {set(required_keys) - set(guess.corners)}")
-                                                segment_homography[current_segment] = homography_matrix_auto
+                                                logger.warning(
+                                                    f"Missing corner keys in calibration guess: {set(required_keys) - set(guess.corners)}"
+                                                )
+                                                segment_homography[current_segment] = (
+                                                    homography_matrix_auto
+                                                )
                                             else:
                                                 corners_ordered = [
-                                                    guess.corners["tl"], guess.corners["tr"],
-                                                    guess.corners["br"], guess.corners["bl"],
+                                                    guess.corners["tl"],
+                                                    guess.corners["tr"],
+                                                    guess.corners["br"],
+                                                    guess.corners["bl"],
                                                 ]
                                                 hs = HomographyService()
-                                                hm = hs.compute_homography_from_corners(corners_ordered)
+                                                hm = hs.compute_homography_from_corners(
+                                                    corners_ordered
+                                                )
                                                 segment_homography[current_segment] = hm.matrix
-                                                logger.debug(f"Segment {current_segment} homography cached (conf={guess.confidence:.2f})")
+                                                logger.debug(
+                                                    f"Segment {current_segment} homography cached (conf={guess.confidence:.2f})"
+                                                )
                                     except Exception as e:
-                                        logger.debug(f"Segment {current_segment} homography failed: {e}")
+                                        logger.debug(
+                                            f"Segment {current_segment} homography failed: {e}"
+                                        )
                                         segment_homography[current_segment] = homography_matrix_auto
 
                     try:
                         frame_det = await self.detect_frame(
-                            frame, frame_number, timestamp,
+                            frame,
+                            frame_number,
+                            timestamp,
                             norfair_tracker=norfair_tracker,
                             period=frame_skip,
                         )
                     except Exception as e:
-                        logger.error(f"detect_frame failed at frame {frame_number}: {e}", exc_info=True)
+                        logger.error(
+                            f"detect_frame failed at frame {frame_number}: {e}", exc_info=True
+                        )
                         frame_number += 1
                         continue
                     frames.append(frame_det)
@@ -1178,14 +1282,22 @@ class CVService:
                             if torso is None:
                                 continue
                             try:
-                                if not hasattr(self, "_face_recognition_service") or self._face_recognition_service is None:
+                                if (
+                                    not hasattr(self, "_face_recognition_service")
+                                    or self._face_recognition_service is None
+                                ):
                                     self._face_recognition_service = FaceRecognitionService()
                                 face_svc = self._face_recognition_service
                                 emb = face_svc.get_embedding(torso)
-                                if emb is not None and len(track_face_embeddings[det.track_id]) < 36:
+                                if (
+                                    emb is not None
+                                    and len(track_face_embeddings[det.track_id]) < 36
+                                ):
                                     track_face_embeddings[det.track_id].append(emb)
                             except Exception as e:
-                                logger.debug(f"Face embedding extraction failed for track {det.track_id}: {e}")
+                                logger.debug(
+                                    f"Face embedding extraction failed for track {det.track_id}: {e}"
+                                )
                     # Collect ReID body embeddings every 30 detection frames
                     # (not every frame — batch/sample strategy saves 30x compute)
                     collect_reid = _BOXMOT_AVAILABLE and det_idx % 30 == 0
@@ -1201,7 +1313,9 @@ class CVService:
                                 if emb is not None and emb.size > 0:
                                     track_reid_embeddings[tid].append(emb)
                             except Exception as e:
-                                logger.debug(f"ReID embedding extraction failed for track {tid}: {e}")
+                                logger.debug(
+                                    f"ReID embedding extraction failed for track {tid}: {e}"
+                                )
                     det_idx += 1
                     prev_det_frame = frame_number
                 else:
@@ -1232,12 +1346,25 @@ class CVService:
 
                 if ckpt_mgr and ckpt_mgr.should_save(det_idx):
                     ckpt_mgr.save(
-                        frame_number, det_idx, frames,
-                        track_appearances, track_first_frame, track_last_frame,
-                        track_confidence_sum, track_is_person,
-                        track_color_samples, track_face_embeddings, track_reid_embeddings,
-                        track_first_px, last_detections, h, w,
-                        homography_matrix_auto, total_frames, fps, duration,
+                        frame_number,
+                        det_idx,
+                        frames,
+                        track_appearances,
+                        track_first_frame,
+                        track_last_frame,
+                        track_confidence_sum,
+                        track_is_person,
+                        track_color_samples,
+                        track_face_embeddings,
+                        track_reid_embeddings,
+                        track_first_px,
+                        last_detections,
+                        h,
+                        w,
+                        homography_matrix_auto,
+                        total_frames,
+                        fps,
+                        duration,
                     )
 
                 frame_number += 1
@@ -1246,26 +1373,31 @@ class CVService:
                     progress = frame_number / total_frames
                     await progress_callback(
                         progress,
-                        f"Processed {frame_number}/{total_frames} frames "
-                        f"(skip={frame_skip})",
+                        f"Processed {frame_number}/{total_frames} frames (skip={frame_skip})",
                     )
         finally:
             cap.release()
 
         raw_tracks = len(track_appearances)
         effective_total = total_frames // frame_skip
-        logger.info(f"Raw tracking: {raw_tracks} unique tracks before filtering (eff_total={effective_total})")
+        logger.info(
+            f"Raw tracking: {raw_tracks} unique tracks before filtering (eff_total={effective_total})"
+        )
 
         # Adaptive filtering for broadcast vs single-camera footage
         frag_ratio = raw_tracks / max(1, effective_total)
         if frag_ratio > 0.2:
             first_pass_min_life = max(2, raw_tracks // 3000)
             first_pass_pct = 0.02
-            logger.info(f"Broadcast mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%")
+            logger.info(
+                f"Broadcast mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%"
+            )
         else:
             first_pass_min_life = min(self.min_track_lifetime, max(5, effective_total // 200))
             first_pass_pct = 1.0
-            logger.info(f"Single-cam mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%")
+            logger.info(
+                f"Single-cam mode: frag_ratio={frag_ratio:.2f}, first_pass_min_life={first_pass_min_life}, first_pass_pct={first_pass_pct}%"
+            )
 
         # Stage 1: lenient filter to keep fragments for stitching
         first_pass_tracks: set[int] = set()
@@ -1286,9 +1418,12 @@ class CVService:
         # P0-A1: Post-hoc track stitching — merge fragments of the same player
         # Run on first_pass_tracks (lenient filter) so Mode C can merge before final filter
         stitch_map = self._detect_track_stitches(
-            frames, first_pass_tracks,
-            track_first_frame, track_last_frame,
-            fps, track_color_samples,
+            frames,
+            first_pass_tracks,
+            track_first_frame,
+            track_last_frame,
+            fps,
+            track_color_samples,
             track_face_embeddings=track_face_embeddings if track_face_embeddings else None,
             track_reid_embeddings=track_reid_embeddings if track_reid_embeddings else None,
         )
@@ -1303,7 +1438,9 @@ class CVService:
                         det.track_id = stitch_map[det.track_id]
             for discarded, survivor in stitch_map.items():
                 if discarded in track_appearances:
-                    track_appearances[survivor] = track_appearances.get(survivor, 0) + track_appearances.pop(discarded, 0)
+                    track_appearances[survivor] = track_appearances.get(
+                        survivor, 0
+                    ) + track_appearances.pop(discarded, 0)
                 if discarded in track_first_frame:
                     if track_first_frame[discarded] < track_first_frame.get(survivor, float("inf")):
                         track_first_frame[survivor] = track_first_frame[discarded]
@@ -1313,9 +1450,13 @@ class CVService:
                         track_last_frame[survivor] = track_last_frame[discarded]
                     del track_last_frame[discarded]
                 if discarded in track_confidence_sum:
-                    track_confidence_sum[survivor] = track_confidence_sum.get(survivor, 0.0) + track_confidence_sum.pop(discarded, 0)
+                    track_confidence_sum[survivor] = track_confidence_sum.get(
+                        survivor, 0.0
+                    ) + track_confidence_sum.pop(discarded, 0)
                 if discarded in track_is_person:
-                    track_is_person[survivor] = track_is_person.get(survivor, True) or track_is_person.pop(discarded, True)
+                    track_is_person[survivor] = track_is_person.get(
+                        survivor, True
+                    ) or track_is_person.pop(discarded, True)
                 if discarded in track_first_px:
                     if survivor not in track_first_px:
                         track_first_px[survivor] = track_first_px[discarded]
@@ -1378,7 +1519,7 @@ class CVService:
                 key=lambda tid: track_appearances[tid],
                 reverse=True,
             )
-            valid_player_tracks = set(top_by_lifetime[:self.max_keep_top_n])
+            valid_player_tracks = set(top_by_lifetime[: self.max_keep_top_n])
 
         # Post-processing: RTS Kalman track smoothing (optional)
         if self.use_track_smoother and frames:
@@ -1499,10 +1640,7 @@ class CVService:
                 if cluster_avg_bgr:
                     logger.info(
                         f"Cluster BGR colors: "
-                        + ", ".join(
-                            f"{label}={color}"
-                            for label, color in cluster_avg_bgr.items()
-                        )
+                        + ", ".join(f"{label}={color}" for label, color in cluster_avg_bgr.items())
                     )
                 for tid, label in clusters.items():
                     if label in ("home", "away") and tid in color_data:
@@ -1562,9 +1700,7 @@ class CVService:
                     compute_tracking_self_metrics,
                 )
 
-                mot_metrics = compute_tracking_self_metrics(
-                    frames, track_registry, fps
-                )
+                mot_metrics = compute_tracking_self_metrics(frames, track_registry, fps)
                 # Build track_frames for merge map computation
                 track_frames_for_merge: dict[int, set[int]] = {}
                 for fdet in frames:
@@ -1578,7 +1714,9 @@ class CVService:
                         track_frames_for_merge[tid].add(fn)
                 if track_frames_for_merge:
                     tracking_merge_map = compute_merge_map_from_switches(
-                        frames, track_frames_for_merge, fps,
+                        frames,
+                        track_frames_for_merge,
+                        fps,
                     )
                     if tracking_merge_map:
                         logger.info(
@@ -1591,7 +1729,9 @@ class CVService:
         physical_profiles: dict[int, Any] = {}
         if homography_matrix_auto is not None and frames:
             try:
-                track_positions: dict[int, list[tuple[int, float, float, float]]] = defaultdict(list)
+                track_positions: dict[int, list[tuple[int, float, float, float]]] = defaultdict(
+                    list
+                )
                 sorted_cuts = sorted(camera_cuts)
                 for fdet in frames:
                     fn = fdet.frame_number
@@ -1611,7 +1751,9 @@ class CVService:
                             wy = wld[1] / wld[2]
                             track_positions[det.track_id].append((fn, wx, wy, fdet.timestamp))
                 if track_positions:
-                    raw_profiles = compute_physical_metrics(dict(track_positions), fps, half_duration_s=2700.0)
+                    raw_profiles = compute_physical_metrics(
+                        dict(track_positions), fps, half_duration_s=2700.0
+                    )
                     physical_profiles = {
                         str(k): {
                             "total_distance_m": v.total_distance_m,
@@ -1659,7 +1801,8 @@ class CVService:
                             "confidence": round(d.confidence, 3),
                             "bbox": [round(v, 1) for v in d.bbox],
                         }
-                        for d in fdet.detections if d.track_id is not None
+                        for d in fdet.detections
+                        if d.track_id is not None
                     ]
                     ball_list = [
                         {
@@ -1668,16 +1811,21 @@ class CVService:
                             "confidence": round(d.confidence, 3),
                             "bbox": [round(v, 1) for v in d.bbox],
                         }
-                        for d in fdet.detections if d.class_name == "sports ball"
+                        for d in fdet.detections
+                        if d.class_name == "sports ball"
                     ]
-                    batch.append({
-                        "frame_number": fdet.frame_number,
-                        "timestamp": fdet.timestamp,
-                        "player_detections": player_list,
-                        "ball_detections": ball_list,
-                    })
+                    batch.append(
+                        {
+                            "frame_number": fdet.frame_number,
+                            "timestamp": fdet.timestamp,
+                            "player_detections": player_list,
+                            "ball_detections": ball_list,
+                        }
+                    )
                 saved = await storage_service.save_tracking_frames_bulk(match_id, batch)
-                logger.info(f"Persisted {saved}/{len(batch)} tracking frames to DB (match_id={match_id})")
+                logger.info(
+                    f"Persisted {saved}/{len(batch)} tracking frames to DB (match_id={match_id})"
+                )
             except Exception as e:
                 logger.warning(f"Tracking frame persistence failed: {e}")
 
@@ -1701,15 +1849,28 @@ class CVService:
                 "mot_self_consistency": mot_metrics.get("mot_self_consistency"),
                 "mot_details": mot_metrics,
                 "stitched_tracks": len(stitch_map) if stitch_map else 0,
-                "stitch_merge_map": {str(k): v for k, v in stitch_map.items()} if stitch_map else {},
-                "tracking_metrics_merge_map": {str(k): v for k, v in tracking_merge_map.items()} if tracking_merge_map else {},
+                "stitch_merge_map": {str(k): v for k, v in stitch_map.items()}
+                if stitch_map
+                else {},
+                "tracking_metrics_merge_map": {str(k): v for k, v in tracking_merge_map.items()}
+                if tracking_merge_map
+                else {},
                 "auto_homography": homography_matrix_auto,
                 "physical_profiles": physical_profiles if physical_profiles else {},
                 "ball_tracks": [
-                    {"frame": b.frame, "timestamp": b.timestamp, "x": b.x, "y": b.y,
-                     "conf": b.conf, "is_prediction": b.is_prediction, "radius": b.radius}
+                    {
+                        "frame": b.frame,
+                        "timestamp": b.timestamp,
+                        "x": b.x,
+                        "y": b.y,
+                        "conf": b.conf,
+                        "is_prediction": b.is_prediction,
+                        "radius": b.radius,
+                    }
                     for b in ball_detections
-                ] if ball_detections else [],
+                ]
+                if ball_detections
+                else [],
             },
             match_type=match_type,
             checkpoint_manager=ckpt_mgr,
@@ -1728,10 +1889,7 @@ class CVService:
         side keep the frozen copy (appear/disappear mid-gap -- cannot
         interpolate honestly).
         """
-        real_idx = [
-            i for i, f in enumerate(frames)
-            if f.frame_number % frame_skip == 0
-        ]
+        real_idx = [i for i, f in enumerate(frames) if f.frame_number % frame_skip == 0]
         if len(real_idx) < 2:
             return frames
 
@@ -1745,12 +1903,8 @@ class CVService:
             if gap <= 1:
                 continue
             # index detections by track id within the real frames
-            prev_by_tid = {
-                d.track_id: d for d in prev_real.detections if d.track_id is not None
-            }
-            next_by_tid = {
-                d.track_id: d for d in next_real.detections if d.track_id is not None
-            }
+            prev_by_tid = {d.track_id: d for d in prev_real.detections if d.track_id is not None}
+            next_by_tid = {d.track_id: d for d in next_real.detections if d.track_id is not None}
             for fi in range(a + 1, b):
                 fd = frames[fi]
                 alpha = (fd.frame_number - fn_a) / gap
@@ -1768,17 +1922,16 @@ class CVService:
                     if math.hypot(nc[0] - pc[0], nc[1] - pc[1]) > max_jump:
                         new_dets.append(d)
                         continue
-                    bbox = tuple(
-                        pv + alpha * (nv - pv)
-                        for pv, nv in zip(p.bbox, n.bbox)
+                    bbox = tuple(pv + alpha * (nv - pv) for pv, nv in zip(p.bbox, n.bbox))
+                    new_dets.append(
+                        Detection(
+                            bbox=bbox,
+                            confidence=min(p.confidence, n.confidence),
+                            class_id=d.class_id,
+                            class_name=d.class_name,
+                            track_id=tid,
+                        )
                     )
-                    new_dets.append(Detection(
-                        bbox=bbox,
-                        confidence=min(p.confidence, n.confidence),
-                        class_id=d.class_id,
-                        class_name=d.class_name,
-                        track_id=tid,
-                    ))
                 frames[fi] = FrameDetections(
                     frame_number=fd.frame_number,
                     timestamp=fd.timestamp,
@@ -1822,6 +1975,7 @@ class CVService:
             return {}
 
         from collections import defaultdict
+
         track_centers: dict[int, dict[int, float]] = defaultdict(dict)
         for fdet in frames:
             fn = fdet.frame_number
@@ -1848,8 +2002,16 @@ class CVService:
             sa = track_color_samples.get(tid_a, [])
             sb = track_color_samples.get(tid_b, [])
             if len(sa) >= 3 and len(sb) >= 3:
-                avg_a = (int(np.mean([c[0] for c in sa])), int(np.mean([c[1] for c in sa])), int(np.mean([c[2] for c in sa])))
-                avg_b = (int(np.mean([c[0] for c in sb])), int(np.mean([c[1] for c in sb])), int(np.mean([c[2] for c in sb])))
+                avg_a = (
+                    int(np.mean([c[0] for c in sa])),
+                    int(np.mean([c[1] for c in sa])),
+                    int(np.mean([c[2] for c in sa])),
+                )
+                avg_b = (
+                    int(np.mean([c[0] for c in sb])),
+                    int(np.mean([c[1] for c in sb])),
+                    int(np.mean([c[2] for c in sb])),
+                )
                 color_dist = sum((a - b) ** 2 for a, b in zip(avg_a, avg_b)) ** 0.5
                 signals["color"] = 1.0 if color_dist < 70 else -1.0
             # Signal 2: face embedding (ArcFace)
@@ -1901,8 +2063,10 @@ class CVService:
                 overlap = frames_a & frames_b
                 if overlap:
                     close = sum(
-                        1 for fn in overlap
-                        if abs(track_centers[tid_a][fn] - track_centers[tid_b][fn]) < spatial_threshold_px
+                        1
+                        for fn in overlap
+                        if abs(track_centers[tid_a][fn] - track_centers[tid_b][fn])
+                        < spatial_threshold_px
                     )
                     if close / len(overlap) > 0.3:
                         survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
@@ -1916,7 +2080,11 @@ class CVService:
                         if 0 < gap <= temporal_gap_max:
                             ca = track_centers[tid_a].get(last_a)
                             cb = track_centers[tid_b].get(first_b)
-                            if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                            if (
+                                ca is not None
+                                and cb is not None
+                                and abs(ca - cb) < spatial_threshold_px * 1.5
+                            ):
                                 survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
                                 discarded = tid_b if survivor == tid_a else tid_a
                                 raw_map[discarded] = survivor
@@ -1925,7 +2093,11 @@ class CVService:
                         if 0 < gap <= temporal_gap_max:
                             ca = track_centers[tid_b].get(last_b)
                             cb = track_centers[tid_a].get(first_a)
-                            if ca is not None and cb is not None and abs(ca - cb) < spatial_threshold_px * 1.5:
+                            if (
+                                ca is not None
+                                and cb is not None
+                                and abs(ca - cb) < spatial_threshold_px * 1.5
+                            ):
                                 survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
                                 discarded = tid_b if survivor == tid_a else tid_a
                                 raw_map[discarded] = survivor
@@ -1936,9 +2108,10 @@ class CVService:
                 if len(ra_pure) >= 1 and len(rb_pure) >= 1:
                     avg_a = np.mean(ra_pure, axis=0)
                     avg_b = np.mean(rb_pure, axis=0)
-                    reid_sim = float(np.dot(avg_a, avg_b) / (
-                        max(np.linalg.norm(avg_a), 1e-8) * max(np.linalg.norm(avg_b), 1e-8)
-                    ))
+                    reid_sim = float(
+                        np.dot(avg_a, avg_b)
+                        / (max(np.linalg.norm(avg_a), 1e-8) * max(np.linalg.norm(avg_b), 1e-8))
+                    )
                     sa = track_color_samples.get(tid_a, [])
                     sb = track_color_samples.get(tid_b, [])
                     color_ok = len(sa) >= 1 and len(sb) >= 1
@@ -2018,8 +2191,9 @@ class CVService:
         return assigned
 
     @staticmethod
-    def _bbox_iou(bbox_a: tuple[float, float, float, float],
-                  bbox_b: tuple[float, float, float, float]) -> float:
+    def _bbox_iou(
+        bbox_a: tuple[float, float, float, float], bbox_b: tuple[float, float, float, float]
+    ) -> float:
         """Compute IoU between two bounding boxes (x1, y1, x2, y2)."""
         x1 = max(bbox_a[0], bbox_b[0])
         y1 = max(bbox_a[1], bbox_b[1])
@@ -2040,6 +2214,7 @@ class CVService:
         """
         try:
             import cv2
+
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             if not hasattr(self, "_pitch_hsv_range") or self._pitch_hsv_range is None:
                 h_channel = hsv[:, :, 0]
@@ -2065,9 +2240,7 @@ class CVService:
             kernel = np.ones((15, 15), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            contours, _ = cv2.findContours(
-                mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 return None
             largest = max(contours, key=cv2.contourArea)
@@ -2077,9 +2250,7 @@ class CVService:
         except Exception:
             return None
 
-    def _assess_tracking_quality(
-        self, fragmentation_rate: float, count_ratio: float = 1.0
-    ) -> str:
+    def _assess_tracking_quality(self, fragmentation_rate: float, count_ratio: float = 1.0) -> str:
         """Assess tracking quality based on count ratio (closer to 1.0 = better)."""
         if 0.8 <= count_ratio <= 1.3:
             return "excellent"
@@ -2236,6 +2407,7 @@ class CVService:
         if 0 < estimated < 100:
             return estimated
         return None
+
     async def detect_team_colors(
         self,
         video_path: Path,
@@ -2254,8 +2426,7 @@ class CVService:
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_positions = [
-            int(i * (total_frames - 1) / max(1, sample_frames - 1))
-            for i in range(sample_frames)
+            int(i * (total_frames - 1) / max(1, sample_frames - 1)) for i in range(sample_frames)
         ]
 
         track_colors = defaultdict(list)
@@ -2267,8 +2438,11 @@ class CVService:
                 continue
 
             results = self._model.track(
-                frame, persist=True, conf=self.confidence_threshold,
-                classes=[0], verbose=False,
+                frame,
+                persist=True,
+                conf=self.confidence_threshold,
+                classes=[0],
+                verbose=False,
             )
             if not results or len(results) == 0:
                 continue
@@ -2384,16 +2558,21 @@ class CVService:
         colors_bgr = np.array([color_data[tid]["primary_color"] for tid in tids])
 
         # BGR -> LAB (float32, as cv2 requires)
-        lab = cv2.cvtColor(
-            colors_bgr.reshape(-1, 1, 3).astype(np.float32) / 255.0 * 255.0,
-            cv2.COLOR_BGR2LAB,
-        ).reshape(-1, 3).astype(np.float64)
+        lab = (
+            cv2.cvtColor(
+                colors_bgr.reshape(-1, 1, 3).astype(np.float32) / 255.0 * 255.0,
+                cv2.COLOR_BGR2LAB,
+            )
+            .reshape(-1, 3)
+            .astype(np.float64)
+        )
 
         auto_detect_ref = n_clusters >= 3
         actual_n = min(n_clusters if not auto_detect_ref else 3, len(tids))
 
         try:
             from sklearn.cluster import KMeans
+
             kmeans = KMeans(n_clusters=actual_n, random_state=42, n_init=10)
             labels = kmeans.fit_predict(lab)
             label_map: dict[int, str] = {}
@@ -2401,16 +2580,18 @@ class CVService:
             if actual_n >= 3:
                 # Centroids back to BGR for the referee/HSV heuristics.
                 centroids_lab = kmeans.cluster_centers_
-                centroids_bgr = cv2.cvtColor(
-                    centroids_lab.reshape(-1, 1, 3).astype(np.float32),
-                    cv2.COLOR_LAB2BGR,
-                ).reshape(-1, 3).astype(int)
+                centroids_bgr = (
+                    cv2.cvtColor(
+                        centroids_lab.reshape(-1, 1, 3).astype(np.float32),
+                        cv2.COLOR_LAB2BGR,
+                    )
+                    .reshape(-1, 3)
+                    .astype(int)
+                )
                 import cv2 as _cv2
+
                 centroids_hsv = [
-                    _cv2.cvtColor(
-                        np.uint8([[c]]), _cv2.COLOR_BGR2HSV
-                    )[0, 0]
-                    for c in centroids_bgr
+                    _cv2.cvtColor(np.uint8([[c]]), _cv2.COLOR_BGR2HSV)[0, 0] for c in centroids_bgr
                 ]
                 ref_idx = min(
                     range(len(centroids_hsv)),
@@ -2430,10 +2611,14 @@ class CVService:
                 label_map[sorted_teams[1]] = "away"
             else:
                 # Brightness ordering still needs BGR centroids.
-                centroids_bgr = cv2.cvtColor(
-                    kmeans.cluster_centers_.reshape(-1, 1, 3).astype(np.float32),
-                    cv2.COLOR_LAB2BGR,
-                ).reshape(-1, 3).astype(int)
+                centroids_bgr = (
+                    cv2.cvtColor(
+                        kmeans.cluster_centers_.reshape(-1, 1, 3).astype(np.float32),
+                        cv2.COLOR_LAB2BGR,
+                    )
+                    .reshape(-1, 3)
+                    .astype(int)
+                )
                 sorted_idx = sorted(
                     range(actual_n),
                     key=lambda i: int(sum(centroids_bgr[i])),
@@ -2442,11 +2627,12 @@ class CVService:
                 label_map[sorted_idx[0]] = "home"
                 label_map[sorted_idx[1]] = "away"
 
-            return {tids[i]: label_map.get(int(labels[i]), str(int(labels[i]))) for i in range(len(tids))}
+            return {
+                tids[i]: label_map.get(int(labels[i]), str(int(labels[i])))
+                for i in range(len(tids))
+            }
         except ImportError:
-            sorted_by_color = sorted(
-                tids, key=lambda t: sum(color_data[t]["primary_color"])
-            )
+            sorted_by_color = sorted(tids, key=lambda t: sum(color_data[t]["primary_color"]))
             result = {}
             for i, tid in enumerate(sorted_by_color):
                 result[tid] = "home" if i < len(sorted_by_color) / 2 else "away"

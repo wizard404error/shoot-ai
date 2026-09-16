@@ -37,8 +37,17 @@ def _to_zone(x: float, y: float) -> tuple[int, int]:
 
 
 def _possession_switching_events() -> set[str]:
-    return {"tackle", "interception", "clearance", "block", "ball_recovery",
-            "dribble_past", "miscontrol", "foul", "own_goal"}
+    return {
+        "tackle",
+        "interception",
+        "clearance",
+        "block",
+        "ball_recovery",
+        "dribble_past",
+        "miscontrol",
+        "foul",
+        "own_goal",
+    }
 
 
 def _extract_possessions(
@@ -80,11 +89,11 @@ def _extract_possessions(
 
 # Zone-based possession value grid (expected goals per 100 possessions)
 _ZONE_EPV_GRID: list[list[float]] = [
-    [0.50, 0.80, 1.20, 1.20, 0.80, 0.50],   # row 0 — six-yard box
-    [0.20, 0.35, 0.55, 0.55, 0.35, 0.20],   # row 1 — penalty box
-    [0.08, 0.15, 0.25, 0.25, 0.15, 0.08],   # row 2 — penalty box edge
-    [0.04, 0.08, 0.12, 0.12, 0.08, 0.04],   # row 3 — outside box
-    [0.02, 0.04, 0.06, 0.06, 0.04, 0.02],   # row 4 — final third wide
+    [0.50, 0.80, 1.20, 1.20, 0.80, 0.50],  # row 0 — six-yard box
+    [0.20, 0.35, 0.55, 0.55, 0.35, 0.20],  # row 1 — penalty box
+    [0.08, 0.15, 0.25, 0.25, 0.15, 0.08],  # row 2 — penalty box edge
+    [0.04, 0.08, 0.12, 0.12, 0.08, 0.04],  # row 3 — outside box
+    [0.02, 0.04, 0.06, 0.06, 0.04, 0.02],  # row 4 — final third wide
 ]
 
 
@@ -166,21 +175,22 @@ class EPVModel:
         start_x = possession[0].get("x") if possession[0].get("x") is not None else 52.5
         start_y = possession[0].get("y") if possession[0].get("y") is not None else 34.0
         last_ev = possession[-1]
-        end_x = last_ev.get("end_x") if last_ev.get("end_x") is not None else (
-            last_ev.get("x") if last_ev.get("x") is not None else start_x
+        end_x = (
+            last_ev.get("end_x")
+            if last_ev.get("end_x") is not None
+            else (last_ev.get("x") if last_ev.get("x") is not None else start_x)
         )
-        end_y = last_ev.get("end_y") if last_ev.get("end_y") is not None else (
-            last_ev.get("y") if last_ev.get("y") is not None else start_y
+        end_y = (
+            last_ev.get("end_y")
+            if last_ev.get("end_y") is not None
+            else (last_ev.get("y") if last_ev.get("y") is not None else start_y)
         )
 
         start_val = self._zone_value(start_x, start_y)
 
         # Check possession outcome
         has_shot = any(ev.get("type") == "shot" for ev in possession)
-        is_goal = any(
-            ev.get("type") == "shot" and ev.get("is_goal")
-            for ev in possession
-        )
+        is_goal = any(ev.get("type") == "shot" and ev.get("is_goal") for ev in possession)
 
         # EPV = starting zone value + progression bonus + outcome bonus
         # Progression: how much further forward the possession moved

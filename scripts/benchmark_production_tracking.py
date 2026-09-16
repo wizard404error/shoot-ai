@@ -41,6 +41,7 @@ Usage:
     PYTHONPATH=src python scripts/benchmark_production_tracking.py \
         --frames 2000 --noise-px 3 --drop 0.10 --fp-rate 0.03 --seed 13
 """
+
 from __future__ import annotations
 
 import argparse
@@ -179,9 +180,7 @@ def run_tracker_row(
             )
     elapsed = time.perf_counter() - t0
 
-    mot = compute_mot_metrics(
-        pred, gt_tracks, fp_threshold=match_threshold, is_normalized=False
-    )
+    mot = compute_mot_metrics(pred, gt_tracks, fp_threshold=match_threshold, is_normalized=False)
     return {
         "row": name,
         "elapsed_s": round(elapsed, 2),
@@ -203,22 +202,37 @@ def main(argv: list[str] | None = None) -> int:
         description="Benchmark Kawkab's production tracker against degraded Metrica GT",
     )
     ap.add_argument("--frames", type=int, default=2000)
-    ap.add_argument("--noise-px", type=float, default=3.0,
-                    help="detector jitter std in pixels (degraded row). "
-                         "Calibration: a 20x40 px box survives IoU>=0.6 "
-                         "matching up to ~5 px lateral shift, so per-frame "
-                         "jitter must stay well under that — 10 px std "
-                         "(tried first) is unphysical: NO track ever "
-                         "initializes and the row degenerates to all-FN.")
-    ap.add_argument("--drop", type=float, default=0.10,
-                    help="detection drop rate (degraded row)")
-    ap.add_argument("--fp-rate", type=float, default=0.03,
-                    help="false positives per player per frame (degraded row)")
+    ap.add_argument(
+        "--noise-px",
+        type=float,
+        default=3.0,
+        help="detector jitter std in pixels (degraded row). "
+        "Calibration: a 20x40 px box survives IoU>=0.6 "
+        "matching up to ~5 px lateral shift, so per-frame "
+        "jitter must stay well under that — 10 px std "
+        "(tried first) is unphysical: NO track ever "
+        "initializes and the row degenerates to all-FN.",
+    )
+    ap.add_argument("--drop", type=float, default=0.10, help="detection drop rate (degraded row)")
+    ap.add_argument(
+        "--fp-rate",
+        type=float,
+        default=0.03,
+        help="false positives per player per frame (degraded row)",
+    )
     ap.add_argument("--seed", type=int, default=13)
-    ap.add_argument("--px-per-m", type=float, default=20.0,
-                    help="pixel scale used consistently for detections and GT")
-    ap.add_argument("--match-threshold", type=float, default=40.0,
-                    help="CLEAR MOT match distance threshold in pixels")
+    ap.add_argument(
+        "--px-per-m",
+        type=float,
+        default=20.0,
+        help="pixel scale used consistently for detections and GT",
+    )
+    ap.add_argument(
+        "--match-threshold",
+        type=float,
+        default=40.0,
+        help="CLEAR MOT match distance threshold in pixels",
+    )
     ap.add_argument("--out", default="docs/validation/tracking_benchmark.json")
     args = ap.parse_args(argv)
 
@@ -227,36 +241,55 @@ def main(argv: list[str] | None = None) -> int:
         print("no ground truth loaded — fixtures missing?", file=sys.stderr)
         return 1
     n_positions = sum(len(p) for p in gt.values())
-    print(f"[gt] {len(gt)} players, {n_positions} positions "
-          f"(frames 1..{args.frames}, Metrica sample game 2, MIT)")
+    print(
+        f"[gt] {len(gt)} players, {n_positions} positions "
+        f"(frames 1..{args.frames}, Metrica sample game 2, MIT)"
+    )
 
     rows: list[dict[str, Any]] = []
 
     ceiling_dets = build_detections(
-        gt, seed=args.seed, noise_px_std=0.0, drop_rate=0.0, fp_rate=0.0,
+        gt,
+        seed=args.seed,
+        noise_px_std=0.0,
+        drop_rate=0.0,
+        fp_rate=0.0,
         max_frame=args.frames,
     )
-    rows.append(run_tracker_row(
-        "ceiling", ceiling_dets, gt,
-        max_frame=args.frames, match_threshold=args.match_threshold,
-    ))
+    rows.append(
+        run_tracker_row(
+            "ceiling",
+            ceiling_dets,
+            gt,
+            max_frame=args.frames,
+            match_threshold=args.match_threshold,
+        )
+    )
 
     degraded_dets = build_detections(
-        gt, seed=args.seed, noise_px_std=args.noise_px, drop_rate=args.drop,
-        fp_rate=args.fp_rate, max_frame=args.frames,
+        gt,
+        seed=args.seed,
+        noise_px_std=args.noise_px,
+        drop_rate=args.drop,
+        fp_rate=args.fp_rate,
+        max_frame=args.frames,
     )
-    rows.append(run_tracker_row(
-        "degraded", degraded_dets, gt,
-        max_frame=args.frames, match_threshold=args.match_threshold,
-    ))
+    rows.append(
+        run_tracker_row(
+            "degraded",
+            degraded_dets,
+            gt,
+            max_frame=args.frames,
+            match_threshold=args.match_threshold,
+        )
+    )
 
     report = {
         "status": "ok",
         "generated_at": datetime.now(UTC).isoformat(),
         "provenance": {
             "ground_truth": (
-                "Metrica open sample game 2 (MIT), first "
-                f"{args.frames} frames, committed fixtures"
+                f"Metrica open sample game 2 (MIT), first {args.frames} frames, committed fixtures"
             ),
             "tracker": "kawkab.services.norfair_tracker.NorfairTracker (production)",
             "metrics": "kawkab.core.mot_metrics.compute_mot_metrics (CLEAR MOT)",
@@ -270,7 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             "match_threshold_px": args.match_threshold,
             "ball_tracking": "excluded (persons only; evaluate_tracking convention)",
             "reid": "inactive on black frames (zero embeddings → inf distance) — "
-                    "measures the tracker core, not the appearance model",
+            "measures the tracker core, not the appearance model",
         },
         "rows": rows,
     }

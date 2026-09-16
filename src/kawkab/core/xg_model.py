@@ -112,7 +112,11 @@ if _TRAINED_COEFF_PATH.exists():
     try:
         with open(_TRAINED_COEFF_PATH) as _f:
             _trained = json.load(_f)
-        _trained_clean = {k: v for k, v in _trained.items() if isinstance(v, (int, float)) and not k.startswith("_")}
+        _trained_clean = {
+            k: v
+            for k, v in _trained.items()
+            if isinstance(v, (int, float)) and not k.startswith("_")
+        }
         if _trained_clean:
             TRAINED_COEFFICIENTS.update(_trained_clean)
             _TRAINED_LOADED_FROM_DISK = True
@@ -132,12 +136,15 @@ def _validate_trained_coefficients() -> None:
     if missing:
         logger.warning("TRAINED_COEFFICIENTS missing keys: %s", missing)
     if extra:
-        logger.warning("TRAINED_COEFFICIENTS has extra keys not in ENHANCED_COEFFICIENTS: %s", extra)
+        logger.warning(
+            "TRAINED_COEFFICIENTS has extra keys not in ENHANCED_COEFFICIENTS: %s", extra
+        )
 
 
 _validate_trained_coefficients()
 
 # ── Legacy functions (backward compatible) ──────────────────────────────────
+
 
 @functools.lru_cache(maxsize=64)
 @timed()
@@ -296,15 +303,33 @@ def batch_compute_xg(
         return results + [0.0] * (len(events) - len(results))
 
     n_shots = len(shot_events)
-    distances = np.fromiter((max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events), dtype=np.float64, count=n_shots)
-    angles = np.fromiter((s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n_shots)
-    is_header = np.fromiter(((s.body_part is not None and s.body_part.value == "head") for s in shot_events), dtype=np.float64, count=n_shots)
-    is_one_on_one = np.fromiter((getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n_shots)
-    was_pressed = np.fromiter((getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n_shots)
+    distances = np.fromiter(
+        (max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events),
+        dtype=np.float64,
+        count=n_shots,
+    )
+    angles = np.fromiter(
+        (s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n_shots
+    )
+    is_header = np.fromiter(
+        ((s.body_part is not None and s.body_part.value == "head") for s in shot_events),
+        dtype=np.float64,
+        count=n_shots,
+    )
+    is_one_on_one = np.fromiter(
+        (getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n_shots
+    )
+    was_pressed = np.fromiter(
+        (getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n_shots
+    )
 
     shot_types = [s.shot_type.value if s.shot_type else "open_play" for s in shot_events]
-    is_volley = np.fromiter((t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n_shots)
-    is_free_kick = np.fromiter((t == "free_kick" for t in shot_types), dtype=np.float64, count=n_shots)
+    is_volley = np.fromiter(
+        (t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n_shots
+    )
+    is_free_kick = np.fromiter(
+        (t == "free_kick" for t in shot_types), dtype=np.float64, count=n_shots
+    )
     is_penalty = np.fromiter((t == "penalty" for t in shot_types), dtype=np.float64, count=n_shots)
 
     penalty_mask = is_penalty.astype(bool)
@@ -342,6 +367,7 @@ def batch_compute_xg(
 @dataclass
 class EnhancedXgFeatures:
     """Feature vector for the enhanced xG model."""
+
     distance_m: float = DEFAULT_DISTANCE_M
     angle_deg: float = ANGLE_CENTRAL_DEG
     is_header: bool = False
@@ -376,8 +402,9 @@ class EnhancedXgModel:
         coeffs_source: Label for coefficient provenance ("heuristic" or path).
     """
 
-    def __init__(self, coefficients: dict[str, float] | None = None,
-                 coeffs_source: str = "heuristic"):
+    def __init__(
+        self, coefficients: dict[str, float] | None = None, coeffs_source: str = "heuristic"
+    ):
         if coefficients is not None:
             self.coef = coefficients
         else:
@@ -396,6 +423,7 @@ class EnhancedXgModel:
     @classmethod
     def load_trained(cls, path: str) -> EnhancedXgModel:
         from kawkab.core.xg_trainer import load_coefficients
+
         coeffs = load_coefficients(path)
         return cls(coefficients=coeffs, coeffs_source=path)
 
@@ -507,7 +535,7 @@ class EnhancedXgModel:
 
         if features.gk_distance_m > 0:
             logit += c["gk_distance_m"] * features.gk_distance_m
-            logit += c["gk_distance_m_sq"] * (features.gk_distance_m ** 2)
+            logit += c["gk_distance_m_sq"] * (features.gk_distance_m**2)
 
         if features.is_rebound:
             logit += c["is_rebound"]
@@ -545,19 +573,43 @@ class EnhancedXgModel:
             return results + [0.0] * (len(events) - len(results))
 
         n = len(shot_events)
-        distances = np.fromiter((max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events), dtype=np.float64, count=n)
-        angles = np.fromiter((s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n)
-        is_header = np.fromiter(((s.body_part is not None and s.body_part.value == "head") for s in shot_events), dtype=np.float64, count=n)
-        is_one_on_one = np.fromiter((getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n)
-        was_pressed = np.fromiter((getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n)
+        distances = np.fromiter(
+            (max(s.distance_m or DEFAULT_DISTANCE_M, MIN_DISTANCE) for s in shot_events),
+            dtype=np.float64,
+            count=n,
+        )
+        angles = np.fromiter(
+            (s.angle_deg or ANGLE_CENTRAL_DEG for s in shot_events), dtype=np.float64, count=n
+        )
+        is_header = np.fromiter(
+            ((s.body_part is not None and s.body_part.value == "head") for s in shot_events),
+            dtype=np.float64,
+            count=n,
+        )
+        is_one_on_one = np.fromiter(
+            (getattr(s, "is_one_on_one", False) for s in shot_events), dtype=np.float64, count=n
+        )
+        was_pressed = np.fromiter(
+            (getattr(s, "was_pressed", False) for s in shot_events), dtype=np.float64, count=n
+        )
         shot_types = [s.shot_type.value if s.shot_type else "open_play" for s in shot_events]
-        is_volley = np.fromiter((t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n)
-        is_free_kick = np.fromiter((t == "free_kick" for t in shot_types), dtype=np.float64, count=n)
+        is_volley = np.fromiter(
+            (t in ("volley", "half_volley") for t in shot_types), dtype=np.float64, count=n
+        )
+        is_free_kick = np.fromiter(
+            (t == "free_kick" for t in shot_types), dtype=np.float64, count=n
+        )
         is_penalty = np.fromiter((t == "penalty" for t in shot_types), dtype=np.float64, count=n)
 
-        gk_dist = np.fromiter((getattr(s, "gk_distance_m", 0.0) for s in shot_events), dtype=np.float64, count=n)
-        is_rebound = np.fromiter((getattr(s, "is_rebound", False) for s in shot_events), dtype=np.float64, count=n)
-        is_big_chance = np.fromiter((getattr(s, "is_big_chance", False) for s in shot_events), dtype=np.float64, count=n)
+        gk_dist = np.fromiter(
+            (getattr(s, "gk_distance_m", 0.0) for s in shot_events), dtype=np.float64, count=n
+        )
+        is_rebound = np.fromiter(
+            (getattr(s, "is_rebound", False) for s in shot_events), dtype=np.float64, count=n
+        )
+        is_big_chance = np.fromiter(
+            (getattr(s, "is_big_chance", False) for s in shot_events), dtype=np.float64, count=n
+        )
 
         c = self.coef
         xg_values = np.zeros(n, dtype=np.float64)

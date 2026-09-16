@@ -123,8 +123,12 @@ async def test_quality_scoring_computes_scores() -> None:
     svc = QualityScoringService()
 
     track_data = MatchTrackData(
-        match_id=1, fps=30, total_frames=100, duration_seconds=10,
-        frames=[], track_registry={},
+        match_id=1,
+        fps=30,
+        total_frames=100,
+        duration_seconds=10,
+        frames=[],
+        track_registry={},
         tracking_metrics={
             "validated_player_tracks": 22,
             "raw_tracks_detected": 25,
@@ -180,15 +184,19 @@ async def test_anomaly_quality_report_generation() -> None:
     assert report["passes"] is True
 
     # Test with critical anomaly
-    anomaly = type("obj", (object,), {
-        "category": "physical",
-        "severity": "critical",
-        "metric": "max_speed",
-        "expected_range": "<= 40",
-        "actual_value": "45",
-        "description": "Too fast",
-        "recommendation": "Fix it",
-    })()
+    anomaly = type(
+        "obj",
+        (object,),
+        {
+            "category": "physical",
+            "severity": "critical",
+            "metric": "max_speed",
+            "expected_range": "<= 40",
+            "actual_value": "45",
+            "description": "Too fast",
+            "recommendation": "Fix it",
+        },
+    )()
     report = await svc.generate_quality_report([anomaly])
     assert report["overall_score"] < 1.0
     assert report["critical"] == 1

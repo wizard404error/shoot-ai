@@ -29,6 +29,7 @@ SWEDEN_TEST_60S = PROJECT_ROOT / "data" / "sweden_test_60s.mp4"
 _ULTALYTICS_AVAILABLE = False
 try:
     import ultralytics  # noqa: F401
+
     _ULTALYTICS_AVAILABLE = True
 except ImportError:
     pass
@@ -105,6 +106,7 @@ class TestFullPipeline:
         # this test, so it doesn't itself become a new source of leakage
         # for some other file relying on that entry persisting.
         import sys
+
         monkeypatch.delitem(sys.modules, "kawkab.services.cv_service", raising=False)
         yield
 
@@ -141,7 +143,9 @@ class TestFullPipeline:
         svc = CVService(model_size="n", gpu_enabled=False)
         await svc.initialize()
         match_data = await svc.process_video(
-            REAL_MATCH_VIDEO, frame_skip=30, enable_team_detection=False,
+            REAL_MATCH_VIDEO,
+            frame_skip=30,
+            enable_team_detection=False,
         )
         assert match_data.fps > 0
         assert match_data.total_frames > 0
@@ -155,7 +159,9 @@ class TestFullPipeline:
         svc = CVService(model_size="n", gpu_enabled=False)
         await svc.initialize()
         match_data = await svc.process_video(
-            REAL_MATCH_VIDEO, frame_skip=30, enable_team_detection=False,
+            REAL_MATCH_VIDEO,
+            frame_skip=30,
+            enable_team_detection=False,
         )
         if match_data.track_registry:
             sample_tid = list(match_data.track_registry.keys())[0]
@@ -171,7 +177,9 @@ class TestFullPipeline:
         svc = CVService(model_size="n", gpu_enabled=False)
         await svc.initialize()
         match_data = await svc.process_video(
-            SWEDEN_TEST_60S, frame_skip=30, enable_team_detection=False,
+            SWEDEN_TEST_60S,
+            frame_skip=30,
+            enable_team_detection=False,
         )
         assert match_data is not None
         await svc.shutdown()

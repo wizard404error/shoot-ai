@@ -82,6 +82,7 @@ class RBACMiddleware:
     def require_permission(self, user_id: int, permission: str, resource_team: str = ""):
         if not self.has_permission(user_id, permission, resource_team):
             from fastapi import HTTPException
+
             raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
 
     def get_role(self, user_id: int) -> Role | None:
@@ -118,6 +119,7 @@ def require_permission(permission: str, resource_team: str = "", allow_anonymous
                 db = None
                 try:
                     from kawkab.cloud.database import get_cloud_db
+
                     db = get_cloud_db()
                     row = db.execute(
                         "SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?",
@@ -143,8 +145,14 @@ def require_permission(permission: str, resource_team: str = "", allow_anonymous
                     detail="Authentication required",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            current_user = {"id": 0, "username": "anonymous", "role": "viewer",
-                            "role_level": 30, "email": "", "team": ""}
+            current_user = {
+                "id": 0,
+                "username": "anonymous",
+                "role": "viewer",
+                "role_level": 30,
+                "email": "",
+                "team": "",
+            }
 
         user_role = current_user.get("role", "viewer")
         try:
@@ -154,7 +162,10 @@ def require_permission(permission: str, resource_team: str = "", allow_anonymous
         user_level = ROLE_HIERARCHY.get(role_enum, 0)
         required_role = PERMISSION_ROLES.get(permission)
         if required_role is None:
-            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Unknown permission: {permission}")
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail=f"Unknown permission: {permission}",
+            )
         required_level = ROLE_HIERARCHY.get(required_role, 0)
         if user_level < required_level:
             raise HTTPException(

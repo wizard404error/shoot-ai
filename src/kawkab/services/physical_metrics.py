@@ -10,6 +10,7 @@ Computes per-player:
 
 Requires homography-calibrated track positions (pixel → meter).
 """
+
 from __future__ import annotations
 
 import logging

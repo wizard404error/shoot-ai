@@ -4,9 +4,11 @@ from __future__ import annotations
 
 # Early torch init to resolve CUDA DLL conflicts with PySide6
 import os as _os
+
 try:
     import torch as _torch
-    _cuda_lib = _os.path.join(_os.path.dirname(_torch.__file__), 'lib')
+
+    _cuda_lib = _os.path.join(_os.path.dirname(_torch.__file__), "lib")
     if _os.path.exists(_cuda_lib):
         _os.add_dll_directory(_cuda_lib)
 except Exception:
@@ -227,6 +229,7 @@ class MainWindow(QMainWindow):
         """Detect GPU and apply recommended settings."""
         try:
             from kawkab.services.benchmark_service import BenchmarkService
+
             gpu_name = self.benchmark._system_info.get("gpu_name", "unknown")
             if gpu_name == "unknown":
                 logger.info("GPU detection: no GPU found, using default settings")
@@ -261,12 +264,8 @@ class MainWindow(QMainWindow):
 
         page = self.web_view.page()
         if hasattr(page, "settings"):
-            page.settings().setAttribute(
-                QWebEngineSettings.LocalContentCanAccessFileUrls, True
-            )
-            page.settings().setAttribute(
-                QWebEngineSettings.LocalContentCanAccessRemoteUrls, True
-            )
+            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
 
         possible_paths = [
             Path(__file__).parent / "web" / "index.html",

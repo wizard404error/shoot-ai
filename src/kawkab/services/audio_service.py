@@ -49,18 +49,11 @@ class AudioService:
             device = "cuda" if self.gpu_enabled else "cpu"
             compute_type = "float16" if self.gpu_enabled else "int8"
 
-            logger.info(
-                f"Loading Whisper model: {self.whisper_model} on {device}"
-            )
-            self._model = WhisperModel(
-                self.whisper_model, device=device, compute_type=compute_type
-            )
+            logger.info(f"Loading Whisper model: {self.whisper_model} on {device}")
+            self._model = WhisperModel(self.whisper_model, device=device, compute_type=compute_type)
             logger.info("Whisper model loaded")
         except ImportError:
-            logger.warning(
-                "faster-whisper not installed. "
-                "Run: pip install faster-whisper"
-            )
+            logger.warning("faster-whisper not installed. Run: pip install faster-whisper")
             self._model = None
 
     async def transcribe_video(self, video_path: Path) -> list[dict]:
@@ -86,9 +79,7 @@ class AudioService:
         logger.info(f"Transcribing audio: {video_path.name}")
 
         try:
-            segments, info = self._model.transcribe(
-                str(video_path), beam_size=5
-            )
+            segments, info = self._model.transcribe(str(video_path), beam_size=5)
 
             results = []
             for segment in segments:
@@ -103,8 +94,7 @@ class AudioService:
                 )
 
             logger.info(
-                f"Transcription complete: {len(results)} segments, "
-                f"language={info.language}"
+                f"Transcription complete: {len(results)} segments, language={info.language}"
             )
             return results
         except Exception as e:
@@ -141,9 +131,7 @@ class AudioService:
 
             stft = np.abs(librosa.stft(y))
             freqs = librosa.fft_frequencies(sr=sr)
-            times = librosa.frames_to_time(
-                np.arange(stft.shape[1]), sr=sr
-            )
+            times = librosa.frames_to_time(np.arange(stft.shape[1]), sr=sr)
 
             freq_mask = (freqs >= whistle_freq_min) & (freqs <= whistle_freq_max)
             whistle_energy = np.mean(stft[freq_mask, :], axis=0)
@@ -167,9 +155,7 @@ class AudioService:
                                 "duration": duration,
                                 "confidence": min(
                                     1.0,
-                                    whistle_energy[
-                                        int(start_time * sr / 512) : i
-                                    ].mean()
+                                    whistle_energy[int(start_time * sr / 512) : i].mean()
                                     / threshold,
                                 ),
                             }

@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 
 
 class TrackingMixin:
-    def _compute_player_stats(self, track_data, homography_matrix=None, track_merge_map: dict[int, int] | None = None):
+    def _compute_player_stats(
+        self, track_data, homography_matrix=None, track_merge_map: dict[int, int] | None = None
+    ):
         from .core import PlayerStats
 
         def _resolve(tid):
@@ -135,14 +137,14 @@ class TrackingMixin:
 
         for tid, player in players.items():
             if track_data.duration_seconds > 0:
-                player.avg_speed_kmh = (
-                    player.distance_covered_m / track_data.duration_seconds * 3.6
-                )
+                player.avg_speed_kmh = player.distance_covered_m / track_data.duration_seconds * 3.6
             player.max_speed_kmh = max_speed_per_player.get(tid, 0.0)
 
         return players
 
-    def _compute_player_ratings(self, players, typed_events, pitch_control, track_data, homography_matrix=None):
+    def _compute_player_ratings(
+        self, players, typed_events, pitch_control, track_data, homography_matrix=None
+    ):
         from .core import PlayerStats
 
         ratings: dict[int, PlayerRating] = {}
@@ -154,13 +156,23 @@ class TrackingMixin:
                 continue
             if tid not in event_by_player:
                 event_by_player[tid] = {
-                    "passes": 0, "completed_passes": 0, "progressive": 0, "key_passes": 0,
-                    "assists": 0, "shots": 0, "sot": 0,
-                    "tackles": 0, "interceptions": 0, "carries": 0,
-                    "prog_carries": 0, "goals": 0.0, "xg": 0.0,
+                    "passes": 0,
+                    "completed_passes": 0,
+                    "progressive": 0,
+                    "key_passes": 0,
+                    "assists": 0,
+                    "shots": 0,
+                    "sot": 0,
+                    "tackles": 0,
+                    "interceptions": 0,
+                    "carries": 0,
+                    "prog_carries": 0,
+                    "goals": 0.0,
+                    "xg": 0.0,
                 }
             d = event_by_player[tid]
             from kawkab.core.events import PassEvent, ShotEvent, CarryEvent
+
             if isinstance(ev, PassEvent):
                 d["passes"] += 1
                 if ev.completed:
@@ -190,7 +202,9 @@ class TrackingMixin:
 
             passes_from_events = estats.get("passes", 0)
             completed_passes = estats.get("completed_passes", 0)
-            pass_acc = completed_passes / max(passes_from_events, 1) if passes_from_events > 0 else 0.0
+            pass_acc = (
+                completed_passes / max(passes_from_events, 1) if passes_from_events > 0 else 0.0
+            )
             rating = compute_rating(
                 pass_accuracy=pass_acc,
                 passes_completed=completed_passes,
@@ -209,7 +223,9 @@ class TrackingMixin:
                 progressive_carries=estats.get("prog_carries", 0),
                 distance_covered_m=player.distance_covered_m,
                 max_speed_kmh=player.max_speed_kmh,
-                minutes_played=track_data.duration_seconds / 60.0 if track_data.duration_seconds > 0 else 90.0,
+                minutes_played=track_data.duration_seconds / 60.0
+                if track_data.duration_seconds > 0
+                else 90.0,
                 avg_x=avg_x,
                 position=None,
                 pitch_length=self.pitch_length,
@@ -305,8 +321,10 @@ class TrackingMixin:
                 else:
                     opp_possession_frames += 1
 
-            if (prev_possessor_track_id is not None
-                and current_possessor_track_id != prev_possessor_track_id):
+            if (
+                prev_possessor_track_id is not None
+                and current_possessor_track_id != prev_possessor_track_id
+            ):
                 if closest_opp_dist < press_threshold_m:
                     n_defensive_actions += 1
                     if prev_ball_pos is not None:
@@ -334,7 +352,8 @@ class TrackingMixin:
                 "defensive_actions": n_defensive_actions,
                 "possession_pct": (
                     team_possession_frames / (team_possession_frames + opp_possession_frames) * 100
-                    if (team_possession_frames + opp_possession_frames) > 0 else 50.0
+                    if (team_possession_frames + opp_possession_frames) > 0
+                    else 50.0
                 ),
             }
 
@@ -354,7 +373,9 @@ class TrackingMixin:
             "defensive_actions": n_defensive_actions,
             "possession_pct": round(
                 team_possession_frames / (team_possession_frames + opp_possession_frames) * 100, 1
-            ) if (team_possession_frames + opp_possession_frames) > 0 else 50.0,
+            )
+            if (team_possession_frames + opp_possession_frames) > 0
+            else 50.0,
         }
 
     def detect_formation(self, track_data, team="home", n_players=11, homography_matrix=None):
@@ -405,8 +426,7 @@ class TrackingMixin:
             if (track_last_seen.get(tid, 0) - track_first_seen.get(tid, 0)) >= min_span_seconds
         }
         track_lifetimes = {
-            tid: track_last_seen[tid] - track_first_seen[tid]
-            for tid in team_player_positions
+            tid: track_last_seen[tid] - track_first_seen[tid] for tid in team_player_positions
         }
         logger.debug(
             f"Formation team={team}: {len(team_player_positions)} tracks pass "
@@ -424,8 +444,10 @@ class TrackingMixin:
             }
 
         avg_positions = {
-            tid: (sum(p[0] for p in positions) / len(positions),
-                  sum(p[1] for p in positions) / len(positions))
+            tid: (
+                sum(p[0] for p in positions) / len(positions),
+                sum(p[1] for p in positions) / len(positions),
+            )
             for tid, positions in team_player_positions.items()
         }
 
@@ -469,8 +491,7 @@ class TrackingMixin:
         attackers = [sorted_by_x[i][0] for i, l in enumerate(labels) if l == 2]
 
         def_line_height = (
-            sum(avg_positions[t][0] for t in defenders) / len(defenders)
-            if defenders else 0
+            sum(avg_positions[t][0] for t in defenders) / len(defenders) if defenders else 0
         )
 
         if homography_matrix is not None:
@@ -486,10 +507,25 @@ class TrackingMixin:
         formation_str = f"{n_def}-{n_mid}-{n_att}"
 
         valid_formations = {
-            "4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2",
-            "5-4-1", "4-1-4-1", "4-5-1", "3-4-1-2", "3-6-1",
-            "4-3-1-2", "4-1-3-2", "4-4-1-1", "5-2-3",
-            "3-5-1-1", "4-2-2-2", "4-3-2-1", "4-1-2-3",
+            "4-3-3",
+            "4-4-2",
+            "4-2-3-1",
+            "3-5-2",
+            "3-4-3",
+            "5-3-2",
+            "5-4-1",
+            "4-1-4-1",
+            "4-5-1",
+            "3-4-1-2",
+            "3-6-1",
+            "4-3-1-2",
+            "4-1-3-2",
+            "4-4-1-1",
+            "5-2-3",
+            "3-5-1-1",
+            "4-2-2-2",
+            "4-3-2-1",
+            "4-1-2-3",
         }
         if formation_str in valid_formations:
             confidence = 0.7 if n >= 8 else 0.4
@@ -541,13 +577,18 @@ class TrackingMixin:
             return "unknown"
         for frame in frames:
             detections = getattr(frame, "detections", []) or []
-            team_dets = [d for d in detections if getattr(d, "team", None) == team and not getattr(d, "is_ball", False)]
+            team_dets = [
+                d
+                for d in detections
+                if getattr(d, "team", None) == team and not getattr(d, "is_ball", False)
+            ]
             if len(team_dets) >= 10:
                 return self._detect_formation(team_dets)
         return "unknown"
 
     def _detect_formation(self, detections):
         from collections import Counter
+
         thirds = Counter()
         for d in detections:
             x = getattr(d, "x", None) or 0

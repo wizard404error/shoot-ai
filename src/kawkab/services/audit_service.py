@@ -25,15 +25,27 @@ class AuditService:
     what happened, when, and by whom.
     """
 
-    VALID_ACTIONS = frozenset({
-        "analysis.started", "analysis.completed", "analysis.failed",
-        "export.csv", "export.json", "export.pdf", "export.statsbomb",
-        "event.created", "event.updated", "event.deleted",
-        "match.imported", "match.deleted",
-        "feedback.submitted",
-        "config.changed",
-        "read", "data.erased", "data.archived",
-    })
+    VALID_ACTIONS = frozenset(
+        {
+            "analysis.started",
+            "analysis.completed",
+            "analysis.failed",
+            "export.csv",
+            "export.json",
+            "export.pdf",
+            "export.statsbomb",
+            "event.created",
+            "event.updated",
+            "event.deleted",
+            "match.imported",
+            "match.deleted",
+            "feedback.submitted",
+            "config.changed",
+            "read",
+            "data.erased",
+            "data.archived",
+        }
+    )
 
     def __init__(self, storage_service: Any = None) -> None:
         self._storage = storage_service
@@ -49,19 +61,21 @@ class AuditService:
         The canonical form concatenates the seven core fields with pipe
         separators. Missing keys default to empty string.
         """
-        canon = "|".join([
-            str(event_dict.get("action", "")),
-            str(event_dict.get("entity_type", "")),
-            str(event_dict.get("entity_id", "")),
-            json.dumps(
-                event_dict.get("details", event_dict.get("details_json", {})),
-                sort_keys=True,
-                default=str,
-            ),
-            str(event_dict.get("user", "")),
-            str(event_dict.get("timestamp", "")),
-            str(event_dict.get("prev_hash", "")),
-        ])
+        canon = "|".join(
+            [
+                str(event_dict.get("action", "")),
+                str(event_dict.get("entity_type", "")),
+                str(event_dict.get("entity_id", "")),
+                json.dumps(
+                    event_dict.get("details", event_dict.get("details_json", {})),
+                    sort_keys=True,
+                    default=str,
+                ),
+                str(event_dict.get("user", "")),
+                str(event_dict.get("timestamp", "")),
+                str(event_dict.get("prev_hash", "")),
+            ]
+        )
         return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
     def _get_last_hash(self) -> str:
@@ -91,9 +105,7 @@ class AuditService:
             return
         try:
             cursor = self._storage._conn.cursor()
-            cursor.execute(
-                "ALTER TABLE audit_events ADD COLUMN prev_hash TEXT DEFAULT ''"
-            )
+            cursor.execute("ALTER TABLE audit_events ADD COLUMN prev_hash TEXT DEFAULT ''")
             self._storage._conn.commit()
             logger.info("Added prev_hash column to audit_events")
         except Exception:
@@ -190,9 +202,7 @@ class AuditService:
 
         try:
             cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-            cursor.execute(
-                "SELECT COUNT(*) FROM audit_events WHERE timestamp >= ?", (cutoff,)
-            )
+            cursor.execute("SELECT COUNT(*) FROM audit_events WHERE timestamp >= ?", (cutoff,))
             stats["events_last_24h"] = cursor.fetchone()[0]
         except Exception:
             stats["events_last_24h"] = 0
@@ -246,7 +256,11 @@ class AuditService:
         _queries: list[tuple[str, str, list[Any]]] = [
             ("coach_feedback", "SELECT * FROM coach_feedback WHERE coach_id = ?", [user_id]),
             ("collab_comments", "SELECT * FROM collab_comments WHERE username = ?", [user_id]),
-            ("collab_mentions", "SELECT * FROM collab_mentions WHERE username = ? OR from_user = ?", [user_id, user_id]),
+            (
+                "collab_mentions",
+                "SELECT * FROM collab_mentions WHERE username = ? OR from_user = ?",
+                [user_id, user_id],
+            ),
             ("collab_users", "SELECT * FROM collab_users WHERE username = ?", [user_id]),
         ]
 
@@ -307,9 +321,7 @@ class AuditService:
             )
             self._storage._conn.commit()
 
-            logger.info(
-                "Archived %d audit event(s) to %s", count, archive_path
-            )
+            logger.info("Archived %d audit event(s) to %s", count, archive_path)
             return count
         except Exception:
             return 0

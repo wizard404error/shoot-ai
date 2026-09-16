@@ -11,6 +11,7 @@ Algorithm:
   Shots:  ball speed > 12 m/s + direction toward goal + abrupt acceleration
   Passes: ball moves between tracked players with possession transfer
 """
+
 from __future__ import annotations
 
 import json
@@ -27,14 +28,14 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout, force=True)
 logger = logging.getLogger("detect_events")
 
 # ── Constants ─────────────────────────────────────────────────────
-GOAL_LINE_X_RATIO = 0.05          # near goal (5% from video edge)
+GOAL_LINE_X_RATIO = 0.05  # near goal (5% from video edge)
 MIN_PASS_DURATION = 0.3
 MAX_PASS_DURATION = 6.0
 MIN_PASS_PX = 50
 MIN_PASS_STRAIGHTNESS = 0.5
 MIN_SHOT_PX = 60
 MAX_SHOT_DURATION = 1.5
-MIN_SHOT_STRAIGHTNESS = 0.3          # shots can curve
+MIN_SHOT_STRAIGHTNESS = 0.3  # shots can curve
 
 
 @dataclass
@@ -92,10 +93,15 @@ def load_ball_tracking(tracking_dir: Path) -> list[BallFrame]:
         conf = d.get("conf", 0.5)
         if conf < 0.3:
             continue
-        result.append(BallFrame(
-            frame=d["frame"], timestamp=d["timestamp"],
-            x=d["x"], y=d["y"], conf=conf,
-        ))
+        result.append(
+            BallFrame(
+                frame=d["frame"],
+                timestamp=d["timestamp"],
+                x=d["x"],
+                y=d["y"],
+                conf=conf,
+            )
+        )
     logger.info(f"Loaded {len(result)} ball detections (filtered from {len(data)} raw)")
     return result
 
@@ -168,10 +174,10 @@ def _build_segment(frames: list[BallFrame]) -> BallSegment | None:
     total_px = 0.0
     frames_with_movement = 0
     for i in range(1, len(frames)):
-        d = dist((frames[i-1].x, frames[i-1].y), (frames[i].x, frames[i].y))
+        d = dist((frames[i - 1].x, frames[i - 1].y), (frames[i].x, frames[i].y))
         if d > 2:
             frames_with_movement += 1
-        dt = max(frames[i].timestamp - frames[i-1].timestamp, 0.001)
+        dt = max(frames[i].timestamp - frames[i - 1].timestamp, 0.001)
         px_per_s = d / dt
         if px_per_s > max_px_speed:
             max_px_speed = px_per_s
@@ -226,18 +232,20 @@ def detect_shots_from_segments(
         pixel_speed = seg.total_px / max(seg.duration, 0.001)
         speed_conf = min(pixel_speed / 300.0, 0.95)
         confidence = speed_conf * seg.straightness
-        events.append(DetectedEvent(
-            event_type="shot",
-            timestamp=seg.start_time,
-            frame=seg.start_frame,
-            start_x=seg.start_x,
-            start_y=seg.start_y,
-            end_x=seg.end_x,
-            end_y=seg.end_y,
-            speed=round(pixel_speed, 1),
-            confidence=round(confidence, 3),
-            duration=seg.duration,
-        ))
+        events.append(
+            DetectedEvent(
+                event_type="shot",
+                timestamp=seg.start_time,
+                frame=seg.start_frame,
+                start_x=seg.start_x,
+                start_y=seg.start_y,
+                end_x=seg.end_x,
+                end_y=seg.end_y,
+                speed=round(pixel_speed, 1),
+                confidence=round(confidence, 3),
+                duration=seg.duration,
+            )
+        )
 
     # Deduplicate overlapping shots
     if events:
@@ -273,18 +281,20 @@ def detect_passes_from_segments(
         pixel_speed = seg.total_px / max(seg.duration, 0.001)
         speed_conf = min(pixel_speed / 200.0, 0.9)
         confidence = speed_conf * (0.3 + 0.7 * seg.straightness)
-        events.append(DetectedEvent(
-            event_type="pass",
-            timestamp=seg.start_time,
-            frame=seg.start_frame,
-            start_x=seg.start_x,
-            start_y=seg.start_y,
-            end_x=seg.end_x,
-            end_y=seg.end_y,
-            speed=round(pixel_speed, 1),
-            confidence=round(confidence, 3),
-            duration=seg.duration,
-        ))
+        events.append(
+            DetectedEvent(
+                event_type="pass",
+                timestamp=seg.start_time,
+                frame=seg.start_frame,
+                start_x=seg.start_x,
+                start_y=seg.start_y,
+                end_x=seg.end_x,
+                end_y=seg.end_y,
+                speed=round(pixel_speed, 1),
+                confidence=round(confidence, 3),
+                duration=seg.duration,
+            )
+        )
 
     if events:
         events.sort(key=lambda e: e.timestamp)
@@ -362,22 +372,28 @@ def print_events(events: list[DetectedEvent], label: str, max_count: int = 20):
     """Print a formatted list of events."""
     print(f"\n  [{label}] {len(events)} events")
     for e in events[:max_count]:
-        print(f"    {e.event_type} @ {e.timestamp:.1f}s (frame {e.frame}) "
-              f"speed={e.speed:.1f}m/s conf={e.confidence:.2f} "
-              f"at ({e.start_x:.0f},{e.start_y:.0f})->({e.end_x:.0f},{e.end_y:.0f})")
+        print(
+            f"    {e.event_type} @ {e.timestamp:.1f}s (frame {e.frame}) "
+            f"speed={e.speed:.1f}m/s conf={e.confidence:.2f} "
+            f"at ({e.start_x:.0f},{e.start_y:.0f})->({e.end_x:.0f},{e.end_y:.0f})"
+        )
     if len(events) > max_count:
         print(f"    ... and {len(events) - max_count} more")
 
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Detect events from tracking data")
-    parser.add_argument("--tracking", type=str, default="tracking_output",
-                        help="Tracking output directory")
-    parser.add_argument("--ground-truth", type=str, default=None,
-                        help="StatsBomb ground truth directory")
-    parser.add_argument("--output", type=str, default=None,
-                        help="Save detected events to JSON file")
+    parser.add_argument(
+        "--tracking", type=str, default="tracking_output", help="Tracking output directory"
+    )
+    parser.add_argument(
+        "--ground-truth", type=str, default=None, help="StatsBomb ground truth directory"
+    )
+    parser.add_argument(
+        "--output", type=str, default=None, help="Save detected events to JSON file"
+    )
     args = parser.parse_args()
 
     tracking_dir = Path(args.tracking)
@@ -397,9 +413,11 @@ def main():
     segments = segment_ball_data(ball_data)
     print(f"\n  Ball tracking segments: {len(segments)}")
     for seg in segments[:5]:
-        print(f"    {seg.start_time:.1f}s-{seg.end_time:.1f}s ({seg.duration:.2f}s) "
-               f"speed={seg.max_speed:.0f}px/s dist={seg.total_px:.0f}px "
-              f"straight={seg.straightness:.2f} n={seg.n_frames}")
+        print(
+            f"    {seg.start_time:.1f}s-{seg.end_time:.1f}s ({seg.duration:.2f}s) "
+            f"speed={seg.max_speed:.0f}px/s dist={seg.total_px:.0f}px "
+            f"straight={seg.straightness:.2f} n={seg.n_frames}"
+        )
 
     shots = detect_shots_from_segments(segments)
     passes = detect_passes_from_segments(segments)
@@ -421,18 +439,20 @@ def main():
         output_path = Path(args.output)
         serializable = []
         for e in shots + passes:
-            serializable.append({
-                "event_type": e.event_type,
-                "timestamp": e.timestamp,
-                "frame": e.frame,
-                "start_x": e.start_x,
-                "start_y": e.start_y,
-                "end_x": e.end_x,
-                "end_y": e.end_y,
-                "speed": e.speed,
-                "confidence": e.confidence,
-                "duration": e.duration,
-            })
+            serializable.append(
+                {
+                    "event_type": e.event_type,
+                    "timestamp": e.timestamp,
+                    "frame": e.frame,
+                    "start_x": e.start_x,
+                    "start_y": e.start_y,
+                    "end_x": e.end_x,
+                    "end_y": e.end_y,
+                    "speed": e.speed,
+                    "confidence": e.confidence,
+                    "duration": e.duration,
+                }
+            )
         with open(output_path, "w") as f:
             json.dump(serializable, f, indent=2)
         print(f"\n  Events saved to {output_path}")

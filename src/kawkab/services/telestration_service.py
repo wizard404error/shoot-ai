@@ -80,19 +80,21 @@ class TelestrationService:
 
     def get_layers(self) -> str:
         try:
-            return json.dumps({
-                "layers": [
-                    {
-                        "id": lid,
-                        "name": l.name,
-                        "visible": l.visible,
-                        "locked": l.locked,
-                        "opacity": l.opacity,
-                        "elements": len(l.elements),
-                    }
-                    for lid, l in self._layers.items()
-                ]
-            })
+            return json.dumps(
+                {
+                    "layers": [
+                        {
+                            "id": lid,
+                            "name": l.name,
+                            "visible": l.visible,
+                            "locked": l.locked,
+                            "opacity": l.opacity,
+                            "elements": len(l.elements),
+                        }
+                        for lid, l in self._layers.items()
+                    ]
+                }
+            )
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -121,9 +123,13 @@ class TelestrationService:
                 for f in self.presets_dir.glob("*.json"):
                     data = json.loads(f.read_text())
                     if data.get("name") == name:
-                        self._layers = {l["id"]: TelestrationLayer(**l) for l in data.get("layers", [])}
+                        self._layers = {
+                            l["id"]: TelestrationLayer(**l) for l in data.get("layers", [])
+                        }
                         self._current_preset = name
-                        return json.dumps({"ok": True, "preset": name, "layers": list(self._layers.keys())})
+                        return json.dumps(
+                            {"ok": True, "preset": name, "layers": list(self._layers.keys())}
+                        )
                 return json.dumps({"error": f"Preset '{name}' not found"})
             data = json.loads(filepath.read_text())
             self._layers = {l["id"]: TelestrationLayer(**l) for l in data.get("layers", [])}
@@ -138,11 +144,13 @@ class TelestrationService:
             for f in self.presets_dir.glob("*.json"):
                 try:
                     data = json.loads(f.read_text())
-                    presets.append({
-                        "name": data.get("name", f.stem),
-                        "layers": len(data.get("layers", [])),
-                        "updated_at": data.get("updated_at", ""),
-                    })
+                    presets.append(
+                        {
+                            "name": data.get("name", f.stem),
+                            "layers": len(data.get("layers", [])),
+                            "updated_at": data.get("updated_at", ""),
+                        }
+                    )
                 except Exception:
                     pass
             return json.dumps({"presets": presets})
@@ -160,7 +168,9 @@ class TelestrationService:
 
     # ── Export annotated video ──
 
-    def export_annotated_video(self, video_path: str, layers_json: str, output_path: str = "") -> str:
+    def export_annotated_video(
+        self, video_path: str, layers_json: str, output_path: str = ""
+    ) -> str:
         try:
             layers = json.loads(layers_json)
             if not layers:
@@ -178,14 +188,26 @@ class TelestrationService:
                         text = el.get("text", "")
                         x = el.get("x", 0)
                         y = el.get("y", 0)
-                        filters.append(f"drawtext=text='{text}':x={x}:y={y}:fontsize=24:fontcolor=white")
+                        filters.append(
+                            f"drawtext=text='{text}':x={x}:y={y}:fontsize=24:fontcolor=white"
+                        )
 
             if not filters:
                 # Copy video if no drawable elements
                 cmd = ["ffmpeg", "-y", "-i", str(video), "-c", "copy", str(out)]
             else:
                 filter_str = ",".join(filters)
-                cmd = ["ffmpeg", "-y", "-i", str(video), "-vf", filter_str, "-c:a", "copy", str(out)]
+                cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(video),
+                    "-vf",
+                    filter_str,
+                    "-c:a",
+                    "copy",
+                    str(out),
+                ]
 
             subprocess.run(cmd, capture_output=True, timeout=300)
             return json.dumps({"ok": True, "output": out})
@@ -203,9 +225,12 @@ class TelestrationService:
             "updated_at": preset.updated_at,
             "layers": [
                 {
-                    "id": l.id, "name": l.name,
-                    "visible": l.visible, "locked": l.locked,
-                    "opacity": l.opacity, "elements": l.elements,
+                    "id": l.id,
+                    "name": l.name,
+                    "visible": l.visible,
+                    "locked": l.locked,
+                    "opacity": l.opacity,
+                    "elements": l.elements,
                 }
                 for l in preset.layers
             ],

@@ -1,5 +1,4 @@
-"""Tests for BatchService - multi-match batch processing queue.
-"""
+"""Tests for BatchService - multi-match batch processing queue."""
 
 from __future__ import annotations
 
@@ -17,6 +16,7 @@ from kawkab.services.storage_service import StorageService
 
 class FakeBridge:
     """Fake bridge for batch testing."""
+
     def __init__(self, fail_match_id=None):
         self.fail_match_id = fail_match_id
         self.calls = []
@@ -25,7 +25,7 @@ class FakeBridge:
         self.calls.append((match_id, video_path))
         if match_id == self.fail_match_id:
             return '{"error": "Simulated failure"}'
-        return '{"match_id": ' + str(match_id) + '}'
+        return '{"match_id": ' + str(match_id) + "}"
 
 
 class TestBatchService:
@@ -66,6 +66,7 @@ class TestBatchService:
             job = await svc.create_job(storage, "Test Batch", [1, 2, 3])
 
             completed = []
+
             async def progress_cb(done, total, match_id, status):
                 completed.append((done, total, match_id, status))
 

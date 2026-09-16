@@ -32,6 +32,7 @@ def _install_yaml_stub():
     _PREV_YAML = None
     yaml_mod = types.ModuleType("yaml")
     from unittest.mock import MagicMock
+
     yaml_mod.safe_load = MagicMock(return_value={})
     sys.modules["yaml"] = yaml_mod
 
@@ -58,7 +59,7 @@ def _patch_paths_with_knowledge_base():
 
     def _patched_get_paths():
         p = orig_get_paths()
-        p.__dict__['knowledge_base'] = Path(__file__).parent / "_kb_test"
+        p.__dict__["knowledge_base"] = Path(__file__).parent / "_kb_test"
         return p
 
     paths_mod.get_paths = _patched_get_paths
@@ -73,6 +74,7 @@ def _cleanup_yaml_after_module():
     yield
     _restore_yaml()
 
+
 _mod = load_service_module("know_test", "knowledge_service.py")
 
 TacticalRule = _mod.TacticalRule
@@ -84,6 +86,7 @@ KnowledgeService = _mod.KnowledgeService
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def kb_paths(tmp_path):
     """Patch get_paths so knowledge_base points to tmp_path/knowledge_base."""
@@ -93,6 +96,7 @@ def kb_paths(tmp_path):
 
     class _FakePaths:
         knowledge_base = kb_root
+
     with patch("know_test.get_paths", return_value=_FakePaths()):
         yield kb_root
 
@@ -101,23 +105,27 @@ def kb_paths(tmp_path):
 # TacticalRule
 # ===================================================================
 
+
 class TestTacticalRule:
     def test_from_yaml(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "rule": {
-                "id": "R001",
-                "category": "defensive",
-                "subcategory": "pressing",
-                "severity": "high",
-                "names": {"en": "High Press Trap"},
-                "description": {"en": "Team loses shape"},
-                "pattern_signature": {"type": "pressing_breakdown"},
-                "hypotheses": [{"condition": "opponent_plays_wide", "action": "shift"}],
-                "recommended_drills": ["D001"],
-                "sources": ["UEFA 2023"],
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "rule": {
+                    "id": "R001",
+                    "category": "defensive",
+                    "subcategory": "pressing",
+                    "severity": "high",
+                    "names": {"en": "High Press Trap"},
+                    "description": {"en": "Team loses shape"},
+                    "pattern_signature": {"type": "pressing_breakdown"},
+                    "hypotheses": [{"condition": "opponent_plays_wide", "action": "shift"}],
+                    "recommended_drills": ["D001"],
+                    "sources": ["UEFA 2023"],
+                }
             }
-        })
+        )
         f = tmp_path / "rule.yaml"
         f.write_text("dummy")
         rule = TacticalRule.from_yaml(f)
@@ -129,9 +137,12 @@ class TestTacticalRule:
 
     def test_from_yaml_defaults(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "rule": {"id": "R002", "category": "offensive"},
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "rule": {"id": "R002", "category": "offensive"},
+            }
+        )
         f = tmp_path / "rule.yaml"
         f.write_text("dummy")
         rule = TacticalRule.from_yaml(f)
@@ -145,9 +156,13 @@ class TestTacticalRule:
 
     def test_from_yaml_top_level_fallback(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "id": "R003", "category": "transition",
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "id": "R003",
+                "category": "transition",
+            }
+        )
         f = tmp_path / "rule.yaml"
         f.write_text("dummy")
         rule = TacticalRule.from_yaml(f)
@@ -158,28 +173,32 @@ class TestTacticalRule:
 # Drill
 # ===================================================================
 
+
 class TestDrill:
     def test_from_yaml(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "drill_id": "D001",
-            "name": "Rondo 4v2",
-            "category": "possession",
-            "targets": ["passing_accuracy"],
-            "duration_min": 12,
-            "players_required": 6,
-            "intensity": "high",
-            "equipment": ["cones", "balls"],
-            "space": "20x20",
-            "setup": "Place cones in a square",
-            "rules": ["two_touch"],
-            "progressions": ["add neutral"],
-            "regressions": ["increase grid"],
-            "coaching_points": ["head up"],
-            "addresses_problems": ["R001_loss"],
-            "source": "Pep",
-            "video_reference": "https://example.com/rondo",
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "drill_id": "D001",
+                "name": "Rondo 4v2",
+                "category": "possession",
+                "targets": ["passing_accuracy"],
+                "duration_min": 12,
+                "players_required": 6,
+                "intensity": "high",
+                "equipment": ["cones", "balls"],
+                "space": "20x20",
+                "setup": "Place cones in a square",
+                "rules": ["two_touch"],
+                "progressions": ["add neutral"],
+                "regressions": ["increase grid"],
+                "coaching_points": ["head up"],
+                "addresses_problems": ["R001_loss"],
+                "source": "Pep",
+                "video_reference": "https://example.com/rondo",
+            }
+        )
         f = tmp_path / "drill.yaml"
         f.write_text("dummy")
         drill = Drill.from_yaml(f)
@@ -192,10 +211,13 @@ class TestDrill:
 
     def test_from_yaml_list(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value=[
-            {"drill_id": "D002", "name": "Shadow Play"},
-            {"drill_id": "D003", "name": "Box Exercise"},
-        ])
+
+        yaml.safe_load = MagicMock(
+            return_value=[
+                {"drill_id": "D002", "name": "Shadow Play"},
+                {"drill_id": "D003", "name": "Box Exercise"},
+            ]
+        )
         f = tmp_path / "drill.yaml"
         f.write_text("dummy")
         drill = Drill.from_yaml(f)
@@ -204,9 +226,13 @@ class TestDrill:
 
     def test_from_yaml_defaults(self, tmp_path):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "drill_id": "D004", "name": "Test",
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "drill_id": "D004",
+                "name": "Test",
+            }
+        )
         f = tmp_path / "drill.yaml"
         f.write_text("dummy")
         drill = Drill.from_yaml(f)
@@ -222,6 +248,7 @@ class TestDrill:
 # ===================================================================
 # KnowledgeService initialize
 # ===================================================================
+
 
 class TestKnowledgeServiceInit:
     def test_default_state(self):
@@ -239,11 +266,14 @@ class TestInitialize:
     @pytest.mark.asyncio
     async def test_loads_yaml_and_yml(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"rule": {"id": "R001", "category": "defensive"}},
-            {"rule": {"id": "R002", "category": "offensive"}},
-            {"drill_id": "D001", "name": "Test Drill"},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {"rule": {"id": "R001", "category": "defensive"}},
+                {"rule": {"id": "R002", "category": "offensive"}},
+                {"drill_id": "D001", "name": "Test Drill"},
+            ]
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         (kb_paths / "tactics" / "b.yml").write_text("dummy")
         (kb_paths / "drills" / "c.yaml").write_text("dummy")
@@ -263,6 +293,7 @@ class TestInitialize:
     @pytest.mark.asyncio
     async def test_skips_corrupt_yaml_files(self, kb_paths):
         import yaml
+
         yaml.safe_load = MagicMock(side_effect=Exception("yaml parse error"))
         (kb_paths / "tactics" / "bad.yaml").write_text("}")
         ks = KnowledgeService()
@@ -274,6 +305,7 @@ class TestInitialize:
     async def test_missing_directories(self, tmp_path):
         class FakePaths:
             knowledge_base = tmp_path / "nonexistent"
+
         with patch("know_test.get_paths", return_value=FakePaths()):
             ks = KnowledgeService()
             await ks.initialize()
@@ -286,9 +318,12 @@ class TestGetRule:
     @pytest.mark.asyncio
     async def test_get_existing(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "rule": {"id": "R001", "category": "defensive"},
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "rule": {"id": "R001", "category": "defensive"},
+            }
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         ks = KnowledgeService()
         await ks.initialize()
@@ -305,9 +340,13 @@ class TestGetDrill:
     @pytest.mark.asyncio
     async def test_get_existing(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(return_value={
-            "drill_id": "D001", "name": "Test",
-        })
+
+        yaml.safe_load = MagicMock(
+            return_value={
+                "drill_id": "D001",
+                "name": "Test",
+            }
+        )
         (kb_paths / "drills" / "a.yaml").write_text("dummy")
         ks = KnowledgeService()
         await ks.initialize()
@@ -324,10 +363,13 @@ class TestGetAll:
     @pytest.mark.asyncio
     async def test_get_all_rules(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"rule": {"id": "R001", "category": "defensive"}},
-            {"rule": {"id": "R002", "category": "offensive"}},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {"rule": {"id": "R001", "category": "defensive"}},
+                {"rule": {"id": "R002", "category": "offensive"}},
+            ]
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         (kb_paths / "tactics" / "b.yaml").write_text("dummy")
         ks = KnowledgeService()
@@ -338,10 +380,13 @@ class TestGetAll:
     @pytest.mark.asyncio
     async def test_get_all_drills(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"drill_id": "D001", "name": "One"},
-            {"drill_id": "D002", "name": "Two"},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {"drill_id": "D001", "name": "One"},
+                {"drill_id": "D002", "name": "Two"},
+            ]
+        )
         (kb_paths / "drills" / "a.yaml").write_text("dummy")
         (kb_paths / "drills" / "b.yaml").write_text("dummy")
         ks = KnowledgeService()
@@ -354,12 +399,25 @@ class TestFindRulesForPattern:
     @pytest.mark.asyncio
     async def test_match_type(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"rule": {"id": "R001", "category": "defensive",
-                      "pattern_signature": {"type": "pressing_breakdown"}}},
-            {"rule": {"id": "R002", "category": "offensive",
-                      "pattern_signature": {"type": "counter_attack"}}},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {
+                    "rule": {
+                        "id": "R001",
+                        "category": "defensive",
+                        "pattern_signature": {"type": "pressing_breakdown"},
+                    }
+                },
+                {
+                    "rule": {
+                        "id": "R002",
+                        "category": "offensive",
+                        "pattern_signature": {"type": "counter_attack"},
+                    }
+                },
+            ]
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         (kb_paths / "tactics" / "b.yaml").write_text("dummy")
         ks = KnowledgeService()
@@ -371,12 +429,25 @@ class TestFindRulesForPattern:
     @pytest.mark.asyncio
     async def test_with_category_filter(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"rule": {"id": "R001", "category": "defensive",
-                      "pattern_signature": {"type": "zone_loss"}}},
-            {"rule": {"id": "R002", "category": "offensive",
-                      "pattern_signature": {"type": "zone_loss"}}},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {
+                    "rule": {
+                        "id": "R001",
+                        "category": "defensive",
+                        "pattern_signature": {"type": "zone_loss"},
+                    }
+                },
+                {
+                    "rule": {
+                        "id": "R002",
+                        "category": "offensive",
+                        "pattern_signature": {"type": "zone_loss"},
+                    }
+                },
+            ]
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         (kb_paths / "tactics" / "b.yaml").write_text("dummy")
         ks = KnowledgeService()
@@ -394,10 +465,13 @@ class TestFindDrillsForProblem:
     @pytest.mark.asyncio
     async def test_finds_matching_drills(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"drill_id": "D001", "name": "One", "addresses_problems": ["loss_under_press"]},
-            {"drill_id": "D002", "name": "Two", "addresses_problems": ["poor_finishing"]},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {"drill_id": "D001", "name": "One", "addresses_problems": ["loss_under_press"]},
+                {"drill_id": "D002", "name": "Two", "addresses_problems": ["poor_finishing"]},
+            ]
+        )
         (kb_paths / "drills" / "a.yaml").write_text("dummy")
         (kb_paths / "drills" / "b.yaml").write_text("dummy")
         ks = KnowledgeService()
@@ -415,11 +489,14 @@ class TestStats:
     @pytest.mark.asyncio
     async def test_counts_after_initialize(self, kb_paths):
         import yaml
-        yaml.safe_load = MagicMock(side_effect=[
-            {"rule": {"id": "R001", "category": "defensive"}},
-            {"drill_id": "D001", "name": "A"},
-            {"drill_id": "D002", "name": "B"},
-        ])
+
+        yaml.safe_load = MagicMock(
+            side_effect=[
+                {"rule": {"id": "R001", "category": "defensive"}},
+                {"drill_id": "D001", "name": "A"},
+                {"drill_id": "D002", "name": "B"},
+            ]
+        )
         (kb_paths / "tactics" / "a.yaml").write_text("dummy")
         (kb_paths / "drills" / "a.yaml").write_text("dummy")
         (kb_paths / "drills" / "b.yaml").write_text("dummy")

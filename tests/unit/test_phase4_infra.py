@@ -19,6 +19,7 @@ from kawkab.core import secrets as secrets_mod
 # 1. Rate limiter integration tests
 # =============================================================================
 
+
 class TestRateLimiterIntegration:
     """Rate limiter allowed/blocked/different categories/reset."""
 
@@ -78,6 +79,7 @@ class TestRateLimiterIntegration:
 # =============================================================================
 # 2. CoordinateValidator integration tests
 # =============================================================================
+
 
 class TestCoordinateValidatorIntegration:
     """Valid coords pass through, invalid are clamped, edge cases."""
@@ -157,6 +159,7 @@ class TestCoordinateValidatorIntegration:
 # 3. Timing decorator tests
 # =============================================================================
 
+
 class TestTimingDecorator:
     """Basic timing, slow function warning, nested, stackable."""
 
@@ -164,6 +167,7 @@ class TestTimingDecorator:
         @timed()
         def fast_func():
             return 42
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = fast_func()
@@ -176,6 +180,7 @@ class TestTimingDecorator:
         @timed()
         def add(a, b):
             return a + b
+
         assert add(3, 4) == 7
 
     def test_slow_function_warning(self):
@@ -183,6 +188,7 @@ class TestTimingDecorator:
         def slow_func():
             time.sleep(0.15)
             return "done"
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = slow_func()
@@ -207,6 +213,7 @@ class TestTimingDecorator:
 
     def test_stackable(self):
         call_order = []
+
         @timed()
         def level1():
             call_order.append(1)
@@ -225,6 +232,7 @@ class TestTimingDecorator:
         @timed()
         def crash():
             raise ValueError("boom")
+
         with pytest.raises(ValueError, match="boom"):
             crash()
 
@@ -232,6 +240,7 @@ class TestTimingDecorator:
 # =============================================================================
 # 4. Secrets management tests
 # =============================================================================
+
 
 class TestSecretsManagement:
     """get/set, persistence, missing key, env var override."""

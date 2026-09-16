@@ -48,7 +48,9 @@ def skillcorner_file(tmp_path):
         ],
         "frames": [
             {
-                "frame_id": 0, "time": 0, "period": 1,
+                "frame_id": 0,
+                "time": 0,
+                "period": 1,
                 "players": [
                     {"track_id": 1, "x": -0.9, "y": 0.0},
                     {"track_id": 2, "x": -0.5, "y": -0.2},
@@ -58,7 +60,9 @@ def skillcorner_file(tmp_path):
                 "ball": {"x": -0.4, "y": 0.0, "z": 0.0},
             },
             {
-                "frame_id": 1, "time": 40, "period": 1,  # 40ms
+                "frame_id": 1,
+                "time": 40,
+                "period": 1,  # 40ms
                 "players": [
                     {"track_id": 1, "x": -0.9, "y": 0.0},
                     {"track_id": 2, "x": -0.48, "y": -0.2},
@@ -68,7 +72,9 @@ def skillcorner_file(tmp_path):
                 "ball": {"x": -0.3, "y": 0.01, "z": 0.0},
             },
             {
-                "frame_id": 2, "time": 80, "period": 1,
+                "frame_id": 2,
+                "time": 80,
+                "period": 1,
                 "players": [
                     {"track_id": 1, "x": -0.9, "y": 0.0},
                     {"track_id": 2, "x": -0.46, "y": -0.21},
@@ -90,6 +96,7 @@ def _frame_rows(storage, match_id, limit=5000):
 
 def asyncio_get(coro):
     import asyncio
+
     return asyncio.run(coro)
 
 
@@ -137,9 +144,13 @@ class TestSkillCornerImport:
         )
 
         svc = VendorTrackingImportService(storage)
-        summary = asyncio_get(svc.import_tracking_file(
-            skillcorner_file, home_team="Home FC", away_team="Away FC",
-        ))
+        summary = asyncio_get(
+            svc.import_tracking_file(
+                skillcorner_file,
+                home_team="Home FC",
+                away_team="Away FC",
+            )
+        )
 
         assert summary["match_id"] > 0
         assert summary["vendor"] == "skillcorner"
@@ -179,9 +190,12 @@ class TestSkillCornerImport:
         svc = VendorTrackingImportService(storage)
         first = asyncio_get(svc.import_tracking_file(skillcorner_file))
         # Re-import attached to the SAME match -> deduplicated
-        second = asyncio_get(svc.import_tracking_file(
-            skillcorner_file, match_id=first["match_id"],
-        ))
+        second = asyncio_get(
+            svc.import_tracking_file(
+                skillcorner_file,
+                match_id=first["match_id"],
+            )
+        )
 
         assert first["deduplicated"] is False
         assert second["deduplicated"] is True
@@ -217,14 +231,22 @@ class TestTrackingDataQuality:
                 {"track_id": 1, "x": ((10.0 + i) / 105.0) * 2 - 1, "y": (30.0 / 68.0) * 2 - 1},
             ]
             if i == 3:
-                players.append({"track_id": 2, "x": (500.0 / 105.0) * 2 - 1, "y": (-900.0 / 68.0) * 2 - 1})
+                players.append(
+                    {"track_id": 2, "x": (500.0 / 105.0) * 2 - 1, "y": (-900.0 / 68.0) * 2 - 1}
+                )
             else:
-                players.append({"track_id": 2, "x": ((20.0 + i) / 105.0) * 2 - 1, "y": (40.0 / 68.0) * 2 - 1})
-            data["frames"].append({
-                "frame_id": i, "time": ts_ms, "period": 1,
-                "players": players,
-                "ball": {"x": 0.0, "y": 0.0, "z": 0.0},
-            })
+                players.append(
+                    {"track_id": 2, "x": ((20.0 + i) / 105.0) * 2 - 1, "y": (40.0 / 68.0) * 2 - 1}
+                )
+            data["frames"].append(
+                {
+                    "frame_id": i,
+                    "time": ts_ms,
+                    "period": 1,
+                    "players": players,
+                    "ball": {"x": 0.0, "y": 0.0, "z": 0.0},
+                }
+            )
         f_path = tmp_path / "defective.json"
         f_path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -232,7 +254,7 @@ class TestTrackingDataQuality:
         summary = asyncio_get(svc.import_tracking_file(f_path))
         q = summary["quality"]
         assert q["frames"] == 10
-        assert q["frame_gaps"] >= 1          # the 3 s hole
+        assert q["frame_gaps"] >= 1  # the 3 s hole
         assert q["duplicate_timestamps"] >= 1
         assert q["player_count_min"] == 2 and q["player_count_max"] == 2
         assert q["out_of_bounds_positions"] >= 1
@@ -251,14 +273,12 @@ class TestTrackingDataQuality:
             pytest.skip("Metrica fixture files missing")
 
         svc = VendorTrackingImportService(storage)
-        summary = asyncio_get(
-            svc.import_tracking_file(home, vendor="metrica", away_csv=away)
-        )
+        summary = asyncio_get(svc.import_tracking_file(home, vendor="metrica", away_csv=away))
         q = summary["quality"]
         assert q["frames"] == 1999
-        assert q["frame_gaps"] <= 5              # near-clean feed
+        assert q["frame_gaps"] <= 5  # near-clean feed
         assert q["duplicate_timestamps"] == 0
-        assert q["player_count_min"] >= 18       # real feeds dip sometimes
+        assert q["player_count_min"] >= 18  # real feeds dip sometimes
         assert q["out_of_bounds_pct"] < 1.0
         assert 0.0 < q["missing_ball_pct"] < 15.0
 
@@ -290,10 +310,14 @@ class TestTrackingDataQuality:
 
         existing_id = asyncio_get(storage.save_match("Existing", ""))
         svc = VendorTrackingImportService(storage)
-        summary = asyncio_get(svc.import_tracking_file(
-            skillcorner_file, match_id=existing_id,
-            home_team="Home FC", away_team="Away FC",
-        ))
+        summary = asyncio_get(
+            svc.import_tracking_file(
+                skillcorner_file,
+                match_id=existing_id,
+                home_team="Home FC",
+                away_team="Away FC",
+            )
+        )
         assert summary["match_id"] == existing_id
 
 
@@ -373,15 +397,36 @@ class TestEventAlignment:
         match_id = summary["match_id"]
 
         # Events at 0.04s and 0.08s — exactly on frames 1 and 2
-        ev1 = asyncio_get(storage.save_event(match_id, {
-            "type": "pass", "timestamp": 0.04, "team": "home",
-        }))
-        ev2 = asyncio_get(storage.save_event(match_id, {
-            "type": "shot", "timestamp": 0.08, "team": "away",
-        }))
-        ev3 = asyncio_get(storage.save_event(match_id, {
-            "type": "pass", "timestamp": 500.0, "team": "home",  # no frame here
-        }))
+        ev1 = asyncio_get(
+            storage.save_event(
+                match_id,
+                {
+                    "type": "pass",
+                    "timestamp": 0.04,
+                    "team": "home",
+                },
+            )
+        )
+        ev2 = asyncio_get(
+            storage.save_event(
+                match_id,
+                {
+                    "type": "shot",
+                    "timestamp": 0.08,
+                    "team": "away",
+                },
+            )
+        )
+        ev3 = asyncio_get(
+            storage.save_event(
+                match_id,
+                {
+                    "type": "pass",
+                    "timestamp": 500.0,
+                    "team": "home",  # no frame here
+                },
+            )
+        )
 
         result = asyncio_get(svc.align_events(match_id, window_frames=1, fps=25.0))
         assert result["events_total"] == 3
@@ -501,14 +546,14 @@ class TestRealMetricaFixture:
 
         home_csv, away_csv = metrica_files
         svc = VendorTrackingImportService(storage)
-        first = asyncio_get(
-            svc.import_tracking_file(home_csv, vendor="metrica", away_csv=away_csv)
-        )
+        first = asyncio_get(svc.import_tracking_file(home_csv, vendor="metrica", away_csv=away_csv))
         # Re-import attached to the SAME match -> deduplicated (dedup is
         # per-match by design; a new match import is the caller's choice).
         second = asyncio_get(
             svc.import_tracking_file(
-                home_csv, vendor="metrica", away_csv=away_csv,
+                home_csv,
+                vendor="metrica",
+                away_csv=away_csv,
                 match_id=first["match_id"],
             )
         )

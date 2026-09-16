@@ -21,11 +21,13 @@ def health_service():
 
 @pytest.mark.asyncio
 async def test_register_and_check(health_service):
-    mock_check = AsyncMock(return_value={
-        "available": True,
-        "rate_limit_remaining": 50,
-        "rate_limit_reset": "2026-07-14T00:00:00",
-    })
+    mock_check = AsyncMock(
+        return_value={
+            "available": True,
+            "rate_limit_remaining": 50,
+            "rate_limit_reset": "2026-07-14T00:00:00",
+        }
+    )
     health_service.register("statsbomb", mock_check)
     status = await health_service.check_provider("statsbomb")
     assert status.available is True
@@ -164,10 +166,16 @@ def test_daily_counts_reset():
 
 def test_provider_status_to_dict():
     s = ProviderStatus(
-        name="test", available=True, last_check="2026-07-13T12:00:00",
-        response_time_ms=150.0, rate_limit_remaining=42,
-        rate_limit_reset="2026-07-14", daily_calls=10,
-        error_count=2, consecutive_failures=1, health_score=0.85,
+        name="test",
+        available=True,
+        last_check="2026-07-13T12:00:00",
+        response_time_ms=150.0,
+        rate_limit_remaining=42,
+        rate_limit_reset="2026-07-14",
+        daily_calls=10,
+        error_count=2,
+        consecutive_failures=1,
+        health_score=0.85,
     )
     d = s.to_dict()
     assert d["name"] == "test"
@@ -178,8 +186,11 @@ def test_provider_status_to_dict():
 
 def test_call_record_dataclass():
     r = ProviderCallRecord(
-        provider="statsbomb", method="get_match", duration_ms=100.0,
-        success=True, status_code=200,
+        provider="statsbomb",
+        method="get_match",
+        duration_ms=100.0,
+        success=True,
+        status_code=200,
         timestamp=datetime.now(UTC).isoformat(),
     )
     assert r.provider == "statsbomb"

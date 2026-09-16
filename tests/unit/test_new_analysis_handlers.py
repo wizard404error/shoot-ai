@@ -7,6 +7,7 @@ CLAUDE.md for the audit these came out of.
 Uses a from-scratch AnalysisHandler with a mock services dict rather than
 load_service_module, since bridge_handlers/ isn't a service module.
 """
+
 from __future__ import annotations
 
 import json
@@ -69,8 +70,12 @@ class TestGetDashboardStats:
         handler = _handler()
         result = json.loads(await handler.get_dashboard_stats())
         assert result == {
-            "match_count": 0, "total_events": 0, "total_xg": 0.0,
-            "home_wins": 0, "away_wins": 0, "draws": 0,
+            "match_count": 0,
+            "total_events": 0,
+            "total_xg": 0.0,
+            "home_wins": 0,
+            "away_wins": 0,
+            "draws": 0,
         }
 
     @pytest.mark.asyncio
@@ -115,13 +120,24 @@ class TestGetXaReport:
         events_by_match = {
             1: [
                 {
-                    "type": "pass", "team": "home", "pass_type": "through_ball_assist",
-                    "start_x": 80.0, "start_y": 34.0, "end_x": 95.0, "end_y": 34.0,
-                    "is_progressive": True, "timestamp": 10.0,
+                    "type": "pass",
+                    "team": "home",
+                    "pass_type": "through_ball_assist",
+                    "start_x": 80.0,
+                    "start_y": 34.0,
+                    "end_x": 95.0,
+                    "end_y": 34.0,
+                    "is_progressive": True,
+                    "timestamp": 10.0,
                 },
                 {
-                    "type": "pass", "team": "away", "pass_type": "standard",
-                    "start_x": 40.0, "start_y": 20.0, "end_x": 45.0, "end_y": 22.0,
+                    "type": "pass",
+                    "team": "away",
+                    "pass_type": "standard",
+                    "start_x": 40.0,
+                    "start_y": 20.0,
+                    "end_x": 45.0,
+                    "end_y": 22.0,
                     "timestamp": 20.0,
                 },
                 {"type": "shot", "team": "home", "timestamp": 12.0},
@@ -179,9 +195,9 @@ class TestGetSeasonForm:
         # be read backwards as a winning one.
         matches = [{"id": 3}, {"id": 2}, {"id": 1}]  # newest-first, as stored
         events_by_match = {
-            1: [_goal_event("home")],                          # oldest: W
-            2: [_goal_event("home"), _goal_event("home")],      # W
-            3: [_goal_event("away")],                           # newest: L
+            1: [_goal_event("home")],  # oldest: W
+            2: [_goal_event("home"), _goal_event("home")],  # W
+            3: [_goal_event("away")],  # newest: L
         }
         handler = _handler(MockStorageService(matches, events_by_match))
         result = json.loads(await handler.get_season_form())
@@ -195,7 +211,7 @@ class TestGetSeasonForm:
         matches = [{"id": 2}, {"id": 1}]
         events_by_match = {
             1: [_goal_event("home")],  # W = 3 pts
-            2: [],                     # D = 1 pt (0-0)
+            2: [],  # D = 1 pt (0-0)
         }
         handler = _handler(MockStorageService(matches, events_by_match))
         result = json.loads(await handler.get_season_form())
@@ -234,10 +250,12 @@ class TestGetPlayerStats:
 
         pp = MockPlayerProfileService(
             profiles={1: FakeProfile()},
-            appearances={1: [
-                FakeAppearance(10, 2, 1, 5000.0, 0.3),
-                FakeAppearance(15, 1, 0, 6000.0, 0.1),
-            ]},
+            appearances={
+                1: [
+                    FakeAppearance(10, 2, 1, 5000.0, 0.3),
+                    FakeAppearance(15, 1, 0, 6000.0, 0.1),
+                ]
+            },
         )
         handler = _handler(player_profiles=pp)
         result = json.loads(await handler.get_player_stats(1))
@@ -422,8 +440,10 @@ def _acwr_stub(history):
     code awaits this call, so a plain lambda returning a list (as the other
     Mock*/lambda stubs in this file use for sync handler methods) won't
     work here; this returns a real coroutine."""
+
     async def _get(track_id, limit=1):
         return history
+
     return _get
 
 
@@ -455,7 +475,9 @@ class TestSquadInjuryReportBridgeHandler:
     async def test_player_with_real_acwr_uses_the_frontends_field_names(self):
         players = [{"track_id": 7, "team": "home", "name": "Real Data Player", "position": "MID"}]
         storage = MockStorageService(players_by_match={1: players})
-        storage.get_player_acwr = _acwr_stub([{"acwr": 1.8, "date": "2026-08-18", "load_category": "high"}])
+        storage.get_player_acwr = _acwr_stub(
+            [{"acwr": 1.8, "date": "2026-08-18", "load_category": "high"}]
+        )
         handler = _handler(storage)
         result = json.loads(await handler.get_squad_injury_report(1))
         entry = result["home_players"][0]

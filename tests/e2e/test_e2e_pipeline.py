@@ -18,6 +18,7 @@ import pytest
 
 def _get_mc():
     from kawkab.core.observability import MetricsCollector
+
     return MetricsCollector
 
 
@@ -90,6 +91,7 @@ class TestMetricsCollection:
     def test_singleton_metrics(self):
         from kawkab.core.observability import metrics as _m1
         from kawkab.core.observability import metrics as _m2
+
         assert _m1 is _m2
 
 
@@ -151,7 +153,9 @@ class TestProfilerIntegration:
 # ── A5: Bridge slot contract ─────────────────────────────────────────
 
 
-BRIDGE_SOURCE = Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "ui" / "bridge.py"
+BRIDGE_SOURCE = (
+    Path(__file__).resolve().parent.parent.parent / "src" / "kawkab" / "ui" / "bridge.py"
+)
 
 
 class TestBridgeSlots:

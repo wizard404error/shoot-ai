@@ -92,32 +92,41 @@ def _register_provider(name: str, config: OAuthProviderConfig) -> None:
         PROVIDERS[name] = OAuthProvider(config)
 
 
-_register_provider("google", OAuthProviderConfig(
-    client_id=_env("KAWKAB_GOOGLE_CLIENT_ID"),
-    client_secret=_env("KAWKAB_GOOGLE_CLIENT_SECRET"),
-    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
-    token_url="https://oauth2.googleapis.com/token",
-    userinfo_url="https://www.googleapis.com/oauth2/v2/userinfo",
-    scopes=["openid", "email", "profile"],
-))
+_register_provider(
+    "google",
+    OAuthProviderConfig(
+        client_id=_env("KAWKAB_GOOGLE_CLIENT_ID"),
+        client_secret=_env("KAWKAB_GOOGLE_CLIENT_SECRET"),
+        authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
+        token_url="https://oauth2.googleapis.com/token",
+        userinfo_url="https://www.googleapis.com/oauth2/v2/userinfo",
+        scopes=["openid", "email", "profile"],
+    ),
+)
 
-_register_provider("github", OAuthProviderConfig(
-    client_id=_env("KAWKAB_GITHUB_CLIENT_ID"),
-    client_secret=_env("KAWKAB_GITHUB_CLIENT_SECRET"),
-    authorize_url="https://github.com/login/oauth/authorize",
-    token_url="https://github.com/login/oauth/access_token",
-    userinfo_url="https://api.github.com/user",
-    scopes=["read:user", "user:email"],
-))
+_register_provider(
+    "github",
+    OAuthProviderConfig(
+        client_id=_env("KAWKAB_GITHUB_CLIENT_ID"),
+        client_secret=_env("KAWKAB_GITHUB_CLIENT_SECRET"),
+        authorize_url="https://github.com/login/oauth/authorize",
+        token_url="https://github.com/login/oauth/access_token",
+        userinfo_url="https://api.github.com/user",
+        scopes=["read:user", "user:email"],
+    ),
+)
 
-_register_provider("apple", OAuthProviderConfig(
-    client_id=_env("KAWKAB_APPLE_CLIENT_ID"),
-    client_secret=_env("KAWKAB_APPLE_CLIENT_SECRET"),
-    authorize_url="https://appleid.apple.com/auth/authorize",
-    token_url="https://appleid.apple.com/auth/token",
-    userinfo_url="https://appleid.apple.com/auth/userinfo",
-    scopes=["name", "email"],
-))
+_register_provider(
+    "apple",
+    OAuthProviderConfig(
+        client_id=_env("KAWKAB_APPLE_CLIENT_ID"),
+        client_secret=_env("KAWKAB_APPLE_CLIENT_SECRET"),
+        authorize_url="https://appleid.apple.com/auth/authorize",
+        token_url="https://appleid.apple.com/auth/token",
+        userinfo_url="https://appleid.apple.com/auth/userinfo",
+        scopes=["name", "email"],
+    ),
+)
 
 
 def get_oauth_provider(name: str) -> Optional[OAuthProvider]:

@@ -24,11 +24,46 @@ def service():
 
 
 _FORM_SAMPLE = [
-    {"result": "W", "opponent": "Team A", "home_score": 2, "away_score": 0, "competition": "League", "date": "2026-06-01"},
-    {"result": "D", "opponent": "Team B", "home_score": 1, "away_score": 1, "competition": "League", "date": "2026-06-08"},
-    {"result": "W", "opponent": "Team C", "home_score": 3, "away_score": 1, "competition": "Cup", "date": "2026-06-15"},
-    {"result": "W", "opponent": "Team D", "home_score": 2, "away_score": 0, "competition": "League", "date": "2026-06-22"},
-    {"result": "W", "opponent": "Team E", "home_score": 1, "away_score": 0, "competition": "League", "date": "2026-06-29"},
+    {
+        "result": "W",
+        "opponent": "Team A",
+        "home_score": 2,
+        "away_score": 0,
+        "competition": "League",
+        "date": "2026-06-01",
+    },
+    {
+        "result": "D",
+        "opponent": "Team B",
+        "home_score": 1,
+        "away_score": 1,
+        "competition": "League",
+        "date": "2026-06-08",
+    },
+    {
+        "result": "W",
+        "opponent": "Team C",
+        "home_score": 3,
+        "away_score": 1,
+        "competition": "Cup",
+        "date": "2026-06-15",
+    },
+    {
+        "result": "W",
+        "opponent": "Team D",
+        "home_score": 2,
+        "away_score": 0,
+        "competition": "League",
+        "date": "2026-06-22",
+    },
+    {
+        "result": "W",
+        "opponent": "Team E",
+        "home_score": 1,
+        "away_score": 0,
+        "competition": "League",
+        "date": "2026-06-29",
+    },
 ]
 
 
@@ -114,8 +149,10 @@ class TestPreMatchBriefing:
 
     def test_to_dict_structure(self):
         b = PreMatchBriefing(
-            home_team="Home FC", away_team="Away FC",
-            competition="Premier League", venue="Stadium",
+            home_team="Home FC",
+            away_team="Away FC",
+            competition="Premier League",
+            venue="Stadium",
             our_team="Home FC",
         )
         d = b.to_dict()
@@ -141,7 +178,8 @@ class TestPreMatchBriefing:
 
     def test_to_markdown_with_injuries(self):
         b = PreMatchBriefing(
-            home_team="Home", away_team="Away",
+            home_team="Home",
+            away_team="Away",
             our_team="Home",
             our_injuries=[InjuryEntry("P1", "Knee", "2 weeks", "high")],
         )
@@ -152,7 +190,9 @@ class TestPreMatchBriefing:
 
     def test_to_markdown_with_predicted_lineup(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A", our_team="H",
+            home_team="H",
+            away_team="A",
+            our_team="H",
             our_predicted_lineup=[PredictedLineupPlayer("GK", "Keeper", 1, 85.0)],
         )
         md = b.to_markdown()
@@ -161,11 +201,15 @@ class TestPreMatchBriefing:
 
     def test_to_markdown_with_prediction(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A",
+            home_team="H",
+            away_team="A",
             prediction=MatchPrediction(
-                home_score=1.5, away_score=0.8,
-                win_probability=0.55, draw_probability=0.25,
-                loss_probability=0.20, btts_probability=0.60,
+                home_score=1.5,
+                away_score=0.8,
+                win_probability=0.55,
+                draw_probability=0.25,
+                loss_probability=0.20,
+                btts_probability=0.60,
                 confidence="medium",
             ),
         )
@@ -176,8 +220,11 @@ class TestPreMatchBriefing:
 
     def test_to_markdown_no_injuries_shows_message(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A", our_team="H",
-            our_injuries=[], our_suspensions=[],
+            home_team="H",
+            away_team="A",
+            our_team="H",
+            our_injuries=[],
+            our_suspensions=[],
         )
         md = b.to_markdown()
         assert "No injury or suspension concerns" in md
@@ -191,8 +238,10 @@ class TestPreMatchBriefing:
 
     def test_to_html_with_weather(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A",
-            weather_condition="Rainy", weather_temperature=12.0,
+            home_team="H",
+            away_team="A",
+            weather_condition="Rainy",
+            weather_temperature=12.0,
         )
         html = b.to_html()
         assert "Rainy" in html
@@ -216,12 +265,15 @@ class TestPreMatchBriefing:
 
     def test_h2h_in_markdown(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A",
-            h2h_total_meetings=10, h2h_home_wins=6,
-            h2h_away_wins=2, h2h_draws=2, h2h_avg_goals=2.5,
+            home_team="H",
+            away_team="A",
+            h2h_total_meetings=10,
+            h2h_home_wins=6,
+            h2h_away_wins=2,
+            h2h_draws=2,
+            h2h_avg_goals=2.5,
             h2h_recent=[
-                {"date": "2025-01-01", "home": "H", "away": "A",
-                 "home_score": 2, "away_score": 1},
+                {"date": "2025-01-01", "home": "H", "away": "A", "home_score": 2, "away_score": 1},
             ],
         )
         md = b.to_markdown()
@@ -230,7 +282,8 @@ class TestPreMatchBriefing:
 
     def test_tactical_in_markdown(self):
         b = PreMatchBriefing(
-            home_team="H", away_team="A",
+            home_team="H",
+            away_team="A",
             tactical=TacticalRecommendations(
                 suggested_formation="4-4-2",
                 pressing_strategy="High",
@@ -255,8 +308,10 @@ class TestPreMatchBriefingService:
 
     def test_generate_basic(self, service):
         b = service.generate(
-            home_team="Home FC", away_team="Away FC",
-            our_side="home", competition="League",
+            home_team="Home FC",
+            away_team="Away FC",
+            our_side="home",
+            competition="League",
         )
         assert isinstance(b, PreMatchBriefing)
         assert b.home_team == "Home FC"
@@ -266,14 +321,16 @@ class TestPreMatchBriefingService:
 
     def test_generate_our_team_away_side(self, service):
         b = service.generate(
-            home_team="Home FC", away_team="Away FC",
+            home_team="Home FC",
+            away_team="Away FC",
             our_side="away",
         )
         assert b.our_team == "Away FC"
 
     def test_generate_with_form(self, service):
         b = service.generate(
-            home_team="H", away_team="A",
+            home_team="H",
+            away_team="A",
             our_side="home",
             our_form_data=_FORM_SAMPLE,
         )
@@ -283,30 +340,43 @@ class TestPreMatchBriefingService:
 
     def test_generate_streak_winning(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_form_data=[{"result": "W"}, {"result": "W"}, {"result": "W"}],
         )
         assert "3 winning" in b.our_streak or "winning" in b.our_streak
 
     def test_generate_streak_losing(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_form_data=[{"result": "L"}, {"result": "L"}],
         )
         assert "2 losing" in b.our_streak or "losing" in b.our_streak
 
     def test_generate_streak_single_result(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_form_data=[{"result": "D"}],
         )
         assert "Last: D" in b.our_streak or "D" in b.our_streak
 
     def test_generate_with_injuries(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_injuries_data=[
-                {"player": "P1", "injury": "Hamstring", "expected_return": "2 weeks", "severity": "medium"},
+                {
+                    "player": "P1",
+                    "injury": "Hamstring",
+                    "expected_return": "2 weeks",
+                    "severity": "medium",
+                },
             ],
         )
         assert len(b.our_injuries) == 1
@@ -314,14 +384,18 @@ class TestPreMatchBriefingService:
 
     def test_generate_with_suspensions(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_suspensions_data=["Player X", "Player Y"],
         )
         assert b.our_suspensions == ["Player X", "Player Y"]
 
     def test_generate_predicted_lineup(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_predicted_lineup_data=[
                 {"position": "GK", "player_name": "Keeper", "number": 1, "rating": 90.0},
             ],
@@ -331,7 +405,9 @@ class TestPreMatchBriefingService:
 
     def test_generate_opponent_data(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             opponent_form_data=_FORM_SAMPLE[:3],
             opponent_preferred_formation="3-5-2",
             opponent_pressing="High intensity",
@@ -347,11 +423,31 @@ class TestPreMatchBriefingService:
 
     def test_generate_h2h(self, service):
         b = service.generate(
-            home_team="Home", away_team="Away", our_side="home",
+            home_team="Home",
+            away_team="Away",
+            our_side="home",
             h2h_data=[
-                {"home": "Home", "away": "Away", "home_score": 2, "away_score": 1, "date": "2025-01-01"},
-                {"home": "Home", "away": "Away", "home_score": 1, "away_score": 1, "date": "2025-06-01"},
-                {"home": "Away", "away": "Home", "home_score": 0, "away_score": 3, "date": "2024-12-01"},
+                {
+                    "home": "Home",
+                    "away": "Away",
+                    "home_score": 2,
+                    "away_score": 1,
+                    "date": "2025-01-01",
+                },
+                {
+                    "home": "Home",
+                    "away": "Away",
+                    "home_score": 1,
+                    "away_score": 1,
+                    "date": "2025-06-01",
+                },
+                {
+                    "home": "Away",
+                    "away": "Home",
+                    "home_score": 0,
+                    "away_score": 3,
+                    "date": "2024-12-01",
+                },
             ],
         )
         assert b.h2h_total_meetings == 3
@@ -360,9 +456,17 @@ class TestPreMatchBriefingService:
 
     def test_generate_h2h_away_perspective(self, service):
         b = service.generate(
-            home_team="Home", away_team="Away", our_side="away",
+            home_team="Home",
+            away_team="Away",
+            our_side="away",
             h2h_data=[
-                {"home": "Home", "away": "Away", "home_score": 2, "away_score": 1, "date": "2025-01-01"},
+                {
+                    "home": "Home",
+                    "away": "Away",
+                    "home_score": 2,
+                    "away_score": 1,
+                    "date": "2025-01-01",
+                },
             ],
         )
         # "Home" won 2-1, but our_side is "away", so that counts as away win for us
@@ -375,14 +479,21 @@ class TestPreMatchBriefingService:
 
     def test_generate_tactical(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             suggested_formation="4-2-3-1",
             pressing_strategy="Mid-block",
             attacking_focus="Left flank overloads",
             defensive_focus="Compact central shape",
             set_piece_plans=["Short corners", "Near-post on crosses"],
             key_battles_data=[
-                {"our_player": "LB", "opponent_player": "RW", "importance": "high", "our_advantage": False},
+                {
+                    "our_player": "LB",
+                    "opponent_player": "RW",
+                    "importance": "high",
+                    "our_advantage": False,
+                },
             ],
             tactical_notes=["Avoid early yellow cards"],
         )
@@ -396,10 +507,16 @@ class TestPreMatchBriefingService:
 
     def test_generate_prediction(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
-            home_score_pred=2.0, away_score_pred=1.0,
-            win_prob=0.6, draw_prob=0.2, loss_prob=0.2,
-            btts_prob=0.55, prediction_confidence="high",
+            home_team="H",
+            away_team="A",
+            our_side="home",
+            home_score_pred=2.0,
+            away_score_pred=1.0,
+            win_prob=0.6,
+            draw_prob=0.2,
+            loss_prob=0.2,
+            btts_prob=0.55,
+            prediction_confidence="high",
         )
         p = b.prediction
         assert p.home_score == 2.0
@@ -409,7 +526,9 @@ class TestPreMatchBriefingService:
 
     def test_generate_referee(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             referee_name="Mike Dean",
             referee_avg_cards=4.5,
             referee_home_bias=0.08,
@@ -421,16 +540,22 @@ class TestPreMatchBriefingService:
 
     def test_generate_weather(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
-            weather_condition="Rainy", weather_temperature=10.0,
-            weather_wind=25.0, weather_precipitation=3.0,
+            home_team="H",
+            away_team="A",
+            our_side="home",
+            weather_condition="Rainy",
+            weather_temperature=10.0,
+            weather_wind=25.0,
+            weather_precipitation=3.0,
         )
         assert b.weather_condition == "Rainy"
         assert b.weather_temperature == 10.0
 
     def test_generate_opponent_vulnerabilities_and_strengths(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             opponent_vulnerabilities=["Slow CBs", "High defensive line"],
             opponent_strengths=["Counter attacks", "Set pieces"],
         )
@@ -439,14 +564,18 @@ class TestPreMatchBriefingService:
 
     def test_generate_opponent_set_piece_tendencies(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             opponent_set_piece_tendencies=["Short corners", "Zonal marking"],
         )
         assert "Short corners" in b.opponent_set_piece_tendencies
 
     def test_generate_opponent_predicted_lineup(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             opponent_predicted_lineup_data=[
                 {"position": "CF", "player_name": "Opp Striker", "number": 9, "rating": 88.0},
             ],
@@ -456,7 +585,9 @@ class TestPreMatchBriefingService:
 
     def test_generate_top_scorer_and_possession(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_top_scorer="Lewandowski",
             our_avg_possession=58.7,
         )
@@ -465,8 +596,12 @@ class TestPreMatchBriefingService:
 
     def test_generate_all_kickoff_match_date_venue(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
-            match_date="2026-07-15", kickoff="20:00", venue="Camp Nou",
+            home_team="H",
+            away_team="A",
+            our_side="home",
+            match_date="2026-07-15",
+            kickoff="20:00",
+            venue="Camp Nou",
         )
         assert b.match_date == "2026-07-15"
         assert b.kickoff == "20:00"
@@ -478,7 +613,9 @@ class TestPreMatchBriefingService:
 
     def test_generate_form_fields_normalized(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_form_data=[
                 {"result": None, "home_score": None, "away_score": "3"},
             ],
@@ -506,13 +643,22 @@ class TestPreMatchBriefingService:
 class TestRoundTrip:
     def test_full_briefing_to_dict_and_back(self, service):
         b = service.generate(
-            home_team="Barcelona", away_team="Real Madrid",
-            our_side="home", competition="La Liga",
-            venue="Camp Nou", match_date="2026-07-15", kickoff="21:00",
+            home_team="Barcelona",
+            away_team="Real Madrid",
+            our_side="home",
+            competition="La Liga",
+            venue="Camp Nou",
+            match_date="2026-07-15",
+            kickoff="21:00",
             referee_name="Mike Dean",
             our_form_data=_FORM_SAMPLE,
             our_injuries_data=[
-                {"player": "P1", "injury": "Knee", "expected_return": "3 weeks", "severity": "high"},
+                {
+                    "player": "P1",
+                    "injury": "Knee",
+                    "expected_return": "3 weeks",
+                    "severity": "high",
+                },
             ],
             our_suspensions_data=["P2"],
             our_top_scorer="Messi",
@@ -532,8 +678,20 @@ class TestRoundTrip:
             opponent_vulnerabilities=["High line"],
             opponent_strengths=["Counter attack"],
             h2h_data=[
-                {"home": "Barcelona", "away": "Real Madrid", "home_score": 2, "away_score": 1, "date": "2025-03-01"},
-                {"home": "Real Madrid", "away": "Barcelona", "home_score": 1, "away_score": 1, "date": "2025-10-01"},
+                {
+                    "home": "Barcelona",
+                    "away": "Real Madrid",
+                    "home_score": 2,
+                    "away_score": 1,
+                    "date": "2025-03-01",
+                },
+                {
+                    "home": "Real Madrid",
+                    "away": "Barcelona",
+                    "home_score": 1,
+                    "away_score": 1,
+                    "date": "2025-10-01",
+                },
             ],
             suggested_formation="4-3-3",
             pressing_strategy="High press",
@@ -541,13 +699,23 @@ class TestRoundTrip:
             defensive_focus="Stay compact",
             set_piece_plans=["Short corners"],
             key_battles_data=[
-                {"our_player": "Messi", "opponent_player": "Carvajal", "importance": "high", "our_advantage": True},
+                {
+                    "our_player": "Messi",
+                    "opponent_player": "Carvajal",
+                    "importance": "high",
+                    "our_advantage": True,
+                },
             ],
             tactical_notes=["Avoid early card"],
-            home_score_pred=2.3, away_score_pred=1.1,
-            win_prob=0.65, draw_prob=0.20, loss_prob=0.15,
-            btts_prob=0.60, prediction_confidence="high",
-            weather_condition="Clear", weather_temperature=22.0,
+            home_score_pred=2.3,
+            away_score_pred=1.1,
+            win_prob=0.65,
+            draw_prob=0.20,
+            loss_prob=0.15,
+            btts_prob=0.60,
+            prediction_confidence="high",
+            weather_condition="Clear",
+            weather_temperature=22.0,
         )
 
         d = b.to_dict()
@@ -566,25 +734,44 @@ class TestRoundTrip:
 
     def test_markdown_renders_all_sections(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
-            competition="League", venue="Stadium",
+            home_team="H",
+            away_team="A",
+            our_side="home",
+            competition="League",
+            venue="Stadium",
             our_form_data=_FORM_SAMPLE,
             opponent_form_data=_FORM_SAMPLE[:3],
-            our_injuries_data=[{"player": "P1", "injury": "Knee", "expected_return": "2w", "severity": "medium"}],
-            our_predicted_lineup_data=[{"position": "GK", "player_name": "Keeper", "number": 1, "rating": 85}],
+            our_injuries_data=[
+                {"player": "P1", "injury": "Knee", "expected_return": "2w", "severity": "medium"}
+            ],
+            our_predicted_lineup_data=[
+                {"position": "GK", "player_name": "Keeper", "number": 1, "rating": 85}
+            ],
             opponent_key_players_data=[{"name": "Star", "threat_score": 90, "key_stat": "10g"}],
-            h2h_data=[{"home": "H", "away": "A", "home_score": 1, "away_score": 0, "date": "2025-01-01"}],
+            h2h_data=[
+                {"home": "H", "away": "A", "home_score": 1, "away_score": 0, "date": "2025-01-01"}
+            ],
             referee_name="Ref",
             suggested_formation="4-4-2",
             pressing_strategy="High",
-            home_score_pred=2.0, away_score_pred=0.5,
-            win_prob=0.7, draw_prob=0.2, loss_prob=0.1,
-            btts_prob=0.4, prediction_confidence="high",
+            home_score_pred=2.0,
+            away_score_pred=0.5,
+            win_prob=0.7,
+            draw_prob=0.2,
+            loss_prob=0.1,
+            btts_prob=0.4,
+            prediction_confidence="high",
             weather_condition="Rainy",
         )
         md = b.to_markdown()
-        expected_sections = ["Form Guide", "Team News", "Opponent", "Head-to-Head",
-                             "Tactical Plan", "Match Prediction"]
+        expected_sections = [
+            "Form Guide",
+            "Team News",
+            "Opponent",
+            "Head-to-Head",
+            "Tactical Plan",
+            "Match Prediction",
+        ]
         for section in expected_sections:
             assert section in md, f"Missing section: {section}"
         assert "Rainy" in md
@@ -609,7 +796,9 @@ class TestEdgeCases:
 
     def test_injury_entry_missing_fields(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_injuries_data=[{"player": "P1"}],
         )
         assert b.our_injuries[0].player == "P1"
@@ -617,14 +806,18 @@ class TestEdgeCases:
 
     def test_suspensions_empty_list(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             our_suspensions_data=[],
         )
         assert b.our_suspensions == []
 
     def test_h2h_null_scores(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             h2h_data=[{"home_score": None, "away_score": None}],
         )
         assert b.h2h_total_meetings == 1
@@ -632,7 +825,9 @@ class TestEdgeCases:
 
     def test_opponent_key_players_empty(self, service):
         b = service.generate(
-            home_team="H", away_team="A", our_side="home",
+            home_team="H",
+            away_team="A",
+            our_side="home",
             opponent_key_players_data=[],
         )
         assert b.opponent_key_players == []
@@ -663,8 +858,7 @@ class TestEdgeCases:
         assert "10 winning" in b.our_streak or f"{'winning'}" in b.our_streak
 
     def test_referee_matches_markdown(self, service):
-        b = service.generate(home_team="H", away_team="A", our_side="home",
-                             referee_name="M.D.")
+        b = service.generate(home_team="H", away_team="A", our_side="home", referee_name="M.D.")
         md = b.to_markdown()
         assert "M.D." in md
 

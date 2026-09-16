@@ -125,20 +125,22 @@ class OptaF7Importer(BaseDataProvider):
                 q_val = qual.get("value", "")
                 qualifiers[q_id] = q_val
 
-            events.append(ProviderEvent(
-                event_id=event_id,
-                match_id=match_id,
-                timestamp=timestamp,
-                type=self._opta_type_name(event_type),
-                team=team_id,
-                player=player_id,
-                x=x,
-                y=y,
-                end_x=end_x,
-                end_y=end_y,
-                outcome=outcome,
-                extra={"type_id": event_type, "qualifiers": qualifiers},
-            ))
+            events.append(
+                ProviderEvent(
+                    event_id=event_id,
+                    match_id=match_id,
+                    timestamp=timestamp,
+                    type=self._opta_type_name(event_type),
+                    team=team_id,
+                    player=player_id,
+                    x=x,
+                    y=y,
+                    end_x=end_x,
+                    end_y=end_y,
+                    outcome=outcome,
+                    extra={"type_id": event_type, "qualifiers": qualifiers},
+                )
+            )
 
         return events
 
@@ -166,12 +168,16 @@ class OptaF7Importer(BaseDataProvider):
                 shirt_number = player_el.get("ShirtNumber", "")
                 position = player_el.get("Position", "")
                 status = player_el.get("Status", "")
-                players_list.append({
-                    "player_ref": player_ref,
-                    "shirt_number": int(shirt_number) if shirt_number and shirt_number.isdigit() else 0,
-                    "position": position,
-                    "status": status,
-                })
+                players_list.append(
+                    {
+                        "player_ref": player_ref,
+                        "shirt_number": int(shirt_number)
+                        if shirt_number and shirt_number.isdigit()
+                        else 0,
+                        "position": position,
+                        "status": status,
+                    }
+                )
                 if formation and position in ("Goalkeeper", "Defender", "Midfielder", "Forward"):
                     pass
 
@@ -179,21 +185,31 @@ class OptaF7Importer(BaseDataProvider):
             if formation_el is not None:
                 formation = formation_el.text or ""
 
-            lineups.append(ProviderLineup(
-                match_id=match_id,
-                team=team_name or team_ref,
-                formation=formation,
-                players=players_list,
-            ))
+            lineups.append(
+                ProviderLineup(
+                    match_id=match_id,
+                    team=team_name or team_ref,
+                    formation=formation,
+                    players=players_list,
+                )
+            )
 
         return lineups
 
     # ── Async interface ──
 
-    async def search_matches(self, team: Optional[str] = None, competition: Optional[str] = None,
-                             season: Optional[str] = None, date_from: Optional[str] = None,
-                             date_to: Optional[str] = None, limit: int = 50) -> list[ProviderMatch]:
-        logger.warning("OptaF7Importer.search_matches: local file mode - provide match XML files directly")
+    async def search_matches(
+        self,
+        team: Optional[str] = None,
+        competition: Optional[str] = None,
+        season: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        limit: int = 50,
+    ) -> list[ProviderMatch]:
+        logger.warning(
+            "OptaF7Importer.search_matches: local file mode - provide match XML files directly"
+        )
         return []
 
     async def get_match_events(self, match_id: str) -> list[ProviderEvent]:
@@ -201,7 +217,9 @@ class OptaF7Importer(BaseDataProvider):
         return []
 
     async def get_match_lineups(self, match_id: str) -> list[ProviderLineup]:
-        logger.warning("OptaF7Importer.get_match_lineups: use parse_lineup_xml(xml_content) directly")
+        logger.warning(
+            "OptaF7Importer.get_match_lineups: use parse_lineup_xml(xml_content) directly"
+        )
         return []
 
     def get_rate_limit_info(self) -> dict:

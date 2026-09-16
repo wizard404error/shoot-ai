@@ -21,19 +21,24 @@ def _install_stubs() -> None:
     core_mod = types.ModuleType("kawkab.core")
     sys.modules["kawkab.core"] = core_mod
     paths_mod = types.ModuleType("kawkab.core.paths")
+
     class _Paths:
         def __init__(self):
             self.calibration_dir = Path("/tmp/cal")
             self.data_dir = Path("/tmp/data")
+
     paths_mod.get_paths = lambda: _Paths()
     sys.modules["kawkab.core.paths"] = paths_mod
     services_mod = types.ModuleType("kawkab.services")
     sys.modules["kawkab.services"] = services_mod
     cv_mod = types.ModuleType("kawkab.services.cv_service")
+
     class FrameDetections:
         pass
+
     class MatchTrackData:
         pass
+
     cv_mod.FrameDetections = FrameDetections
     cv_mod.MatchTrackData = MatchTrackData
     sys.modules["kawkab.services.cv_service"] = cv_mod

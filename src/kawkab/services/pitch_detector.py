@@ -68,6 +68,7 @@ class PitchDetector:
     def _check_opencv(self) -> bool:
         try:
             import cv2  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -84,6 +85,7 @@ class PitchDetector:
         try:
             import cv2
             import numpy as np
+
             if isinstance(frame, (bytes, bytearray)):
                 arr = np.frombuffer(frame, dtype=np.uint8)
                 img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
@@ -123,9 +125,7 @@ class PitchDetector:
             logger.warning("Pitch detection failed: %s", e)
             return self._default_guess(0, 0, notes=[f"error: {e}"])
 
-    def _default_guess(
-        self, w: int, h: int, notes: list[str] | None = None
-    ) -> CalibrationGuess:
+    def _default_guess(self, w: int, h: int, notes: list[str] | None = None) -> CalibrationGuess:
         if w == 0 or h == 0:
             return CalibrationGuess(
                 image_width=0,
@@ -153,9 +153,7 @@ class PitchDetector:
             notes=notes or ["using default centered guess"],
         )
 
-    def _classify_lines(
-        self, lines: Any, w: int, h: int
-    ) -> tuple[list[Any], list[Any]]:
+    def _classify_lines(self, lines: Any, w: int, h: int) -> tuple[list[Any], list[Any]]:
         h_lines: list[Any] = []
         v_lines: list[Any] = []
         for line in lines:

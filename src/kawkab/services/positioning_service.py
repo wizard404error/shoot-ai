@@ -313,8 +313,6 @@ class PositioningService:
             notes=notes,
         )
 
-    def is_in_behind_defense(
-        self, x: float, opp_defensive_line_x: float
-    ) -> bool:
+    def is_in_behind_defense(self, x: float, opp_defensive_line_x: float) -> bool:
         """True if player position is behind the opponent's last defender."""
         return x > opp_defensive_line_x + 1.0

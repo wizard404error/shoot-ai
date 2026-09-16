@@ -10,6 +10,7 @@ Usage:
   python scripts/train_ball_detector.py --method synthetic --epochs 30
   python scripts/train_ball_detector.py --method soccernet --epochs 50
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,7 +40,9 @@ def _ensure_dirs():
 
 def _draw_ball(
     img: np.ndarray,
-    cx: int, cy: int, radius: int,
+    cx: int,
+    cy: int,
+    radius: int,
     color: tuple[int, int, int] = (255, 255, 255),
 ) -> np.ndarray:
     """Draw a spherical ball with shading on the image."""
@@ -79,8 +82,13 @@ def generate_synthetic(
         for _ in range(random.randint(0, 5)):
             x1 = random.randint(0, w)
             y1 = random.randint(0, h)
-            cv2.line(bg, (x1, y1), (x1 + random.randint(-80, 80), y1 + random.randint(-80, 80)),
-                     (200, 200, 200), random.randint(1, 3))
+            cv2.line(
+                bg,
+                (x1, y1),
+                (x1 + random.randint(-80, 80), y1 + random.randint(-80, 80)),
+                (200, 200, 200),
+                random.randint(1, 3),
+            )
 
         # Ball properties
         radius = random.randint(min_radius, max_radius)
@@ -179,9 +187,7 @@ def prepare_soccernet(
                         bw = (bbox["x2"] - bbox["x1"]) / ann["width"]
                         bh = (bbox["y2"] - bbox["y1"]) / ann["height"]
                         lf.write(f"{cls_id} {xc:.6f} {yc:.6f} {bw:.6f} {bh:.6f}\n")
-    logger.info(
-        f"SoccerNet: {len(train_matches)} train + {len(val_matches)} val matches"
-    )
+    logger.info(f"SoccerNet: {len(train_matches)} train + {len(val_matches)} val matches")
     return True
 
 
@@ -189,10 +195,7 @@ def write_dataset_yaml():
     """Write dataset.yaml for YOLO training."""
     yaml_path = DATA_DIR / "dataset.yaml"
     yaml_path.write_text(
-        f"train: {TRAIN_IMG.resolve()}\n"
-        f"val: {VAL_IMG.resolve()}\n"
-        f"nc: 1\n"
-        f"names: ['ball']\n"
+        f"train: {TRAIN_IMG.resolve()}\nval: {VAL_IMG.resolve()}\nnc: 1\nnames: ['ball']\n"
     )
     logger.info(f"Dataset YAML: {yaml_path}")
     return yaml_path
@@ -268,33 +271,28 @@ def run_training(args: argparse.Namespace):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Train YOLO11n ball detector"
-    )
+    parser = argparse.ArgumentParser(description="Train YOLO11n ball detector")
     parser.add_argument(
-        "--method", choices=["synthetic", "soccernet", "both"],
+        "--method",
+        choices=["synthetic", "soccernet", "both"],
         default="synthetic",
         help="Training data source (default: synthetic)",
     )
-    parser.add_argument("--model", type=str, default="yolo11n.pt",
-                        help="Base YOLO model")
+    parser.add_argument("--model", type=str, default="yolo11n.pt", help="Base YOLO model")
     parser.add_argument("--epochs", type=int, default=30, help="Training epochs")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size")
     parser.add_argument("--batch", type=int, default=16, help="Batch size")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     parser.add_argument("--device", type=str, default="0", help="CUDA device")
     parser.add_argument("--workers", type=int, default=4, help="Data workers")
-    parser.add_argument("--project", type=str, default="runs/train",
-                        help="Output directory")
+    parser.add_argument("--project", type=str, default="runs/train", help="Output directory")
     parser.add_argument("--name", type=str, default=None, help="Run name")
-    parser.add_argument("--export-onnx", action="store_true",
-                        help="Export ONNX after training")
-    parser.add_argument("--max-matches", type=int, default=10,
-                        help="Max SoccerNet matches to use")
-    parser.add_argument("--synthetic-count", type=int, default=500,
-                        help="Number of synthetic images to generate")
-    parser.add_argument("--patience", type=int, default=15,
-                        help="Early stopping patience")
+    parser.add_argument("--export-onnx", action="store_true", help="Export ONNX after training")
+    parser.add_argument("--max-matches", type=int, default=10, help="Max SoccerNet matches to use")
+    parser.add_argument(
+        "--synthetic-count", type=int, default=500, help="Number of synthetic images to generate"
+    )
+    parser.add_argument("--patience", type=int, default=15, help="Early stopping patience")
     args = parser.parse_args()
     run_training(args)
 

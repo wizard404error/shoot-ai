@@ -66,6 +66,7 @@ class WeatherImageClassifier:
         try:
             import torch
             import torch.nn as nn
+
             self._torch = torch
             self._nn = nn
             if self._model_path and self._model_path != "":
@@ -88,6 +89,7 @@ class WeatherImageClassifier:
         nn = self._nn
         try:
             import torchvision.models as tvm
+
             backbone = tvm.mobilenet_v3_small(weights=None)
             backbone.classifier = nn.Sequential(
                 nn.Linear(576, 128),
@@ -117,8 +119,7 @@ class WeatherImageClassifier:
         """Classify weather from a single video frame."""
         if frame is None or frame.size == 0:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES},
-                0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
             )
         if self._cnn_available:
             try:
@@ -131,14 +132,12 @@ class WeatherImageClassifier:
         """Classify weather across multiple frames; majority vote on class."""
         if not frames:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES},
-                0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
             )
         results = [self.classify(f) for f in frames if f is not None and f.size > 0]
         if not results:
             return WeatherClassification(
-                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES},
-                0.0, 0.0, 0.0, "feature_based"
+                "sunny", 0.0, {c: 0.2 for c in WEATHER_CLASSES}, 0.0, 0.0, 0.0, "feature_based"
             )
         votes: dict[str, int] = {}
         avg_probs: dict[str, float] = {c: 0.0 for c in WEATHER_CLASSES}
@@ -252,6 +251,7 @@ def torchvision_normalize():
             std=[0.229, 0.224, 0.225],
         )
     except Exception:
+
         class _Identity:
             def __call__(self, x):
                 return x

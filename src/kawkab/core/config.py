@@ -18,6 +18,7 @@ Usage:
     cfg = TrackingConfig.load("configs/broadcast.yaml")  # or use defaults:
     cfg = TrackingConfig()
 """
+
 from __future__ import annotations
 
 import json
@@ -40,9 +41,7 @@ class Settings(BaseSettings):
     see `.env.example` for the full documented list.
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # App identity
     app_name: str = "Kawkab AI"
@@ -77,16 +76,12 @@ class Settings(BaseSettings):
     # LLM provider (local Ollama by default — mirrors LLMConfig's defaults)
     llm_provider: str = Field(default="ollama", validation_alias="LLM_PROVIDER")
     ollama_model: str = Field(default="ministral-3:14b", validation_alias="OLLAMA_MODEL")
-    ollama_base_url: str = Field(
-        default="http://localhost:11434", validation_alias="OLLAMA_URL"
-    )
+    ollama_base_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_URL")
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4", validation_alias="OPENAI_MODEL")
 
     # Optional service flags
-    enable_face_recognition: bool = Field(
-        default=True, validation_alias="ENABLE_FACE_RECOGNITION"
-    )
+    enable_face_recognition: bool = Field(default=True, validation_alias="ENABLE_FACE_RECOGNITION")
     enable_weather_detection: bool = Field(
         default=True, validation_alias="ENABLE_WEATHER_DETECTION"
     )
@@ -99,9 +94,7 @@ class Settings(BaseSettings):
     enable_physics_sim: bool = Field(default=False, validation_alias="ENABLE_PHYSICS_SIM")
 
     # Security
-    session_timeout_minutes: int = Field(
-        default=0, validation_alias="SESSION_TIMEOUT_MINUTES"
-    )
+    session_timeout_minutes: int = Field(default=0, validation_alias="SESSION_TIMEOUT_MINUTES")
 
 
 @lru_cache
@@ -272,6 +265,7 @@ class TrackingConfigRoot:
 def _load_yaml(path: Path) -> dict:
     """Minimal YAML loader — just key:value lines, no nesting."""
     import re
+
     result: dict[str, Any] = {}
     current_section: str | None = None
     section_data: dict[str, Any] = {}

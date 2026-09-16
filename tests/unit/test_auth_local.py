@@ -200,6 +200,7 @@ def test_password_hashing():
 
 def test_auth_login_success(storage):
     import asyncio
+
     pwd_hash = _hash_password("testpass")
     uid = asyncio.run(storage.create_user("logintest", pwd_hash, "analyst"))
     assert uid > 0
@@ -213,6 +214,7 @@ def test_auth_login_success(storage):
 
 def test_auth_login_wrong_password(storage):
     import asyncio
+
     pwd_hash = _hash_password("okpass")
     asyncio.run(storage.create_user("failuser", pwd_hash, "viewer"))
     auth = _make_auth(storage)
@@ -228,6 +230,7 @@ def test_auth_login_unknown_user(storage):
 
 def test_auth_logout(storage):
     import asyncio
+
     pwd_hash = _hash_password("p")
     asyncio.run(storage.create_user("logoutuser", pwd_hash))
     auth = _make_auth(storage)
@@ -242,6 +245,7 @@ def test_auth_logout(storage):
 
 def test_get_current_user(storage):
     import asyncio
+
     pwd_hash = _hash_password("p")
     asyncio.run(storage.create_user("getuser", pwd_hash))
     auth = _make_auth(storage)
@@ -260,6 +264,7 @@ def test_get_current_user_invalid_token(storage):
 
 def test_change_password_via_auth(storage):
     import asyncio
+
     pwd_hash = _hash_password("oldpwd")
     asyncio.run(storage.create_user("changepwduser", pwd_hash))
     auth = _make_auth(storage)
@@ -271,6 +276,7 @@ def test_change_password_via_auth(storage):
 
 def test_change_password_wrong_old(storage):
     import asyncio
+
     pwd_hash = _hash_password("okpwd")
     asyncio.run(storage.create_user("wrongold", pwd_hash))
     auth = _make_auth(storage)
@@ -282,6 +288,7 @@ def test_change_password_wrong_old(storage):
 
 def test_list_users_admin(storage):
     import asyncio
+
     pwd_hash = _hash_password("adminpass")
     asyncio.run(storage.create_user("adminuser", pwd_hash, "admin"))
     asyncio.run(storage.create_user("normal", _hash_password("p"), "analyst"))
@@ -295,6 +302,7 @@ def test_list_users_admin(storage):
 
 def test_list_users_non_admin(storage):
     import asyncio
+
     pwd_hash = _hash_password("p")
     asyncio.run(storage.create_user("nonadmin", pwd_hash, "viewer"))
     auth = _make_auth(storage)

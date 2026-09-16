@@ -132,8 +132,7 @@ def compute_momentum_index(
         home_territory = 50.0
         if frame_data:
             frames_in_window = [
-                f for f in frame_data
-                if window_start <= f.get("timestamp", 0) <= window_end
+                f for f in frame_data if window_start <= f.get("timestamp", 0) <= window_end
             ]
             if frames_in_window:
                 home_pos = 0
@@ -154,15 +153,17 @@ def compute_momentum_index(
         momentum = xg_component + territory_component + passes_component + shots_component
         momentum = max(-1.0, min(1.0, momentum))
 
-        points.append(MomentumPoint(
-            minute=minute,
-            momentum=momentum,
-            home_xg=home_xg,
-            away_xg=away_xg,
-            home_territory_pct=home_territory,
-            home_passes_final_third=home_final_third_passes,
-            away_passes_final_third=away_final_third_passes,
-        ))
+        points.append(
+            MomentumPoint(
+                minute=minute,
+                momentum=momentum,
+                home_xg=home_xg,
+                away_xg=away_xg,
+                home_territory_pct=home_territory,
+                home_passes_final_third=home_final_third_passes,
+                away_passes_final_third=away_final_third_passes,
+            )
+        )
 
     # Aggregate
     total_mom = sum(p.momentum for p in points)

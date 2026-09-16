@@ -44,30 +44,34 @@ class LifecycleHandler:
         from kawkab.services.benchmark_service import BenchmarkService
 
         try:
-            model_size = getattr(self.cv_service, 'model_size', 'l') if self.cv_service else 'l'
+            model_size = getattr(self.cv_service, "model_size", "l") if self.cv_service else "l"
             if self.benchmark_service is None:
-                return json.dumps({
-                    "gpu_name": "unknown",
-                    "tier": "unknown",
-                    "recommendations": BenchmarkService.recommend_settings("unknown"),
-                    "current_settings": {
-                        "model_size": model_size,
-                        "frame_skip": self._services.get("frame_skip", 3),
-                    },
-                })
+                return json.dumps(
+                    {
+                        "gpu_name": "unknown",
+                        "tier": "unknown",
+                        "recommendations": BenchmarkService.recommend_settings("unknown"),
+                        "current_settings": {
+                            "model_size": model_size,
+                            "frame_skip": self._services.get("frame_skip", 3),
+                        },
+                    }
+                )
             info = self.benchmark_service._system_info
             gpu_name = info.get("gpu_name", "unknown")
             tier = BenchmarkService.classify_gpu_tier(gpu_name)
             recommendations = BenchmarkService.recommend_settings(tier)
-            return json.dumps({
-                "gpu_name": gpu_name,
-                "tier": tier,
-                "recommendations": recommendations,
-                "current_settings": {
-                    "model_size": model_size,
-                    "frame_skip": self._services.get("frame_skip", 3),
-                },
-            })
+            return json.dumps(
+                {
+                    "gpu_name": gpu_name,
+                    "tier": tier,
+                    "recommendations": recommendations,
+                    "current_settings": {
+                        "model_size": model_size,
+                        "frame_skip": self._services.get("frame_skip", 3),
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"get_gpu_info failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})

@@ -36,7 +36,9 @@ class ArabicGlossary:
         glossary_path: Path to the YAML file.
     """
 
-    DEFAULT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "translations" / "ar.yml"
+    DEFAULT_PATH = (
+        Path(__file__).resolve().parent.parent.parent.parent / "docs" / "translations" / "ar.yml"
+    )
 
     def __init__(self, glossary_path: Path | None = None) -> None:
         self.glossary_path = glossary_path or self.DEFAULT_PATH
@@ -50,6 +52,7 @@ class ArabicGlossary:
         text = self.glossary_path.read_text(encoding="utf-8")
         try:
             import yaml
+
             data = yaml.safe_load(text)
         except ImportError:
             data = self._parse_simple(text)

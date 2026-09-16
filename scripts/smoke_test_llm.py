@@ -1,4 +1,5 @@
 """Smoke test for LLM service - verifies Ollama integration."""
+
 import asyncio
 import sys
 

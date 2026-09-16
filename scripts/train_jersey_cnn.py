@@ -77,9 +77,7 @@ def download_soccernet_jersey(data_dir: Path) -> bool:
         logger.info(f"SoccerNet jersey dataset downloaded to {data_dir}")
         return True
     except ImportError:
-        logger.error(
-            "SoccerNet pip package not installed. Run: pip install SoccerNet"
-        )
+        logger.error("SoccerNet pip package not installed. Run: pip install SoccerNet")
         return False
     except Exception as e:
         logger.error(f"Download failed: {e}")
@@ -165,20 +163,33 @@ def _isolate_digits(img: np.ndarray) -> list[np.ndarray]:
         aspect = w / max(h, 1)
         if aspect < 0.3 or aspect > 1.0:
             continue
-        digit = img[y: y + h, x: x + w]
+        digit = img[y : y + h, x : x + w]
         digits.append(digit)
 
-    digits.sort(key=lambda d: cv2.boundingRect(
-        cv2.findContours(
-            cv2.threshold(cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255,
-                          cv2.THRESH_BINARY)[1], cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )[0]
-    )[0][0][0] if len(cv2.findContours(
-        cv2.threshold(cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255,
-                      cv2.THRESH_BINARY)[1], cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
-    )[0]) > 0 else 0)
+    digits.sort(
+        key=lambda d: (
+            cv2.boundingRect(
+                cv2.findContours(
+                    cv2.threshold(cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)[
+                        1
+                    ],
+                    cv2.RETR_EXTERNAL,
+                    cv2.CHAIN_APPROX_SIMPLE,
+                )[0]
+            )[0][0][0]
+            if len(
+                cv2.findContours(
+                    cv2.threshold(cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)[
+                        1
+                    ],
+                    cv2.RETR_EXTERNAL,
+                    cv2.CHAIN_APPROX_SIMPLE,
+                )[0]
+            )
+            > 0
+            else 0
+        )
+    )
     return digits[:3]
 
 
@@ -218,8 +229,7 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_loader = DataLoader(
-        DigitDataset(train_patches, train_labels),
-        batch_size=batch_size, shuffle=True
+        DigitDataset(train_patches, train_labels), batch_size=batch_size, shuffle=True
     )
 
     for epoch in range(epochs):
@@ -257,14 +267,10 @@ def train_model(
 
 def main():
     parser = argparse.ArgumentParser(description="Train SoccerNet jersey CNN")
-    parser.add_argument("--download", action="store_true",
-                        help="Download sn-jersey dataset first")
-    parser.add_argument("--train", action="store_true", required=True,
-                        help="Train the CNN model")
-    parser.add_argument("--data-dir", default="data/soccernet",
-                        help="Dataset directory")
-    parser.add_argument("--output", default="models/jersey_cnn.pt",
-                        help="Output model path")
+    parser.add_argument("--download", action="store_true", help="Download sn-jersey dataset first")
+    parser.add_argument("--train", action="store_true", required=True, help="Train the CNN model")
+    parser.add_argument("--data-dir", default="data/soccernet", help="Dataset directory")
+    parser.add_argument("--output", default="models/jersey_cnn.pt", help="Output model path")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=0.001)
@@ -278,6 +284,7 @@ def main():
 
     if args.train:
         import torch
+
         train_imgs, train_labels = load_dataset(data_dir, "train")
         if not train_imgs:
             logger.error("No training data found. Use --download first.")
@@ -294,8 +301,10 @@ def main():
             logger.info(f"Using {len(val_patches)} validation patches")
 
         train_model(
-            train_patches, train_digit_labels,
-            val_patches, val_labels,
+            train_patches,
+            train_digit_labels,
+            val_patches,
+            val_labels,
             epochs=args.epochs,
             batch_size=args.batch_size,
             lr=args.lr,

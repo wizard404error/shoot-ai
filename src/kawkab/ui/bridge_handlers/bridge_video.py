@@ -80,7 +80,9 @@ class VideoHandler:
 
     # --- Video Trimming ---
 
-    def trim_video(self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = "") -> str:
+    def trim_video(
+        self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = ""
+    ) -> str:
         self._check_rate_limit()
         try:
             path = SecurityValidator.validate_video_path(video_path)
@@ -88,9 +90,12 @@ class VideoHandler:
                 return json.dumps({"error": "Invalid video path"})
             import asyncio
             from kawkab.services.clip_service import ClipExtractionService
+
             svc = ClipExtractionService()
             name = output_name or f"trim_{int(start_seconds)}_{int(end_seconds)}.mp4"
-            result = asyncio.run(svc.extract_clip(path, start_seconds, end_seconds, name, quality="high"))
+            result = asyncio.run(
+                svc.extract_clip(path, start_seconds, end_seconds, name, quality="high")
+            )
             return json.dumps({"output": result, "ok": True})
         except Exception as e:
             logger.error(f"trim_video failed: {e}")
@@ -103,9 +108,15 @@ class VideoHandler:
         try:
             import asyncio
             from kawkab.services.highlight_reel_service import ReelClip
+
             clips_data = json.loads(clips_json)
             clips = [
-                ReelClip(video_path=c["video_path"], start_seconds=c["start_s"], end_seconds=c["end_s"], label=c.get("label", ""))
+                ReelClip(
+                    video_path=c["video_path"],
+                    start_seconds=c["start_s"],
+                    end_seconds=c["end_s"],
+                    label=c.get("label", ""),
+                )
                 for c in clips_data
             ]
             result = asyncio.run(self._highlight_reel.compose_reel(clips, output_filename))
@@ -120,19 +131,32 @@ class VideoHandler:
             events = json.loads(events_json)
             reel_id = str(uuid.uuid4())[:8]
             with self._reel_lock:
-                self._reel_progress[reel_id] = {"status": "starting", "progress": 0.0, "output_path": ""}
+                self._reel_progress[reel_id] = {
+                    "status": "starting",
+                    "progress": 0.0,
+                    "output_path": "",
+                }
 
             # Track reel progress
             with self._reel_lock:
-                self._reel_progress[reel_id] = {"status": "processing", "progress": 0.3, "output_path": ""}
+                self._reel_progress[reel_id] = {
+                    "status": "processing",
+                    "progress": 0.3,
+                    "output_path": "",
+                }
 
             import asyncio
+
             result_str = self._highlight_reel.make_reel_from_events(match_id, events, video_path)
             result = json.loads(result_str)
 
             with self._reel_lock:
                 if "error" in result:
-                    self._reel_progress[reel_id] = {"status": "error", "progress": 0.0, "output_path": ""}
+                    self._reel_progress[reel_id] = {
+                        "status": "error",
+                        "progress": 0.0,
+                        "output_path": "",
+                    }
                 else:
                     self._reel_progress[reel_id] = {
                         "status": "complete",
@@ -150,10 +174,14 @@ class VideoHandler:
         """Get the current progress of a highlight reel generation."""
         try:
             with self._reel_lock:
-                status = self._reel_progress.get(reel_id, {"status": "unknown", "progress": 0.0, "output_path": ""})
+                status = self._reel_progress.get(
+                    reel_id, {"status": "unknown", "progress": 0.0, "output_path": ""}
+                )
             return json.dumps(status)
         except Exception as e:
-            return json.dumps({"status": "error", "progress": 0.0, "output_path": "", "error": str(e)})
+            return json.dumps(
+                {"status": "error", "progress": 0.0, "output_path": "", "error": str(e)}
+            )
 
     # --- Realtime ---
 
@@ -162,13 +190,15 @@ class VideoHandler:
         if self.realtime_service is None:
             return json.dumps({"available": False, "error": "RealtimeService not initialized"})
         try:
-            return json.dumps({
-                "available": True,
-                "target_fps": self.realtime_service.target_fps,
-                "buffer_size": self.realtime_service.buffer_size,
-                "alert_rule_count": len(self.realtime_service._alert_rules),
-                "subscriber_count": len(self.realtime_service._subscribers),
-            })
+            return json.dumps(
+                {
+                    "available": True,
+                    "target_fps": self.realtime_service.target_fps,
+                    "buffer_size": self.realtime_service.buffer_size,
+                    "alert_rule_count": len(self.realtime_service._alert_rules),
+                    "subscriber_count": len(self.realtime_service._subscribers),
+                }
+            )
         except Exception as e:
             logger.error(f"realtime_status failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -190,6 +220,7 @@ class VideoHandler:
             return json.dumps({"error": "RealtimeService not initialized"})
         try:
             from kawkab.services.realtime_service import ConsoleSubscriber
+
             sub = ConsoleSubscriber()
             self.realtime_service.subscribe(sub)
             return json.dumps({"ok": True, "message": "Console subscriber added"})

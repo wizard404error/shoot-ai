@@ -51,23 +51,27 @@ class ModelCalibrator:
             if not group:
                 bin_start = i / n_bins
                 bin_end = (i + 1) / n_bins
-                curve.append({
-                    "bin_range": f"{bin_start:.1f}-{bin_end:.1f}",
-                    "expected_rate": round((i + 0.5) / n_bins, 3),
-                    "observed_rate": None,
-                    "count": 0,
-                })
+                curve.append(
+                    {
+                        "bin_range": f"{bin_start:.1f}-{bin_end:.1f}",
+                        "expected_rate": round((i + 0.5) / n_bins, 3),
+                        "observed_rate": None,
+                        "count": 0,
+                    }
+                )
                 continue
             expected = sum(xg for xg, _ in group) / len(group)
             observed = sum(1 for _, g in group if g) / len(group)
             bin_start = i / n_bins
             bin_end = (i + 1) / n_bins
-            curve.append({
-                "bin_range": f"{bin_start:.1f}-{bin_end:.1f}",
-                "expected_rate": round(expected, 3),
-                "observed_rate": round(observed, 3),
-                "count": len(group),
-            })
+            curve.append(
+                {
+                    "bin_range": f"{bin_start:.1f}-{bin_end:.1f}",
+                    "expected_rate": round(expected, 3),
+                    "observed_rate": round(observed, 3),
+                    "count": len(group),
+                }
+            )
 
         return curve
 

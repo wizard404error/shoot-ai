@@ -48,9 +48,13 @@ class AutoUpdaterService:
 
     def check_for_update(self) -> str:
         try:
-            resp = httpx.get(self._check_url, timeout=10.0, headers={"Accept": "application/vnd.github.v3+json"})
+            resp = httpx.get(
+                self._check_url, timeout=10.0, headers={"Accept": "application/vnd.github.v3+json"}
+            )
             if resp.status_code != 200:
-                return json.dumps({"error": f"GitHub API returned {resp.status_code}", "has_update": False})
+                return json.dumps(
+                    {"error": f"GitHub API returned {resp.status_code}", "has_update": False}
+                )
             data = resp.json()
             latest_tag = data.get("tag_name", "").lstrip("v")
             if self._compare_versions(latest_tag, self.current_version) > 0:
@@ -68,18 +72,20 @@ class AutoUpdaterService:
                         download_url = asset["browser_download_url"]
                         digest = asset.get("digest") or ""
                         break
-                return json.dumps({
-                    "has_update": True,
-                    "version": latest_tag,
-                    "download_url": download_url,
-                    # GitHub's release-assets API includes a "sha256:<hex>"
-                    # digest for each asset. Pass it back so the caller can
-                    # hand it to download_update() for real verification;
-                    # empty if GitHub didn't provide one for this asset.
-                    "digest": digest,
-                    "release_notes": data.get("body", ""),
-                    "published_at": data.get("published_at", ""),
-                })
+                return json.dumps(
+                    {
+                        "has_update": True,
+                        "version": latest_tag,
+                        "download_url": download_url,
+                        # GitHub's release-assets API includes a "sha256:<hex>"
+                        # digest for each asset. Pass it back so the caller can
+                        # hand it to download_update() for real verification;
+                        # empty if GitHub didn't provide one for this asset.
+                        "digest": digest,
+                        "release_notes": data.get("body", ""),
+                        "published_at": data.get("published_at", ""),
+                    }
+                )
             return json.dumps({"has_update": False, "version": self.current_version})
         except Exception as e:
             logger.error(f"check_for_update failed: {e}")
@@ -102,7 +108,9 @@ class AutoUpdaterService:
             host = (urlparse(download_url).hostname or "").lower()
             if host not in _ALLOWED_DOWNLOAD_HOSTS:
                 logger.error(f"Refusing to download update from untrusted host: {host or '(none)'}")
-                return json.dumps({"error": f"Refusing to download from untrusted host: {host or '(none)'}"})
+                return json.dumps(
+                    {"error": f"Refusing to download from untrusted host: {host or '(none)'}"}
+                )
 
             raw_name = download_url.rsplit("/", 1)[-1] or "update"
             # Keep only a safe basename regardless of what the URL
@@ -125,8 +133,14 @@ class AutoUpdaterService:
                         location = resp.headers.get("location", "")
                         next_host = (urlparse(location).hostname or "").lower()
                         if next_host not in _ALLOWED_DOWNLOAD_HOSTS:
-                            logger.error(f"Refusing to follow update redirect to untrusted host: {next_host or '(none)'}")
-                            return json.dumps({"error": f"Refusing to follow redirect to untrusted host: {next_host or '(none)'}"})
+                            logger.error(
+                                f"Refusing to follow update redirect to untrusted host: {next_host or '(none)'}"
+                            )
+                            return json.dumps(
+                                {
+                                    "error": f"Refusing to follow redirect to untrusted host: {next_host or '(none)'}"
+                                }
+                            )
                         current_url = location
                         continue
                     resp.raise_for_status()
@@ -143,8 +157,12 @@ class AutoUpdaterService:
             if expected_digest:
                 if actual_digest != expected_digest:
                     dest.unlink(missing_ok=True)
-                    logger.error(f"Update checksum mismatch: expected {expected_digest}, got {actual_digest}")
-                    return json.dumps({"error": "Checksum verification failed -- download discarded"})
+                    logger.error(
+                        f"Update checksum mismatch: expected {expected_digest}, got {actual_digest}"
+                    )
+                    return json.dumps(
+                        {"error": "Checksum verification failed -- download discarded"}
+                    )
             else:
                 logger.warning(
                     "download_update: no expected checksum supplied -- integrity "
@@ -152,7 +170,9 @@ class AutoUpdaterService:
                 )
 
             self._verified_download = dest
-            return json.dumps({"ok": True, "path": str(dest), "size": downloaded, "digest": actual_digest})
+            return json.dumps(
+                {"ok": True, "path": str(dest), "size": downloaded, "digest": actual_digest}
+            )
         except Exception as e:
             logger.error(f"download_update failed: {e}")
             return json.dumps({"error": str(e)})
@@ -174,7 +194,9 @@ class AutoUpdaterService:
                     f"apply_update refused: {installer_path!r} does not match the "
                     f"last verified download_update() result ({self._verified_download!r})"
                 )
-                return json.dumps({"error": "This path was not produced by a verified download_update() call"})
+                return json.dumps(
+                    {"error": "This path was not produced by a verified download_update() call"}
+                )
 
             target = str(self._verified_download)
             system = platform.system().lower()
@@ -190,7 +212,13 @@ class AutoUpdaterService:
             return json.dumps({"error": str(e)})
 
     def get_current_version(self) -> str:
-        return json.dumps({"version": self.current_version, "platform": platform.system(), "arch": platform.machine()})
+        return json.dumps(
+            {
+                "version": self.current_version,
+                "platform": platform.system(),
+                "arch": platform.machine(),
+            }
+        )
 
     @staticmethod
     def _compare_versions(v1: str, v2: str) -> int:

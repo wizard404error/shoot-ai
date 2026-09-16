@@ -65,7 +65,7 @@ def compute_acwr(
         return []
 
     results = []
-    acute_decay = 3.0   # Williams et al. (2017) acute time constant
+    acute_decay = 3.0  # Williams et al. (2017) acute time constant
     chronic_decay = 7.0  # ~28-day baseline equivalent
     acute_ewma: float | None = None
     chronic_ewma: float | None = None
@@ -91,14 +91,16 @@ def compute_acwr(
         else:
             category = "normal"
 
-        results.append({
-            **entry,
-            "acute_load": round(acute_ewma, 1),
-            "chronic_load": round(chronic_ewma, 1),
-            "acwr": round(ratio, 3),
-            "load_category": category,
-            "reliable": i >= 27,
-        })
+        results.append(
+            {
+                **entry,
+                "acute_load": round(acute_ewma, 1),
+                "chronic_load": round(chronic_ewma, 1),
+                "acwr": round(ratio, 3),
+                "load_category": category,
+                "reliable": i >= 27,
+            }
+        )
 
     return results
 
@@ -108,7 +110,7 @@ def compute_acwr_from_sessions(
     load_field: str = "total_distance_m",
     date_field: str = "start_time",
 ) -> list[dict[str, Any]]:
-    """    Compute ACWR from GPS session records, aggregating load by date.
+    """Compute ACWR from GPS session records, aggregating load by date.
 
     Rest days carry zero load and MUST be part of the series — a series
     built only from days with sessions inflates both averages and
@@ -186,21 +188,27 @@ def assess_injury_risk(acwr_data: list[dict[str, Any]]) -> dict[str, Any]:
 
     recommendations = []
     if risk == "critical":
-        recommendations.extend([
-            "Reduce training load by 30-50% for 3-5 days",
-            "Consider rest day or active recovery",
-            "Monitor for early injury signs",
-        ])
+        recommendations.extend(
+            [
+                "Reduce training load by 30-50% for 3-5 days",
+                "Consider rest day or active recovery",
+                "Monitor for early injury signs",
+            ]
+        )
     elif risk == "elevated":
-        recommendations.extend([
-            "Maintain current load but avoid spikes",
-            "Monitor player-reported fatigue",
-        ])
+        recommendations.extend(
+            [
+                "Maintain current load but avoid spikes",
+                "Monitor player-reported fatigue",
+            ]
+        )
     elif risk == "deconditioned":
-        recommendations.extend([
-            "Gradually increase load by 10% per week",
-            "Focus on building base fitness",
-        ])
+        recommendations.extend(
+            [
+                "Gradually increase load by 10% per week",
+                "Focus on building base fitness",
+            ]
+        )
     else:
         recommendations.append("Continue current training load")
 

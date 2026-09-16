@@ -249,9 +249,12 @@ class TestSummarizeTrapTransition:
             successful_traps=3,
             transitions_from_traps=[
                 TrapTransitionLink(
-                    trap_index=0, transition_index=0,
-                    time_delta=1.5, spatial_distance=8.0,
-                    goal_scored=False, shot_created=True,
+                    trap_index=0,
+                    transition_index=0,
+                    time_delta=1.5,
+                    spatial_distance=8.0,
+                    goal_scored=False,
+                    shot_created=True,
                 ),
             ],
             conversion_rate=0.333,

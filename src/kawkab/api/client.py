@@ -54,7 +54,9 @@ class KawkabClient:
     async def get_match(self, match_id: int) -> dict:
         return await self._get(f"/api/v1/matches/{match_id}")
 
-    async def get_match_events(self, match_id: int, event_type: str | None = None, limit: int = 1000) -> list[dict]:
+    async def get_match_events(
+        self, match_id: int, event_type: str | None = None, limit: int = 1000
+    ) -> list[dict]:
         params = {"limit": limit}
         if event_type:
             params["event_type"] = event_type
@@ -80,7 +82,9 @@ class KawkabClient:
     # ── AI ──
 
     async def ask_llm(self, match_id: int, question: str) -> str:
-        result = await self._post(f"/api/v1/matches/{match_id}/ai/ask", {"match_id": match_id, "question": question})
+        result = await self._post(
+            f"/api/v1/matches/{match_id}/ai/ask", {"match_id": match_id, "question": question}
+        )
         return result.get("answer", "")
 
     # ── Player Ratings ──
@@ -105,7 +109,9 @@ class KawkabClient:
 
     # ── Recruitment ──
 
-    async def search_players(self, position: str = "", min_age: int = 16, max_age: int = 40, **kwargs) -> list[dict]:
+    async def search_players(
+        self, position: str = "", min_age: int = 16, max_age: int = 40, **kwargs
+    ) -> list[dict]:
         body = {"position": position, "min_age": min_age, "max_age": max_age, **kwargs}
         result = await self._post("/api/v1/recruitment/search", body)
         return result.get("results", [])
@@ -132,11 +138,17 @@ class KawkabClient:
 
     # ── Webhooks ──
 
-    async def create_webhook(self, url: str, events: list[str] | None = None, secret: str = "") -> dict:
-        return await self._post("/api/v1/webhooks", {"url": url, "events": events or ["*"], "secret": secret})
+    async def create_webhook(
+        self, url: str, events: list[str] | None = None, secret: str = ""
+    ) -> dict:
+        return await self._post(
+            "/api/v1/webhooks", {"url": url, "events": events or ["*"], "secret": secret}
+        )
 
     async def list_webhooks(self) -> list[dict]:
         return await self._get("/api/v1/webhooks")
 
     async def delete_webhook(self, webhook_id: int):
-        await self._client.delete(f"{self.base_url}/api/v1/webhooks/{webhook_id}", headers=self._headers)
+        await self._client.delete(
+            f"{self.base_url}/api/v1/webhooks/{webhook_id}", headers=self._headers
+        )

@@ -31,10 +31,24 @@ class TestPSxG:
 
     def test_compute_match_psxg(self):
         events = [
-            {"type": "shot", "team": "home", "distance_m": 10, "angle_deg": 20,
-             "on_target": True, "is_goal": False, "timestamp": 600},
-            {"type": "shot", "team": "away", "distance_m": 5, "angle_deg": 10,
-             "on_target": True, "is_goal": True, "timestamp": 1200},
+            {
+                "type": "shot",
+                "team": "home",
+                "distance_m": 10,
+                "angle_deg": 20,
+                "on_target": True,
+                "is_goal": False,
+                "timestamp": 600,
+            },
+            {
+                "type": "shot",
+                "team": "away",
+                "distance_m": 5,
+                "angle_deg": 10,
+                "on_target": True,
+                "is_goal": True,
+                "timestamp": 1200,
+            },
         ]
         report = compute_match_psxg(events)
         assert report.home_psxg > 0
@@ -54,17 +68,21 @@ class TestTrainedModelBehavior:
     trained on 2,768 StatsBomb on-target shots)."""
 
     def test_header_lower_than_foot(self):
-        foot = compute_psxg(12, 20, placement_x=0.2, placement_y=0.4,
-                            on_target=True, body_part="right_foot")
-        header = compute_psxg(12, 20, placement_x=0.2, placement_y=0.4,
-                              on_target=True, body_part="head")
+        foot = compute_psxg(
+            12, 20, placement_x=0.2, placement_y=0.4, on_target=True, body_part="right_foot"
+        )
+        header = compute_psxg(
+            12, 20, placement_x=0.2, placement_y=0.4, on_target=True, body_part="head"
+        )
         assert foot.psxg > header.psxg
 
     def test_bounds_fuzz(self):
         import random
+
         for _ in range(20):
             r = compute_psxg(
-                random.uniform(2, 40), random.uniform(2, 90),
+                random.uniform(2, 40),
+                random.uniform(2, 90),
                 placement_x=random.uniform(0, 1),
                 placement_y=random.uniform(0, 1),
                 on_target=True,

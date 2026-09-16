@@ -102,7 +102,9 @@ class DataImportService:
             "type": event_type,
             "timestamp": float(row.get("timestamp", 0)),
             "team": row.get("team", "unknown"),
-            "from_track_id": int(row["from_track_id"]) if row.get("from_track_id", "").strip() else None,
+            "from_track_id": int(row["from_track_id"])
+            if row.get("from_track_id", "").strip()
+            else None,
             "to_track_id": int(row["to_track_id"]) if row.get("to_track_id", "").strip() else None,
             "player_name": row.get("player_name", ""),
             "completed": row.get("completed", "true").strip().lower() in ("true", "1", "yes"),
@@ -141,7 +143,9 @@ class DataImportService:
             "type": event_type,
             "timestamp": float(item.get("timestamp", 0)),
             "team": item.get("team", "unknown"),
-            "from_track_id": item.get("from_track_id") or item.get("player_id") or item.get("track_id"),
+            "from_track_id": item.get("from_track_id")
+            or item.get("player_id")
+            or item.get("track_id"),
             "to_track_id": item.get("to_track_id"),
             "player_name": item.get("player_name", ""),
             "completed": item.get("completed", True),
@@ -226,7 +230,9 @@ class DataImportService:
         xg = shot_info.get("statsbomb_xg") or None
 
         team_info = item.get("team") or {}
-        team_name = team_info.get("name") if isinstance(team_info, dict) else item.get("team", "unknown")
+        team_name = (
+            team_info.get("name") if isinstance(team_info, dict) else item.get("team", "unknown")
+        )
 
         player_info = item.get("player") or {}
         player_name = ""

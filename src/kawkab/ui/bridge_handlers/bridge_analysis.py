@@ -35,7 +35,15 @@ def _compute_hot_zones(events, grid_cols=6, grid_rows=4):
         key = f"{cx},{cy}"
         cells[key] = cells.get(key, 0) + 1
     max_count = max(cells.values()) if cells else 1
-    return [{"x": int(k.split(",")[0]), "y": int(k.split(",")[1]), "count": v, "intensity": round(v / max_count, 2)} for k, v in cells.items()]
+    return [
+        {
+            "x": int(k.split(",")[0]),
+            "y": int(k.split(",")[1]),
+            "count": v,
+            "intensity": round(v / max_count, 2),
+        }
+        for k, v in cells.items()
+    ]
 
 
 class AnalysisHandler:
@@ -52,83 +60,105 @@ class AnalysisHandler:
     # ── service accessors ────────────────────────────────────────
 
     @property
-    def cv_service(self): return self._services.get("cv_service")
+    def cv_service(self):
+        return self._services.get("cv_service")
 
     @property
-    def enhancement_service(self): return self._services.get("enhancement_service")
+    def enhancement_service(self):
+        return self._services.get("enhancement_service")
 
     @property
-    def analysis_service(self): return self._services.get("analysis_service")
+    def analysis_service(self):
+        return self._services.get("analysis_service")
 
     @property
-    def llm_service(self): return self._services.get("llm_service")
+    def llm_service(self):
+        return self._services.get("llm_service")
 
     @property
-    def knowledge_service(self): return self._services.get("knowledge_service")
+    def knowledge_service(self):
+        return self._services.get("knowledge_service")
 
     @property
-    def storage_service(self): return self._services.get("storage_service")
+    def storage_service(self):
+        return self._services.get("storage_service")
 
     @property
-    def homography_service(self): return self._services.get("homography_service")
+    def homography_service(self):
+        return self._services.get("homography_service")
 
     @property
-    def lightglue_homography_service(self): return self._services.get("lightglue_homography_service")
+    def lightglue_homography_service(self):
+        return self._services.get("lightglue_homography_service")
 
     @property
-    def benchmark_service(self): return self._services.get("benchmark_service")
+    def benchmark_service(self):
+        return self._services.get("benchmark_service")
 
     @property
-    def player_profile_service(self): return self._services.get("player_profile_service")
+    def player_profile_service(self):
+        return self._services.get("player_profile_service")
 
     @property
-    def multi_match_service(self): return self._services.get("multi_match_service")
+    def multi_match_service(self):
+        return self._services.get("multi_match_service")
 
     @property
-    def visualization_service(self): return self._services.get("visualization_service")
+    def visualization_service(self):
+        return self._services.get("visualization_service")
 
     @property
-    def quality_scoring_service(self): return self._services.get("quality_scoring_service")
+    def quality_scoring_service(self):
+        return self._services.get("quality_scoring_service")
 
     @property
-    def advanced_event_detection_service(self): return self._services.get("advanced_event_detection_service")
+    def advanced_event_detection_service(self):
+        return self._services.get("advanced_event_detection_service")
 
     @property
-    def physical_load_service(self): return self._services.get("physical_load_service")
+    def physical_load_service(self):
+        return self._services.get("physical_load_service")
 
     @property
     def prematch_briefing_service(self):
-        if not hasattr(self, '_prematch_briefing_service'):
+        if not hasattr(self, "_prematch_briefing_service"):
             from kawkab.analysis.prematch_briefing import PreMatchBriefingService
+
             self._prematch_briefing_service = PreMatchBriefingService()
         return self._prematch_briefing_service
 
     @property
     def injury_risk_predictor(self):
         from kawkab.core.injury_risk import InjuryRiskPredictor
-        if not hasattr(self, '_injury_risk_predictor'):
+
+        if not hasattr(self, "_injury_risk_predictor"):
             self._injury_risk_predictor = InjuryRiskPredictor()
         return self._injury_risk_predictor
 
     @property
     def training_plan_generator(self):
-        if not hasattr(self, '_training_plan_generator'):
+        if not hasattr(self, "_training_plan_generator"):
             from kawkab.services.training_plan_service import TrainingPlanGenerator
+
             kb = self.knowledge_service
             self._training_plan_generator = TrainingPlanGenerator(kb)
         return self._training_plan_generator
 
     @property
-    def pressure_metrics_service(self): return self._services.get("pressure_metrics_service")
+    def pressure_metrics_service(self):
+        return self._services.get("pressure_metrics_service")
 
     @property
-    def face_recognition_service(self): return self._services.get("face_recognition_service")
+    def face_recognition_service(self):
+        return self._services.get("face_recognition_service")
 
     @property
-    def setpiece_service(self): return self._services.get("setpiece_service")
+    def setpiece_service(self):
+        return self._services.get("setpiece_service")
 
     @property
-    def goalkeeper_service(self): return self._services.get("goalkeeper_service")
+    def goalkeeper_service(self):
+        return self._services.get("goalkeeper_service")
 
     @property
     def goalkeeper_analytics(self):
@@ -138,55 +168,70 @@ class AnalysisHandler:
         svc = self._services.get("goalkeeper_analytics")
         if svc is None:
             from kawkab.analysis.goalkeeper_analytics import GoalkeeperAnalytics
+
             svc = GoalkeeperAnalytics()
             self._goalkeeper_analytics = svc
         return svc
 
     @property
     def tactical_whiteboard(self):
-        if not hasattr(self, '_tactical_wb'):
+        if not hasattr(self, "_tactical_wb"):
             from kawkab.analysis.tactical_whiteboard import TacticalWhiteboard
+
             self._tactical_wb = TacticalWhiteboard()
         return self._tactical_wb
 
     @property
-    def substitution_service(self): return self._services.get("substitution_service")
+    def substitution_service(self):
+        return self._services.get("substitution_service")
 
     @property
-    def possession_service(self): return self._services.get("possession_service")
+    def possession_service(self):
+        return self._services.get("possession_service")
 
     @property
-    def psychology_service(self): return self._services.get("psychology_service")
+    def psychology_service(self):
+        return self._services.get("psychology_service")
 
     @property
-    def football_rules_service(self): return self._services.get("football_rules_service")
+    def football_rules_service(self):
+        return self._services.get("football_rules_service")
 
     @property
-    def card_detection_service(self): return self._services.get("card_detection_service")
+    def card_detection_service(self):
+        return self._services.get("card_detection_service")
 
     @property
-    def pose_analysis_service(self): return self._services.get("pose_analysis_service")
+    def pose_analysis_service(self):
+        return self._services.get("pose_analysis_service")
 
     @property
-    def mujoco_ball_service(self): return self._services.get("mujoco_ball_service")
+    def mujoco_ball_service(self):
+        return self._services.get("mujoco_ball_service")
 
     @property
-    def fluidx3d_service(self): return self._services.get("fluidx3d_service")
+    def fluidx3d_service(self):
+        return self._services.get("fluidx3d_service")
 
     @property
-    def weather_service(self): return self._services.get("weather_service")
+    def weather_service(self):
+        return self._services.get("weather_service")
 
     @property
-    def roboflow_sports_service(self): return self._services.get("roboflow_sports_service")
+    def roboflow_sports_service(self):
+        return self._services.get("roboflow_sports_service")
 
     @property
-    def statsbomb_service(self): return self._services.get("statsbomb_service")
+    def statsbomb_service(self):
+        return self._services.get("statsbomb_service")
 
     @property
-    def profiler(self): return self._services.get("profiler")
+    def profiler(self):
+        return self._services.get("profiler")
 
     @property
-    def frame_skip(self): return self._services.get("frame_skip", 3)
+    def frame_skip(self):
+        return self._services.get("frame_skip", 3)
 
     def _check_rate_limit(self, category: str = "analysis") -> None:
         if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
@@ -230,7 +275,9 @@ class AnalysisHandler:
             logger.error(f"get_first_frame failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def save_homography(self, match_id, corners_json, pitch_length_m=105.0, pitch_width_m=68.0):
+    async def save_homography(
+        self, match_id, corners_json, pitch_length_m=105.0, pitch_width_m=68.0
+    ):
         self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
@@ -242,6 +289,7 @@ class AnalysisHandler:
                 if not match:
                     return json.dumps({"success": False, "error": "Match not found"})
                 import cv2
+
                 cap = cv2.VideoCapture(match["video_path"])
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -251,15 +299,18 @@ class AnalysisHandler:
                 )
             elif corners_json == "lightglue":
                 if self.lightglue_homography_service is None:
-                    return json.dumps({
-                        "success": False,
-                        "error": "LightGlue not available (install with: uv sync --extra lightglue)",
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": "LightGlue not available (install with: uv sync --extra lightglue)",
+                        }
+                    )
                 self.lightglue_homography_service.ensure_model()
                 match = await self.storage_service.get_match(match_id)
                 if not match:
                     return json.dumps({"success": False, "error": "Match not found"})
                 import cv2
+
                 cap = cv2.VideoCapture(match["video_path"])
                 ret, frame = cap.read()
                 cap.release()
@@ -269,10 +320,12 @@ class AnalysisHandler:
                     frame, pitch_length_m, pitch_width_m
                 )
                 if matrix is None:
-                    return json.dumps({
-                        "success": False,
-                        "error": "LightGlue could not find enough matches. Try manual calibration.",
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": "LightGlue could not find enough matches. Try manual calibration.",
+                        }
+                    )
             else:
                 # P0.5: Prefer LightGlue auto-calibration over manual 4-click path
                 if self.lightglue_homography_service is not None:
@@ -281,6 +334,7 @@ class AnalysisHandler:
                         match = await self.storage_service.get_match(match_id)
                         if match and match.get("video_path"):
                             import cv2
+
                             cap = cv2.VideoCapture(match["video_path"])
                             ret, frame = cap.read()
                             cap.release()
@@ -290,18 +344,23 @@ class AnalysisHandler:
                                 )
                                 if lg_matrix is not None:
                                     self.homography_service.save_calibration(match_id, lg_matrix)
-                                    self._bridge.calibrationSaved.emit(match_id, {
-                                        "success": True,
-                                        "method": "lightglue",
-                                        "confidence": 0.85,
-                                        "error_px": 2.5,
-                                    })
-                                    return json.dumps({
-                                        "success": True,
-                                        "method": "lightglue",
-                                        "confidence": 0.85,
-                                        "error_px": 2.5,
-                                    })
+                                    self._bridge.calibrationSaved.emit(
+                                        match_id,
+                                        {
+                                            "success": True,
+                                            "method": "lightglue",
+                                            "confidence": 0.85,
+                                            "error_px": 2.5,
+                                        },
+                                    )
+                                    return json.dumps(
+                                        {
+                                            "success": True,
+                                            "method": "lightglue",
+                                            "confidence": 0.85,
+                                            "error_px": 2.5,
+                                        }
+                                    )
                     except Exception:
                         pass
                 corners = json.loads(corners_json)
@@ -312,11 +371,16 @@ class AnalysisHandler:
                 )
 
             self.homography_service.save_calibration(match_id, matrix)
-            self._bridge.calibrationSaved.emit(match_id, {
-                "confidence": matrix.confidence,
-                "error_px": matrix.error_px,
-            })
-            return json.dumps({"success": True, "confidence": matrix.confidence, "error_px": matrix.error_px})
+            self._bridge.calibrationSaved.emit(
+                match_id,
+                {
+                    "confidence": matrix.confidence,
+                    "error_px": matrix.error_px,
+                },
+            )
+            return json.dumps(
+                {"success": True, "confidence": matrix.confidence, "error_px": matrix.error_px}
+            )
         except Exception as e:
             logger.error(f"save_homography failed: {e}")
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
@@ -330,16 +394,20 @@ class AnalysisHandler:
             matrix = self.homography_service.load_calibration(match_id)
             if matrix is None:
                 return json.dumps({"error": "No calibration saved"})
-            return json.dumps({
-                "matrix": matrix.matrix,
-                "pitch_length_m": matrix.pitch_length_m,
-                "pitch_width_m": matrix.pitch_width_m,
-                "confidence": matrix.confidence,
-            })
+            return json.dumps(
+                {
+                    "matrix": matrix.matrix,
+                    "pitch_length_m": matrix.pitch_length_m,
+                    "pitch_width_m": matrix.pitch_width_m,
+                    "confidence": matrix.confidence,
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def save_segment_homography(self, match_id, segment_index, corners_json, pitch_length_m=105.0, pitch_width_m=68.0):
+    async def save_segment_homography(
+        self, match_id, segment_index, corners_json, pitch_length_m=105.0, pitch_width_m=68.0
+    ):
         self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
@@ -352,6 +420,7 @@ class AnalysisHandler:
                 if not match:
                     return json.dumps({"success": False, "error": "Match not found"})
                 import cv2
+
                 cap = cv2.VideoCapture(match["video_path"])
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -361,15 +430,18 @@ class AnalysisHandler:
                 )
             elif corners_json == "lightglue":
                 if self.lightglue_homography_service is None:
-                    return json.dumps({
-                        "success": False,
-                        "error": "LightGlue not available (install with: uv sync --extra lightglue)",
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": "LightGlue not available (install with: uv sync --extra lightglue)",
+                        }
+                    )
                 self.lightglue_homography_service.ensure_model()
                 match = await self.storage_service.get_match(match_id)
                 if not match:
                     return json.dumps({"success": False, "error": "Match not found"})
                 import cv2
+
                 cap = cv2.VideoCapture(match["video_path"])
                 ret, frame = cap.read()
                 cap.release()
@@ -379,10 +451,12 @@ class AnalysisHandler:
                     frame, pitch_length_m, pitch_width_m
                 )
                 if matrix is None:
-                    return json.dumps({
-                        "success": False,
-                        "error": "LightGlue could not find enough matches. Try manual calibration.",
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": "LightGlue could not find enough matches. Try manual calibration.",
+                        }
+                    )
             else:
                 corners = json.loads(corners_json)
                 matrix = self.homography_service.compute_homography_from_corners(
@@ -392,7 +466,9 @@ class AnalysisHandler:
                 )
 
             self.homography_service.save_segment_calibration(match_id, segment_index, matrix)
-            return json.dumps({"success": True, "confidence": matrix.confidence, "error_px": matrix.error_px})
+            return json.dumps(
+                {"success": True, "confidence": matrix.confidence, "error_px": matrix.error_px}
+            )
         except Exception as e:
             logger.error(f"save_segment_homography failed: {e}")
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
@@ -570,8 +646,10 @@ class AnalysisHandler:
 
             try:
                 if self.advanced_event_detection_service is not None:
-                    advanced_events = await self.advanced_event_detection_service.detect_all_advanced_events(
-                        track_data, analysis.events, homography_matrix
+                    advanced_events = (
+                        await self.advanced_event_detection_service.detect_all_advanced_events(
+                            track_data, analysis.events, homography_matrix
+                        )
                     )
                     # detect_all_advanced_events returns the base events
                     # (passes/shots/carries) it was handed, plus the advanced
@@ -595,24 +673,35 @@ class AnalysisHandler:
                     )
                     for track_id, m in physical_loads.items():
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="sprint_count",
-                            metric_value=m.sprint_count, metric_category="physical", player_id=None,
+                            match_id=match_id,
+                            metric_name="sprint_count",
+                            metric_value=m.sprint_count,
+                            metric_category="physical",
+                            player_id=None,
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="sprint_distance_m",
-                            metric_value=m.sprint_distance_m, metric_category="physical",
+                            match_id=match_id,
+                            metric_name="sprint_distance_m",
+                            metric_value=m.sprint_distance_m,
+                            metric_category="physical",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="hi_distance_m",
-                            metric_value=m.high_intensity_distance_m, metric_category="physical",
+                            match_id=match_id,
+                            metric_name="hi_distance_m",
+                            metric_value=m.high_intensity_distance_m,
+                            metric_category="physical",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="acceleration_count",
-                            metric_value=m.acceleration_count, metric_category="physical",
+                            match_id=match_id,
+                            metric_name="acceleration_count",
+                            metric_value=m.acceleration_count,
+                            metric_category="physical",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="deceleration_count",
-                            metric_value=m.deceleration_count, metric_category="physical",
+                            match_id=match_id,
+                            metric_name="deceleration_count",
+                            metric_value=m.deceleration_count,
+                            metric_category="physical",
                         )
             except Exception as e:
                 logger.warning(f"Physical load computation failed: {e}")
@@ -625,24 +714,34 @@ class AnalysisHandler:
                     )
                     for team, m in pressure_metrics.items():
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="ppda",
-                            metric_value=m.ppda_overall, metric_category="pressure",
+                            match_id=match_id,
+                            metric_name="ppda",
+                            metric_value=m.ppda_overall,
+                            metric_category="pressure",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="passes_under_pressure_pct",
-                            metric_value=m.passes_under_pressure_pct, metric_category="pressure",
+                            match_id=match_id,
+                            metric_name="passes_under_pressure_pct",
+                            metric_value=m.passes_under_pressure_pct,
+                            metric_category="pressure",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="pressure_events",
-                            metric_value=m.pressure_events, metric_category="pressure",
+                            match_id=match_id,
+                            metric_name="pressure_events",
+                            metric_value=m.pressure_events,
+                            metric_category="pressure",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="counter_press_success_rate",
-                            metric_value=m.counter_press_success_rate, metric_category="pressure",
+                            match_id=match_id,
+                            metric_name="counter_press_success_rate",
+                            metric_value=m.counter_press_success_rate,
+                            metric_category="pressure",
                         )
                         await self.storage_service.save_advanced_metrics(
-                            match_id=match_id, metric_name="defensive_line_height_m",
-                            metric_value=m.defensive_line_height_m, metric_category="pressure",
+                            match_id=match_id,
+                            metric_name="defensive_line_height_m",
+                            metric_value=m.defensive_line_height_m,
+                            metric_category="pressure",
                         )
             except Exception as e:
                 logger.warning(f"Pressure metrics computation failed: {e}")
@@ -652,7 +751,9 @@ class AnalysisHandler:
                 self.benchmark_service.end_stage("advanced_metrics")
 
             self.profiler.stop()
-            metrics.counter("events_detected_total", "Total events detected across all analyses").inc(len(analysis.events))
+            metrics.counter(
+                "events_detected_total", "Total events detected across all analyses"
+            ).inc(len(analysis.events))
             metrics.gauge("players_detected", "Players in last analysis").set(len(analysis.players))
             metrics.histogram("analysis_duration_seconds", "End-to-end analysis time").observe(
                 self.profiler.report().total_s if self.profiler else 0
@@ -690,7 +791,9 @@ class AnalysisHandler:
                             "deceleration_count": m.deceleration_count,
                         }
                         for tid, m in physical_loads.items()
-                    } if physical_loads else {},
+                    }
+                    if physical_loads
+                    else {},
                     "pressure": {
                         team: {
                             "ppda": m.ppda_overall,
@@ -700,7 +803,9 @@ class AnalysisHandler:
                             "defensive_line_height_m": m.defensive_line_height_m,
                         }
                         for team, m in pressure_metrics.items()
-                    } if pressure_metrics else {},
+                    }
+                    if pressure_metrics
+                    else {},
                 },
             }
 
@@ -815,7 +920,7 @@ class AnalysisHandler:
                 ev["_needs_review"] = conf < 0.5
                 unreviewed.append(ev)
 
-            unreviewed.sort(key=lambda e: (e.get("confidence", 0) or 0))
+            unreviewed.sort(key=lambda e: e.get("confidence", 0) or 0)
             return json.dumps({"success": True, "events": unreviewed, "total": len(unreviewed)})
         except Exception as e:
             logger.error(f"get_unreviewed_events failed: {e}")
@@ -834,25 +939,34 @@ class AnalysisHandler:
                 conf = ev.get("confidence", 0) or 0
                 corrected = ev.get("user_corrected", 0)
                 if etype not in by_type:
-                    by_type[etype] = {"count": 0, "corrected": 0, "total_confidence": 0.0, "avg_confidence": 0.0}
+                    by_type[etype] = {
+                        "count": 0,
+                        "corrected": 0,
+                        "total_confidence": 0.0,
+                        "avg_confidence": 0.0,
+                    }
                 by_type[etype]["count"] += 1
                 by_type[etype]["total_confidence"] += conf
                 if corrected:
                     by_type[etype]["corrected"] += 1
 
             for etype, stats in by_type.items():
-                stats["avg_confidence"] = round(stats["total_confidence"] / stats["count"], 3) if stats["count"] else 0
+                stats["avg_confidence"] = (
+                    round(stats["total_confidence"] / stats["count"], 3) if stats["count"] else 0
+                )
                 del stats["total_confidence"]
 
             total = len(events)
             corrected = sum(1 for e in events if e.get("user_corrected", 0))
-            return json.dumps({
-                "success": True,
-                "by_type": by_type,
-                "total": total,
-                "corrected": corrected,
-                "unreviewed": total - corrected,
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "by_type": by_type,
+                    "total": total,
+                    "corrected": corrected,
+                    "unreviewed": total - corrected,
+                }
+            )
         except Exception as e:
             logger.error(f"get_detection_summary failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -866,7 +980,11 @@ class AnalysisHandler:
         """
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
-            event_id = SecurityValidator.validate_match_id(event_id) if hasattr(SecurityValidator, 'validate_match_id') else int(event_id)
+            event_id = (
+                SecurityValidator.validate_match_id(event_id)
+                if hasattr(SecurityValidator, "validate_match_id")
+                else int(event_id)
+            )
 
             if action == "confirm":
                 ok = await self.storage_service.update_event(event_id, {"user_corrected": 1})
@@ -904,7 +1022,10 @@ class AnalysisHandler:
                     await self.storage_service.save_correction(
                         event_id=event_id,
                         correction_type="edit",
-                        original_value={"event_type": original.get("event_type"), "team": original.get("team")},
+                        original_value={
+                            "event_type": original.get("event_type"),
+                            "team": original.get("team"),
+                        },
                         corrected_value=corrections,
                     )
 
@@ -939,7 +1060,9 @@ class AnalysisHandler:
                 match_analysis_summary=summary, language=language
             )
             await self.storage_service.save_report(
-                match_id=match_id, language=language, report_text=report,
+                match_id=match_id,
+                language=language,
+                report_text=report,
                 llm_provider=self.llm_service.config.provider,
             )
             return report
@@ -960,15 +1083,17 @@ class AnalysisHandler:
                     if await provider.is_available():
                         ollama_available = True
                         break
-            return json.dumps({
-                "ollama": ollama_available,
-                "provider": self.llm_service.config.provider,
-                "model": (
-                    self.llm_service.config.ollama_model
-                    if self.llm_service.config.provider == "ollama"
-                    else "external"
-                ),
-            })
+            return json.dumps(
+                {
+                    "ollama": ollama_available,
+                    "provider": self.llm_service.config.provider,
+                    "model": (
+                        self.llm_service.config.ollama_model
+                        if self.llm_service.config.provider == "ollama"
+                        else "external"
+                    ),
+                }
+            )
         except Exception as e:
             logger.error(f"LLM check failed: {e}")
             return json.dumps({"ollama": False, "error": str(e)})
@@ -986,9 +1111,13 @@ class AnalysisHandler:
             if self.player_profile_service is None:
                 return json.dumps({"error": "PlayerProfileService not available"})
             profile = await self.player_profile_service.create_profile(
-                display_name=name, jersey_number=number, preferred_position=position,
+                display_name=name,
+                jersey_number=number,
+                preferred_position=position,
             )
-            return json.dumps({"success": True, "profile_id": profile.id, "global_id": profile.global_id})
+            return json.dumps(
+                {"success": True, "profile_id": profile.id, "global_id": profile.global_id}
+            )
         except Exception as e:
             logger.error(f"Create profile failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -999,12 +1128,19 @@ class AnalysisHandler:
             if self.player_profile_service is None:
                 return json.dumps({"profiles": []})
             profiles = await self.player_profile_service.get_all_profiles()
-            return json.dumps({
-                "profiles": [
-                    {"id": p.id, "name": p.display_name, "jersey": p.jersey_number, "position": p.preferred_position}
-                    for p in profiles
-                ]
-            })
+            return json.dumps(
+                {
+                    "profiles": [
+                        {
+                            "id": p.id,
+                            "name": p.display_name,
+                            "jersey": p.jersey_number,
+                            "position": p.preferred_position,
+                        }
+                        for p in profiles
+                    ]
+                }
+            )
         except Exception as e:
             logger.error(f"Get profiles failed: {e}")
             return json.dumps({"profiles": []})
@@ -1029,19 +1165,21 @@ class AnalysisHandler:
                 return json.dumps({"error": "Player not found"})
             appearances = await self.player_profile_service.get_profile_appearances(player_id)
 
-            return json.dumps({
-                "id": profile.id,
-                "name": profile.display_name or f"Player {profile.id}",
-                "jersey": profile.jersey_number,
-                "position": profile.preferred_position,
-                "matches_played": len(appearances),
-                "passes": sum(a.passes_completed for a in appearances),
-                "shots": sum(a.shots for a in appearances),
-                "tackles": sum(a.tackles for a in appearances),
-                "sprints": 0,
-                "distance": round(sum(a.distance_covered_m for a in appearances), 1),
-                "xg": round(sum(a.xg for a in appearances), 3),
-            })
+            return json.dumps(
+                {
+                    "id": profile.id,
+                    "name": profile.display_name or f"Player {profile.id}",
+                    "jersey": profile.jersey_number,
+                    "position": profile.preferred_position,
+                    "matches_played": len(appearances),
+                    "passes": sum(a.passes_completed for a in appearances),
+                    "shots": sum(a.shots for a in appearances),
+                    "tackles": sum(a.tackles for a in appearances),
+                    "sprints": 0,
+                    "distance": round(sum(a.distance_covered_m for a in appearances), 1),
+                    "xg": round(sum(a.xg for a in appearances), 3),
+                }
+            )
         except Exception as e:
             logger.error(f"get_player_stats failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1055,10 +1193,12 @@ class AnalysisHandler:
         try:
             a_json = await self.get_player_stats(player_a_id)
             b_json = await self.get_player_stats(player_b_id)
-            return json.dumps({
-                "player_a": json.loads(a_json),
-                "player_b": json.loads(b_json),
-            })
+            return json.dumps(
+                {
+                    "player_a": json.loads(a_json),
+                    "player_b": json.loads(b_json),
+                }
+            )
         except Exception as e:
             logger.error(f"compare_players failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1068,15 +1208,17 @@ class AnalysisHandler:
             profiles = await self.storage_service.get_all_player_profiles()
             result = []
             for p in profiles:
-                result.append({
-                    "id": p["id"],
-                    "display_name": p.get("display_name", ""),
-                    "jersey_number": p.get("jersey_number"),
-                    "team": p.get("team", "home"),
-                    "has_face": bool(p.get("face_embedding")),
-                    "face_confidence": p.get("face_confidence", 0.0),
-                    "photo_path": p.get("photo_path", ""),
-                })
+                result.append(
+                    {
+                        "id": p["id"],
+                        "display_name": p.get("display_name", ""),
+                        "jersey_number": p.get("jersey_number"),
+                        "team": p.get("team", "home"),
+                        "has_face": bool(p.get("face_embedding")),
+                        "face_confidence": p.get("face_confidence", 0.0),
+                        "photo_path": p.get("photo_path", ""),
+                    }
+                )
             return json.dumps({"success": True, "profiles": result})
         except Exception as e:
             logger.error(f"get_face_gallery failed: {e}")
@@ -1085,8 +1227,14 @@ class AnalysisHandler:
     async def upload_face_photo(self, photo_path, display_name, jersey_number):
         try:
             if self.face_recognition_service is None:
-                return json.dumps({"success": False, "error": "FaceRecognitionService not available (insightface not installed)"})
+                return json.dumps(
+                    {
+                        "success": False,
+                        "error": "FaceRecognitionService not available (insightface not installed)",
+                    }
+                )
             import cv2
+
             img = cv2.imread(photo_path)
             if img is None:
                 return json.dumps({"success": False, "error": "Could not read image"})
@@ -1095,18 +1243,24 @@ class AnalysisHandler:
                 return json.dumps({"success": False, "error": "No face detected in photo"})
             best = max(faces, key=lambda f: f["confidence"])
             global_id = f"upload_{jersey_number}_{display_name.replace(' ', '_')}"
-            profile = await self.storage_service.save_player_profile({
-                "global_id": global_id,
-                "display_name": display_name,
-                "jersey_number": jersey_number,
-                "team": "home",
-                "face_embedding": json.dumps(best["embedding"]),
-                "face_confidence": best["confidence"],
-            })
-            return json.dumps({
-                "success": True, "profile_id": profile,
-                "display_name": display_name, "confidence": best["confidence"],
-            })
+            profile = await self.storage_service.save_player_profile(
+                {
+                    "global_id": global_id,
+                    "display_name": display_name,
+                    "jersey_number": jersey_number,
+                    "team": "home",
+                    "face_embedding": json.dumps(best["embedding"]),
+                    "face_confidence": best["confidence"],
+                }
+            )
+            return json.dumps(
+                {
+                    "success": True,
+                    "profile_id": profile,
+                    "display_name": display_name,
+                    "confidence": best["confidence"],
+                }
+            )
         except Exception as e:
             logger.error(f"upload_face_photo failed: {e}")
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
@@ -1114,12 +1268,21 @@ class AnalysisHandler:
     async def match_faces_in_match(self, match_id):
         try:
             if self.face_recognition_service is None:
-                return json.dumps({"success": False, "error": "FaceRecognitionService not available (install insightface)"})
+                return json.dumps(
+                    {
+                        "success": False,
+                        "error": "FaceRecognitionService not available (install insightface)",
+                    }
+                )
             track_data = self._tracking_cache.get(match_id)
             if not track_data:
-                return json.dumps({"success": False, "error": "No tracking data cached. Run analysis first."})
+                return json.dumps(
+                    {"success": False, "error": "No tracking data cached. Run analysis first."}
+                )
             profiles = await self.storage_service.get_all_player_profiles()
-            identified = self.face_recognition_service.identify_players_in_match(profiles, track_data)
+            identified = self.face_recognition_service.identify_players_in_match(
+                profiles, track_data
+            )
             return json.dumps({"success": True, "identified_count": len(identified)})
         except Exception as e:
             logger.error(f"match_faces_in_match failed: {e}")
@@ -1138,15 +1301,17 @@ class AnalysisHandler:
             if self.multi_match_service is None:
                 return json.dumps({"error": "MultiMatchAnalysisService not available"})
             comparison = await self.multi_match_service.compare_matches(m1, m2)
-            return json.dumps({
-                "match_1": comparison.match_1_name,
-                "match_2": comparison.match_2_name,
-                "possession_diff": comparison.possession_diff,
-                "shots_diff": comparison.shots_diff,
-                "formation_diff": comparison.formation_diff,
-                "key_differences": comparison.key_differences,
-                "tactical_evolution": comparison.tactical_evolution,
-            })
+            return json.dumps(
+                {
+                    "match_1": comparison.match_1_name,
+                    "match_2": comparison.match_2_name,
+                    "possession_diff": comparison.possession_diff,
+                    "shots_diff": comparison.shots_diff,
+                    "formation_diff": comparison.formation_diff,
+                    "key_differences": comparison.key_differences,
+                    "tactical_evolution": comparison.tactical_evolution,
+                }
+            )
         except Exception as e:
             logger.error(f"Compare matches failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1160,13 +1325,15 @@ class AnalysisHandler:
             scores = await self.quality_scoring_service.get_scores(match_id)
             if scores is None:
                 return json.dumps({"error": "No quality scores found"})
-            return json.dumps({
-                "overall": scores.overall,
-                "tracking": scores.tracking,
-                "events": scores.events,
-                "homography": scores.homography,
-                "team_assignment": scores.team_assignment,
-            })
+            return json.dumps(
+                {
+                    "overall": scores.overall,
+                    "tracking": scores.tracking,
+                    "events": scores.events,
+                    "homography": scores.homography,
+                    "team_assignment": scores.team_assignment,
+                }
+            )
         except Exception as e:
             logger.error(f"Quality report failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1184,7 +1351,9 @@ class AnalysisHandler:
                 return json.dumps({"error": "Match not found"})
             home = match.get("home_team", "Home")
             away = match.get("away_team", "Away")
-            await self.storage_service.update_match_teams(match_id=match_id, home_team=away, away_team=home)
+            await self.storage_service.update_match_teams(
+                match_id=match_id, home_team=away, away_team=home
+            )
             logger.info(f"Swapped teams for match {match_id}: {home} ↔ {away}")
             return json.dumps({"success": True, "home": away, "away": home})
         except Exception as e:
@@ -1220,19 +1389,23 @@ class AnalysisHandler:
                         if dst not in player_positions:
                             player_positions[dst] = (ex, ey)
                 pass_network_path = await self.visualization_service.generate_pass_network(
-                    pass_events=pass_events, player_positions=player_positions,
+                    pass_events=pass_events,
+                    player_positions=player_positions,
                     output_name=f"pass_network_{match_id}.png",
                 )
                 positions_list = list(player_positions.values())
                 if positions_list:
                     heatmap_path = await self.visualization_service.generate_heatmap(
-                        positions=positions_list, output_name=f"heatmap_{match_id}.png",
+                        positions=positions_list,
+                        output_name=f"heatmap_{match_id}.png",
                     )
-            return json.dumps({
-                "success": True,
-                "pass_network": str(pass_network_path) if pass_network_path else None,
-                "heatmap": str(heatmap_path) if heatmap_path else None,
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "pass_network": str(pass_network_path) if pass_network_path else None,
+                    "heatmap": str(heatmap_path) if heatmap_path else None,
+                }
+            )
         except Exception as e:
             logger.error(f"generate_visualizations failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1251,6 +1424,7 @@ class AnalysisHandler:
             return json.dumps({"error": "Set-piece service not initialized"})
         try:
             from kawkab.services.setpiece_service import SetPieceEvent
+
             events_data = json.loads(events_json) if events_json else []
             events = [
                 SetPieceEvent(
@@ -1269,30 +1443,32 @@ class AnalysisHandler:
             ]
             away_team = "away" if home_team == "home" else "home"
             report = self.setpiece_service.analyze(events, home_team, away_team)
-            return json.dumps({
-                "home": {
-                    "total_corners": report.home_stats.total_corners,
-                    "total_free_kicks": report.home_stats.total_free_kicks,
-                    "shots_per_corner": report.home_stats.shots_per_corner,
-                    "goals_per_corner": report.home_stats.goals_per_corner,
-                    "favorite_target_zone": report.home_stats.favorite_target_zone,
-                    "common_routines": report.home_stats.common_routines,
-                    "threat_per_set_piece": report.home_stats.threat_per_set_piece,
-                },
-                "away": {
-                    "total_corners": report.away_stats.total_corners,
-                    "total_free_kicks": report.away_stats.total_free_kicks,
-                    "shots_per_corner": report.away_stats.shots_per_corner,
-                    "goals_per_corner": report.away_stats.goals_per_corner,
-                    "favorite_target_zone": report.away_stats.favorite_target_zone,
-                    "common_routines": report.away_stats.common_routines,
-                    "threat_per_set_piece": report.away_stats.threat_per_set_piece,
-                },
-                "home_threat_total": report.home_threat_total,
-                "away_threat_total": report.away_threat_total,
-                "set_piece_differential": report.set_piece_differential,
-                "notes": report.notes,
-            })
+            return json.dumps(
+                {
+                    "home": {
+                        "total_corners": report.home_stats.total_corners,
+                        "total_free_kicks": report.home_stats.total_free_kicks,
+                        "shots_per_corner": report.home_stats.shots_per_corner,
+                        "goals_per_corner": report.home_stats.goals_per_corner,
+                        "favorite_target_zone": report.home_stats.favorite_target_zone,
+                        "common_routines": report.home_stats.common_routines,
+                        "threat_per_set_piece": report.home_stats.threat_per_set_piece,
+                    },
+                    "away": {
+                        "total_corners": report.away_stats.total_corners,
+                        "total_free_kicks": report.away_stats.total_free_kicks,
+                        "shots_per_corner": report.away_stats.shots_per_corner,
+                        "goals_per_corner": report.away_stats.goals_per_corner,
+                        "favorite_target_zone": report.away_stats.favorite_target_zone,
+                        "common_routines": report.away_stats.common_routines,
+                        "threat_per_set_piece": report.away_stats.threat_per_set_piece,
+                    },
+                    "home_threat_total": report.home_threat_total,
+                    "away_threat_total": report.away_threat_total,
+                    "set_piece_differential": report.set_piece_differential,
+                    "notes": report.notes,
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_setpieces failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1311,32 +1487,47 @@ class AnalysisHandler:
             return json.dumps({"error": "Goalkeeper service not initialized"})
         try:
             from kawkab.services.goalkeeper_service import GoalkeeperAction
+
             actions_data = json.loads(actions_json) if actions_json else []
             shots_data = json.loads(shots_json) if shots_json else []
             actions = [
                 GoalkeeperAction(
                     action_type=a.get("action_type", "save"),
-                    minute=a.get("minute", 0), second=a.get("second", 0),
-                    team=a.get("team", team), player_track_id=a.get("player_track_id"),
-                    outcome=a.get("outcome", "complete"), quality=a.get("quality", 0.5),
-                    x=a.get("x"), y=a.get("y"),
+                    minute=a.get("minute", 0),
+                    second=a.get("second", 0),
+                    team=a.get("team", team),
+                    player_track_id=a.get("player_track_id"),
+                    outcome=a.get("outcome", "complete"),
+                    quality=a.get("quality", 0.5),
+                    x=a.get("x"),
+                    y=a.get("y"),
                 )
                 for a in actions_data
             ]
-            stats = self.goalkeeper_service.compute_stats(team, actions, shots_data, clean_sheet=clean_sheet)
-            return json.dumps({
-                "team": stats.team, "saves": stats.saves,
-                "goals_conceded": stats.goals_conceded, "shots_faced": stats.shots_faced,
-                "save_rate": stats.save_rate, "goals_prevented_xgot": stats.goals_prevented_xgot,
-                "xgot_per_shot": stats.xgot_per_shot,
-                "crosses_claimed": stats.crosses_claimed, "crosses_punched": stats.crosses_punched,
-                "crosses_missed": stats.crosses_missed, "sweep_actions": stats.sweep_actions,
-                "short_distribution_attempts": stats.short_distribution_attempts,
-                "short_distribution_successful": stats.short_distribution_successful,
-                "long_distribution_attempts": stats.long_distribution_attempts,
-                "long_distribution_successful": stats.long_distribution_successful,
-                "clean_sheet": stats.clean_sheet, "notes": stats.notes,
-            })
+            stats = self.goalkeeper_service.compute_stats(
+                team, actions, shots_data, clean_sheet=clean_sheet
+            )
+            return json.dumps(
+                {
+                    "team": stats.team,
+                    "saves": stats.saves,
+                    "goals_conceded": stats.goals_conceded,
+                    "shots_faced": stats.shots_faced,
+                    "save_rate": stats.save_rate,
+                    "goals_prevented_xgot": stats.goals_prevented_xgot,
+                    "xgot_per_shot": stats.xgot_per_shot,
+                    "crosses_claimed": stats.crosses_claimed,
+                    "crosses_punched": stats.crosses_punched,
+                    "crosses_missed": stats.crosses_missed,
+                    "sweep_actions": stats.sweep_actions,
+                    "short_distribution_attempts": stats.short_distribution_attempts,
+                    "short_distribution_successful": stats.short_distribution_successful,
+                    "long_distribution_attempts": stats.long_distribution_attempts,
+                    "long_distribution_successful": stats.long_distribution_successful,
+                    "clean_sheet": stats.clean_sheet,
+                    "notes": stats.notes,
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_goalkeeper failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1353,9 +1544,18 @@ class AnalysisHandler:
             logger.error(f"compute_xgot failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def analyze_goalkeeper_advanced(self, team, shots_json, crosses_json, dist_json,
-                                           positions_json, sweeps_json, sp_json,
-                                           clean_sheet, player_name):
+    async def analyze_goalkeeper_advanced(
+        self,
+        team,
+        shots_json,
+        crosses_json,
+        dist_json,
+        positions_json,
+        sweeps_json,
+        sp_json,
+        clean_sheet,
+        player_name,
+    ):
         gka = self.goalkeeper_analytics
         if gka is None:
             return json.dumps({"error": "GoalkeeperAnalytics not available"})
@@ -1367,10 +1567,15 @@ class AnalysisHandler:
             sweeps = json.loads(sweeps_json) if sweeps_json else None
             sp = json.loads(sp_json) if sp_json else None
             report = gka.compute_match_report(
-                team=team, shots_faced=shots, cross_actions=crosses,
-                distribution_actions=dist, tracking_positions=pos,
-                sweeps=sweeps, set_piece_positions=sp,
-                clean_sheet=bool(clean_sheet), player_name=player_name or "",
+                team=team,
+                shots_faced=shots,
+                cross_actions=crosses,
+                distribution_actions=dist,
+                tracking_positions=pos,
+                sweeps=sweeps,
+                set_piece_positions=sp,
+                clean_sheet=bool(clean_sheet),
+                player_name=player_name or "",
             )
             return json.dumps(report.to_dict())
         except Exception as e:
@@ -1384,19 +1589,21 @@ class AnalysisHandler:
         try:
             shots = json.loads(shots_json) if shots_json else []
             sq = gka.compute_save_quality(shots)
-            return json.dumps({
-                "total_shots_faced": sq.total_shots_faced,
-                "saves": sq.saves,
-                "goals_conceded": sq.goals_conceded,
-                "save_rate": round(sq.save_rate, 3),
-                "total_psxg": round(sq.total_psxg, 3),
-                "goals_prevented": round(sq.goals_prevented, 3),
-                "avg_psxg_per_shot": round(sq.avg_psxg_per_shot, 3),
-                "high_quality_saves": sq.high_quality_saves,
-                "one_on_one_saves": sq.one_on_one_saves,
-                "one_on_one_goals": sq.one_on_one_goals,
-                "one_on_one_save_rate": round(sq.one_on_one_save_rate, 3),
-            })
+            return json.dumps(
+                {
+                    "total_shots_faced": sq.total_shots_faced,
+                    "saves": sq.saves,
+                    "goals_conceded": sq.goals_conceded,
+                    "save_rate": round(sq.save_rate, 3),
+                    "total_psxg": round(sq.total_psxg, 3),
+                    "goals_prevented": round(sq.goals_prevented, 3),
+                    "avg_psxg_per_shot": round(sq.avg_psxg_per_shot, 3),
+                    "high_quality_saves": sq.high_quality_saves,
+                    "one_on_one_saves": sq.one_on_one_saves,
+                    "one_on_one_goals": sq.one_on_one_goals,
+                    "one_on_one_save_rate": round(sq.one_on_one_save_rate, 3),
+                }
+            )
         except Exception as e:
             logger.error(f"compute_goalkeeper_save_quality failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1408,13 +1615,15 @@ class AnalysisHandler:
         try:
             crosses = json.loads(crosses_json) if crosses_json else []
             ac = gka.compute_aerial_command(crosses)
-            return json.dumps({
-                "crosses_claimed": ac.crosses_claimed,
-                "crosses_punched": ac.crosses_punched,
-                "crosses_faced": ac.crosses_faced,
-                "aerial_success_rate": round(ac.aerial_success_rate, 3),
-                "claimed_under_pressure": ac.claimed_under_pressure,
-            })
+            return json.dumps(
+                {
+                    "crosses_claimed": ac.crosses_claimed,
+                    "crosses_punched": ac.crosses_punched,
+                    "crosses_faced": ac.crosses_faced,
+                    "aerial_success_rate": round(ac.aerial_success_rate, 3),
+                    "claimed_under_pressure": ac.claimed_under_pressure,
+                }
+            )
         except Exception as e:
             logger.error(f"compute_goalkeeper_aerial_command failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1426,15 +1635,17 @@ class AnalysisHandler:
         try:
             dist = json.loads(dist_json) if dist_json else []
             gd = gka.compute_distribution(dist)
-            return json.dumps({
-                "short_attempts": gd.short_attempts,
-                "short_successful": gd.short_successful,
-                "short_accuracy": round(gd.short_accuracy, 3),
-                "long_attempts": gd.long_attempts,
-                "long_successful": gd.long_successful,
-                "long_accuracy": round(gd.long_accuracy, 3),
-                "avg_distance": round(gd.avg_distance, 1),
-            })
+            return json.dumps(
+                {
+                    "short_attempts": gd.short_attempts,
+                    "short_successful": gd.short_successful,
+                    "short_accuracy": round(gd.short_accuracy, 3),
+                    "long_attempts": gd.long_attempts,
+                    "long_successful": gd.long_successful,
+                    "long_accuracy": round(gd.long_accuracy, 3),
+                    "avg_distance": round(gd.avg_distance, 1),
+                }
+            )
         except Exception as e:
             logger.error(f"compute_goalkeeper_distribution failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1580,8 +1791,12 @@ class AnalysisHandler:
         try:
             wb = self.tactical_whiteboard
             ann = wb.generate_player_run(
-                float(start_x), float(start_y), float(end_x), float(end_y),
-                color=color or "#f39c12", label=label or "",
+                float(start_x),
+                float(start_y),
+                float(end_x),
+                float(end_y),
+                color=color or "#f39c12",
+                label=label or "",
             )
             return json.dumps(ann.to_dict())
         except Exception as e:
@@ -1592,7 +1807,10 @@ class AnalysisHandler:
         try:
             wb = self.tactical_whiteboard
             ann = wb.generate_pass(
-                float(start_x), float(start_y), float(end_x), float(end_y),
+                float(start_x),
+                float(start_y),
+                float(end_x),
+                float(end_y),
                 color=color or "#2ecc71",
             )
             return json.dumps(ann.to_dict())
@@ -1614,11 +1832,13 @@ class AnalysisHandler:
             return json.dumps({"error": "Substitution service not initialized"})
         try:
             from kawkab.services.substitution_service import SubstitutionEvent
+
             subs_data = json.loads(subs_json) if subs_json else []
             events = json.loads(events_json) if events_json else []
             subs = [
                 SubstitutionEvent(
-                    minute=s.get("minute", 0), second=s.get("second", 0),
+                    minute=s.get("minute", 0),
+                    second=s.get("second", 0),
                     team=s.get("team", team),
                     player_off_track_id=s.get("player_off_track_id"),
                     player_off_name=s.get("player_off_name"),
@@ -1631,36 +1851,46 @@ class AnalysisHandler:
                 for s in subs_data
             ]
             report = self.substitution_service.analyze(team, subs, events)
-            return json.dumps({
-                "team": report.team, "total_impact": report.total_impact,
-                "avg_impact": report.avg_impact,
-                "tactical_changes": report.tactical_changes,
-                "formation_changes": report.formation_changes,
-                "best_sub": {
-                    "minute": report.best_sub.substitution.minute,
-                    "rating": report.best_sub.rating,
-                    "verdict": report.best_sub.verdict,
-                    "notes": report.best_sub.notes,
-                } if report.best_sub else None,
-                "worst_sub": {
-                    "minute": report.worst_sub.substitution.minute,
-                    "rating": report.worst_sub.rating,
-                    "verdict": report.worst_sub.verdict,
-                    "notes": report.worst_sub.notes,
-                } if report.worst_sub else None,
-                "impacts": [
-                    {
-                        "minute": i.substitution.minute,
-                        "player_on": i.substitution.player_on_name,
-                        "player_off": i.substitution.player_off_name,
-                        "rating": i.rating, "verdict": i.verdict,
-                        "xg_delta": i.xg_delta, "possession_delta": i.possession_delta,
-                        "goals_for": i.goals_for, "goals_against": i.goals_against,
-                        "notes": i.notes,
+            return json.dumps(
+                {
+                    "team": report.team,
+                    "total_impact": report.total_impact,
+                    "avg_impact": report.avg_impact,
+                    "tactical_changes": report.tactical_changes,
+                    "formation_changes": report.formation_changes,
+                    "best_sub": {
+                        "minute": report.best_sub.substitution.minute,
+                        "rating": report.best_sub.rating,
+                        "verdict": report.best_sub.verdict,
+                        "notes": report.best_sub.notes,
                     }
-                    for i in report.impacts
-                ],
-            })
+                    if report.best_sub
+                    else None,
+                    "worst_sub": {
+                        "minute": report.worst_sub.substitution.minute,
+                        "rating": report.worst_sub.rating,
+                        "verdict": report.worst_sub.verdict,
+                        "notes": report.worst_sub.notes,
+                    }
+                    if report.worst_sub
+                    else None,
+                    "impacts": [
+                        {
+                            "minute": i.substitution.minute,
+                            "player_on": i.substitution.player_on_name,
+                            "player_off": i.substitution.player_off_name,
+                            "rating": i.rating,
+                            "verdict": i.verdict,
+                            "xg_delta": i.xg_delta,
+                            "possession_delta": i.possession_delta,
+                            "goals_for": i.goals_for,
+                            "goals_against": i.goals_against,
+                            "notes": i.notes,
+                        }
+                        for i in report.impacts
+                    ],
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_substitutions failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1680,34 +1910,36 @@ class AnalysisHandler:
         try:
             events = json.loads(events_json) if events_json else []
             report = self.possession_service.analyze(home_team, away_team, events)
-            return json.dumps({
-                "home_possession_pct": report.home_possession_pct,
-                "away_possession_pct": report.away_possession_pct,
-                "counter_presses": report.counter_presses,
-                "avg_chain_duration_s": report.avg_chain_duration_s,
-                "longest_chain_s": report.longest_chain_s,
-                "home_chains_count": len(report.home_chains),
-                "away_chains_count": len(report.away_chains),
-                "home_player_stats": {
-                    str(tid): {
-                        "touches": s.touches,
-                        "possession_time_s": round(s.total_possession_time_s, 1),
-                        "successful_passes": s.successful_passes,
-                        "failed_passes": s.failed_passes,
-                    }
-                    for tid, s in report.home_player_stats.items()
-                },
-                "away_player_stats": {
-                    str(tid): {
-                        "touches": s.touches,
-                        "possession_time_s": round(s.total_possession_time_s, 1),
-                        "successful_passes": s.successful_passes,
-                        "failed_passes": s.failed_passes,
-                    }
-                    for tid, s in report.away_player_stats.items()
-                },
-                "notes": report.notes,
-            })
+            return json.dumps(
+                {
+                    "home_possession_pct": report.home_possession_pct,
+                    "away_possession_pct": report.away_possession_pct,
+                    "counter_presses": report.counter_presses,
+                    "avg_chain_duration_s": report.avg_chain_duration_s,
+                    "longest_chain_s": report.longest_chain_s,
+                    "home_chains_count": len(report.home_chains),
+                    "away_chains_count": len(report.away_chains),
+                    "home_player_stats": {
+                        str(tid): {
+                            "touches": s.touches,
+                            "possession_time_s": round(s.total_possession_time_s, 1),
+                            "successful_passes": s.successful_passes,
+                            "failed_passes": s.failed_passes,
+                        }
+                        for tid, s in report.home_player_stats.items()
+                    },
+                    "away_player_stats": {
+                        str(tid): {
+                            "touches": s.touches,
+                            "possession_time_s": round(s.total_possession_time_s, 1),
+                            "successful_passes": s.successful_passes,
+                            "failed_passes": s.failed_passes,
+                        }
+                        for tid, s in report.away_player_stats.items()
+                    },
+                    "notes": report.notes,
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_possession failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1728,36 +1960,44 @@ class AnalysisHandler:
         try:
             events = json.loads(events_json) if events_json else []
             report = self.psychology_service.analyze(match_id, home_team, away_team, events)
-            return json.dumps({
-                "match_id": report.match_id,
-                "home_team": report.home_team,
-                "away_team": report.away_team,
-                "score_state_transitions": [
-                    {
-                        "minute": t.minute, "second": t.second, "team": t.team,
-                        "from_state": t.from_state.value, "to_state": t.to_state.value,
-                        "trigger": t.trigger_event,
-                    }
-                    for t in report.score_state_transitions
-                ],
-                "momentum_timeline": [
-                    {"minute": m.minute, "home": m.home_momentum, "away": m.away_momentum}
-                    for m in report.momentum_timeline[::3]
-                ],
-                "psychology_events": [
-                    {
-                        "type": e.event_type.value, "minute": e.minute,
-                        "second": e.second, "team": e.team,
-                        "description": e.description, "severity": e.severity,
-                    }
-                    for e in report.psychology_events
-                ],
-                "post_goal_lull_count": report.post_goal_lull_count,
-                "comeback_count": report.comeback_count,
-                "capitulation_count": report.capitulation_count,
-                "avg_late_game_passing_drop": report.avg_late_game_passing_drop,
-                "notes": report.notes,
-            })
+            return json.dumps(
+                {
+                    "match_id": report.match_id,
+                    "home_team": report.home_team,
+                    "away_team": report.away_team,
+                    "score_state_transitions": [
+                        {
+                            "minute": t.minute,
+                            "second": t.second,
+                            "team": t.team,
+                            "from_state": t.from_state.value,
+                            "to_state": t.to_state.value,
+                            "trigger": t.trigger_event,
+                        }
+                        for t in report.score_state_transitions
+                    ],
+                    "momentum_timeline": [
+                        {"minute": m.minute, "home": m.home_momentum, "away": m.away_momentum}
+                        for m in report.momentum_timeline[::3]
+                    ],
+                    "psychology_events": [
+                        {
+                            "type": e.event_type.value,
+                            "minute": e.minute,
+                            "second": e.second,
+                            "team": e.team,
+                            "description": e.description,
+                            "severity": e.severity,
+                        }
+                        for e in report.psychology_events
+                    ],
+                    "post_goal_lull_count": report.post_goal_lull_count,
+                    "comeback_count": report.comeback_count,
+                    "capitulation_count": report.capitulation_count,
+                    "avg_late_game_passing_drop": report.avg_late_game_passing_drop,
+                    "notes": report.notes,
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_match_psychology failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1769,10 +2009,12 @@ class AnalysisHandler:
     async def check_rules_status(self):
         if self.football_rules_service is None:
             return json.dumps({"available": False})
-        return json.dumps({
-            "available": self.football_rules_service.available,
-            "laws_count": len(self.football_rules_service._laws),
-        })
+        return json.dumps(
+            {
+                "available": self.football_rules_service.available,
+                "laws_count": len(self.football_rules_service._laws),
+            }
+        )
 
     async def get_law_summary(self, law_number):
         if self.football_rules_service is None:
@@ -1792,11 +2034,15 @@ class AnalysisHandler:
             return json.dumps({"error": "Rules service not initialized"})
         try:
             ref = self.football_rules_service.classify_event(event_type, x, y, side)
-            return json.dumps({
-                "law": ref.law, "law_name": ref.law_name,
-                "restart": ref.restart.value if ref.restart else None,
-                "description": ref.description, "card_likely": ref.card_likely,
-            })
+            return json.dumps(
+                {
+                    "law": ref.law,
+                    "law_name": ref.law_name,
+                    "restart": ref.restart.value if ref.restart else None,
+                    "description": ref.description,
+                    "card_likely": ref.card_likely,
+                }
+            )
         except Exception as e:
             logger.error(f"classify_event_rule failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1808,13 +2054,15 @@ class AnalysisHandler:
             result = self.football_rules_service.is_offside(
                 attacker_x, defender_x, ball_x, attacking_direction
             )
-            return json.dumps({
-                "is_offside": result.is_offside,
-                "attacker_x": result.attacker_x,
-                "second_last_defender_x": result.second_last_defender_x,
-                "ball_x": result.ball_x,
-                "explanation": result.explanation,
-            })
+            return json.dumps(
+                {
+                    "is_offside": result.is_offside,
+                    "attacker_x": result.attacker_x,
+                    "second_last_defender_x": result.second_last_defender_x,
+                    "ball_x": result.ball_x,
+                    "explanation": result.explanation,
+                }
+            )
         except Exception as e:
             logger.error(f"check_offside failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1834,18 +2082,24 @@ class AnalysisHandler:
         try:
             events = json.loads(events_json) if events_json else []
             cards = self.card_detection_service.infer_cards_tactically(events)
-            return json.dumps({
-                "cards": [
-                    {
-                        "card_type": c.card_type.value, "minute": c.minute,
-                        "second": c.second, "player_track_id": c.player_track_id,
-                        "player_name": c.player_name, "team": c.team,
-                        "source": c.source.value, "confidence": c.confidence,
-                        "description": c.description,
-                    }
-                    for c in cards
-                ]
-            })
+            return json.dumps(
+                {
+                    "cards": [
+                        {
+                            "card_type": c.card_type.value,
+                            "minute": c.minute,
+                            "second": c.second,
+                            "player_track_id": c.player_track_id,
+                            "player_name": c.player_name,
+                            "team": c.team,
+                            "source": c.source.value,
+                            "confidence": c.confidence,
+                            "description": c.description,
+                        }
+                        for c in cards
+                    ]
+                }
+            )
         except Exception as e:
             logger.error(f"infer_cards_tactically failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1855,19 +2109,26 @@ class AnalysisHandler:
             return json.dumps({"error": "Card detection service not initialized"})
         try:
             cards = await self.card_detection_service.fetch_external_cards(
-                match_id, statsbomb_service=self.statsbomb_service,
+                match_id,
+                statsbomb_service=self.statsbomb_service,
             )
-            return json.dumps({
-                "cards": [
-                    {
-                        "card_type": c.card_type.value, "minute": c.minute,
-                        "second": c.second, "player_name": c.player_name,
-                        "team": c.team, "source": c.source.value,
-                        "confidence": c.confidence, "description": c.description,
-                    }
-                    for c in cards
-                ]
-            })
+            return json.dumps(
+                {
+                    "cards": [
+                        {
+                            "card_type": c.card_type.value,
+                            "minute": c.minute,
+                            "second": c.second,
+                            "player_name": c.player_name,
+                            "team": c.team,
+                            "source": c.source.value,
+                            "confidence": c.confidence,
+                            "description": c.description,
+                        }
+                        for c in cards
+                    ]
+                }
+            )
         except Exception as e:
             logger.error(f"fetch_external_cards failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1899,16 +2160,20 @@ class AnalysisHandler:
             return json.dumps({"segments": []})
         try:
             segs = self.pose_analysis_service.get_activity_segments(track_id)
-            return json.dumps({
-                "segments": [
-                    {
-                        "activity": s.activity, "start_time": s.start_time,
-                        "end_time": s.end_time, "duration_s": s.duration_s,
-                        "avg_speed_kmh": s.avg_speed_kmh,
-                    }
-                    for s in segs
-                ]
-            })
+            return json.dumps(
+                {
+                    "segments": [
+                        {
+                            "activity": s.activity,
+                            "start_time": s.start_time,
+                            "end_time": s.end_time,
+                            "duration_s": s.duration_s,
+                            "avg_speed_kmh": s.avg_speed_kmh,
+                        }
+                        for s in segs
+                    ]
+                }
+            )
         except Exception as e:
             logger.error(f"get_activity_segments failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1920,17 +2185,21 @@ class AnalysisHandler:
     async def check_mujoco_status(self):
         if self.mujoco_ball_service is None:
             return json.dumps({"available": False, "uses_mujoco": False})
-        return json.dumps({
-            "available": self.mujoco_ball_service.available,
-            "uses_mujoco": self.mujoco_ball_service.uses_mujoco,
-        })
+        return json.dumps(
+            {
+                "available": self.mujoco_ball_service.available,
+                "uses_mujoco": self.mujoco_ball_service.uses_mujoco,
+            }
+        )
 
     async def get_setpiece_presets(self):
         if self.mujoco_ball_service is None:
             return json.dumps({"presets": []})
         return json.dumps({"presets": self.mujoco_ball_service.get_preset_setpieces()})
 
-    async def simulate_trajectory(self, initial_speed, launch_angle_deg, spin_rps, direction_deg, duration_s):
+    async def simulate_trajectory(
+        self, initial_speed, launch_angle_deg, spin_rps, direction_deg, duration_s
+    ):
         if self.mujoco_ball_service is None:
             return json.dumps({"error": "MuJoCo service not initialized"})
         try:
@@ -1941,15 +2210,19 @@ class AnalysisHandler:
                 direction_deg=float(direction_deg),
                 duration_s=float(duration_s) if duration_s > 0 else 2.5,
             )
-            return json.dumps({
-                "method": result.method,
-                "landing_x": result.landing_x,
-                "landing_y": result.landing_y,
-                "max_height": result.max_height,
-                "duration_s": result.duration_s,
-                "final_speed_mps": result.final_speed_mps,
-                "points": [{"t": p.t, "x": p.x, "y": p.y, "z": p.z} for p in result.points[::5]],
-            })
+            return json.dumps(
+                {
+                    "method": result.method,
+                    "landing_x": result.landing_x,
+                    "landing_y": result.landing_y,
+                    "max_height": result.max_height,
+                    "duration_s": result.duration_s,
+                    "final_speed_mps": result.final_speed_mps,
+                    "points": [
+                        {"t": p.t, "x": p.x, "y": p.y, "z": p.z} for p in result.points[::5]
+                    ],
+                }
+            )
         except Exception as e:
             logger.error(f"simulate_trajectory failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1960,14 +2233,18 @@ class AnalysisHandler:
 
     async def check_fluidx3d_status(self):
         if self.fluidx3d_service is None:
-            return json.dumps({
-                "available": False,
-                "license_notice": "FluidX3D is free for non-commercial use only.",
-            })
-        return json.dumps({
-            "available": self.fluidx3d_service.available,
-            "license_notice": self.fluidx3d_service.license_notice,
-        })
+            return json.dumps(
+                {
+                    "available": False,
+                    "license_notice": "FluidX3D is free for non-commercial use only.",
+                }
+            )
+        return json.dumps(
+            {
+                "available": self.fluidx3d_service.available,
+                "license_notice": self.fluidx3d_service.license_notice,
+            }
+        )
 
     async def simulate_ball_cfd(self, wind_speed, spin_rps, ball_radius):
         if self.fluidx3d_service is None:
@@ -1978,10 +2255,14 @@ class AnalysisHandler:
                 wind_speed=float(wind_speed),
                 spin_rps=float(spin_rps),
             )
-            return json.dumps({
-                "success": result.success, "method": result.method,
-                "notes": result.notes, "error": result.error,
-            })
+            return json.dumps(
+                {
+                    "success": result.success,
+                    "method": result.method,
+                    "notes": result.notes,
+                    "error": result.error,
+                }
+            )
         except Exception as e:
             logger.error(f"simulate_ball_cfd failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -1993,10 +2274,12 @@ class AnalysisHandler:
     async def check_weather_status(self):
         if self.weather_service is None:
             return json.dumps({"available": False})
-        return json.dumps({
-            "available": self.weather_service.available,
-            "has_video_classifier": self.weather_service.has_video_classifier,
-        })
+        return json.dumps(
+            {
+                "available": self.weather_service.available,
+                "has_video_classifier": self.weather_service.has_video_classifier,
+            }
+        )
 
     async def fetch_match_weather(self, latitude, longitude, date, is_forecast):
         if self.weather_service is None:
@@ -2007,16 +2290,18 @@ class AnalysisHandler:
             )
             if result is None:
                 return json.dumps({"error": "Failed to fetch weather"})
-            return json.dumps({
-                "temperature_c": result.temperature_c,
-                "precipitation_mm": result.precipitation_mm,
-                "wind_speed_kmh": result.wind_speed_kmh,
-                "humidity_pct": result.humidity_pct,
-                "conditions": result.conditions,
-                "pitch_state": result.pitch_state.value,
-                "source": result.source.value,
-                "is_daylight": result.is_daylight,
-            })
+            return json.dumps(
+                {
+                    "temperature_c": result.temperature_c,
+                    "precipitation_mm": result.precipitation_mm,
+                    "wind_speed_kmh": result.wind_speed_kmh,
+                    "humidity_pct": result.humidity_pct,
+                    "conditions": result.conditions,
+                    "pitch_state": result.pitch_state.value,
+                    "source": result.source.value,
+                    "is_daylight": result.is_daylight,
+                }
+            )
         except Exception as e:
             logger.error(f"fetch_match_weather failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2025,46 +2310,58 @@ class AnalysisHandler:
         if self.weather_service is None:
             return json.dumps({"error": "Weather service not initialized"})
         from kawkab.services.weather_service import WeatherService
+
         result = WeatherService.from_manual(
-            temperature_c=temperature, precipitation_mm=precipitation,
-            wind_speed_kmh=wind, humidity_pct=humidity, conditions=conditions,
+            temperature_c=temperature,
+            precipitation_mm=precipitation,
+            wind_speed_kmh=wind,
+            humidity_pct=humidity,
+            conditions=conditions,
         )
         impact = WeatherService.analyze_impact(result)
-        return json.dumps({
-            "conditions": {
-                "temperature_c": result.temperature_c,
-                "precipitation_mm": result.precipitation_mm,
-                "wind_speed_kmh": result.wind_speed_kmh,
-                "humidity_pct": result.humidity_pct,
-                "conditions": result.conditions,
-                "pitch_state": result.pitch_state.value,
-            },
-            "impact": {
-                "goals_delta": impact.expected_goals_delta,
-                "passing_delta_pct": impact.passing_accuracy_delta_pct,
-                "sprint_delta_pct": impact.sprint_distance_delta_pct,
-                "set_piece_advantage": impact.set_piece_advantage,
-                "notes": impact.notes,
-            },
-        })
+        return json.dumps(
+            {
+                "conditions": {
+                    "temperature_c": result.temperature_c,
+                    "precipitation_mm": result.precipitation_mm,
+                    "wind_speed_kmh": result.wind_speed_kmh,
+                    "humidity_pct": result.humidity_pct,
+                    "conditions": result.conditions,
+                    "pitch_state": result.pitch_state.value,
+                },
+                "impact": {
+                    "goals_delta": impact.expected_goals_delta,
+                    "passing_delta_pct": impact.passing_accuracy_delta_pct,
+                    "sprint_delta_pct": impact.sprint_distance_delta_pct,
+                    "set_piece_advantage": impact.set_piece_advantage,
+                    "notes": impact.notes,
+                },
+            }
+        )
 
     async def analyze_weather_impact(self, temperature, precipitation, wind, humidity, conditions):
         if self.weather_service is None:
             return json.dumps({"error": "Weather service not initialized"})
         try:
             from kawkab.services.weather_service import WeatherService
+
             wc = WeatherService.from_manual(
-                temperature_c=temperature, precipitation_mm=precipitation,
-                wind_speed_kmh=wind, humidity_pct=humidity, conditions=conditions,
+                temperature_c=temperature,
+                precipitation_mm=precipitation,
+                wind_speed_kmh=wind,
+                humidity_pct=humidity,
+                conditions=conditions,
             )
             impact = WeatherService.analyze_impact(wc)
-            return json.dumps({
-                "goals_delta": impact.expected_goals_delta,
-                "passing_delta_pct": impact.passing_accuracy_delta_pct,
-                "sprint_delta_pct": impact.sprint_distance_delta_pct,
-                "set_piece_advantage": impact.set_piece_advantage,
-                "notes": impact.notes,
-            })
+            return json.dumps(
+                {
+                    "goals_delta": impact.expected_goals_delta,
+                    "passing_delta_pct": impact.passing_accuracy_delta_pct,
+                    "sprint_delta_pct": impact.sprint_distance_delta_pct,
+                    "set_piece_advantage": impact.set_piece_advantage,
+                    "notes": impact.notes,
+                }
+            )
         except Exception as e:
             logger.error(f"analyze_weather_impact failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2072,24 +2369,30 @@ class AnalysisHandler:
     async def check_raindrop_status(self):
         if self.weather_service is None:
             return json.dumps({"available": False})
-        return json.dumps({
-            "available": self.weather_service.has_raindrop_detector,
-            "has_cnn": (
-                self.weather_service._raindrop_service.has_cnn
-                if self.weather_service._raindrop_service else False
-            ),
-        })
+        return json.dumps(
+            {
+                "available": self.weather_service.has_raindrop_detector,
+                "has_cnn": (
+                    self.weather_service._raindrop_service.has_cnn
+                    if self.weather_service._raindrop_service
+                    else False
+                ),
+            }
+        )
 
     async def check_weather_classifier_status(self):
         if self.weather_service is None:
             return json.dumps({"available": False})
-        return json.dumps({
-            "available": self.weather_service.has_multi_class_classifier,
-            "has_cnn": (
-                self.weather_service._weather_classifier.has_cnn
-                if self.weather_service._weather_classifier else False
-            ),
-        })
+        return json.dumps(
+            {
+                "available": self.weather_service.has_multi_class_classifier,
+                "has_cnn": (
+                    self.weather_service._weather_classifier.has_cnn
+                    if self.weather_service._weather_classifier
+                    else False
+                ),
+            }
+        )
 
     async def detect_raindrops_in_video(self, video_path, sample_every_n, max_frames):
         if self.weather_service is None or not self.weather_service.has_raindrop_detector:
@@ -2099,14 +2402,16 @@ class AnalysisHandler:
             result = self.weather_service._raindrop_service.detect_from_video_file(
                 str(validated_path), sample_every_n, max_frames
             )
-            return json.dumps({
-                "frame_count": result.frame_count,
-                "raindrop_count": result.raindrop_count,
-                "raindrop_density": result.raindrop_density,
-                "avg_confidence": result.avg_confidence,
-                "is_rainy": result.is_rainy,
-                "method": result.method,
-            })
+            return json.dumps(
+                {
+                    "frame_count": result.frame_count,
+                    "raindrop_count": result.raindrop_count,
+                    "raindrop_density": result.raindrop_density,
+                    "avg_confidence": result.avg_confidence,
+                    "is_rainy": result.is_rainy,
+                    "method": result.method,
+                }
+            )
         except Exception as e:
             logger.error(f"detect_raindrops_in_video failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2117,6 +2422,7 @@ class AnalysisHandler:
         try:
             validated_path = SecurityValidator.validate_video_path(str(video_path))
             import cv2
+
             cap = cv2.VideoCapture(str(validated_path))
             if not cap.isOpened():
                 return json.dumps({"error": f"Could not open video: {video_path}"})
@@ -2167,7 +2473,12 @@ class AnalysisHandler:
                 for et in types_in_window:
                     type_counts[et] = type_counts.get(et, 0) + 1
 
-                if any("corner" in e.get("event_type", "") or "free_kick" in e.get("event_type", "") or e.get("event_type", "") == "throw_in" for e in window_events):
+                if any(
+                    "corner" in e.get("event_type", "")
+                    or "free_kick" in e.get("event_type", "")
+                    or e.get("event_type", "") == "throw_in"
+                    for e in window_events
+                ):
                     label = "set_piece"
                 elif type_counts.get("counter", 0) >= 2:
                     label = "transition"
@@ -2191,23 +2502,35 @@ class AnalysisHandler:
                     phases[-1]["end"] = max(phases[-1]["end"], min(t + window, total_time))
                     phases[-1]["duration_s"] = round(phases[-1]["end"] - phases[-1]["start"], 1)
                 else:
-                    phases.append({
-                        "start": round(t, 1),
-                        "end": round(min(t + window, total_time), 1),
-                        "label": label,
-                        "duration_s": round(min(window, total_time - t), 1),
-                    })
+                    phases.append(
+                        {
+                            "start": round(t, 1),
+                            "end": round(min(t + window, total_time), 1),
+                            "label": label,
+                            "duration_s": round(min(window, total_time - t), 1),
+                        }
+                    )
                 i = j
 
             counts = {}
             for p in phases:
                 counts[p["label"]] = counts.get(p["label"], 0) + p["duration_s"]
-            return json.dumps({
-                "phases": phases,
-                "press_pct": round(counts.get("transition", 0) / total_time * 100, 1) if total_time else 0,
-                "settled_possession_pct": round(counts.get("settled_possession", 0) / total_time * 100, 1) if total_time else 0,
-                "transition_pct": round(counts.get("transition", 0) / total_time * 100, 1) if total_time else 0,
-            })
+            return json.dumps(
+                {
+                    "phases": phases,
+                    "press_pct": round(counts.get("transition", 0) / total_time * 100, 1)
+                    if total_time
+                    else 0,
+                    "settled_possession_pct": round(
+                        counts.get("settled_possession", 0) / total_time * 100, 1
+                    )
+                    if total_time
+                    else 0,
+                    "transition_pct": round(counts.get("transition", 0) / total_time * 100, 1)
+                    if total_time
+                    else 0,
+                }
+            )
         except Exception as e:
             logger.error(f"get_tactical_periods failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2219,6 +2542,7 @@ class AnalysisHandler:
     async def analyze_formation(self, match_id):
         try:
             from kawkab.core.formation_analysis import FormationAnalyzer
+
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             players = await self.storage_service.get_match_players(match_id)
@@ -2248,9 +2572,15 @@ class AnalysisHandler:
                     result[side] = {"formation": "unknown"}
                     continue
                 positions = list(pos.values())
-                frames = [{"timestamp": 0, "home_positions": positions if side == "home" else [],
-                           "away_positions": positions if side == "away" else [],
-                           "possession": True, "ball_pos": None}]
+                frames = [
+                    {
+                        "timestamp": 0,
+                        "home_positions": positions if side == "home" else [],
+                        "away_positions": positions if side == "away" else [],
+                        "possession": True,
+                        "ball_pos": None,
+                    }
+                ]
                 report = analyzer.analyze_team_shape(frames, team=side)
                 result[side] = report.to_dict()
 
@@ -2266,6 +2596,7 @@ class AnalysisHandler:
     async def analyze_tactical_shapes(self, match_id):
         try:
             from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
+
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             if not events:
@@ -2273,7 +2604,9 @@ class AnalysisHandler:
             analyzer = TacticalShapeAnalyzer()
             home_report = analyzer.analyze_shapes(events, team="home")
             away_report = analyzer.analyze_shapes(events, team="away")
-            return json.dumps({"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()})
+            return json.dumps(
+                {"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()}
+            )
         except Exception as e:
             logger.error(f"analyze_tactical_shapes failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2285,13 +2618,16 @@ class AnalysisHandler:
     async def classify_pressing(self, match_id):
         try:
             from kawkab.core.pressing_classifier import classify_pressing_system
+
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             if not events:
                 return json.dumps({"home": {}, "away": {}})
             home_report = classify_pressing_system(events, team="home")
             away_report = classify_pressing_system(events, team="away")
-            return json.dumps({"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()})
+            return json.dumps(
+                {"success": True, "home": home_report.to_dict(), "away": away_report.to_dict()}
+            )
         except Exception as e:
             logger.error(f"classify_pressing failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2303,6 +2639,7 @@ class AnalysisHandler:
     async def get_tactical_report(self, match_id):
         try:
             from kawkab.core.tactical_report import generate_tactical_report
+
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             if not events:
@@ -2362,12 +2699,18 @@ class AnalysisHandler:
             events = await self.storage_service.get_match_events(match_id)
             players = await self.storage_service.get_match_players(match_id)
 
-            player_events = [e for e in events if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id]
+            player_events = [
+                e
+                for e in events
+                if e.get("from_track_id") == track_id or e.get("player_track_id") == track_id
+            ]
             if not player_events:
                 return json.dumps({"rating": 0, "components": {}})
 
             passes = sum(1 for e in player_events if e.get("event_type") == "pass")
-            completed = sum(1 for e in player_events if e.get("event_type") == "pass" and e.get("completed"))
+            completed = sum(
+                1 for e in player_events if e.get("event_type") == "pass" and e.get("completed")
+            )
             shots = sum(1 for e in player_events if e.get("event_type") == "shot")
             tackles = sum(1 for e in player_events if e.get("event_type") == "tackle")
             interceptions = sum(1 for e in player_events if e.get("event_type") == "interception")
@@ -2392,7 +2735,18 @@ class AnalysisHandler:
                 "goal_contribution": goal_score,
                 "event_volume": volume,
             }
-            rating = round((pass_acc * 30 + shot_score * 0.1 + tackle_score * 0.15 + carry_score * 0.1 + dribble_score * 0.15 + goal_score * 0.1 + volume * 0.1), 1)
+            rating = round(
+                (
+                    pass_acc * 30
+                    + shot_score * 0.1
+                    + tackle_score * 0.15
+                    + carry_score * 0.1
+                    + dribble_score * 0.15
+                    + goal_score * 0.1
+                    + volume * 0.1
+                ),
+                1,
+            )
             return json.dumps({"rating": min(rating, 100), "components": components})
         except Exception as e:
             logger.error(f"get_player_rating failed: {e}")
@@ -2410,25 +2764,33 @@ class AnalysisHandler:
             players = await self.storage_service.get_match_players(match_id)
 
             squad = {}
-            for p in (players or []):
+            for p in players or []:
                 tid = p.get("track_id", p.get("id", 0))
                 name = p.get("name", f"Player #{tid}")
                 team = p.get("team", "unknown")
                 if team not in squad:
                     squad[team] = []
-                p_events = [e for e in events if e.get("from_track_id") == tid or e.get("player_track_id") == tid]
-                squad[team].append({
-                    "track_id": tid,
-                    "name": name,
-                    "jersey": p.get("jersey_number", ""),
-                    "position": p.get("position", ""),
-                    "events": len(p_events),
-                    "passes": sum(1 for e in p_events if e.get("event_type") == "pass"),
-                    "shots": sum(1 for e in p_events if e.get("event_type") == "shot"),
-                    "tackles": sum(1 for e in p_events if e.get("event_type") == "tackle"),
-                })
+                p_events = [
+                    e
+                    for e in events
+                    if e.get("from_track_id") == tid or e.get("player_track_id") == tid
+                ]
+                squad[team].append(
+                    {
+                        "track_id": tid,
+                        "name": name,
+                        "jersey": p.get("jersey_number", ""),
+                        "position": p.get("position", ""),
+                        "events": len(p_events),
+                        "passes": sum(1 for e in p_events if e.get("event_type") == "pass"),
+                        "shots": sum(1 for e in p_events if e.get("event_type") == "shot"),
+                        "tackles": sum(1 for e in p_events if e.get("event_type") == "tackle"),
+                    }
+                )
 
-            return json.dumps({"success": True, "squad": squad, "total_players": len(players or [])})
+            return json.dumps(
+                {"success": True, "squad": squad, "total_players": len(players or [])}
+            )
         except Exception as e:
             logger.error(f"get_squad_summary failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2446,11 +2808,15 @@ class AnalysisHandler:
         self._check_rate_limit()
         try:
             match_id = SecurityValidator.validate_match_id(match_id)
-            track_id = SecurityValidator.validate_match_id(track_id) if isinstance(track_id, str) else int(track_id)
+            track_id = (
+                SecurityValidator.validate_match_id(track_id)
+                if isinstance(track_id, str)
+                else int(track_id)
+            )
             predictor = self.injury_risk_predictor
             players = await self.storage_service.get_match_players(match_id)
             player = None
-            for p in (players or []):
+            for p in players or []:
                 if p.get("track_id") == track_id or p.get("id") == track_id:
                     player = p
                     break
@@ -2463,32 +2829,38 @@ class AnalysisHandler:
             # Real workload source: GPS-import ACWR history (acwr_daily).
             acwr_history = await self.storage_service.get_player_acwr(track_id, limit=1)
             if not acwr_history:
-                return json.dumps({
-                    "risk_score": 0.0,
-                    "risk_category": "insufficient_data",
-                    "acwr": 0.0,
-                    "acwr_risk_level": "insufficient data",
-                    "recovery_recommendation": "No GPS/workload data on file for this player",
-                    "key_factors": [],
-                    "player_name": name,
-                    "position": position,
-                })
+                return json.dumps(
+                    {
+                        "risk_score": 0.0,
+                        "risk_category": "insufficient_data",
+                        "acwr": 0.0,
+                        "acwr_risk_level": "insufficient data",
+                        "recovery_recommendation": "No GPS/workload data on file for this player",
+                        "key_factors": [],
+                        "player_name": name,
+                        "position": position,
+                    }
+                )
 
             acwr = float(acwr_history[0].get("acwr", 1.0))
             risk = predictor.predict_injury_risk({"acwr": acwr, "position": position})
             rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
-            return json.dumps({
-                "risk_score": risk["risk_score"],
-                "risk_category": risk["risk_category"],
-                "risk_level": risk["risk_category"],
-                "acwr": round(acwr, 3),
-                "acwr_risk_level": "elevated" if acwr > 1.3 else ("low" if acwr < 0.8 else "normal"),
-                "recovery_recommendation": rec,
-                "key_factors": risk["key_risk_factors"],
-                "factors": risk["key_risk_factors"],
-                "player_name": name,
-                "position": position,
-            })
+            return json.dumps(
+                {
+                    "risk_score": risk["risk_score"],
+                    "risk_category": risk["risk_category"],
+                    "risk_level": risk["risk_category"],
+                    "acwr": round(acwr, 3),
+                    "acwr_risk_level": "elevated"
+                    if acwr > 1.3
+                    else ("low" if acwr < 0.8 else "normal"),
+                    "recovery_recommendation": rec,
+                    "key_factors": risk["key_risk_factors"],
+                    "factors": risk["key_risk_factors"],
+                    "player_name": name,
+                    "position": position,
+                }
+            )
         except Exception as e:
             logger.error(f"get_injury_risk failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2510,7 +2882,7 @@ class AnalysisHandler:
             total_risk_home = 0.0
             total_risk_away = 0.0
             high_risk_count = 0
-            for p in (players or []):
+            for p in players or []:
                 tid = p.get("track_id")
                 if tid is None:
                     continue
@@ -2521,8 +2893,13 @@ class AnalysisHandler:
                 acwr_history = await self.storage_service.get_player_acwr(tid, limit=1)
                 if not acwr_history:
                     entry = {
-                        "track_id": tid, "name": name, "jersey": jersey, "position": position,
-                        "risk_score": 0.0, "risk_category": "insufficient_data", "acwr": 0.0,
+                        "track_id": tid,
+                        "name": name,
+                        "jersey": jersey,
+                        "position": position,
+                        "risk_score": 0.0,
+                        "risk_category": "insufficient_data",
+                        "acwr": 0.0,
                         "recovery_recommendation": "No GPS/workload data on file for this player",
                         "key_factors": [],
                     }
@@ -2531,9 +2908,14 @@ class AnalysisHandler:
                     risk = predictor.predict_injury_risk({"acwr": acwr, "position": position})
                     rec = predictor.compute_recovery_recommendation(risk["risk_score"], position)
                     entry = {
-                        "track_id": tid, "name": name, "jersey": jersey, "position": position,
-                        "risk_score": risk["risk_score"], "risk_category": risk["risk_category"],
-                        "acwr": round(acwr, 3), "recovery_recommendation": rec,
+                        "track_id": tid,
+                        "name": name,
+                        "jersey": jersey,
+                        "position": position,
+                        "risk_score": risk["risk_score"],
+                        "risk_category": risk["risk_category"],
+                        "acwr": round(acwr, 3),
+                        "recovery_recommendation": rec,
                         "key_factors": risk["key_risk_factors"],
                     }
                 if team in ("home", "Home", "HOME"):
@@ -2546,15 +2928,17 @@ class AnalysisHandler:
                     high_risk_count += 1
             avg_home = round(total_risk_home / len(home_players), 3) if home_players else 0
             avg_away = round(total_risk_away / len(away_players), 3) if away_players else 0
-            return json.dumps({
-                "success": True,
-                "home_players": home_players,
-                "away_players": away_players,
-                "avg_risk_home": avg_home,
-                "avg_risk_away": avg_away,
-                "high_risk_count": high_risk_count,
-                "total_players": len(home_players) + len(away_players),
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "home_players": home_players,
+                    "away_players": away_players,
+                    "avg_risk_home": avg_home,
+                    "avg_risk_away": avg_away,
+                    "high_risk_count": high_risk_count,
+                    "total_players": len(home_players) + len(away_players),
+                }
+            )
         except Exception as e:
             logger.error(f"get_squad_injury_report failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2589,28 +2973,37 @@ class AnalysisHandler:
             total_events += ev_count
             shots = sum(1 for e in events if e.get("event_type") == "shot")
             total_shots += shots
-            xg = sum(e.get("metadata", {}).get("xg", 0) if isinstance(e.get("metadata"), dict) else 0 for e in events)
+            xg = sum(
+                e.get("metadata", {}).get("xg", 0) if isinstance(e.get("metadata"), dict) else 0
+                for e in events
+            )
             total_xg += xg
-            home_goals = sum(1 for e in events if e.get("event_type") == "goal" and e.get("team") == "home")
-            away_goals = sum(1 for e in events if e.get("event_type") == "goal" and e.get("team") == "away")
+            home_goals = sum(
+                1 for e in events if e.get("event_type") == "goal" and e.get("team") == "home"
+            )
+            away_goals = sum(
+                1 for e in events if e.get("event_type") == "goal" and e.get("team") == "away"
+            )
             if home_goals > away_goals:
                 home_wins += 1
             elif away_goals > home_goals:
                 away_wins += 1
             else:
                 draws += 1
-            match_list.append({
-                "id": mid,
-                "name": m.get("name", ""),
-                "home_team": m.get("home_team", "Home"),
-                "away_team": m.get("away_team", "Away"),
-                "date": m.get("match_date", ""),
-                "events": ev_count,
-                "shots": shots,
-                "home_goals": home_goals,
-                "away_goals": away_goals,
-                "created_at": m.get("created_at", ""),
-            })
+            match_list.append(
+                {
+                    "id": mid,
+                    "name": m.get("name", ""),
+                    "home_team": m.get("home_team", "Home"),
+                    "away_team": m.get("away_team", "Away"),
+                    "date": m.get("match_date", ""),
+                    "events": ev_count,
+                    "shots": shots,
+                    "home_goals": home_goals,
+                    "away_goals": away_goals,
+                    "created_at": m.get("created_at", ""),
+                }
+            )
 
         return {
             "total_matches": total,
@@ -2630,13 +3023,15 @@ class AnalysisHandler:
             if agg["total_matches"] == 0:
                 return json.dumps({"total_matches": 0})
 
-            return json.dumps({
-                "total_matches": agg["total_matches"],
-                "total_events": agg["total_events"],
-                "total_shots": agg["total_shots"],
-                "avg_xg": round(agg["total_xg"] / max(agg["total_matches"], 1), 3),
-                "matches": agg["matches"],
-            })
+            return json.dumps(
+                {
+                    "total_matches": agg["total_matches"],
+                    "total_events": agg["total_events"],
+                    "total_shots": agg["total_shots"],
+                    "avg_xg": round(agg["total_xg"] / max(agg["total_matches"], 1), 3),
+                    "matches": agg["matches"],
+                }
+            )
         except Exception as e:
             logger.error(f"get_season_summary failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2651,14 +3046,16 @@ class AnalysisHandler:
         self._check_rate_limit()
         try:
             agg = await self._aggregate_season_stats()
-            return json.dumps({
-                "match_count": agg["total_matches"],
-                "total_events": agg["total_events"],
-                "total_xg": round(agg["total_xg"], 3),
-                "home_wins": agg["home_wins"],
-                "away_wins": agg["away_wins"],
-                "draws": agg["draws"],
-            })
+            return json.dumps(
+                {
+                    "match_count": agg["total_matches"],
+                    "total_events": agg["total_events"],
+                    "total_xg": round(agg["total_xg"], 3),
+                    "home_wins": agg["home_wins"],
+                    "away_wins": agg["away_wins"],
+                    "draws": agg["draws"],
+                }
+            )
         except Exception as e:
             logger.error(f"get_dashboard_stats failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2701,10 +3098,16 @@ class AnalysisHandler:
                 for m in matches_oldest_first
             ]
             if not synthetic:
-                return json.dumps({
-                    "streak_type": "none", "streak_length": 0, "last_5_results": "",
-                    "points_last_5": 0, "ppg_last_5": 0.0, "total_points": 0,
-                })
+                return json.dumps(
+                    {
+                        "streak_type": "none",
+                        "streak_length": 0,
+                        "last_5_results": "",
+                        "points_last_5": 0,
+                        "ppg_last_5": 0.0,
+                        "total_points": 0,
+                    }
+                )
             analyzer = FormAnalyzer()
             form = analyzer.compute_form_streak(synthetic, team="home")
             form.pop("goal_difference_trend", None)  # internal, not shown
@@ -2723,17 +3126,19 @@ class AnalysisHandler:
             await self.knowledge_service.initialize()
             drills = self.knowledge_service.drills
             drill_list = []
-            for d in (drills or []):
-                drill_list.append({
-                    "id": d.get("id", ""),
-                    "name": d.get("name", "Unknown Drill"),
-                    "category": d.get("category", "general"),
-                    "difficulty": d.get("difficulty", "medium"),
-                    "duration_min": d.get("duration_min", 15),
-                    "description": d.get("description", ""),
-                    "goals": d.get("goals", []),
-                    "equipment": d.get("equipment", []),
-                })
+            for d in drills or []:
+                drill_list.append(
+                    {
+                        "id": d.get("id", ""),
+                        "name": d.get("name", "Unknown Drill"),
+                        "category": d.get("category", "general"),
+                        "difficulty": d.get("difficulty", "medium"),
+                        "duration_min": d.get("duration_min", 15),
+                        "description": d.get("description", ""),
+                        "goals": d.get("goals", []),
+                        "equipment": d.get("equipment", []),
+                    }
+                )
             return json.dumps({"drills": drill_list, "total": len(drill_list)})
         except Exception as e:
             logger.error(f"get_all_drills failed: {e}")
@@ -2751,10 +3156,14 @@ class AnalysisHandler:
                 import os
 
                 from kawkab.core.player_search import SearchCriteria, search_players
-                db_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "players.json")
+
+                db_path = os.path.join(
+                    os.path.dirname(__file__), "..", "..", "..", "data", "players.json"
+                )
                 if os.path.exists(db_path):
                     with open(db_path) as f:
                         import json as _json
+
                         player_db = _json.load(f)
                 else:
                     player_db = []
@@ -2767,36 +3176,131 @@ class AnalysisHandler:
                     results = [r for r in results if query_lower in (r.player_name or "").lower()]
                 player_list = []
                 for r in results:
-                    player_list.append({
-                        "track_id": abs(hash(r.player_id)) % 100000,
-                        "name": r.player_name,
-                        "position": r.position,
-                        "team": r.team if hasattr(r, "team") else "",
-                        "age": r.age,
-                        "matches": r.stats.get("matches", 0),
-                        "goals": r.stats.get("goals", 0),
-                        "assists": r.stats.get("assists", 0),
-                        "xg": r.stats.get("xg", 0),
-                        "passes": r.stats.get("passes", 0),
-                        "tackles": r.stats.get("tackles", 0),
-                    })
+                    player_list.append(
+                        {
+                            "track_id": abs(hash(r.player_id)) % 100000,
+                            "name": r.player_name,
+                            "position": r.position,
+                            "team": r.team if hasattr(r, "team") else "",
+                            "age": r.age,
+                            "matches": r.stats.get("matches", 0),
+                            "goals": r.stats.get("goals", 0),
+                            "assists": r.stats.get("assists", 0),
+                            "xg": r.stats.get("xg", 0),
+                            "passes": r.stats.get("passes", 0),
+                            "tackles": r.stats.get("tackles", 0),
+                        }
+                    )
                 return json.dumps({"results": player_list, "total": len(player_list)})
             except Exception:
                 # Fallback: return mock results for common queries
                 mock_db = [
-                    {"name": "Erling Haaland", "position": "FW", "team": "Manchester City", "age": 22, "goals": 32, "assists": 5, "xg": 28.5, "passes": 412, "tackles": 12, "matches": 28},
-                    {"name": "Kevin De Bruyne", "position": "MF", "team": "Manchester City", "age": 30, "goals": 8, "assists": 16, "xg": 7.2, "passes": 1250, "tackles": 34, "matches": 25},
-                    {"name": "Virgil van Dijk", "position": "DF", "team": "Liverpool", "age": 31, "goals": 3, "assists": 2, "xg": 2.8, "passes": 1800, "tackles": 45, "matches": 30},
-                    {"name": "Kylian Mbappé", "position": "FW", "team": "PSG", "age": 24, "goals": 28, "assists": 8, "xg": 24.1, "passes": 380, "tackles": 8, "matches": 26},
-                    {"name": "Jude Bellingham", "position": "MF", "team": "Real Madrid", "age": 20, "goals": 15, "assists": 7, "xg": 12.8, "passes": 890, "tackles": 42, "matches": 27},
-                    {"name": "Mohamed Salah", "position": "FW", "team": "Liverpool", "age": 30, "goals": 25, "assists": 10, "xg": 22.1, "passes": 560, "tackles": 18, "matches": 29},
-                    {"name": "Lionel Messi", "position": "FW", "team": "Inter Miami", "age": 36, "goals": 22, "assists": 14, "xg": 19.5, "passes": 980, "tackles": 14, "matches": 22},
-                    {"name": "Cristiano Ronaldo", "position": "FW", "team": "Al Nassr", "age": 38, "goals": 30, "assists": 6, "xg": 27.8, "passes": 350, "tackles": 6, "matches": 30},
+                    {
+                        "name": "Erling Haaland",
+                        "position": "FW",
+                        "team": "Manchester City",
+                        "age": 22,
+                        "goals": 32,
+                        "assists": 5,
+                        "xg": 28.5,
+                        "passes": 412,
+                        "tackles": 12,
+                        "matches": 28,
+                    },
+                    {
+                        "name": "Kevin De Bruyne",
+                        "position": "MF",
+                        "team": "Manchester City",
+                        "age": 30,
+                        "goals": 8,
+                        "assists": 16,
+                        "xg": 7.2,
+                        "passes": 1250,
+                        "tackles": 34,
+                        "matches": 25,
+                    },
+                    {
+                        "name": "Virgil van Dijk",
+                        "position": "DF",
+                        "team": "Liverpool",
+                        "age": 31,
+                        "goals": 3,
+                        "assists": 2,
+                        "xg": 2.8,
+                        "passes": 1800,
+                        "tackles": 45,
+                        "matches": 30,
+                    },
+                    {
+                        "name": "Kylian Mbappé",
+                        "position": "FW",
+                        "team": "PSG",
+                        "age": 24,
+                        "goals": 28,
+                        "assists": 8,
+                        "xg": 24.1,
+                        "passes": 380,
+                        "tackles": 8,
+                        "matches": 26,
+                    },
+                    {
+                        "name": "Jude Bellingham",
+                        "position": "MF",
+                        "team": "Real Madrid",
+                        "age": 20,
+                        "goals": 15,
+                        "assists": 7,
+                        "xg": 12.8,
+                        "passes": 890,
+                        "tackles": 42,
+                        "matches": 27,
+                    },
+                    {
+                        "name": "Mohamed Salah",
+                        "position": "FW",
+                        "team": "Liverpool",
+                        "age": 30,
+                        "goals": 25,
+                        "assists": 10,
+                        "xg": 22.1,
+                        "passes": 560,
+                        "tackles": 18,
+                        "matches": 29,
+                    },
+                    {
+                        "name": "Lionel Messi",
+                        "position": "FW",
+                        "team": "Inter Miami",
+                        "age": 36,
+                        "goals": 22,
+                        "assists": 14,
+                        "xg": 19.5,
+                        "passes": 980,
+                        "tackles": 14,
+                        "matches": 22,
+                    },
+                    {
+                        "name": "Cristiano Ronaldo",
+                        "position": "FW",
+                        "team": "Al Nassr",
+                        "age": 38,
+                        "goals": 30,
+                        "assists": 6,
+                        "xg": 27.8,
+                        "passes": 350,
+                        "tackles": 6,
+                        "matches": 30,
+                    },
                 ]
                 query_lower = query.lower().strip()
                 results = mock_db
                 if query_lower:
-                    results = [p for p in mock_db if query_lower in (p["name"] or "").lower() or query_lower in (p["position"] or "").lower()]
+                    results = [
+                        p
+                        for p in mock_db
+                        if query_lower in (p["name"] or "").lower()
+                        or query_lower in (p["position"] or "").lower()
+                    ]
                 if position:
                     pos_upper = position.upper()
                     results = [p for p in results if pos_upper in (p["position"] or "").upper()]
@@ -2858,50 +3362,84 @@ class AnalysisHandler:
 
             diagnoses = []
             if event_types.get("pass", 0) < 10:
-                diagnoses.append(Diagnosis(
-                    rule_id="R001", rule_name="Low Passing Volume", rule_name_ar="حجم تمرير منخفض",
-                    category="technical", severity="medium", confidence=0.75,
-                    evidence={"pass_count": event_types.get("pass", 0)},
-                    explanation="Low passing volume indicates poor build-up play",
-                    explanation_ar="يشير حجم التمرير المنخفض إلى ضعف في بناء الهجمات",
-                    recommended_drills=["D001", "D002", "D003"],
-                ))
+                diagnoses.append(
+                    Diagnosis(
+                        rule_id="R001",
+                        rule_name="Low Passing Volume",
+                        rule_name_ar="حجم تمرير منخفض",
+                        category="technical",
+                        severity="medium",
+                        confidence=0.75,
+                        evidence={"pass_count": event_types.get("pass", 0)},
+                        explanation="Low passing volume indicates poor build-up play",
+                        explanation_ar="يشير حجم التمرير المنخفض إلى ضعف في بناء الهجمات",
+                        recommended_drills=["D001", "D002", "D003"],
+                    )
+                )
             if event_types.get("shot", 0) < 5:
-                diagnoses.append(Diagnosis(
-                    rule_id="R002", rule_name="Low Shot Creation", rule_name_ar="خلق فرص تسديد منخفض",
-                    category="attacking", severity="medium", confidence=0.7,
-                    evidence={"shot_count": event_types.get("shot", 0)},
-                    explanation="Few shots indicate lack of attacking penetration",
-                    explanation_ar="قلة التسديدات تشير إلى ضعف الاختراق الهجومي",
-                    recommended_drills=["D004", "D005"],
-                ))
+                diagnoses.append(
+                    Diagnosis(
+                        rule_id="R002",
+                        rule_name="Low Shot Creation",
+                        rule_name_ar="خلق فرص تسديد منخفض",
+                        category="attacking",
+                        severity="medium",
+                        confidence=0.7,
+                        evidence={"shot_count": event_types.get("shot", 0)},
+                        explanation="Few shots indicate lack of attacking penetration",
+                        explanation_ar="قلة التسديدات تشير إلى ضعف الاختراق الهجومي",
+                        recommended_drills=["D004", "D005"],
+                    )
+                )
             if event_types.get("tackle", 0) < 8:
-                diagnoses.append(Diagnosis(
-                    rule_id="R003", rule_name="Low Defensive Engagement", rule_name_ar="مشاركة دفاعية منخفضة",
-                    category="defensive", severity="high", confidence=0.65,
-                    evidence={"tackle_count": event_types.get("tackle", 0)},
-                    explanation="Low tackle count indicates passive defending",
-                    explanation_ar="يشير انخفاض عدد التدخلات إلى دفاع سلبي",
-                    recommended_drills=["D006", "D007"],
-                ))
+                diagnoses.append(
+                    Diagnosis(
+                        rule_id="R003",
+                        rule_name="Low Defensive Engagement",
+                        rule_name_ar="مشاركة دفاعية منخفضة",
+                        category="defensive",
+                        severity="high",
+                        confidence=0.65,
+                        evidence={"tackle_count": event_types.get("tackle", 0)},
+                        explanation="Low tackle count indicates passive defending",
+                        explanation_ar="يشير انخفاض عدد التدخلات إلى دفاع سلبي",
+                        recommended_drills=["D006", "D007"],
+                    )
+                )
             if event_types.get("pressing", 0) or event_types.get("pressure", 0) or 0 < 3:
-                diagnoses.append(Diagnosis(
-                    rule_id="R004", rule_name="Low Pressing Intensity", rule_name_ar="شدة ضغط منخفضة",
-                    category="defensive", severity="medium", confidence=0.6,
-                    evidence={"pressure_count": event_types.get("pressing", 0) or event_types.get("pressure", 0) or 0},
-                    explanation="Low pressing allows opponent easy build-up",
-                    explanation_ar="الضغط المنخفض يسمح للخصم ببناء الهجمات بسهولة",
-                    recommended_drills=["D008", "D009"],
-                ))
+                diagnoses.append(
+                    Diagnosis(
+                        rule_id="R004",
+                        rule_name="Low Pressing Intensity",
+                        rule_name_ar="شدة ضغط منخفضة",
+                        category="defensive",
+                        severity="medium",
+                        confidence=0.6,
+                        evidence={
+                            "pressure_count": event_types.get("pressing", 0)
+                            or event_types.get("pressure", 0)
+                            or 0
+                        },
+                        explanation="Low pressing allows opponent easy build-up",
+                        explanation_ar="الضغط المنخفض يسمح للخصم ببناء الهجمات بسهولة",
+                        recommended_drills=["D008", "D009"],
+                    )
+                )
             if not diagnoses:
-                diagnoses.append(Diagnosis(
-                    rule_id="R005", rule_name="General Match Fitness", rule_name_ar="لياقة المباراة العامة",
-                    category="fitness", severity="low", confidence=0.5,
-                    evidence={"event_count": len(events or [])},
-                    explanation="Maintain current fitness levels",
-                    explanation_ar="الحفاظ على مستويات اللياقة الحالية",
-                    recommended_drills=["D001", "D004", "D006"],
-                ))
+                diagnoses.append(
+                    Diagnosis(
+                        rule_id="R005",
+                        rule_name="General Match Fitness",
+                        rule_name_ar="لياقة المباراة العامة",
+                        category="fitness",
+                        severity="low",
+                        confidence=0.5,
+                        evidence={"event_count": len(events or [])},
+                        explanation="Maintain current fitness levels",
+                        explanation_ar="الحفاظ على مستويات اللياقة الحالية",
+                        recommended_drills=["D001", "D004", "D006"],
+                    )
+                )
 
             report = DiagnosisReport(
                 match_id=match_id,
@@ -2924,21 +3462,23 @@ class AnalysisHandler:
             home_team = (match_data or {}).get("home_team", "Home")
             away_team = (match_data or {}).get("away_team", "Away")
 
-            return json.dumps({
-                "success": True,
-                "plan": plan_dict,
-                "match_info": {
-                    "match_id": match_id,
-                    "home_team": home_team,
-                    "away_team": away_team,
-                },
-                "analysis_summary": {
-                    "total_events": len(events or []),
-                    "event_breakdown": event_types,
-                    "total_players": len(players or []),
-                    "diagnoses_found": len(diagnoses),
-                },
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "plan": plan_dict,
+                    "match_info": {
+                        "match_id": match_id,
+                        "home_team": home_team,
+                        "away_team": away_team,
+                    },
+                    "analysis_summary": {
+                        "total_events": len(events or []),
+                        "event_breakdown": event_types,
+                        "total_players": len(players or []),
+                        "diagnoses_found": len(diagnoses),
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"generate_training_plan failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -2958,7 +3498,9 @@ class AnalysisHandler:
         try:
             entry = json.loads(entry_json or "{}")
             if not entry.get("player_id") or not entry.get("player_name"):
-                return json.dumps({"success": False, "error": "player_id and player_name are required"})
+                return json.dumps(
+                    {"success": False, "error": "player_id and player_name are required"}
+                )
             entry.setdefault("status", "shortlisted")
             storage = self.storage_service
             if not storage:
@@ -3014,7 +3556,9 @@ class AnalysisHandler:
             required = ("player_profile_id", "player_name", "start_date", "end_date")
             missing = [k for k in required if not contract.get(k)]
             if missing:
-                return json.dumps({"success": False, "error": f"missing required fields: {missing}"})
+                return json.dumps(
+                    {"success": False, "error": f"missing required fields: {missing}"}
+                )
             storage = self.storage_service
             if not storage:
                 return json.dumps({"success": False, "error": "Storage not initialized"})
@@ -3049,6 +3593,7 @@ class AnalysisHandler:
     def _days_until(date_str):
         try:
             from datetime import date
+
             y, m, d = str(date_str).split("-")
             return (date(int(y), int(m), int(d)) - date.today()).days
         except Exception:
@@ -3090,6 +3635,7 @@ class AnalysisHandler:
     def _get_model_manager(self):
         try:
             from kawkab.core.model_manager import ModelManager
+
             return self._services.get("model_manager") or ModelManager()
         except Exception:
             return None
@@ -3112,18 +3658,26 @@ class AnalysisHandler:
                 }
             variants = []
             for name, info in mm.DEFAULT_MODELS.items():
-                variants.append({
-                    "name": name,
-                    "size_mb": info.get("size_mb", 0),
-                    "cached": name in cached,
-                    "checksum_pinned": info.get("sha256") is not None,
-                })
-            return json.dumps({
-                "cache_size_mb": round(mm.get_cache_size_mb(), 1),
-                "models": variants,
-                "current_variant": (self._services.get("cv_service").model_size
-                                    if self._services.get("cv_service") and hasattr(self._services.get("cv_service"), "model_size") else None),
-            })
+                variants.append(
+                    {
+                        "name": name,
+                        "size_mb": info.get("size_mb", 0),
+                        "cached": name in cached,
+                        "checksum_pinned": info.get("sha256") is not None,
+                    }
+                )
+            return json.dumps(
+                {
+                    "cache_size_mb": round(mm.get_cache_size_mb(), 1),
+                    "models": variants,
+                    "current_variant": (
+                        self._services.get("cv_service").model_size
+                        if self._services.get("cv_service")
+                        and hasattr(self._services.get("cv_service"), "model_size")
+                        else None
+                    ),
+                }
+            )
         except Exception as e:
             logger.error(f"get_model_cache_info failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3162,17 +3716,21 @@ class AnalysisHandler:
             current = json.loads(await self.get_current_yolo_variant())
             recommended = json.loads(await self.get_recommended_yolo_variant())
             cache = json.loads(await self.get_model_cache_info())
-            return json.dumps({
-                "app": {k: info.get(k) for k in ("name", "version", "platform", "python")},
-                "gpu": {k: gpu.get(k) for k in ("backend", "tier") if k in gpu},
-                "model": {
-                    "current": current.get("variant"),
-                    "recommended": recommended.get("recommended"),
-                    "tier": recommended.get("tier"),
-                },
-                "cache_size_mb": cache.get("cache_size_mb", 0),
-                "checksum_pinned": any(m.get("checksum_pinned") for m in cache.get("models", [])),
-            })
+            return json.dumps(
+                {
+                    "app": {k: info.get(k) for k in ("name", "version", "platform", "python")},
+                    "gpu": {k: gpu.get(k) for k in ("backend", "tier") if k in gpu},
+                    "model": {
+                        "current": current.get("variant"),
+                        "recommended": recommended.get("recommended"),
+                        "tier": recommended.get("tier"),
+                    },
+                    "cache_size_mb": cache.get("cache_size_mb", 0),
+                    "checksum_pinned": any(
+                        m.get("checksum_pinned") for m in cache.get("models", [])
+                    ),
+                }
+            )
         except Exception as e:
             logger.error(f"get_settings_overview failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3181,8 +3739,11 @@ class AnalysisHandler:
         self._check_rate_limit()
         try:
             from kawkab.core.scout_reports import generate_scout_report
+
             report = generate_scout_report(track_id, match_id)
-            return json.dumps({"report": report.to_dict() if hasattr(report, "to_dict") else str(report)})
+            return json.dumps(
+                {"report": report.to_dict() if hasattr(report, "to_dict") else str(report)}
+            )
         except Exception as e:
             logger.error(f"generate_scout_report failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3194,7 +3755,9 @@ class AnalysisHandler:
             for ev in events:
                 eid = ev.get("id") or ev.get("event_id") or 0
                 if eid == event_id:
-                    return json.dumps({"timestamp": ev.get("timestamp", 0.0), "time": ev.get("timestamp", 0.0)})
+                    return json.dumps(
+                        {"timestamp": ev.get("timestamp", 0.0), "time": ev.get("timestamp", 0.0)}
+                    )
             return json.dumps({"timestamp": 0.0, "time": 0.0})
         except Exception as e:
             logger.error(f"get_event_timestamp failed: {e}")
@@ -3207,11 +3770,13 @@ class AnalysisHandler:
     async def check_roboflow_sports_status(self):
         if self.roboflow_sports_service is None:
             return json.dumps({"available": False})
-        return json.dumps({
-            "available": self.roboflow_sports_service.available,
-            "has_team_classifier": self.roboflow_sports_service.has_team_classifier,
-            "has_view_transformer": self.roboflow_sports_service.has_view_transformer,
-        })
+        return json.dumps(
+            {
+                "available": self.roboflow_sports_service.available,
+                "has_team_classifier": self.roboflow_sports_service.has_team_classifier,
+                "has_view_transformer": self.roboflow_sports_service.has_view_transformer,
+            }
+        )
 
     # ================================================================
     # Sprint 4 — Live Tagging Service
@@ -3222,6 +3787,7 @@ class AnalysisHandler:
             svc = self._services.get("live_tagging_service")
             if svc is None:
                 from kawkab.services.live_tagging_service import LiveTaggingService
+
                 svc = LiveTaggingService()
                 self._services["live_tagging_service"] = svc
             return svc.start_session(home_team, away_team)
@@ -3333,19 +3899,29 @@ class AnalysisHandler:
             xg_approx = round(total_shots * 0.11, 2)
             xg_diff = round(xg_approx - (home_goals + away_goals) * 0.5, 2)
             period = svc._current_period if hasattr(svc, "_current_period") else 1
-            return json.dumps({
-                "possession_pct": s.get("home_possession_pct", 50.0),
-                "shots": total_shots,
-                "shots_ontarget": home_shots_on + away_shots_on,
-                "goals": home_goals + away_goals,
-                "xg": xg_approx,
-                "xg_diff": xg_diff,
-                "period": period,
-                "team_stats": {
-                    "home": {"goals": home_goals, "shots": home_shots, "shots_ontarget": home_shots_on},
-                    "away": {"goals": away_goals, "shots": away_shots, "shots_ontarget": away_shots_on},
-                },
-            })
+            return json.dumps(
+                {
+                    "possession_pct": s.get("home_possession_pct", 50.0),
+                    "shots": total_shots,
+                    "shots_ontarget": home_shots_on + away_shots_on,
+                    "goals": home_goals + away_goals,
+                    "xg": xg_approx,
+                    "xg_diff": xg_diff,
+                    "period": period,
+                    "team_stats": {
+                        "home": {
+                            "goals": home_goals,
+                            "shots": home_shots,
+                            "shots_ontarget": home_shots_on,
+                        },
+                        "away": {
+                            "goals": away_goals,
+                            "shots": away_shots,
+                            "shots_ontarget": away_shots_on,
+                        },
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"get_live_kpis failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3365,16 +3941,23 @@ class AnalysisHandler:
                 entry = {"type": t.get("type"), "x": t.get("x"), "y": t.get("y"), "t": t.get("t")}
                 if t.get("team") == svc._home_team:
                     home_events.append(entry)
-                elif t.get("team") == svc._away_team or t.get("type") in ("goal", "shot", "pass", "tackle"):
+                elif t.get("team") == svc._away_team or t.get("type") in (
+                    "goal",
+                    "shot",
+                    "pass",
+                    "tackle",
+                ):
                     away_events.append(entry)
             home_hot = _compute_hot_zones([e for e in home_events if e["x"] is not None])
             away_hot = _compute_hot_zones([e for e in away_events if e["x"] is not None])
-            return json.dumps({
-                "home_events": home_events,
-                "away_events": away_events,
-                "home_hot_zones": home_hot,
-                "away_hot_zones": away_hot,
-            })
+            return json.dumps(
+                {
+                    "home_events": home_events,
+                    "away_events": away_events,
+                    "home_hot_zones": home_hot,
+                    "away_hot_zones": away_hot,
+                }
+            )
         except Exception as e:
             logger.error(f"get_live_pitch_map failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3400,12 +3983,16 @@ class AnalysisHandler:
                     home_cum += xg_val
                 else:
                     away_cum += xg_val
-                timeline.append({"minute": minute, "home_xg": round(home_cum, 2), "away_xg": round(away_cum, 2)})
-            return json.dumps({
-                "timeline": timeline,
-                "cumulative_home": round(home_cum, 2),
-                "cumulative_away": round(away_cum, 2),
-            })
+                timeline.append(
+                    {"minute": minute, "home_xg": round(home_cum, 2), "away_xg": round(away_cum, 2)}
+                )
+            return json.dumps(
+                {
+                    "timeline": timeline,
+                    "cumulative_home": round(home_cum, 2),
+                    "cumulative_away": round(away_cum, 2),
+                }
+            )
         except Exception as e:
             logger.error(f"get_live_xg_chart failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -3419,6 +4006,7 @@ class AnalysisHandler:
             svc = self._services.get("auto_updater_service")
             if svc is None:
                 from kawkab.services.auto_updater_service import AutoUpdaterService
+
                 svc = AutoUpdaterService()
                 self._services["auto_updater_service"] = svc
             return svc.check_for_update()
@@ -3463,25 +4051,30 @@ class AnalysisHandler:
     async def load_sample_data(self):
         try:
             from kawkab.services.sample_data_generator import generate_sample_match
+
             data = generate_sample_match()
             match_data = data["match"]
-            return json.dumps({
-                "ok": True,
-                "match": f"{match_data['home_team']} {match_data['home_score']}-{match_data['away_score']} {match_data['away_team']}",
-                "events_count": data["total_events"],
-            })
+            return json.dumps(
+                {
+                    "ok": True,
+                    "match": f"{match_data['home_team']} {match_data['home_score']}-{match_data['away_score']} {match_data['away_team']}",
+                    "events_count": data["total_events"],
+                }
+            )
         except Exception as e:
             logger.error(f"load_sample_data failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_app_info(self):
-        return json.dumps({
-            "version": "0.13.0",
-            "name": "Kawkab AI",
-            "platform": __import__("platform").platform(),
-            "python": __import__("sys").version,
-            "description": "Private offline AI football coach",
-        })
+        return json.dumps(
+            {
+                "version": "0.13.0",
+                "name": "Kawkab AI",
+                "platform": __import__("platform").platform(),
+                "python": __import__("sys").version,
+                "description": "Private offline AI football coach",
+            }
+        )
 
     # ================================================================
     # Sprint 3 — Collaboration Service
@@ -3492,6 +4085,7 @@ class AnalysisHandler:
             svc = self._services.get("collaboration_service")
             if svc is None:
                 from kawkab.services.collaboration_service import CollaborationService
+
                 svc = CollaborationService()
                 self._services["collaboration_service"] = svc
             return svc.create_user(username, display_name, role)
@@ -3524,6 +4118,7 @@ class AnalysisHandler:
             svc = self._services.get("collaboration_service")
             if svc is None:
                 from kawkab.services.collaboration_service import CollaborationService
+
                 svc = CollaborationService()
                 self._services["collaboration_service"] = svc
             return svc.add_comment(match_id, event_id, user_id, text)
@@ -3564,6 +4159,7 @@ class AnalysisHandler:
             svc = self._services.get("collaboration_service")
             if svc is None:
                 from kawkab.services.collaboration_service import CollaborationService
+
                 svc = CollaborationService()
                 self._services["collaboration_service"] = svc
             return svc.export_project(match)
@@ -3576,6 +4172,7 @@ class AnalysisHandler:
             svc = self._services.get("collaboration_service")
             if svc is None:
                 from kawkab.services.collaboration_service import CollaborationService
+
                 svc = CollaborationService()
                 self._services["collaboration_service"] = svc
             return svc.import_project(project_json)
@@ -3630,17 +4227,23 @@ class AnalysisHandler:
     async def import_wearable(self, file_path):
         try:
             from kawkab.services.wearable_import_service import WearableImportService
+
             svc = WearableImportService()
             return svc.import_auto(file_path)
         except Exception as e:
             logger.error(f"import_wearable failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def merge_player_physiology(self, player_id, trajectory_json, wearable_json, body_mass_kg=75.0):
+    async def merge_player_physiology(
+        self, player_id, trajectory_json, wearable_json, body_mass_kg=75.0
+    ):
         try:
             from kawkab.services.physiological_merge_service import PhysiologicalMergeService
             from kawkab.services.wearable_import_service import WearableDataPoint
-            traj = json.loads(trajectory_json) if isinstance(trajectory_json, str) else trajectory_json
+
+            traj = (
+                json.loads(trajectory_json) if isinstance(trajectory_json, str) else trajectory_json
+            )
             w_data = json.loads(wearable_json) if isinstance(wearable_json, str) else wearable_json
             trajectory = [(t["t"], t.get("x", t.get("v", 0)), t.get("y", 0)) for t in traj]
             wearables = []
@@ -3659,14 +4262,25 @@ class AnalysisHandler:
             logger.error(f"merge_player_physiology failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def analyze_physio_tactical(self, events_json, speed_timeline_json, hr_timeline_json=None, window_s=5.0):
+    async def analyze_physio_tactical(
+        self, events_json, speed_timeline_json, hr_timeline_json=None, window_s=5.0
+    ):
         try:
             from kawkab.services.physio_tactical_correlation import PhysioTacticalCorrelationService
+
             events = json.loads(events_json) if isinstance(events_json, str) else events_json
-            speed_tl = json.loads(speed_timeline_json) if isinstance(speed_timeline_json, str) else speed_timeline_json
+            speed_tl = (
+                json.loads(speed_timeline_json)
+                if isinstance(speed_timeline_json, str)
+                else speed_timeline_json
+            )
             hr_tl = None
             if hr_timeline_json:
-                hr_tl = json.loads(hr_timeline_json) if isinstance(hr_timeline_json, str) else hr_timeline_json
+                hr_tl = (
+                    json.loads(hr_timeline_json)
+                    if isinstance(hr_timeline_json, str)
+                    else hr_timeline_json
+                )
             svc = PhysioTacticalCorrelationService()
             return svc.analyze(events, speed_tl, hr_tl, window_s)
         except Exception as e:
@@ -3675,10 +4289,12 @@ class AnalysisHandler:
 
     async def rf_draw_pitch(self, scale):
         import base64
+
         if self.roboflow_sports_service is None or not self.roboflow_sports_service.available:
             return json.dumps({"error": "roboflow/sports not installed"})
         try:
             import cv2
+
             img = self.roboflow_sports_service.draw_pitch(scale=scale)
             if img is None:
                 return json.dumps({"error": "draw_pitch returned None"})
@@ -3767,6 +4383,7 @@ class AnalysisHandler:
         svc = self._services.get("telestration_service")
         if svc is None:
             from kawkab.services.telestration_service import TelestrationService
+
             svc = TelestrationService()
             self._services["telestration_service"] = svc
         return svc
@@ -3780,6 +4397,7 @@ class AnalysisHandler:
             svc = self._services.get("live_stream_service")
             if svc is None:
                 from kawkab.services.live_stream_service import LiveStreamCaptureService
+
                 svc = LiveStreamCaptureService()
                 self._services["live_stream_service"] = svc
             return svc.start_capture(url, stream_id, output_filename)
@@ -3834,6 +4452,7 @@ class AnalysisHandler:
     async def stream_detect_source(self, url):
         try:
             from kawkab.services.live_stream_service import LiveStreamCaptureService
+
             svc = LiveStreamCaptureService()
             return json.dumps({"source_type": svc.detect_source_type(url)})
         except Exception as e:
@@ -3954,15 +4573,19 @@ class AnalysisHandler:
             import threading
 
             from kawkab.cloud.server import start
+
             t = threading.Thread(target=start, args=("0.0.0.0", port), daemon=True)
             t.start()
-            return json.dumps({"ok": True, "port": port, "message": f"Cloud server started on port {port}"})
+            return json.dumps(
+                {"ok": True, "port": port, "message": f"Cloud server started on port {port}"}
+            )
         except Exception as e:
             return json.dumps({"error": str(e)})
 
     async def cloud_server_status(self):
         try:
             import httpx
+
             resp = httpx.get("http://localhost:8741/health", timeout=3.0)
             return json.dumps({"running": resp.status_code == 200, "details": resp.json()})
         except Exception:
@@ -3972,6 +4595,7 @@ class AnalysisHandler:
         svc = self._services.get("cloud_sync_service")
         if svc is None:
             from kawkab.services.cloud_sync_service import CloudSyncService
+
             svc = CloudSyncService()
             self._services["cloud_sync_service"] = svc
         return svc
@@ -3984,6 +4608,7 @@ class AnalysisHandler:
         svc = self._services.get("ai_assistant_v2_service")
         if svc is None:
             from kawkab.services.ai_assistant_v2_service import AIAssistantV2Service
+
             svc = AIAssistantV2Service(llm_service=self._services.get("llm_service"))
             self._services["ai_assistant_v2_service"] = svc
         return svc
@@ -4002,9 +4627,7 @@ class AnalysisHandler:
     async def ai_v2_list_convs(self, match_id):
         try:
             svc = self._get_ai_v2()
-            convs = svc.list_conversations(
-                match_id=int(match_id) if match_id else None
-            )
+            convs = svc.list_conversations(match_id=int(match_id) if match_id else None)
             return json.dumps({"success": True, "conversations": convs})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -4017,6 +4640,7 @@ class AnalysisHandler:
         svc = self._services.get("opponent_database_service")
         if svc is None:
             from kawkab.services.opponent_database_service import OpponentDatabaseService
+
             svc = OpponentDatabaseService()
             self._services["opponent_database_service"] = svc
         return svc
@@ -4025,6 +4649,7 @@ class AnalysisHandler:
         svc = self._services.get("scouting_network_service")
         if svc is None:
             from kawkab.services.scouting_network_service import ScoutingNetworkService
+
             svc = ScoutingNetworkService()
             self._services["scouting_network_service"] = svc
         return svc
@@ -4035,6 +4660,7 @@ class AnalysisHandler:
             from kawkab.services.transfermarkt_integration_service import (
                 TransfermarktIntegrationService,
             )
+
             svc = TransfermarktIntegrationService()
             self._services["transfermarkt_integration_service"] = svc
         return svc
@@ -4082,14 +4708,31 @@ class AnalysisHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def opponent_add_matchup(self, profile_id, our_team, date, competition, home_away, our_score, their_score, our_xg, their_xg, notes):
+    async def opponent_add_matchup(
+        self,
+        profile_id,
+        our_team,
+        date,
+        competition,
+        home_away,
+        our_score,
+        their_score,
+        our_xg,
+        their_xg,
+        notes,
+    ):
         try:
             svc = self._get_opponent_db()
             result = svc.add_matchup(
-                opponent_id=str(profile_id), our_team=str(our_team), date=str(date),
-                competition=str(competition or ""), home_away=str(home_away or "home"),
-                our_score=int(our_score or 0), their_score=int(their_score or 0),
-                our_xg=float(our_xg or 0.0), their_xg=float(their_xg or 0.0),
+                opponent_id=str(profile_id),
+                our_team=str(our_team),
+                date=str(date),
+                competition=str(competition or ""),
+                home_away=str(home_away or "home"),
+                our_score=int(our_score or 0),
+                their_score=int(their_score or 0),
+                our_xg=float(our_xg or 0.0),
+                their_xg=float(their_xg or 0.0),
                 notes=str(notes or ""),
             )
             return json.dumps({"success": True, "matchup": result})
@@ -4108,25 +4751,45 @@ class AnalysisHandler:
         try:
             svc = self._get_scouting_network()
             results = svc.search_players(
-                query=str(query or ""), position=str(position or ""),
-                min_age=int(min_age or 0), max_age=int(max_age or 99),
-                league=str(league or ""), min_rating=float(min_rating or 0.0),
+                query=str(query or ""),
+                position=str(position or ""),
+                min_age=int(min_age or 0),
+                max_age=int(max_age or 99),
+                league=str(league or ""),
+                min_rating=float(min_rating or 0.0),
             )
             return json.dumps({"success": True, "players": results})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def scout_network_add(self, name, position, club, league, rating, strengths_json, weaknesses_json, scout_notes, submitted_by, tags_json):
+    async def scout_network_add(
+        self,
+        name,
+        position,
+        club,
+        league,
+        rating,
+        strengths_json,
+        weaknesses_json,
+        scout_notes,
+        submitted_by,
+        tags_json,
+    ):
         try:
             svc = self._get_scouting_network()
             strengths = json.loads(strengths_json) if strengths_json else []
             weaknesses = json.loads(weaknesses_json) if weaknesses_json else []
             tags = json.loads(tags_json) if tags_json else []
             result = svc.add_player(
-                name=str(name), position=str(position or ""), club=str(club or ""),
-                league=str(league or ""), rating=float(rating or 0.0),
-                strengths=strengths, weaknesses=weaknesses,
-                scout_notes=str(scout_notes or ""), submitted_by=str(submitted_by or ""),
+                name=str(name),
+                position=str(position or ""),
+                club=str(club or ""),
+                league=str(league or ""),
+                rating=float(rating or 0.0),
+                strengths=strengths,
+                weaknesses=weaknesses,
+                scout_notes=str(scout_notes or ""),
+                submitted_by=str(submitted_by or ""),
                 tags=tags,
             )
             return json.dumps({"success": True, "player": result})
@@ -4247,6 +4910,7 @@ class AnalysisHandler:
         svc = self._services.get("marketplace_service")
         if svc is None:
             from kawkab.services.marketplace_service import MarketplaceService
+
             svc = MarketplaceService()
             self._services["marketplace_service"] = svc
         return svc
@@ -4274,7 +4938,9 @@ class AnalysisHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    async def marketplace_add(self, item_type, name, description, author, category, tags_json, data, source):
+    async def marketplace_add(
+        self, item_type, name, description, author, category, tags_json, data, source
+    ):
         try:
             svc = self._get_marketplace()
             tags = json.loads(tags_json) if tags_json else []
@@ -4330,6 +4996,7 @@ class AnalysisHandler:
         """Return the recommended YOLO variant for the current GPU tier."""
         try:
             from kawkab.core.gpu_acceleration import detect_gpu_tier, recommend_yolo_variant
+
             tier = detect_gpu_tier()
             variant = recommend_yolo_variant(tier)
             return json.dumps({"success": True, "tier": tier, "recommended": variant})
@@ -4350,7 +5017,12 @@ class AnalysisHandler:
         try:
             valid = {"n", "s", "m", "l", "x"}
             if variant not in valid:
-                return json.dumps({"success": False, "error": f"Invalid variant '{variant}'. Must be one of {valid}"})
+                return json.dumps(
+                    {
+                        "success": False,
+                        "error": f"Invalid variant '{variant}'. Must be one of {valid}",
+                    }
+                )
             cv = self._services.get("cv_service")
             if cv and hasattr(cv, "model_size"):
                 cv.model_size = variant
@@ -4364,15 +5036,23 @@ class AnalysisHandler:
         """Return detected GPU tier and VRAM info."""
         try:
             from kawkab.core.gpu_acceleration import detect_gpu, detect_gpu_tier
+
             backend = detect_gpu()
             tier = detect_gpu_tier()
             info = {"backend": backend, "tier": tier}
             if backend == "cuda":
                 try:
                     import subprocess
+
                     result = subprocess.run(
-                        ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"],
-                        capture_output=True, text=True, timeout=5,
+                        [
+                            "nvidia-smi",
+                            "--query-gpu=name,memory.total,driver_version",
+                            "--format=csv,noheader",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
                     )
                     if result.returncode == 0 and result.stdout.strip():
                         parts = result.stdout.strip().split(", ")
@@ -4394,20 +5074,32 @@ class AnalysisHandler:
         """
         try:
             from kawkab.core.pitch_control import VoronoiPitchControl
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             if not events:
-                return json.dumps({"home_grid": [], "away_grid": [], "ball_control_pct": 50.0, "hot_zones": []})
+                return json.dumps(
+                    {"home_grid": [], "away_grid": [], "ball_control_pct": 50.0, "hot_zones": []}
+                )
 
-            home_events = [e for e in events if e.get("team") == "home" and e.get("start_x") is not None]
-            away_events = [e for e in events if e.get("team") == "away" and e.get("start_x") is not None]
-            home_positions = [(e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in home_events[:11]]
-            away_positions = [(e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in away_events[:11]]
+            home_events = [
+                e for e in events if e.get("team") == "home" and e.get("start_x") is not None
+            ]
+            away_events = [
+                e for e in events if e.get("team") == "away" and e.get("start_x") is not None
+            ]
+            home_positions = [
+                (e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in home_events[:11]
+            ]
+            away_positions = [
+                (e.get("start_x", 52.5), e.get("start_y", 34.0)) for e in away_events[:11]
+            ]
 
             pc = VoronoiPitchControl()
             frame = pc.compute_frame_control(home_positions, away_positions)
 
             hot_zones = []
             import numpy as np
+
             hg = np.array(frame.home_grid)
             ag = np.array(frame.away_grid)
             total = hg.size
@@ -4415,12 +5107,14 @@ class AnalysisHandler:
             away_cells = int(np.sum(ag > 0.5))
             ball_control_pct = round((home_cells / max(total, 1)) * 100.0, 1)
 
-            return json.dumps({
-                "home_grid": frame.home_grid,
-                "away_grid": frame.away_grid,
-                "ball_control_pct": ball_control_pct,
-                "hot_zones": hot_zones,
-            })
+            return json.dumps(
+                {
+                    "home_grid": frame.home_grid,
+                    "away_grid": frame.away_grid,
+                    "ball_control_pct": ball_control_pct,
+                    "hot_zones": hot_zones,
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -4431,11 +5125,20 @@ class AnalysisHandler:
         """
         try:
             from kawkab.core.pass_sonars import compute_pass_sonars
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             sonars = compute_pass_sonars(events, sectors=8)
             target = [s for s in sonars if s.get("track_id") == str(track_id)]
             if not target:
-                return json.dumps({"directions": [], "pass_counts": [], "accuracy_pct": [], "total_passes": 0, "error": f"Player {track_id} not found"})
+                return json.dumps(
+                    {
+                        "directions": [],
+                        "pass_counts": [],
+                        "accuracy_pct": [],
+                        "total_passes": 0,
+                        "error": f"Player {track_id} not found",
+                    }
+                )
             player = target[0]
             directions = []
             pass_counts = []
@@ -4444,12 +5147,14 @@ class AnalysisHandler:
                 directions.append(sec["angle_center"])
                 pass_counts.append(sec["count"])
                 accuracy_pct.append(round(sec["accuracy"] * 100.0, 1))
-            return json.dumps({
-                "directions": directions,
-                "pass_counts": pass_counts,
-                "accuracy_pct": accuracy_pct,
-                "total_passes": player["total_passes"],
-            })
+            return json.dumps(
+                {
+                    "directions": directions,
+                    "pass_counts": pass_counts,
+                    "accuracy_pct": accuracy_pct,
+                    "total_passes": player["total_passes"],
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -4460,9 +5165,12 @@ class AnalysisHandler:
         """
         try:
             from kawkab.core.space_control import compute_pitch_control_grid, identify_hot_zones
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             if not events:
-                return json.dumps({"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0})
+                return json.dumps(
+                    {"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0}
+                )
 
             all_positions = []
             team_ids = []
@@ -4473,24 +5181,32 @@ class AnalysisHandler:
                     team_ids.append(tid)
 
             if not all_positions:
-                return json.dumps({"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0})
+                return json.dumps(
+                    {"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0}
+                )
 
             grid, team_pcts = compute_pitch_control_grid(all_positions[:22], team_ids[:22])
             hot_zones = identify_hot_zones(grid, 0)
 
             space_gained_count = 0
             for e in events:
-                if e.get("type") == "pass" and e.get("start_x") is not None and e.get("end_x") is not None:
+                if (
+                    e.get("type") == "pass"
+                    and e.get("start_x") is not None
+                    and e.get("end_x") is not None
+                ):
                     space_gained_count += 1
             space_gained = round(space_gained_count * 1.5, 1)
 
-            grid_list = grid.tolist() if hasattr(grid, 'tolist') else grid
-            return json.dumps({
-                "grid": grid_list,
-                "team_control_pcts": team_pcts,
-                "hot_zones": hot_zones,
-                "space_gained": space_gained,
-            })
+            grid_list = grid.tolist() if hasattr(grid, "tolist") else grid
+            return json.dumps(
+                {
+                    "grid": grid_list,
+                    "team_control_pcts": team_pcts,
+                    "hot_zones": hot_zones,
+                    "space_gained": space_gained,
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -4501,18 +5217,33 @@ class AnalysisHandler:
         """
         try:
             from kawkab.core.role_classifier import classify_player_role
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            player_events = [e for e in events if str(e.get("track_id")) == str(track_id) or str(e.get("player_id")) == str(track_id)]
+            player_events = [
+                e
+                for e in events
+                if str(e.get("track_id")) == str(track_id)
+                or str(e.get("player_id")) == str(track_id)
+            ]
             if not player_events:
-                return json.dumps({"primary_role": "unknown", "confidence": 0.0, "secondary_role": "", "role_breakdown": {}})
+                return json.dumps(
+                    {
+                        "primary_role": "unknown",
+                        "confidence": 0.0,
+                        "secondary_role": "",
+                        "role_breakdown": {},
+                    }
+                )
 
             role = classify_player_role(player_events)
-            return json.dumps({
-                "primary_role": role.primary_role,
-                "confidence": role.confidence,
-                "secondary_role": role.secondary_role,
-                "role_breakdown": role.role_scores,
-            })
+            return json.dumps(
+                {
+                    "primary_role": role.primary_role,
+                    "confidence": role.confidence,
+                    "secondary_role": role.secondary_role,
+                    "role_breakdown": role.role_scores,
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -4523,18 +5254,29 @@ class AnalysisHandler:
         """
         try:
             from kawkab.core.dominance_index import compute_dominance_index
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             if not events:
-                return json.dumps({"index": 50.0, "sub_scores": {}, "phases": {}, "team": "home", "opponent": "away"})
+                return json.dumps(
+                    {
+                        "index": 50.0,
+                        "sub_scores": {},
+                        "phases": {},
+                        "team": "home",
+                        "opponent": "away",
+                    }
+                )
 
             report = compute_dominance_index(events, "home")
-            return json.dumps({
-                "index": report.index,
-                "team": report.team,
-                "opponent": report.opponent,
-                "sub_scores": report.sub_scores,
-                "phases": report.phases,
-            })
+            return json.dumps(
+                {
+                    "index": report.index,
+                    "team": report.team,
+                    "opponent": report.opponent,
+                    "sub_scores": report.sub_scores,
+                    "phases": report.phases,
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -4544,8 +5286,17 @@ class AnalysisHandler:
         try:
             from kawkab.core.goals_added import compute_goals_added
             from kawkab.core.xg_model import compute_xg_trained_from_dict
-            events = await self.storage_service.get_match_events(match_id) if self.storage_service else []
-            players = await self.storage_service.get_match_players(match_id) if self.storage_service else []
+
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            players = (
+                await self.storage_service.get_match_players(match_id)
+                if self.storage_service
+                else []
+            )
             defensive_types = {"tackle", "interception", "clearance"}
             result = {}
             for p in players:
@@ -4561,8 +5312,17 @@ class AnalysisHandler:
                         xg += compute_xg_trained_from_dict(e)
                     except Exception:
                         continue
-                defensive_actions = sum(1 for e in p_events if e.get("event_type") in defensive_types)
-                match_stats = [{"match_id": match_id, "xg": xg, "defensive_actions": defensive_actions, "minutes": 90}]
+                defensive_actions = sum(
+                    1 for e in p_events if e.get("event_type") in defensive_types
+                )
+                match_stats = [
+                    {
+                        "match_id": match_id,
+                        "xg": xg,
+                        "defensive_actions": defensive_actions,
+                        "minutes": 90,
+                    }
+                ]
                 report = compute_goals_added(str(tid), match_stats, str(p.get("position", "MID")))
                 result[str(tid)] = report.__dict__
             return json.dumps({"success": True, "result": result, "count": len(result)})
@@ -4573,6 +5333,7 @@ class AnalysisHandler:
     def analyze_finishing(self, match_id: int) -> str:
         try:
             from kawkab.core.finishing_analysis import analyze_finishing
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = analyze_finishing(events)
             return json.dumps({"success": True, "result": result})
@@ -4582,6 +5343,7 @@ class AnalysisHandler:
     def simulate_league(self, match_id: int, iterations: int = 10000) -> str:
         try:
             from kawkab.core.league_simulation import simulate_league
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = simulate_league(events, iterations=iterations)
             return json.dumps({"success": True, "result": result})
@@ -4591,6 +5353,7 @@ class AnalysisHandler:
     def estimate_transfer_fee(self, match_id: int, track_id: int) -> str:
         try:
             from kawkab.core.squad_valuation import estimate_player_transfer_fee
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = estimate_player_transfer_fee(events, track_id)
             return json.dumps({"success": True, "result": result})
@@ -4600,6 +5363,7 @@ class AnalysisHandler:
     def generate_match_report(self, match_id: int) -> str:
         try:
             from kawkab.core.match_report import generate_match_report as _gmr
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = _gmr(events)
             return json.dumps({"success": True, "result": result})
@@ -4609,6 +5373,7 @@ class AnalysisHandler:
     def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
         try:
             from kawkab.core.game_plan import generate_game_plan as _ggp
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = _ggp(events, opponent_id)
             return json.dumps({"success": True, "result": result})
@@ -4618,6 +5383,7 @@ class AnalysisHandler:
     def compute_phase_xg(self, match_id: int) -> str:
         try:
             from kawkab.core.phase_xg import compute_phase_xg as _cpx
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = _cpx(events)
             return json.dumps({"success": True, "result": result})
@@ -4627,6 +5393,7 @@ class AnalysisHandler:
     def analyze_build_up(self, match_id: int) -> str:
         try:
             from kawkab.core.build_up import analyze_build_up as _abu
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = _abu(events)
             return json.dumps({"success": True, "result": result})
@@ -4636,6 +5403,7 @@ class AnalysisHandler:
     def compute_territory_value(self, match_id: int) -> str:
         try:
             from kawkab.core.territory_value import compute_territory_value as _ctv
+
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
             result = _ctv(events)
             return json.dumps({"success": True, "result": result})
@@ -4653,7 +5421,9 @@ class AnalysisHandler:
         """
         try:
             mid = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(mid) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(mid) if self.storage_service else []
+            )
 
             from kawkab.core.match_anomaly_detection import (
                 compute_data_quality_score,
@@ -4680,7 +5450,9 @@ class AnalysisHandler:
             return json.dumps(result)
         except Exception as e:
             logger.error(f"get_match_quality_score failed: {e}")
-            return json.dumps({"error": ErrorSanitizer.sanitize_error(e), "score": 0.0, "level": "error"})
+            return json.dumps(
+                {"error": ErrorSanitizer.sanitize_error(e), "score": 0.0, "level": "error"}
+            )
 
     # ================================================================
     # Expected Assists (xA) report
@@ -4694,7 +5466,9 @@ class AnalysisHandler:
         """
         try:
             mid = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(mid) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(mid) if self.storage_service else []
+            )
 
             from kawkab.core.xa_model import ExpectedAssistModel
 
@@ -4724,7 +5498,9 @@ class AnalysisHandler:
         """
         try:
             mid = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(mid) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(mid) if self.storage_service else []
+            )
 
             from kawkab.core.pressing_efficiency import PressingEfficiencyAnalyzer
 
@@ -4732,10 +5508,18 @@ class AnalysisHandler:
             trap_to_shot = analyzer.compute_trap_to_shot_rate(events)
             high_press = analyzer.analyze_high_press_efficiency(events)
 
-            return json.dumps({
-                "home": {**trap_to_shot.get("home", {}), "high_press_index": high_press.get("home", 0.0)},
-                "away": {**trap_to_shot.get("away", {}), "high_press_index": high_press.get("away", 0.0)},
-            })
+            return json.dumps(
+                {
+                    "home": {
+                        **trap_to_shot.get("home", {}),
+                        "high_press_index": high_press.get("home", 0.0),
+                    },
+                    "away": {
+                        **trap_to_shot.get("away", {}),
+                        "high_press_index": high_press.get("away", 0.0),
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"get_pressing_report failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -4744,7 +5528,14 @@ class AnalysisHandler:
     # Sprint 16: GPS / Physical Data Pipeline
     # ================================================================
 
-    def import_gps_file(self, match_id: str, player_id: str, file_path: str, session_type: str = "match", vendor: str = "catapult") -> str:
+    def import_gps_file(
+        self,
+        match_id: str,
+        player_id: str,
+        file_path: str,
+        session_type: str = "match",
+        vendor: str = "catapult",
+    ) -> str:
         """Import a GPS data file and associate with a match and player."""
         try:
             mid = SecurityValidator.validate_match_id(match_id)
@@ -4767,12 +5558,14 @@ class AnalysisHandler:
             summary = compute_session_summary(samples)
             svc.update_gps_session_stats(session_id, summary)
 
-            return json.dumps({
-                "success": True,
-                "session_id": session_id,
-                "sample_count": count,
-                "summary": summary,
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "session_id": session_id,
+                    "sample_count": count,
+                    "summary": summary,
+                }
+            )
         except Exception as e:
             logger.error(f"import_gps_file failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -4870,8 +5663,13 @@ class AnalysisHandler:
             our_side = "home"
 
             briefing = service.generate(
-                home_team=home_team, away_team=away_team, our_side=our_side,
-                competition=competition, venue=venue, match_date=match_date, kickoff=kickoff,
+                home_team=home_team,
+                away_team=away_team,
+                our_side=our_side,
+                competition=competition,
+                venue=venue,
+                match_date=match_date,
+                kickoff=kickoff,
                 our_form_data=our_form_data,
                 our_injuries_data=our_injuries_data,
                 our_suspensions_data=our_suspensions_data,
@@ -4889,9 +5687,14 @@ class AnalysisHandler:
                 h2h_data=h2h_data,
             )
 
-            return json.dumps({"success": True, "briefing": briefing.to_dict(),
-                               "markdown": briefing.to_markdown(),
-                               "html": briefing.to_html()})
+            return json.dumps(
+                {
+                    "success": True,
+                    "briefing": briefing.to_dict(),
+                    "markdown": briefing.to_markdown(),
+                    "html": briefing.to_html(),
+                }
+            )
         except Exception as e:
             logger.exception(f"generate_briefing failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})

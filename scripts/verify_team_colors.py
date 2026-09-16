@@ -5,7 +5,9 @@ So we expect:
 - home_cluster should be YELLOW (Sweden)
 - away_cluster should be RED (Tunisia)
 """
+
 import asyncio, os, sys, time
+
 os.environ["PYTHONIOENCODING"] = "utf-8"
 from pathlib import Path
 
@@ -21,11 +23,12 @@ async def main() -> int:
     print("Loading 1-min clip...")
     t0 = time.time()
     track_data = await cv.process_video(Path("data/sweden_1min.mp4"), frame_skip=2)
-    print(f"  {time.time()-t0:.1f}s")
+    print(f"  {time.time() - t0:.1f}s")
 
     # Re-run color collection logic to get the actual RGB
     # This mimics what the team detection does
     import cv2
+
     cap = cv2.VideoCapture(str(Path("data/sweden_1min.mp4").resolve()))
     fps = cap.get(cv2.CAP_PROP_FPS)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))

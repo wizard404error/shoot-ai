@@ -7,5 +7,12 @@ from .xg_xt import XgXtMixin
 from .passing import PassingMixin
 from .tracking import TrackingMixin
 
-__all__ = ["AnalysisServiceCore", "PlayerStats", "TeamStats", "MatchAnalysis",
-           "XgXtMixin", "PassingMixin", "TrackingMixin"]
+__all__ = [
+    "AnalysisServiceCore",
+    "PlayerStats",
+    "TeamStats",
+    "MatchAnalysis",
+    "XgXtMixin",
+    "PassingMixin",
+    "TrackingMixin",
+]

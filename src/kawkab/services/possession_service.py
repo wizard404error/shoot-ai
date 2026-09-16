@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 @dataclass
 class PlayerPossessionStats:
     """Per-player possession stats."""
+
     track_id: int
     name: str | None = None
     touches: int = 0
@@ -40,6 +41,7 @@ class PlayerPossessionStats:
 @dataclass
 class PossessionChain:
     """A single possession episode."""
+
     start_time_s: float
     end_time_s: float
     team: str
@@ -56,6 +58,7 @@ class PossessionChain:
 @dataclass
 class PossessionReport:
     """Full possession report for a match."""
+
     home_possession_pct: float
     away_possession_pct: float
     home_chains: list[PossessionChain]
@@ -112,7 +115,9 @@ class PossessionService:
         last_lost_team: str | None = None
         last_lost_time: float = 0.0
         for event in events:
-            t = float(event.get("timestamp_s", event.get("minute", 0) * 60 + event.get("second", 0)))
+            t = float(
+                event.get("timestamp_s", event.get("minute", 0) * 60 + event.get("second", 0))
+            )
             team = event.get("team", "")
             player_id = event.get("player_track_id")
             player_name = event.get("player_name")
@@ -133,7 +138,9 @@ class PossessionService:
                 if et == "pass" and event.get("completed", False) and player_id is not None:
                     stats = home_player_stats if team == home_team else away_player_stats
                     if player_id not in stats:
-                        stats[player_id] = PlayerPossessionStats(track_id=player_id, name=player_name)
+                        stats[player_id] = PlayerPossessionStats(
+                            track_id=player_id, name=player_name
+                        )
                     stats[player_id].successful_passes += 1
                     current_chain.n_passes += 1
                 continue
@@ -145,13 +152,17 @@ class PossessionService:
                     if player_id is not None:
                         stats = home_player_stats if team == home_team else away_player_stats
                         if player_id not in stats:
-                            stats[player_id] = PlayerPossessionStats(track_id=player_id, name=player_name)
+                            stats[player_id] = PlayerPossessionStats(
+                                track_id=player_id, name=player_name
+                            )
                         stats[player_id].successful_passes += 1
                 else:
                     if player_id is not None:
                         stats = home_player_stats if team == home_team else away_player_stats
                         if player_id not in stats:
-                            stats[player_id] = PlayerPossessionStats(track_id=player_id, name=player_name)
+                            stats[player_id] = PlayerPossessionStats(
+                                track_id=player_id, name=player_name
+                            )
                         stats[player_id].failed_passes += 1
                     current_chain.ended_by = "pass_failed"
                     chain_dur = current_chain.end_time_s - current_chain.start_time_s
@@ -193,7 +204,9 @@ class PossessionService:
                 if player_id is not None:
                     stats = home_player_stats if team == home_team else away_player_stats
                     if player_id not in stats:
-                        stats[player_id] = PlayerPossessionStats(track_id=player_id, name=player_name)
+                        stats[player_id] = PlayerPossessionStats(
+                            track_id=player_id, name=player_name
+                        )
                     stats[player_id].touches += 1
                 current_chain.ended_by = "shot"
                 current_chain.xg_generated = float(event.get("xg", 0.0))
@@ -267,9 +280,7 @@ class PossessionService:
         else:
             avg_chain_dur = 0.0
             longest_chain = 0.0
-        notes = self._generate_notes(
-            home_pct, away_pct, chains, counter_presses, avg_chain_dur
-        )
+        notes = self._generate_notes(home_pct, away_pct, chains, counter_presses, avg_chain_dur)
         return PossessionReport(
             home_possession_pct=home_pct,
             away_possession_pct=away_pct,
@@ -389,8 +400,18 @@ class PossessionService:
             if abs(ev_time - loss_time) > 5.0:
                 continue
             context.append({**ev, "_dt": ev_time - loss_time})
-        tackle_events = [e for e in context if e.get("type") in ("tackle", "interception") and e.get("team") != loss_team]
-        pass_events = [e for e in context if e.get("type") == "pass" and e.get("team") == loss_team and e.get("completed") is False]
+        tackle_events = [
+            e
+            for e in context
+            if e.get("type") in ("tackle", "interception") and e.get("team") != loss_team
+        ]
+        pass_events = [
+            e
+            for e in context
+            if e.get("type") == "pass"
+            and e.get("team") == loss_team
+            and e.get("completed") is False
+        ]
         oob_events = [e for e in context if e.get("type") in ("out_of_play", "ball_out")]
         foul_events = [e for e in context if e.get("type") == "foul" and e.get("team") != loss_team]
         cause = "unknown"

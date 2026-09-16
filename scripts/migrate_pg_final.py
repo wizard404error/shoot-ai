@@ -9,6 +9,7 @@ Reads the connection string from KAWKAB_DB_URL rather than a hardcoded
 DSN -- this script used to embed a real local Postgres password
 directly in source.
 """
+
 import os
 import re
 import sys
@@ -21,6 +22,7 @@ if not DB:
         "KAWKAB_DB_URL is not set. Export it first, e.g.:\n"
         "  postgresql://postgres:<password>@localhost:5432/kawkab"
     )
+
 
 def main():
     conn = psycopg2.connect(DB)
@@ -41,22 +43,23 @@ def main():
             body = m.group(2)
             depth, i = 1, 0
             while i < len(body) and depth > 0:
-                if body[i] == '(':
+                if body[i] == "(":
                     depth += 1
-                elif body[i] == ')':
+                elif body[i] == ")":
                     depth -= 1
                 i += 1
-            body = body[:i-1]
+            body = body[: i - 1]
             stmts[name] = body
 
     # Sort tables topologically by FK dependency
     fk_refs = {}
     for name, body in stmts.items():
-        refs = set(re.findall(r'REFERENCES\s+(\w+)\s*\(', body))
+        refs = set(re.findall(r"REFERENCES\s+(\w+)\s*\(", body))
         refs.discard(name)
         fk_refs[name] = refs
 
     from collections import defaultdict, deque
+
     graph = defaultdict(list)
     in_deg = dict.fromkeys(stmts, 0)
     for name, refs in fk_refs.items():
@@ -80,7 +83,9 @@ def main():
     print(f"Creating {len(sorted_tables)} tables in dependency order...")
 
     # Phase 1: Drop all existing tables (reverse order for FK safety)
-    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"
+    )
     existing = [r[0] for r in cur.fetchall()]
     for t in existing:
         try:
@@ -100,10 +105,22 @@ def main():
             created += 1
         except Exception:
             # FK likely failed - create without FK
-            on_clause = r'(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?'
-            body_clean = re.sub(r',\s*\n?\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s+\w+\s*\([^)]+\)' + on_clause + on_clause, '', body)
-            body_clean = re.sub(r',\s*\n?\s*\w+\s+(?:INTEGER|INT|BIGINT|SMALLINT|REAL|TEXT)\s+REFERENCES\s+\w+\s*\([^)]+\)' + on_clause + on_clause, '', body_clean)
-            body_clean = re.sub(r',\s*\)', ')', body_clean)
+            on_clause = r"(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?"
+            body_clean = re.sub(
+                r",\s*\n?\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s+\w+\s*\([^)]+\)"
+                + on_clause
+                + on_clause,
+                "",
+                body,
+            )
+            body_clean = re.sub(
+                r",\s*\n?\s*\w+\s+(?:INTEGER|INT|BIGINT|SMALLINT|REAL|TEXT)\s+REFERENCES\s+\w+\s*\([^)]+\)"
+                + on_clause
+                + on_clause,
+                "",
+                body_clean,
+            )
+            body_clean = re.sub(r",\s*\)", ")", body_clean)
             sql2 = f"CREATE TABLE IF NOT EXISTS {tbl} ({body_clean})"
             try:
                 cur.execute(sql2)
@@ -113,9 +130,11 @@ def main():
     print(f"  Created {created}/{len(stmts)} tables")
 
     # Phase 3: Add FK constraints
-    on_clause_rx = r'(\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?'
-    fk_pattern = rf'FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}'
-    inline_fk_pattern = rf'(\w+)\s+(?:INTEGER|INT|BIGINT|SMALLINT)\s+REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}'
+    on_clause_rx = r"(\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?"
+    fk_pattern = (
+        rf"FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}"
+    )
+    inline_fk_pattern = rf"(\w+)\s+(?:INTEGER|INT|BIGINT|SMALLINT)\s+REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}"
     fk_added = 0
     for tbl in sorted_tables:
         body = stmts[tbl]
@@ -144,7 +163,11 @@ def main():
 
     # Phase 4: Indexes
     idx_count = 0
-    for m in re.finditer(r'CREATE\s+(UNIQUE\s+)?INDEX\s+(IF NOT EXISTS\s+)?\w+\s+ON\s+\w+\s*\([^)]+\);', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE\s+(UNIQUE\s+)?INDEX\s+(IF NOT EXISTS\s+)?\w+\s+ON\s+\w+\s*\([^)]+\);",
+        raw,
+        re.IGNORECASE,
+    ):
         try:
             cur.execute(m.group())
             idx_count += 1
@@ -154,7 +177,9 @@ def main():
 
     # Phase 5: Triggers
     trig_count = 0
-    for m in re.finditer(r'CREATE TRIGGER\s+\w+[^;]+EXECUTE FUNCTION\s+set_updated_at\(\)\s*;', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE TRIGGER\s+\w+[^;]+EXECUTE FUNCTION\s+set_updated_at\(\)\s*;", raw, re.IGNORECASE
+    ):
         try:
             cur.execute(m.group())
             trig_count += 1
@@ -163,19 +188,23 @@ def main():
     print(f"  Created {trig_count} triggers")
 
     # Phase 6: RLS
-    for m in re.finditer(r'ALTER TABLE\s+\w+\s+ENABLE ROW LEVEL SECURITY;', raw, re.IGNORECASE):
+    for m in re.finditer(r"ALTER TABLE\s+\w+\s+ENABLE ROW LEVEL SECURITY;", raw, re.IGNORECASE):
         try:
             cur.execute(m.group())
         except Exception:
             pass
-    for m in re.finditer(r'CREATE POLICY\s+\w+\s+ON\s+\w+\s+FOR ALL\s+USING\s*\(true\);', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE POLICY\s+\w+\s+ON\s+\w+\s+FOR ALL\s+USING\s*\(true\);", raw, re.IGNORECASE
+    ):
         try:
             cur.execute(m.group())
         except Exception:
             pass
 
     # Verify
-    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name")
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name"
+    )
     tables = [r[0] for r in cur.fetchall()]
     print(f"\nSchema migration complete! {len(tables)} tables created.")
     missing = set(stmts.keys()) - set(tables)
@@ -186,6 +215,7 @@ def main():
 
     cur.close()
     conn.close()
+
 
 if __name__ == "__main__":
     main()

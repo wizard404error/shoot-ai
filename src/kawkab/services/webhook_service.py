@@ -83,11 +83,14 @@ class WebhookService:
                 pass
 
     def _send(self, webhook: dict, event_type: str, payload: dict):
-        body = json.dumps({
-            "event": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "payload": payload,
-        }, default=str).encode("utf-8")
+        body = json.dumps(
+            {
+                "event": event_type,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "payload": payload,
+            },
+            default=str,
+        ).encode("utf-8")
 
         headers = {
             "Content-Type": "application/json",

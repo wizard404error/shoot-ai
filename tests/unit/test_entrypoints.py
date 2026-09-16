@@ -10,6 +10,7 @@ kawkab.__main__ has no module-level kawkab.* imports (all service/app
 imports are lazy, inside function bodies), so this file does not need
 install_kawkab_stubs() -- it can import the module directly.
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,7 +35,9 @@ class TestGuiIsDefaultCommand:
         assert calls == [1]
         assert exc.value.code == 0
 
-    def test_explicit_gui_subcommand_dispatches_to_gui(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_explicit_gui_subcommand_dispatches_to_gui(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         calls = []
         monkeypatch.setattr(kawkab_main, "_run_gui", lambda: calls.append(1) or 0)
         monkeypatch.setattr(sys, "argv", ["kawkab", "gui"])

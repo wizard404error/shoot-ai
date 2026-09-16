@@ -15,6 +15,7 @@ from kawkab.cloud.database import get_cloud_db
 _jwt_secret: str | None = None
 MIN_JWT_SECRET_LENGTH = 32  # bytes; matches HS256's recommended minimum HMAC key length
 
+
 def _get_jwt_secret() -> str:
     global _jwt_secret
     if _jwt_secret is not None:
@@ -23,18 +24,19 @@ def _get_jwt_secret() -> str:
     if not val:
         raise RuntimeError(
             "KAWKAB_JWT_SECRET environment variable is not set. "
-            "Generate a strong secret (e.g., `python -c \"import secrets; print(secrets.token_hex(32))\"`) "
+            'Generate a strong secret (e.g., `python -c "import secrets; print(secrets.token_hex(32))"`) '
             "and export KAWKAB_JWT_SECRET before starting the cloud server."
         )
     if len(val) < MIN_JWT_SECRET_LENGTH:
         raise RuntimeError(
             f"KAWKAB_JWT_SECRET is only {len(val)} characters -- HS256 needs at least "
             f"{MIN_JWT_SECRET_LENGTH} to resist brute-force forgery of session tokens. "
-            "Generate a strong secret (e.g., `python -c \"import secrets; print(secrets.token_hex(32))\"`) "
+            'Generate a strong secret (e.g., `python -c "import secrets; print(secrets.token_hex(32))"`) '
             "and export it as KAWKAB_JWT_SECRET before starting the cloud server."
         )
     _jwt_secret = val
     return val
+
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
@@ -66,7 +68,8 @@ def create_access_token(user_id: int, role: str = "analyst", token_version: int 
     # every token issued before the bump, with no denylist to maintain.
     return jwt.encode(
         {"sub": str(user_id), "role": role, "tv": token_version, "exp": expire},
-        _get_jwt_secret(), algorithm=ALGORITHM,
+        _get_jwt_secret(),
+        algorithm=ALGORITHM,
     )
 
 
@@ -86,15 +89,23 @@ async def get_current_user(
     if payload is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     db = get_cloud_db()
-    user = db.execute("SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?", (int(payload["sub"]),)).fetchone()
+    user = db.execute(
+        "SELECT id, username, email, display_name, role, is_active, token_version, created_at FROM users WHERE id = ?",
+        (int(payload["sub"]),),
+    ).fetchone()
     if user is None or not user["is_active"]:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive"
+        )
     # A token minted before create_access_token() carried "tv" (e.g. one
     # issued before this fix shipped) has no "tv" claim at all -- treat
     # that as version 0 rather than erroring, so already-issued tokens
     # for users who've never had their token_version bumped keep working.
     if payload.get("tv", 0) != user["token_version"]:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked, please log in again")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked, please log in again",
+        )
     return dict(user)
 
 

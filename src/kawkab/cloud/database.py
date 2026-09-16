@@ -12,7 +12,9 @@ CLOUD_DB_PATH = os.environ.get("KAWKAB_CLOUD_DB", str(Path.home() / ".kawkab" / 
 
 class _ResultRow(dict):
     """A row that supports both dict access and attribute-style access like sqlite3.Row."""
+
     __slots__ = ()
+
     def __getitem__(self, key):
         if isinstance(key, int):
             keys = list(self.keys())
@@ -22,6 +24,7 @@ class _ResultRow(dict):
 
 class _PostgresCursor:
     """Sync cursor wrapper around asyncpg result, mimicking sqlite3.Cursor."""
+
     def __init__(self, rows: Optional[list[dict]] = None, lastrowid: int = 0):
         self._rows = rows or []
         self._idx = 0
@@ -39,7 +42,7 @@ class _PostgresCursor:
         return row
 
     def fetchall(self) -> list[_ResultRow]:
-        result = [_ResultRow(r) for r in self._rows[self._idx:]]
+        result = [_ResultRow(r) for r in self._rows[self._idx :]]
         self._idx = len(self._rows)
         return result
 
@@ -53,9 +56,10 @@ class _PostgresCursor:
 
 class _PostgresConnection:
     """Sync PostgreSQL connection that mimics sqlite3.Connection interface.
-    
+
     Uses asyncpg with asyncio.run() internally, safe for sync FastAPI routes.
     """
+
     def __init__(self, dsn: str):
         self._dsn = dsn
         self.row_factory = None
@@ -65,6 +69,7 @@ class _PostgresConnection:
             loop = asyncio.get_running_loop()
             # Already inside an event loop (e.g. TestClient) — schedule & wait
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 fut = pool.submit(asyncio.run, coro)
                 return fut.result()
@@ -74,12 +79,14 @@ class _PostgresConnection:
     def _with_conn(self, callback):
         """Create a fresh connection, run callback, close it."""
         import asyncpg
+
         async def _impl():
             conn = await asyncpg.connect(self._dsn)
             try:
                 return await callback(conn)
             finally:
                 await conn.close()
+
         return self._run(_impl())
 
     @staticmethod
@@ -96,7 +103,7 @@ class _PostgresConnection:
                     if parts[j] == "'" and (j + 1 >= len(parts) or parts[j + 1] != "'"):
                         break
                     j += 1
-                result.append(query[i:j + 1])
+                result.append(query[i : j + 1])
                 i = j + 1
             elif c == "?":
                 result.append(f"${idx}")
@@ -109,6 +116,7 @@ class _PostgresConnection:
 
     def execute(self, query: str, parameters: tuple = ()) -> _PostgresCursor:
         pg_query = self._convert_placeholders(query) if "?" in query else query
+
         def _do_exec(conn):
             async def _exec():
                 q = pg_query.strip()
@@ -122,7 +130,9 @@ class _PostgresConnection:
                 else:
                     await conn.execute(pg_query, *parameters)
                     return [], 0
+
             return _exec()
+
         rows, lastid = self._with_conn(_do_exec)
         return _PostgresCursor(rows, lastrowid=lastid)
 
@@ -130,12 +140,15 @@ class _PostgresConnection:
         statements = [s.strip() for s in script.split(";") if s.strip()]
         if not statements:
             return
+
         def _do_script(conn):
             async def _exec():
                 for stmt in statements:
                     if stmt:
                         await conn.execute(stmt)
+
             return _exec()
+
         self._with_conn(_do_script)
 
     def commit(self) -> None:
@@ -150,6 +163,7 @@ class _PostgresConnection:
 
 class _SqliteConnection:
     """Thin wrapper exposing a sqlite3.Connection through the same interface as _PostgresConnection."""
+
     def __init__(self, path: str):
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
@@ -431,6 +445,8 @@ def _pg_migrate(db: _PostgresConnection) -> None:
     # before token_version existed -- ADD COLUMN IF NOT EXISTS (Postgres-
     # only syntax, unlike SQLite) covers that upgrade path too.
     try:
-        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0")
+        db.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0"
+        )
     except Exception:
         pass

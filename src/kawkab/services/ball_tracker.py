@@ -7,6 +7,7 @@ Architecture:
 - Bounce detection via vy sign reversal with coefficient of restitution
 - Confidence calibration from YOLO confidence scores
 """
+
 from __future__ import annotations
 
 import logging
@@ -55,6 +56,7 @@ class BallDetection:
 def _detect_gpu() -> bool:
     try:
         import torch
+
         return torch.cuda.is_available()
     except ImportError:
         return False
@@ -75,6 +77,7 @@ def _load_yolo_model(model_path: str | Path | None = None) -> Any | None:
     """Lazy-load YOLO model for ball detection, GPU if available."""
     try:
         from ultralytics import YOLO
+
         path = model_path or "yolo11n.pt"
         model = YOLO(str(path))
         if _detect_gpu():
@@ -99,8 +102,12 @@ def _detect_yolo(model: Any, frame: np.ndarray) -> dict | None:
         return None
     try:
         results = model(
-            frame, conf=YOLO_CONF_THRESHOLD, iou=YOLO_IOU_THRESHOLD,
-            classes=[32], imgsz=1280, verbose=False,
+            frame,
+            conf=YOLO_CONF_THRESHOLD,
+            iou=YOLO_IOU_THRESHOLD,
+            classes=[32],
+            imgsz=1280,
+            verbose=False,
         )
         if not results or len(results) == 0:
             return None
@@ -114,7 +121,9 @@ def _detect_yolo(model: Any, frame: np.ndarray) -> dict | None:
         cy = (y1 + y2) / 2.0
         radius = max(x2 - x1, y2 - y1) / 2.0
         return {
-            "x": cx, "y": cy, "radius": radius,
+            "x": cx,
+            "y": cy,
+            "radius": radius,
             "confidence": _calibrate_confidence(raw_conf),
             "raw_conf": raw_conf,
         }
@@ -146,7 +155,9 @@ def _find_hsv_candidates(frame: np.ndarray) -> list[dict]:
             circularity = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 0
             if circularity < BALL_CIRCULARITY_MIN:
                 continue
-            candidates.append({"x": x, "y": y, "radius": radius, "circularity": circularity, "label": label})
+            candidates.append(
+                {"x": x, "y": y, "radius": radius, "circularity": circularity, "label": label}
+            )
     candidates.sort(key=lambda c: c["circularity"], reverse=True)
     return candidates[:3]
 
@@ -200,27 +211,41 @@ class BallTracker:
         Meas:   [x, y, r]
         """
         dt2 = 0.5 * dt * dt
-        self.kalman.transitionMatrix = np.array([
-            [1, 0, 0, dt,  0,  0,  dt2, 0   ],
-            [0, 1, 0, 0,   dt, 0,  0,   dt2],
-            [0, 0, 1, 0,   0,  dt, 0,   0  ],
-            [0, 0, 0, 1,   0,  0,  dt,  0  ],
-            [0, 0, 0, 0,   1,  0,  0,   dt ],
-            [0, 0, 0, 0,   0,  1,  0,   0  ],
-            [0, 0, 0, 0,   0,  0,  1,   0  ],
-            [0, 0, 0, 0,   0,  0,  0,   1  ],
-        ], dtype=np.float32)
+        self.kalman.transitionMatrix = np.array(
+            [
+                [1, 0, 0, dt, 0, 0, dt2, 0],
+                [0, 1, 0, 0, dt, 0, 0, dt2],
+                [0, 0, 1, 0, 0, dt, 0, 0],
+                [0, 0, 0, 1, 0, 0, dt, 0],
+                [0, 0, 0, 0, 1, 0, 0, dt],
+                [0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1],
+            ],
+            dtype=np.float32,
+        )
 
-        self.kalman.measurementMatrix = np.hstack([
-            np.eye(3, 3), np.zeros((3, 5))
-        ]).astype(np.float32)
+        self.kalman.measurementMatrix = np.hstack([np.eye(3, 3), np.zeros((3, 5))]).astype(
+            np.float32
+        )
 
         dt_scale = max(dt / (1.0 / 24.0), 0.01)
-        self.kalman.processNoiseCov = np.diag(np.array([
-            1e-3, 1e-3, 1e-3,
-            1e-2, 1e-2, 1e-2,
-            1e-1, 1e-1,
-        ], dtype=np.float32) * dt_scale)
+        self.kalman.processNoiseCov = np.diag(
+            np.array(
+                [
+                    1e-3,
+                    1e-3,
+                    1e-3,
+                    1e-2,
+                    1e-2,
+                    1e-2,
+                    1e-1,
+                    1e-1,
+                ],
+                dtype=np.float32,
+            )
+            * dt_scale
+        )
 
         self.kalman.measurementNoiseCov = np.diag(
             np.array([1e-1, 1e-1, 1e-1], dtype=np.float32) / dt_scale
@@ -266,9 +291,13 @@ class BallTracker:
 
         state = self.kalman.statePost.ravel()
         return BallDetection(
-            frame=frame_number, timestamp=timestamp,
-            x=float(state[0]), y=float(state[1]), conf=self.confidence,
-            is_prediction=False, radius=float(state[2]),
+            frame=frame_number,
+            timestamp=timestamp,
+            x=float(state[0]),
+            y=float(state[1]),
+            conf=self.confidence,
+            is_prediction=False,
+            radius=float(state[2]),
         )
 
     def _prediction_update(self, frame_number: int, timestamp: float) -> BallDetection | None:
@@ -290,9 +319,13 @@ class BallTracker:
         self.confidence = CONFIDENCE_PREDICTED * decay
 
         return BallDetection(
-            frame=frame_number, timestamp=timestamp,
-            x=float(pred[0]), y=float(pred[1]), conf=self.confidence,
-            is_prediction=True, radius=float(pred[2]),
+            frame=frame_number,
+            timestamp=timestamp,
+            x=float(pred[0]),
+            y=float(pred[1]),
+            conf=self.confidence,
+            is_prediction=True,
+            radius=float(pred[2]),
         )
 
     def set_effective_dt(self, dt: float) -> None:
@@ -312,7 +345,9 @@ class BallTracker:
     def _current_dt(self) -> float:
         return self._dt_override if self._dt_override is not None else self.dt
 
-    def update(self, frame: np.ndarray, frame_number: int, timestamp: float) -> BallDetection | None:
+    def update(
+        self, frame: np.ndarray, frame_number: int, timestamp: float
+    ) -> BallDetection | None:
         """Process a new frame: YOLO -> HSV fallback -> Kalman prediction.
 
         Returns BallDetection or None if tracking has been lost.
@@ -350,8 +385,10 @@ class BallTracker:
                     max_dist = max(40.0, 400.0 * self._current_dt())
                     chosen = next(
                         (
-                            c for c in candidates
-                            if math.hypot(c["x"] - float(pred[0]), c["y"] - float(pred[1])) <= max_dist
+                            c
+                            for c in candidates
+                            if math.hypot(c["x"] - float(pred[0]), c["y"] - float(pred[1]))
+                            <= max_dist
                         ),
                         None,
                     )
@@ -361,7 +398,9 @@ class BallTracker:
 
                 if chosen is not None:
                     best = {
-                        "x": chosen["x"], "y": chosen["y"], "radius": chosen["radius"],
+                        "x": chosen["x"],
+                        "y": chosen["y"],
+                        "radius": chosen["radius"],
                         "confidence": _hsv_conf(chosen),
                     }
 
@@ -383,7 +422,9 @@ class BallTracker:
     def predict(self) -> BallDetection | None:
         """Advance Kalman without a measurement frame."""
         self._current_mode = "prediction"
-        return self._prediction_update(self.last_frame + 1, self.last_timestamp + self._current_dt())
+        return self._prediction_update(
+            self.last_frame + 1, self.last_timestamp + self._current_dt()
+        )
 
     def reset(self):
         self.initialized = False

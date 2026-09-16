@@ -1,4 +1,5 @@
 """Tests for Sprint 2 (frontend visualization depth) bridge methods."""
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 # Fixtures
 # ========================================================================
 
+
 @pytest.fixture
 def mock_bridge():
     return MagicMock()
@@ -31,24 +33,95 @@ def mock_bridge():
 @pytest.fixture
 def mock_storage():
     svc = MagicMock()
-    svc.get_match_events = MagicMock(return_value=[
-        {"id": 1, "type": "pass", "team": "home", "track_id": 10, "completed": True,
-         "start_x": 30.0, "start_y": 20.0, "end_x": 50.0, "end_y": 25.0},
-        {"id": 2, "type": "pass", "team": "home", "track_id": 10, "completed": True,
-         "start_x": 40.0, "start_y": 30.0, "end_x": 70.0, "end_y": 35.0},
-        {"id": 3, "type": "pass", "team": "home", "track_id": 10, "completed": False,
-         "start_x": 50.0, "start_y": 34.0, "end_x": 80.0, "end_y": 40.0},
-        {"id": 4, "type": "shot", "team": "home", "track_id": 10, "xG": 0.45,
-         "start_x": 80.0, "start_y": 34.0, "end_x": 100.0, "end_y": 34.0},
-        {"id": 5, "type": "tackle", "team": "home", "track_id": 10,
-         "start_x": 40.0, "start_y": 34.0},
-        {"id": 6, "type": "pass", "team": "away", "track_id": 20, "completed": True,
-         "start_x": 70.0, "start_y": 34.0, "end_x": 50.0, "end_y": 34.0},
-        {"id": 7, "type": "shot", "team": "away", "track_id": 20, "xG": 0.12,
-         "start_x": 20.0, "start_y": 34.0, "end_x": 10.0, "end_y": 34.0},
-        {"id": 8, "type": "cross", "team": "home", "track_id": 10, "completed": True,
-         "start_x": 60.0, "start_y": 10.0, "end_x": 90.0, "end_y": 30.0},
-    ])
+    svc.get_match_events = MagicMock(
+        return_value=[
+            {
+                "id": 1,
+                "type": "pass",
+                "team": "home",
+                "track_id": 10,
+                "completed": True,
+                "start_x": 30.0,
+                "start_y": 20.0,
+                "end_x": 50.0,
+                "end_y": 25.0,
+            },
+            {
+                "id": 2,
+                "type": "pass",
+                "team": "home",
+                "track_id": 10,
+                "completed": True,
+                "start_x": 40.0,
+                "start_y": 30.0,
+                "end_x": 70.0,
+                "end_y": 35.0,
+            },
+            {
+                "id": 3,
+                "type": "pass",
+                "team": "home",
+                "track_id": 10,
+                "completed": False,
+                "start_x": 50.0,
+                "start_y": 34.0,
+                "end_x": 80.0,
+                "end_y": 40.0,
+            },
+            {
+                "id": 4,
+                "type": "shot",
+                "team": "home",
+                "track_id": 10,
+                "xG": 0.45,
+                "start_x": 80.0,
+                "start_y": 34.0,
+                "end_x": 100.0,
+                "end_y": 34.0,
+            },
+            {
+                "id": 5,
+                "type": "tackle",
+                "team": "home",
+                "track_id": 10,
+                "start_x": 40.0,
+                "start_y": 34.0,
+            },
+            {
+                "id": 6,
+                "type": "pass",
+                "team": "away",
+                "track_id": 20,
+                "completed": True,
+                "start_x": 70.0,
+                "start_y": 34.0,
+                "end_x": 50.0,
+                "end_y": 34.0,
+            },
+            {
+                "id": 7,
+                "type": "shot",
+                "team": "away",
+                "track_id": 20,
+                "xG": 0.12,
+                "start_x": 20.0,
+                "start_y": 34.0,
+                "end_x": 10.0,
+                "end_y": 34.0,
+            },
+            {
+                "id": 8,
+                "type": "cross",
+                "team": "home",
+                "track_id": 10,
+                "completed": True,
+                "start_x": 60.0,
+                "start_y": 10.0,
+                "end_x": 90.0,
+                "end_y": 30.0,
+            },
+        ]
+    )
     return svc
 
 
@@ -88,6 +161,7 @@ def error_handler(mock_bridge, error_storage):
 # Pitch Control Overlay — 5 tests
 # ========================================================================
 
+
 class TestPitchControlOverlay:
     def test_grid_shape(self, analysis_handler):
         r = json.loads(analysis_handler.get_pitch_control_overlay("1"))
@@ -118,6 +192,7 @@ class TestPitchControlOverlay:
 # ========================================================================
 # Pass Sonar — 5 tests
 # ========================================================================
+
 
 class TestPlayerPassSonar:
     def test_eight_directions(self, analysis_handler):
@@ -151,6 +226,7 @@ class TestPlayerPassSonar:
 # Space Control Heatmap — 5 tests
 # ========================================================================
 
+
 class TestSpaceControlHeatmap:
     def test_grid_present(self, analysis_handler):
         r = json.loads(analysis_handler.get_space_control_heatmap("1"))
@@ -182,6 +258,7 @@ class TestSpaceControlHeatmap:
 # Role Classifier Bridge — 5 tests
 # ========================================================================
 
+
 class TestPlayerRole:
     def test_valid_role(self, analysis_handler):
         r = json.loads(analysis_handler.get_player_role("1", "10"))
@@ -211,6 +288,7 @@ class TestPlayerRole:
 # ========================================================================
 # Dominance Index Bridge — 5 tests
 # ========================================================================
+
 
 class TestDominanceIndex:
     def test_index_range(self, analysis_handler):
@@ -243,6 +321,7 @@ class TestDominanceIndex:
 # Bridge Integration — verify methods registered
 # ========================================================================
 
+
 class TestBridgeRegistration:
     def test_handler_has_all_methods(self, analysis_handler):
         assert hasattr(analysis_handler, "get_pitch_control_overlay")
@@ -252,7 +331,11 @@ class TestBridgeRegistration:
         assert hasattr(analysis_handler, "get_dominance_index")
 
     def test_methods_return_json(self, analysis_handler):
-        for method_name in ("get_pitch_control_overlay", "get_space_control_heatmap", "get_dominance_index"):
+        for method_name in (
+            "get_pitch_control_overlay",
+            "get_space_control_heatmap",
+            "get_dominance_index",
+        ):
             r = getattr(analysis_handler, method_name)("1")
             d = json.loads(r)
             assert isinstance(d, dict)

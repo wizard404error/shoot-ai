@@ -55,13 +55,13 @@ def _install_cv_stub() -> None:
 
         def swap_teams(self) -> None:
             self.player_teams = {
-                tid: ("away" if t == "home" else "home")
-                for tid, t in self.player_teams.items()
+                tid: ("away" if t == "home" else "home") for tid, t in self.player_teams.items()
             }
 
     class CVService:
         async def detect_frame(self, *a, **k):
             return FrameDetections()
+
         async def process_video(self, *a, **k):
             return MatchTrackData()
 
@@ -100,6 +100,7 @@ def _restore_cv_service_module():
 
 # ── Sample events ──────────────────────────────────────────────────────────
 
+
 def make_event(
     etype: str,
     team: str = "home",
@@ -133,16 +134,64 @@ def make_event(
 def sample_events_24() -> list[dict]:
     return [
         # ── Goals (2) ──
-        make_event("shot", "home", 300.0, on_target=True, metadata={"distance_to_goal_m": 8, "angle_to_goal_deg": 15}, is_goal=True, xg=0.45),
-        make_event("shot", "away", 1800.0, on_target=True, metadata={"distance_to_goal_m": 12, "angle_to_goal_deg": 20}, is_goal=True, xg=0.28),
+        make_event(
+            "shot",
+            "home",
+            300.0,
+            on_target=True,
+            metadata={"distance_to_goal_m": 8, "angle_to_goal_deg": 15},
+            is_goal=True,
+            xg=0.45,
+        ),
+        make_event(
+            "shot",
+            "away",
+            1800.0,
+            on_target=True,
+            metadata={"distance_to_goal_m": 12, "angle_to_goal_deg": 20},
+            is_goal=True,
+            xg=0.28,
+        ),
         # ── Shots (2) ──
-        make_event("shot", "home", 600.0, metadata={"distance_to_goal_m": 18, "angle_to_goal_deg": 30}),
-        make_event("shot", "away", 2400.0, metadata={"distance_to_goal_m": 22, "angle_to_goal_deg": 35}),
+        make_event(
+            "shot", "home", 600.0, metadata={"distance_to_goal_m": 18, "angle_to_goal_deg": 30}
+        ),
+        make_event(
+            "shot", "away", 2400.0, metadata={"distance_to_goal_m": 22, "angle_to_goal_deg": 35}
+        ),
         # ── Passes (4: short, medium, long, assist) ──
-        make_event("pass", "home", 100.0, metadata={"start_x_pct": 0.3, "end_x_pct": 0.38}, from_track_id=1, to_track_id=2),
-        make_event("pass", "away", 400.0, metadata={"start_x_pct": 0.2, "end_x_pct": 0.45}, from_track_id=11, to_track_id=12),
-        make_event("pass", "home", 700.0, metadata={"start_x_pct": 0.1, "end_x_pct": 0.75}, from_track_id=3, to_track_id=4),
-        make_event("pass", "away", 900.0, metadata={"start_x_pct": 0.15, "end_x_pct": 0.65}, from_track_id=13, to_track_id=14),
+        make_event(
+            "pass",
+            "home",
+            100.0,
+            metadata={"start_x_pct": 0.3, "end_x_pct": 0.38},
+            from_track_id=1,
+            to_track_id=2,
+        ),
+        make_event(
+            "pass",
+            "away",
+            400.0,
+            metadata={"start_x_pct": 0.2, "end_x_pct": 0.45},
+            from_track_id=11,
+            to_track_id=12,
+        ),
+        make_event(
+            "pass",
+            "home",
+            700.0,
+            metadata={"start_x_pct": 0.1, "end_x_pct": 0.75},
+            from_track_id=3,
+            to_track_id=4,
+        ),
+        make_event(
+            "pass",
+            "away",
+            900.0,
+            metadata={"start_x_pct": 0.15, "end_x_pct": 0.65},
+            from_track_id=13,
+            to_track_id=14,
+        ),
         # ── Tackles (2) ──
         make_event("tackle", "home", 500.0, player_track_id=5),
         make_event("tackle", "away", 1500.0, player_track_id=15),
@@ -162,8 +211,20 @@ def sample_events_24() -> list[dict]:
         make_event("goal_kick", "home", 1600.0),
         make_event("goal_kick", "away", 2900.0),
         # ── Carries (2) ──
-        make_event("carry", "home", 1700.0, metadata={"start_x_pct": 0.3, "end_x_pct": 0.55}, player_track_id=8),
-        make_event("carry", "away", 3100.0, metadata={"start_x_pct": 0.2, "end_x_pct": 0.45}, player_track_id=18),
+        make_event(
+            "carry",
+            "home",
+            1700.0,
+            metadata={"start_x_pct": 0.3, "end_x_pct": 0.55},
+            player_track_id=8,
+        ),
+        make_event(
+            "carry",
+            "away",
+            3100.0,
+            metadata={"start_x_pct": 0.2, "end_x_pct": 0.45},
+            player_track_id=18,
+        ),
         # ── Saves (2) ──
         make_event("save", "home", 1900.0, player_track_id=1),
         make_event("save", "away", 3300.0, player_track_id=11),
@@ -171,6 +232,7 @@ def sample_events_24() -> list[dict]:
 
 
 # ── Fake tracking data helper ──────────────────────────────────────────────
+
 
 def build_minimal_track_data(
     n_frames: int = 30,
@@ -202,30 +264,50 @@ def build_minimal_track_data(
         # Ball detection
         ball_x = 640 + 50 * math.sin(ts * 0.5)
         ball_y = 360 + 30 * math.cos(ts * 0.3)
-        dets.append(Detection(
-            bbox=(ball_x - 5, ball_y - 5, ball_x + 5, ball_y + 5),
-            confidence=0.95, class_id=32, class_name="sports ball", track_id=999,
-        ))
+        dets.append(
+            Detection(
+                bbox=(ball_x - 5, ball_y - 5, ball_x + 5, ball_y + 5),
+                confidence=0.95,
+                class_id=32,
+                class_name="sports ball",
+                track_id=999,
+            )
+        )
         # Home players spaced across left side
         for j in range(n_players_home):
             px = 200 + j * 60 + 10 * math.sin(ts + j)
             py = 50 + j * 55 + 10 * math.cos(ts * 0.5 + j)
-            dets.append(Detection(
-                bbox=(px - 15, py - 15, px + 15, py + 15),
-                confidence=0.9, class_id=0, class_name="person", track_id=j + 1,
-            ))
+            dets.append(
+                Detection(
+                    bbox=(px - 15, py - 15, px + 15, py + 15),
+                    confidence=0.9,
+                    class_id=0,
+                    class_name="person",
+                    track_id=j + 1,
+                )
+            )
         # Away players spaced across right side
         for j in range(n_players_away):
             px = 800 + j * 40 + 10 * math.sin(ts + j * 0.7)
             py = 50 + j * 55 + 10 * math.cos(ts * 0.4 + j * 0.5)
-            dets.append(Detection(
-                bbox=(px - 15, py - 15, px + 15, py + 15),
-                confidence=0.9, class_id=0, class_name="person", track_id=100 + j,
-            ))
-        frames.append(FrameDetections(
-            frame_number=fno, timestamp=ts, detections=dets,
-            image_width=1280, image_height=720,
-        ))
+            dets.append(
+                Detection(
+                    bbox=(px - 15, py - 15, px + 15, py + 15),
+                    confidence=0.9,
+                    class_id=0,
+                    class_name="person",
+                    track_id=100 + j,
+                )
+            )
+        frames.append(
+            FrameDetections(
+                frame_number=fno,
+                timestamp=ts,
+                detections=dets,
+                image_width=1280,
+                image_height=720,
+            )
+        )
 
     track_registry = {}
     for tid in list(player_teams.keys()):
@@ -246,6 +328,7 @@ def build_minimal_track_data(
 
 # ── Fixtures ───────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def svc() -> AnalysisService:
     return AnalysisService()
@@ -264,6 +347,7 @@ def track_data():
 # ══════════════════════════════════════════════════════════════════════════
 # 1. Pipeline execution flow
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestPipelineExecution:
     """Verify the core pipeline runs without errors."""
@@ -313,14 +397,20 @@ class TestPipelineExecution:
 # 2. Module integration verification
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestModuleIntegration:
     """Verify each analytics module is reachable and produces output."""
 
     def test_xg_model_compute_xg(self):
         from kawkab.core.xg_model import compute_xg, compute_xg_from_dict
+
         result = compute_xg(distance_m=12.0, angle_deg=30.0)
         assert 0.0 <= result <= 1.0
-        shot = {"type": "shot", "team": "home", "metadata": {"distance_to_goal_m": 8, "angle_to_goal_deg": 15}}
+        shot = {
+            "type": "shot",
+            "team": "home",
+            "metadata": {"distance_to_goal_m": 8, "angle_to_goal_deg": 15},
+        }
         xg = compute_xg_from_dict(shot)
         assert 0.0 <= xg <= 1.0
 
@@ -331,13 +421,18 @@ class TestModuleIntegration:
 
     def test_momentum_analysis(self, events_24):
         from kawkab.core.momentum import compute_momentum_index
+
         result = compute_momentum_index(events_24)
         assert result.home_momentum_pct >= 0
         assert result.away_momentum_pct >= 0
-        assert abs(result.home_momentum_pct + result.away_momentum_pct + result.neutral_pct - 100.0) < 0.1
+        assert (
+            abs(result.home_momentum_pct + result.away_momentum_pct + result.neutral_pct - 100.0)
+            < 0.1
+        )
 
     def test_win_probability(self, events_24):
         from kawkab.core.win_probability import compute_win_probability
+
         result = compute_win_probability(events_24)
         assert result.starting_home_win > 0
         assert len(result.timeline) >= 1
@@ -361,6 +456,7 @@ class TestModuleIntegration:
 
     def test_vaep_module(self, events_24):
         from kawkab.core.vaep import compute_vaep
+
         result = compute_vaep(events_24)
         assert isinstance(result, list)
         for entry in result:
@@ -368,11 +464,26 @@ class TestModuleIntegration:
 
     def test_set_piece_analysis(self):
         from kawkab.core.set_piece_analysis import analyze_set_pieces
+
         sp_events = [
-            {"event_type": "corner_kick", "team": "home", "x": 100, "y": 5,
-             "is_goal": False, "xg": 0.05, "timestamp": 500.0},
-            {"event_type": "free_kick", "team": "away", "x": 30, "y": 34,
-             "is_goal": True, "xg": 0.12, "timestamp": 1500.0},
+            {
+                "event_type": "corner_kick",
+                "team": "home",
+                "x": 100,
+                "y": 5,
+                "is_goal": False,
+                "xg": 0.05,
+                "timestamp": 500.0,
+            },
+            {
+                "event_type": "free_kick",
+                "team": "away",
+                "x": 30,
+                "y": 34,
+                "is_goal": True,
+                "xg": 0.12,
+                "timestamp": 1500.0,
+            },
         ]
         report = analyze_set_pieces(sp_events)
         assert report.total_set_pieces >= 2
@@ -380,18 +491,21 @@ class TestModuleIntegration:
 
     def test_xa_model(self):
         from kawkab.core.xa_model import ExpectedAssistModel
+
         model = ExpectedAssistModel()
         result = model.compute_xa(end_x=90.0, end_y=34.0, pass_type="cross")
         assert result.xa >= 0
 
     def test_pressing_traps(self, events_24):
         from kawkab.core.pressing_traps import detect_pressing_traps
+
         report = detect_pressing_traps(events_24, team="home")
         assert report.total_traps >= 0
         assert hasattr(report, "traps")
 
     def test_progressive_actions(self, events_24):
         from kawkab.core.progressive_actions import analyze_progressive_passes
+
         report = analyze_progressive_passes(events_24, team="home")
         assert report.total_progressive_passes >= 0
 
@@ -404,6 +518,7 @@ class TestModuleIntegration:
 # ══════════════════════════════════════════════════════════════════════════
 # 3. Results structure verification
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestResultsStructure:
     """Verify MatchAnalysis, PlayerStats, TeamStats are fully populated."""
@@ -460,6 +575,7 @@ class TestResultsStructure:
 # 4. Error handling
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestErrorHandling:
     """Verify pipeline handles edge cases gracefully."""
 
@@ -513,7 +629,9 @@ class TestErrorHandling:
 
     def test_single_team_only(self, svc):
         events = [
-            make_event("shot", "home", 100.0, metadata={"distance_to_goal_m": 10, "angle_to_goal_deg": 20}),
+            make_event(
+                "shot", "home", 100.0, metadata={"distance_to_goal_m": 10, "angle_to_goal_deg": 20}
+            ),
             make_event("pass", "home", 200.0, metadata={"start_x_pct": 0.3, "end_x_pct": 0.6}),
         ]
         xg = svc.compute_xg_simple(events)
@@ -525,31 +643,37 @@ class TestErrorHandling:
 
     def test_vaep_empty_events(self):
         from kawkab.core.vaep import compute_vaep
+
         assert compute_vaep([]) == []
 
     def test_win_probability_empty_events(self):
         from kawkab.core.win_probability import compute_win_probability
+
         result = compute_win_probability([])
         assert result.starting_home_win > 0
         assert result.starting_away_win > 0
 
     def test_momentum_empty_events(self):
         from kawkab.core.momentum import compute_momentum_index
+
         result = compute_momentum_index([])
         assert result.timeline == []
 
     def test_set_piece_empty_events(self):
         from kawkab.core.set_piece_analysis import analyze_set_pieces
+
         report = analyze_set_pieces([])
         assert report.total_set_pieces == 0
 
     def test_pressing_traps_empty_events(self):
         from kawkab.core.pressing_traps import detect_pressing_traps
+
         report = detect_pressing_traps([], team="home")
         assert report.total_traps >= 0
 
     def test_progressive_empty_events(self):
         from kawkab.core.progressive_actions import analyze_progressive_passes
+
         report = analyze_progressive_passes([], team="home")
         assert report.total_progressive_passes == 0
 

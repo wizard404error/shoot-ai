@@ -37,20 +37,22 @@ def large_event_set():
     """Generate 10,000 synthetic events for bulk processing benchmarks."""
     events = []
     for i in range(10000):
-        events.append({
-            "id": i,
-            "event_type": random.choice(
-                ["pass", "shot", "tackle", "carry", "receipt", "dribble"]
-            ),
-            "x": random.uniform(0, 105),
-            "y": random.uniform(0, 68),
-            "end_x": random.uniform(0, 105),
-            "end_y": random.uniform(0, 68),
-            "timestamp": random.uniform(0, 5400),
-            "period": 1 if random.random() < 0.5 else 2,
-            "from_track_id": random.randint(1, 22),
-            "to_track_id": random.randint(1, 22),
-        })
+        events.append(
+            {
+                "id": i,
+                "event_type": random.choice(
+                    ["pass", "shot", "tackle", "carry", "receipt", "dribble"]
+                ),
+                "x": random.uniform(0, 105),
+                "y": random.uniform(0, 68),
+                "end_x": random.uniform(0, 105),
+                "end_y": random.uniform(0, 68),
+                "timestamp": random.uniform(0, 5400),
+                "period": 1 if random.random() < 0.5 else 2,
+                "from_track_id": random.randint(1, 22),
+                "to_track_id": random.randint(1, 22),
+            }
+        )
     return events
 
 
@@ -59,18 +61,26 @@ def large_match_list():
     """Generate 500 synthetic matches for database benchmarks."""
     matches = []
     teams = [
-        "FC Stars", "United Athletic", "City FC", "Rovers SC",
-        "Athletic Club", "Dynamo FC", "Wanderers", "United FC",
+        "FC Stars",
+        "United Athletic",
+        "City FC",
+        "Rovers SC",
+        "Athletic Club",
+        "Dynamo FC",
+        "Wanderers",
+        "United FC",
     ]
     for i in range(500):
-        matches.append({
-            "name": f"{random.choice(teams)} vs {random.choice(teams)}",
-            "home_team": random.choice(teams),
-            "away_team": random.choice(teams),
-            "home_score": random.randint(0, 5),
-            "away_score": random.randint(0, 5),
-            "date": f"2025-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
-        })
+        matches.append(
+            {
+                "name": f"{random.choice(teams)} vs {random.choice(teams)}",
+                "home_team": random.choice(teams),
+                "away_team": random.choice(teams),
+                "home_score": random.randint(0, 5),
+                "away_score": random.randint(0, 5),
+                "date": f"2025-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
+            }
+        )
     return matches
 
 
@@ -80,29 +90,39 @@ def large_match_list():
 def test_xg_computation_throughput(benchmark):
     """Benchmark xG computation for 1000 shots."""
     from kawkab.services.xg_model import compute_xg, XGConfig
+
     config = XGConfig()
 
     shots = []
     for i in range(1000):
-        shots.append({
-            "x": random.uniform(0, 105),
-            "y": random.uniform(0, 68),
-            "angle": random.uniform(0, math.pi / 2),
-            "distance": random.uniform(5, 40),
-            "big_chance": random.random() < 0.15,
-            "header": random.random() < 0.1,
-            "through_ball": random.random() < 0.05,
-            "fast_break": random.random() < 0.08,
-            "shot_type": random.choice(["left_foot", "right_foot", "head"]),
-        })
+        shots.append(
+            {
+                "x": random.uniform(0, 105),
+                "y": random.uniform(0, 68),
+                "angle": random.uniform(0, math.pi / 2),
+                "distance": random.uniform(5, 40),
+                "big_chance": random.random() < 0.15,
+                "header": random.random() < 0.1,
+                "through_ball": random.random() < 0.05,
+                "fast_break": random.random() < 0.08,
+                "shot_type": random.choice(["left_foot", "right_foot", "head"]),
+            }
+        )
 
     def compute_all():
         results = []
         for s in shots:
-            xg = compute_xg(s["x"], s["y"], s["angle"], s["distance"],
-                            s.get("big_chance", False), s.get("header", False),
-                            s.get("through_ball", False), s.get("fast_break", False),
-                            config)
+            xg = compute_xg(
+                s["x"],
+                s["y"],
+                s["angle"],
+                s["distance"],
+                s.get("big_chance", False),
+                s.get("header", False),
+                s.get("through_ball", False),
+                s.get("fast_break", False),
+                config,
+            )
             results.append(xg)
         return results
 
@@ -122,11 +142,13 @@ def test_event_storage_bulk_throughput(large_event_set, benchmark, tmp_path):
     db_path = tmp_path / "load_test.db"
     shard = SeasonShardManager(str(tmp_path))
 
-    match_id = shard.store_match({
-        "name": "Load Test Match",
-        "home_team": "Test A",
-        "away_team": "Test B",
-    })
+    match_id = shard.store_match(
+        {
+            "name": "Load Test Match",
+            "home_team": "Test A",
+            "away_team": "Test B",
+        }
+    )
     shard.store_events(large_event_set, match_id)
 
     def read_all():
@@ -176,21 +198,13 @@ def test_pitch_control_throughput(benchmark):
     from kawkab.services.ball_physics_pitch_control import BallPhysicsPitchControl
 
     control = BallPhysicsPitchControl()
-    home_positions = [
-        {"x": random.uniform(0, 105), "y": random.uniform(0, 68)}
-        for _ in range(11)
-    ]
-    away_positions = [
-        {"x": random.uniform(0, 105), "y": random.uniform(0, 68)}
-        for _ in range(11)
-    ]
+    home_positions = [{"x": random.uniform(0, 105), "y": random.uniform(0, 68)} for _ in range(11)]
+    away_positions = [{"x": random.uniform(0, 105), "y": random.uniform(0, 68)} for _ in range(11)]
     ball_pos = {"x": 50.0, "y": 34.0}
     ball_vel = {"x": 5.0, "y": 0.0}
 
     def compute():
-        return control.compute_pitch_control(
-            home_positions, away_positions, ball_pos, ball_vel
-        )
+        return control.compute_pitch_control(home_positions, away_positions, ball_pos, ball_vel)
 
     result = benchmark(compute)
     assert result is not None
@@ -261,8 +275,18 @@ def test_shard_migration_throughput(large_match_list, large_event_set, benchmark
             timestamp REAL, x REAL, y REAL, data TEXT);
     """)
     for i, m in enumerate(large_match_list):
-        conn.execute("INSERT INTO matches (id, name, home_team, away_team, home_score, away_score, date, data) VALUES (?,?,?,?,?,?,?,'{}')",
-                     (i+1, m["name"], m["home_team"], m["away_team"], m["home_score"], m["away_score"], m["date"]))
+        conn.execute(
+            "INSERT INTO matches (id, name, home_team, away_team, home_score, away_score, date, data) VALUES (?,?,?,?,?,?,?,'{}')",
+            (
+                i + 1,
+                m["name"],
+                m["home_team"],
+                m["away_team"],
+                m["home_score"],
+                m["away_score"],
+                m["date"],
+            ),
+        )
     conn.commit()
     conn.close()
 

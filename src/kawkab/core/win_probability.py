@@ -128,7 +128,7 @@ def compute_win_probability(
     home_xg_total = sum(e.get("xg", 0.0) for e in shot_events if e.get("team") == "home")
     away_xg_total = sum(e.get("xg", 0.0) for e in shot_events if e.get("team") == "away")
 
-    use_xg = (home_xg_total > 0 or away_xg_total > 0)
+    use_xg = home_xg_total > 0 or away_xg_total > 0
 
     # Pre-match probabilities
     if use_xg and (home_xg_total > 0 or away_xg_total > 0):
@@ -155,10 +155,16 @@ def compute_win_probability(
     away_score = 0
     timeline: list[WinProbabilityPoint] = []
 
-    timeline.append(WinProbabilityPoint(
-        minute=0, home_win=hw, draw=dr, away_win=aw,
-        home_score=0, away_score=0,
-    ))
+    timeline.append(
+        WinProbabilityPoint(
+            minute=0,
+            home_win=hw,
+            draw=dr,
+            away_win=aw,
+            home_score=0,
+            away_score=0,
+        )
+    )
 
     sorted_events = sorted(events, key=lambda e: e.get("timestamp", 0))
 
@@ -191,13 +197,20 @@ def compute_win_probability(
                 hw, dr, aw = _simulate_remaining(
                     home_xg_rate * remaining_minutes,
                     away_xg_rate * remaining_minutes,
-                    home_score, away_score,
+                    home_score,
+                    away_score,
                 )
 
-                timeline.append(WinProbabilityPoint(
-                    minute=minute, home_win=hw, draw=dr, away_win=aw,
-                    home_score=home_score, away_score=away_score,
-                ))
+                timeline.append(
+                    WinProbabilityPoint(
+                        minute=minute,
+                        home_win=hw,
+                        draw=dr,
+                        away_win=aw,
+                        home_score=home_score,
+                        away_score=away_score,
+                    )
+                )
                 last_minute = minute
     else:
         # Legacy: Elo-based updates on goals
@@ -222,10 +235,16 @@ def compute_win_probability(
                 hw /= s2
                 aw /= s2
 
-            timeline.append(WinProbabilityPoint(
-                minute=minute, home_win=hw, draw=dr, away_win=aw,
-                home_score=home_score, away_score=away_score,
-            ))
+            timeline.append(
+                WinProbabilityPoint(
+                    minute=minute,
+                    home_win=hw,
+                    draw=dr,
+                    away_win=aw,
+                    home_score=home_score,
+                    away_score=away_score,
+                )
+            )
 
     report.timeline = [p.to_dict() for p in timeline]
     if timeline:

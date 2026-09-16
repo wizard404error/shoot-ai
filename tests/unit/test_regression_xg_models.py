@@ -65,14 +65,26 @@ def _get_angle(x, y):
 
 
 def _map_body_part(sb_part):
-    m = {"Head": "head", "Left Foot": "left_foot", "Right Foot": "right_foot", "Other": "right_foot"}
+    m = {
+        "Head": "head",
+        "Left Foot": "left_foot",
+        "Right Foot": "right_foot",
+        "Other": "right_foot",
+    }
     return m.get(sb_part, "right_foot")
 
 
 def _map_shot_type(sb_type):
-    m = {"Open Play": "open_play", "Volley": "volley", "Half Volley": "half_volley",
-         "Free Kick": "free_kick", "Penalty": "penalty", "Corner": "open_play",
-         "Set Piece": "free_kick", "Direct Free Kick": "free_kick"}
+    m = {
+        "Open Play": "open_play",
+        "Volley": "volley",
+        "Half Volley": "half_volley",
+        "Free Kick": "free_kick",
+        "Penalty": "penalty",
+        "Corner": "open_play",
+        "Set Piece": "free_kick",
+        "Direct Free Kick": "free_kick",
+    }
     return m.get(sb_type, "open_play")
 
 
@@ -100,16 +112,19 @@ def load_all_shots():
             body_part = _map_body_part((shot_info.get("body_part") or {}).get("name", ""))
             shot_type = _map_shot_type((shot_info.get("type") or {}).get("name", ""))
             is_goal = (shot_info.get("outcome") or {}).get("name") == "Goal"
-            shots.append({
-                "match_id": match_id,
-                "x": x, "y": y,
-                "distance_m": _get_distance(x, y, GOAL_CENTER_X, GOAL_CENTER_Y),
-                "angle_deg": _get_angle(x, y),
-                "body_part": body_part,
-                "shot_type": shot_type,
-                "is_goal": is_goal,
-                "statsbomb_xg": float(sb_xg),
-            })
+            shots.append(
+                {
+                    "match_id": match_id,
+                    "x": x,
+                    "y": y,
+                    "distance_m": _get_distance(x, y, GOAL_CENTER_X, GOAL_CENTER_Y),
+                    "angle_deg": _get_angle(x, y),
+                    "body_part": body_part,
+                    "shot_type": shot_type,
+                    "is_goal": is_goal,
+                    "statsbomb_xg": float(sb_xg),
+                }
+            )
     return shots
 
 
@@ -130,23 +145,45 @@ class TestXgRegression:
     def test_heuristic_model_mae_within_tolerance(self, all_shots):
         errors = []
         for s in all_shots:
-            pred = compute_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                              body_part=s["body_part"], shot_type=s["shot_type"])
+            pred = compute_xg(
+                distance_m=s["distance_m"],
+                angle_deg=s["angle_deg"],
+                body_part=s["body_part"],
+                shot_type=s["shot_type"],
+            )
             errors.append(abs(pred - s["statsbomb_xg"]))
         mae = sum(errors) / len(errors)
         assert mae < TOLERANCE_MAE, f"Heuristic MAE {mae:.4f} >= {TOLERANCE_MAE}"
 
     def test_heuristic_model_rmse_within_tolerance(self, all_shots):
-        errors = [(compute_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                              body_part=s["body_part"], shot_type=s["shot_type"])
-                   - s["statsbomb_xg"]) for s in all_shots]
+        errors = [
+            (
+                compute_xg(
+                    distance_m=s["distance_m"],
+                    angle_deg=s["angle_deg"],
+                    body_part=s["body_part"],
+                    shot_type=s["shot_type"],
+                )
+                - s["statsbomb_xg"]
+            )
+            for s in all_shots
+        ]
         rmse = math.sqrt(sum(e * e for e in errors) / len(errors))
         assert rmse < TOLERANCE_RMSE, f"Heuristic RMSE {rmse:.4f} >= {TOLERANCE_RMSE}"
 
     def test_heuristic_model_bias_within_tolerance(self, all_shots):
-        errors = [(compute_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                              body_part=s["body_part"], shot_type=s["shot_type"])
-                   - s["statsbomb_xg"]) for s in all_shots]
+        errors = [
+            (
+                compute_xg(
+                    distance_m=s["distance_m"],
+                    angle_deg=s["angle_deg"],
+                    body_part=s["body_part"],
+                    shot_type=s["shot_type"],
+                )
+                - s["statsbomb_xg"]
+            )
+            for s in all_shots
+        ]
         bias = sum(errors) / len(errors)
         assert abs(bias) < TOLERANCE_BIAS, f"Heuristic bias {bias:.4f} >= |{TOLERANCE_BIAS}|"
 
@@ -154,15 +191,19 @@ class TestXgRegression:
         errors = []
         from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
         from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+
         em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
         for s in all_shots:
-            pred = em.compute_single(EnhancedXgFeatures(
-                distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                is_header=(s["body_part"] == "head"),
-                is_volley=(s["shot_type"] in ("volley", "half_volley")),
-                is_free_kick=(s["shot_type"] == "free_kick"),
-                is_penalty=(s["shot_type"] == "penalty"),
-            ))
+            pred = em.compute_single(
+                EnhancedXgFeatures(
+                    distance_m=s["distance_m"],
+                    angle_deg=s["angle_deg"],
+                    is_header=(s["body_part"] == "head"),
+                    is_volley=(s["shot_type"] in ("volley", "half_volley")),
+                    is_free_kick=(s["shot_type"] == "free_kick"),
+                    is_penalty=(s["shot_type"] == "penalty"),
+                )
+            )
             errors.append(abs(pred - s["statsbomb_xg"]))
         mae = sum(errors) / len(errors)
         assert mae < TOLERANCE_MAE + 0.03, f"Enhanced MAE {mae:.4f} >= {TOLERANCE_MAE + 0.03}"
@@ -170,29 +211,46 @@ class TestXgRegression:
     def test_enhanced_model_rmse_within_tolerance(self, all_shots):
         from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
         from kawkab.core.xg_model import EnhancedXgModel, EnhancedXgFeatures
+
         em = EnhancedXgModel(coefficients=ENHANCED_COEFFICIENTS)
-        errors = [(em.compute_single(EnhancedXgFeatures(
-            distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-            is_header=(s["body_part"] == "head"),
-            is_volley=(s["shot_type"] in ("volley", "half_volley")),
-            is_free_kick=(s["shot_type"] == "free_kick"),
-            is_penalty=(s["shot_type"] == "penalty"),
-        )) - s["statsbomb_xg"]) for s in all_shots]
+        errors = [
+            (
+                em.compute_single(
+                    EnhancedXgFeatures(
+                        distance_m=s["distance_m"],
+                        angle_deg=s["angle_deg"],
+                        is_header=(s["body_part"] == "head"),
+                        is_volley=(s["shot_type"] in ("volley", "half_volley")),
+                        is_free_kick=(s["shot_type"] == "free_kick"),
+                        is_penalty=(s["shot_type"] == "penalty"),
+                    )
+                )
+                - s["statsbomb_xg"]
+            )
+            for s in all_shots
+        ]
         rmse = math.sqrt(sum(e * e for e in errors) / len(errors))
         assert rmse < TOLERANCE_RMSE + 0.03, f"Enhanced RMSE {rmse:.4f} >= {TOLERANCE_RMSE + 0.03}"
 
     def test_dl_model_mae_within_tolerance(self, all_shots):
         errors = []
         for s in all_shots:
-            pred = predict_dl_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                                 is_header=(s["body_part"] == "head"),
-                                 shot_type=s["shot_type"])
+            pred = predict_dl_xg(
+                distance_m=s["distance_m"],
+                angle_deg=s["angle_deg"],
+                is_header=(s["body_part"] == "head"),
+                shot_type=s["shot_type"],
+            )
             errors.append(abs(pred - s["statsbomb_xg"]))
         mae = sum(errors) / len(errors)
         assert mae < TOLERANCE_MAE + 0.05, f"DL MAE {mae:.4f} >= {TOLERANCE_MAE + 0.05}"
 
     def test_heuristic_distance_monotonic_on_real_data(self, all_shots):
-        foot_shots = [s for s in all_shots if s["body_part"] != "head" and s["shot_type"] in ("open_play", "volley")]
+        foot_shots = [
+            s
+            for s in all_shots
+            if s["body_part"] != "head" and s["shot_type"] in ("open_play", "volley")
+        ]
         grouped: dict[str, list] = {}
         for s in foot_shots:
             key = f"{s['body_part']}_{s['shot_type']}"
@@ -205,25 +263,40 @@ class TestXgRegression:
             sorted_group = sorted(group, key=lambda x: x["distance_m"])
             prev_xg = 1.0
             for s in sorted_group:
-                xg = compute_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                                body_part=s["body_part"], shot_type=s["shot_type"])
+                xg = compute_xg(
+                    distance_m=s["distance_m"],
+                    angle_deg=s["angle_deg"],
+                    body_part=s["body_part"],
+                    shot_type=s["shot_type"],
+                )
                 if xg > prev_xg + 0.02:
                     violations += 1
                 prev_xg = xg
                 total += 1
-        assert violations / max(total, 1) < 0.30, f"Too many monotonicity violations: {violations}/{total}"
+        assert violations / max(total, 1) < 0.30, (
+            f"Too many monotonicity violations: {violations}/{total}"
+        )
 
     def test_heuristic_angle_monotonic_on_real_data(self, all_shots):
-        foot_shots = [s for s in all_shots if s["body_part"] != "head" and s["shot_type"] in ("open_play", "volley")]
-        narrow = sorted([s for s in foot_shots if 10 < s["distance_m"] < 20],
-                        key=lambda s: s["angle_deg"])
+        foot_shots = [
+            s
+            for s in all_shots
+            if s["body_part"] != "head" and s["shot_type"] in ("open_play", "volley")
+        ]
+        narrow = sorted(
+            [s for s in foot_shots if 10 < s["distance_m"] < 20], key=lambda s: s["angle_deg"]
+        )
         violations = 0
         total = 0
         if len(narrow) >= 4:
             prev_xg = 1.0
             for s in narrow:
-                xg = compute_xg(distance_m=s["distance_m"], angle_deg=s["angle_deg"],
-                                body_part=s["body_part"], shot_type=s["shot_type"])
+                xg = compute_xg(
+                    distance_m=s["distance_m"],
+                    angle_deg=s["angle_deg"],
+                    body_part=s["body_part"],
+                    shot_type=s["shot_type"],
+                )
                 if xg > prev_xg + 0.05:
                     violations += 1
                 prev_xg = xg

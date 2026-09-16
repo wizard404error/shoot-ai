@@ -131,16 +131,26 @@ class ClipLibraryService:
             cmd = [
                 "ffmpeg",
                 "-y",  # Overwrite output
-                "-ss", str(start_seconds),
-                "-t", str(duration),
-                "-i", source_video,
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "23",
-                "-c:a", "aac",
-                "-b:a", "128k",
-                "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart",
+                "-ss",
+                str(start_seconds),
+                "-t",
+                str(duration),
+                "-i",
+                source_video,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "23",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
                 output_path,
             ]
             result = subprocess.run(
@@ -180,10 +190,14 @@ class ClipLibraryService:
             cmd = [
                 "ffmpeg",
                 "-y",
-                "-ss", str(timestamp),
-                "-i", video_path,
-                "-vframes", "1",
-                "-q:v", "2",
+                "-ss",
+                str(timestamp),
+                "-i",
+                video_path,
+                "-vframes",
+                "1",
+                "-q:v",
+                "2",
                 output_path,
             ]
             result = subprocess.run(
@@ -235,6 +249,7 @@ class ClipLibraryService:
         # Get video duration to clamp end_seconds
         try:
             import ffmpeg
+
             probe = ffmpeg.probe(video_path)
             duration = float(probe["format"]["duration"])
             end_seconds = min(end_seconds, duration)
@@ -298,7 +313,9 @@ class ClipLibraryService:
                 clips.append(clip)
         return clips
 
-    async def create_playlist(self, name: str, clip_ids: list[int], description: str = "") -> ClipPlaylist | None:
+    async def create_playlist(
+        self, name: str, clip_ids: list[int], description: str = ""
+    ) -> ClipPlaylist | None:
         """Create a playlist of clips.
 
         Args:

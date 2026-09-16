@@ -302,9 +302,7 @@ class MultiMatchAnalysisService:
             worst_value=round(min(y), 2),
         )
 
-    async def compare_matches(
-        self, match_id_1: int, match_id_2: int
-    ) -> MatchComparison:
+    async def compare_matches(self, match_id_1: int, match_id_2: int) -> MatchComparison:
         """Compare two matches side-by-side."""
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -366,8 +364,16 @@ class MultiMatchAnalysisService:
 
             formations = m1.get("formations", {})
             formations2 = m2.get("formations", {})
-            f1 = formations.get("home", {}).get("formation", "unknown") if isinstance(formations, dict) else "unknown"
-            f2 = formations2.get("home", {}).get("formation", "unknown") if isinstance(formations2, dict) else "unknown"
+            f1 = (
+                formations.get("home", {}).get("formation", "unknown")
+                if isinstance(formations, dict)
+                else "unknown"
+            )
+            f2 = (
+                formations2.get("home", {}).get("formation", "unknown")
+                if isinstance(formations2, dict)
+                else "unknown"
+            )
             formation_diff = {"match_1": f1, "match_2": f2}
             if f1 != f2:
                 key_diffs.append(f"Formation changed from {f1} to {f2}")
@@ -571,18 +577,20 @@ class MultiMatchAnalysisService:
             total_passes = row["total_passes"] or 0
             completed = row["total_passes_completed"] or 0
             pass_acc = completed / total_passes if total_passes > 0 else 0.0
-            result.append({
-                "player_id": row["id"],
-                "name": row["display_name"],
-                "jersey": row["jersey_number"],
-                "position": row["preferred_position"],
-                "matches": row["matches"],
-                "avg_distance_m": round(row["avg_distance"] or 0, 1),
-                "avg_max_speed_kmh": round(row["avg_max_speed"] or 0, 2),
-                "avg_speed_kmh": round(row["avg_speed"] or 0, 2),
-                "total_shots": row["total_shots"] or 0,
-                "pass_accuracy": round(pass_acc, 3),
-            })
+            result.append(
+                {
+                    "player_id": row["id"],
+                    "name": row["display_name"],
+                    "jersey": row["jersey_number"],
+                    "position": row["preferred_position"],
+                    "matches": row["matches"],
+                    "avg_distance_m": round(row["avg_distance"] or 0, 1),
+                    "avg_max_speed_kmh": round(row["avg_max_speed"] or 0, 2),
+                    "avg_speed_kmh": round(row["avg_speed"] or 0, 2),
+                    "total_shots": row["total_shots"] or 0,
+                    "pass_accuracy": round(pass_acc, 3),
+                }
+            )
         return result
 
     async def close(self) -> None:

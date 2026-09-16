@@ -10,9 +10,12 @@ from kawkab.core.tactical_report import (
 
 def _make_event(team, etype, ts=0, x=50, y=34, completed=True, is_goal=False):
     return {
-        "team": team, "type": etype,
-        "start_x": x, "start_y": y,
-        "timestamp": ts, "completed": completed,
+        "team": team,
+        "type": etype,
+        "start_x": x,
+        "start_y": y,
+        "timestamp": ts,
+        "completed": completed,
         "is_goal": is_goal,
         "from_track_id": 1 if team == "home" else 11,
     }

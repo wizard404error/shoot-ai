@@ -22,13 +22,18 @@ class ProviderHandler:
 
     def _register_providers(self):
         names = [
-            "football_data_service", "bzzoiro_service", "easy_soccer_service",
-            "api_football_service", "thesportsdb_service", "statsbomb_service",
+            "football_data_service",
+            "bzzoiro_service",
+            "easy_soccer_service",
+            "api_football_service",
+            "thesportsdb_service",
+            "statsbomb_service",
             "openfootball_service",
         ]
         for name in names:
             svc = self._services.get(name)
             if svc is not None:
+
                 async def _check(svc_ref=svc, svc_name=name):
                     try:
                         if hasattr(svc_ref, "check_status"):
@@ -42,15 +47,15 @@ class ProviderHandler:
                         return {"available": False}
                     finally:
                         pass
+
                 self._health.register(name, _check)
 
     def _fallback_check(self, svc, name: str) -> dict:
         if hasattr(svc, "get_competitions"):
             try:
                 import asyncio
-                comps = asyncio.run_coroutine_threadsafe(
-                    svc.get_competitions(), None
-                )
+
+                comps = asyncio.run_coroutine_threadsafe(svc.get_competitions(), None)
                 return {"available": True}
             except Exception:
                 pass
@@ -94,13 +99,15 @@ class ProviderHandler:
             return json.dumps([])
 
     async def record_provider_call(
-        self, provider: str, method: str, duration_ms: float,
-        success: bool, status_code: int = 200,
+        self,
+        provider: str,
+        method: str,
+        duration_ms: float,
+        success: bool,
+        status_code: int = 200,
     ) -> str:
         try:
-            self._health.record_call(
-                provider, method, duration_ms, success, status_code
-            )
+            self._health.record_call(provider, method, duration_ms, success, status_code)
             return json.dumps({"ok": True})
         except Exception as e:
             logger.error(f"record_provider_call failed: {e}")
@@ -159,8 +166,12 @@ class ProviderHandler:
 
     def _sanitize_name(self, name: str) -> str:
         allowed = {
-            "football_data_service", "bzzoiro_service", "easy_soccer_service",
-            "api_football_service", "thesportsdb_service", "statsbomb_service",
+            "football_data_service",
+            "bzzoiro_service",
+            "easy_soccer_service",
+            "api_football_service",
+            "thesportsdb_service",
+            "statsbomb_service",
             "openfootball_service",
         }
         if name in allowed:

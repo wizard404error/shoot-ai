@@ -33,12 +33,16 @@ class PhysioTacticalReport:
     def to_dict(self):
         return {
             "correlations": [
-                {"event_type": c.event_type, "pre_speed": round(c.pre_event_avg_speed, 2),
-                 "post_speed": round(c.post_event_avg_speed, 2), "speed_delta_pct": round(c.speed_delta_pct, 1),
-                 "pre_hr": round(c.pre_event_avg_hr, 1) if c.pre_event_avg_hr else None,
-                 "post_hr": round(c.post_event_avg_hr, 1) if c.post_event_avg_hr else None,
-                 "hr_delta_pct": round(c.hr_delta_pct, 1) if c.hr_delta_pct else None,
-                 "sample_count": c.sample_count}
+                {
+                    "event_type": c.event_type,
+                    "pre_speed": round(c.pre_event_avg_speed, 2),
+                    "post_speed": round(c.post_event_avg_speed, 2),
+                    "speed_delta_pct": round(c.speed_delta_pct, 1),
+                    "pre_hr": round(c.pre_event_avg_hr, 1) if c.pre_event_avg_hr else None,
+                    "post_hr": round(c.post_event_avg_hr, 1) if c.post_event_avg_hr else None,
+                    "hr_delta_pct": round(c.hr_delta_pct, 1) if c.hr_delta_pct else None,
+                    "sample_count": c.sample_count,
+                }
                 for c in self.correlations
             ],
             "fatigue_periods": self.fatigue_periods[:20],
@@ -62,7 +66,9 @@ class PhysioTacticalCorrelationService:
             hr_values = None
             hr_times = None
             if hr_timeline:
-                hr_values = np.array([h.get("hr", h.get("heart_rate", 0)) or 0 for h in hr_timeline])
+                hr_values = np.array(
+                    [h.get("hr", h.get("heart_rate", 0)) or 0 for h in hr_timeline]
+                )
                 hr_times = np.array([h.get("t", h.get("timestamp", 0)) for h in hr_timeline])
             event_types = set(e.get("type", "unknown") for e in events)
             for etype in event_types:
@@ -102,16 +108,21 @@ class PhysioTacticalCorrelationService:
                         c.post_event_avg_hr = float(np.mean(post_hrs))
                         c.hr_delta_pct = (
                             (c.post_event_avg_hr - c.pre_event_avg_hr) / c.pre_event_avg_hr * 100
-                            if c.pre_event_avg_hr > 0 else 0
+                            if c.pre_event_avg_hr > 0
+                            else 0
                         )
                     report.correlations.append(c)
             fatigue_windows = []
-            for i in range(0, len(times), max(1, int(30 / (times[1] - times[0]) if len(times) > 1 else 1))):
+            for i in range(
+                0, len(times), max(1, int(30 / (times[1] - times[0]) if len(times) > 1 else 1))
+            ):
                 if i + 30 >= len(times):
                     break
-                window_speeds = speeds[i:i + 30]
+                window_speeds = speeds[i : i + 30]
                 avg = float(np.mean(window_speeds))
-                fatigue_windows.append({"start_s": round(float(times[i]), 1), "avg_speed": round(avg, 2)})
+                fatigue_windows.append(
+                    {"start_s": round(float(times[i]), 1), "avg_speed": round(avg, 2)}
+                )
             if fatigue_windows:
                 overall_avg = float(np.mean([f["avg_speed"] for f in fatigue_windows]))
                 report.fatigue_periods = [
@@ -127,7 +138,12 @@ class PhysioTacticalCorrelationService:
                         in_burst = True
                 else:
                     if in_burst:
-                        hi_bursts.append({"start_s": burst_start, "end_s": float(times[i - 1]) if i > 0 else burst_start})
+                        hi_bursts.append(
+                            {
+                                "start_s": burst_start,
+                                "end_s": float(times[i - 1]) if i > 0 else burst_start,
+                            }
+                        )
                         in_burst = False
             if in_burst:
                 hi_bursts.append({"start_s": burst_start, "end_s": float(times[-1])})

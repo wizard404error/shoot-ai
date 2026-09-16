@@ -1,9 +1,12 @@
 """Apply PostgreSQL schema using psql-compatible ordered execution."""
+
 import os
 import subprocess
 import sys
 
-schema_path = os.path.join(os.path.dirname(__file__), "..", "src", "kawkab", "migrations", "pg_schema.sql")
+schema_path = os.path.join(
+    os.path.dirname(__file__), "..", "src", "kawkab", "migrations", "pg_schema.sql"
+)
 ordered_path = os.path.join(os.path.dirname(__file__), "..", "data", "pg_ordered.sql")
 
 # Read schema and reorder tables by FK dependency
@@ -22,8 +25,10 @@ for part in parts[1:]:
         body = m.group(2)
         depth, i = 1, 0
         while i < len(body) and depth > 0:
-            if body[i] == '(': depth += 1
-            elif body[i] == ')': depth -= 1
+            if body[i] == "(":
+                depth += 1
+            elif body[i] == ")":
+                depth -= 1
             i += 1
         stmts[name] = body[:i]  # include closing )
 
@@ -32,7 +37,7 @@ from collections import defaultdict, deque
 
 fk_refs = {}
 for name, body in stmts.items():
-    refs = set(re.findall(r'REFERENCES\s+(\w+)\s*\(', body))
+    refs = set(re.findall(r"REFERENCES\s+(\w+)\s*\(", body))
     refs.discard(name)
     fk_refs[name] = refs
 
@@ -71,7 +76,9 @@ for i, part in enumerate(parts):
     if i == 0:
         non_table_parts.append(part)
     else:
-        name = stmts.get(part.split("\n")[0].strip() if "\n" in part else part.split("(")[0].strip())
+        name = stmts.get(
+            part.split("\n")[0].strip() if "\n" in part else part.split("(")[0].strip()
+        )
         if name and name in stmts:
             pass  # skip, we'll add it in order
         else:
@@ -109,8 +116,10 @@ if not pg_password:
 print("Executing via psql...")
 result = subprocess.run(
     ["psql", "-U", "postgres", "-d", "kawkab", "-f", ordered_path],
-    capture_output=True, text=True, encoding="utf-8",
-    env={"PGPASSWORD": pg_password, **os.environ}
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    env={"PGPASSWORD": pg_password, **os.environ},
 )
 print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
 if result.stderr:

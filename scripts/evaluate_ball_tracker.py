@@ -19,6 +19,7 @@ Ground truth format (JSON):
 If no GT file is provided, runs a self-consistency check by tracking
 twice with different parameters and comparing results.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -112,15 +113,20 @@ def run_evaluation(
         if gt_x is not None and gt_y is not None and pred_x is not None and pred_y is not None:
             dist = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2)
 
-        results.append(EvalFrame(
-            frame=frame_number,
-            timestamp=timestamp,
-            gt_x=gt_x, gt_y=gt_y, gt_radius=gt_r,
-            pred_x=pred_x, pred_y=pred_y,
-            pred_conf=pred_conf,
-            pred_is_prediction=pred_is_pred,
-            distance_error=dist,
-        ))
+        results.append(
+            EvalFrame(
+                frame=frame_number,
+                timestamp=timestamp,
+                gt_x=gt_x,
+                gt_y=gt_y,
+                gt_radius=gt_r,
+                pred_x=pred_x,
+                pred_y=pred_y,
+                pred_conf=pred_conf,
+                pred_is_prediction=pred_is_pred,
+                distance_error=dist,
+            )
+        )
 
         frame_number += 1
 
@@ -128,7 +134,7 @@ def run_evaluation(
     cap.release()
     logger.info(
         f"Processed {len(results)} frames in {elapsed:.1f}s "
-        f"({len(results)/max(elapsed, 0.01):.1f} FPS)"
+        f"({len(results) / max(elapsed, 0.01):.1f} FPS)"
     )
     return results
 
@@ -278,8 +284,12 @@ def generate_report(metrics: dict, results: list[EvalFrame]) -> str:
     ]
 
     # Per-frame breakdown for low-confidence / failure cases
-    failures = [r for r in results if r.gt_x is not None and
-                (r.pred_x is None or (r.distance_error is not None and r.distance_error > 30))]
+    failures = [
+        r
+        for r in results
+        if r.gt_x is not None
+        and (r.pred_x is None or (r.distance_error is not None and r.distance_error > 30))
+    ]
     if failures:
         lines.append("── Failure Cases (dist > 30 px or missed, top 20) ──")
         for r in failures[:20]:
@@ -297,21 +307,15 @@ def generate_report(metrics: dict, results: list[EvalFrame]) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Evaluate ball tracking accuracy"
+    parser = argparse.ArgumentParser(description="Evaluate ball tracking accuracy")
+    parser.add_argument("--video", type=str, required=True, help="Path to test video")
+    parser.add_argument("--gt", type=str, default=None, help="Path to ground truth JSON (optional)")
+    parser.add_argument("--fps", type=float, default=None, help="Override FPS (optional)")
+    parser.add_argument("--max-frames", type=int, default=None, help="Maximum frames to process")
+    parser.add_argument("--output", type=str, default=None, help="Save report to file")
+    parser.add_argument(
+        "--save-json", type=str, default=None, help="Save per-frame results to JSON"
     )
-    parser.add_argument("--video", type=str, required=True,
-                        help="Path to test video")
-    parser.add_argument("--gt", type=str, default=None,
-                        help="Path to ground truth JSON (optional)")
-    parser.add_argument("--fps", type=float, default=None,
-                        help="Override FPS (optional)")
-    parser.add_argument("--max-frames", type=int, default=None,
-                        help="Maximum frames to process")
-    parser.add_argument("--output", type=str, default=None,
-                        help="Save report to file")
-    parser.add_argument("--save-json", type=str, default=None,
-                        help="Save per-frame results to JSON")
     args = parser.parse_args()
 
     video_path = Path(args.video)
@@ -324,7 +328,8 @@ def main():
         gt = load_ground_truth(Path(args.gt))
 
     results = run_evaluation(
-        video_path, gt=gt,
+        video_path,
+        gt=gt,
         fps_override=args.fps,
         max_frames=args.max_frames,
     )
@@ -344,8 +349,11 @@ def main():
             {
                 "frame": r.frame,
                 "timestamp": r.timestamp,
-                "gt_x": r.gt_x, "gt_y": r.gt_y, "gt_radius": r.gt_radius,
-                "pred_x": r.pred_x, "pred_y": r.pred_y,
+                "gt_x": r.gt_x,
+                "gt_y": r.gt_y,
+                "gt_radius": r.gt_radius,
+                "pred_x": r.pred_x,
+                "pred_y": r.pred_y,
                 "pred_conf": r.pred_conf,
                 "pred_is_prediction": r.pred_is_prediction,
                 "distance_error": r.distance_error,

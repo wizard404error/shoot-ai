@@ -55,9 +55,12 @@ class PackingReport:
 
 
 def _is_behind_line(
-    player_x: float, player_y: float,
-    line_start_x: float, line_start_y: float,
-    line_end_x: float, line_end_y: float,
+    player_x: float,
+    player_y: float,
+    line_start_x: float,
+    line_start_y: float,
+    line_end_x: float,
+    line_end_y: float,
     attacking_direction: int = 1,
 ) -> bool:
     """Check if a player is behind (on the defensive side of) the pass line.
@@ -80,7 +83,7 @@ def _is_behind_line(
     pdy = player_y - line_start_y
 
     # Project player onto pass line (0.0 = start, 1.0 = end)
-    t = (pdx * dx + pdy * dy) / (line_len ** 2)
+    t = (pdx * dx + pdy * dy) / (line_len**2)
 
     # Perpendicular distance from pass line
     perp_dist = abs(pdx * dy - pdy * dx) / line_len

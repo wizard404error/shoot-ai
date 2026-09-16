@@ -54,7 +54,9 @@ def _classify_line_count(counts: list[int]) -> str:
     return "unknown"
 
 
-def _detect_diamond_midfield(positions: list[tuple[float, float]], x_threshold: float = 15.0) -> bool:
+def _detect_diamond_midfield(
+    positions: list[tuple[float, float]], x_threshold: float = 15.0
+) -> bool:
     """Detect if midfield 4 form a diamond shape (1 deep, 2 wide, 1 advanced)."""
     if len(positions) < 4:
         return False
@@ -133,17 +135,21 @@ def _compute_support_angles(
         if dist < 1.0:
             continue
         angle = math.degrees(math.atan2(dy, dx))
-        supports.append({
-            "dx": round(dx, 1),
-            "dy": round(dy, 1),
-            "distance_m": round(dist, 1),
-            "angle_deg": round(angle, 1),
-            "is_forward": dx > 0,
-        })
+        supports.append(
+            {
+                "dx": round(dx, 1),
+                "dy": round(dy, 1),
+                "distance_m": round(dist, 1),
+                "angle_deg": round(angle, 1),
+                "is_forward": dx > 0,
+            }
+        )
     return supports
 
 
-def _find_triangles_in_shape(positions: list[tuple[float, float]], max_dist: float = 20.0) -> list[list[int]]:
+def _find_triangles_in_shape(
+    positions: list[tuple[float, float]], max_dist: float = 20.0
+) -> list[list[int]]:
     """Find all triangles formed by players within max_dist of each other."""
     n = len(positions)
     triangles = []
@@ -153,8 +159,12 @@ def _find_triangles_in_shape(positions: list[tuple[float, float]], max_dist: flo
             if d_ij > max_dist:
                 continue
             for k in range(j + 1, n):
-                d_ik = math.hypot(positions[i][0] - positions[k][0], positions[i][1] - positions[k][1])
-                d_jk = math.hypot(positions[j][0] - positions[k][0], positions[j][1] - positions[k][1])
+                d_ik = math.hypot(
+                    positions[i][0] - positions[k][0], positions[i][1] - positions[k][1]
+                )
+                d_jk = math.hypot(
+                    positions[j][0] - positions[k][0], positions[j][1] - positions[k][1]
+                )
                 if d_ik <= max_dist and d_jk <= max_dist:
                     triangles.append([i, j, k])
     return triangles
@@ -259,7 +269,9 @@ class TacticalShapeAnalyzer:
                 changes += 1
 
         primary_att = max(shape_counts, key=shape_counts.get) if shape_counts else "unknown"
-        primary_def = max(def_shape_counts, key=def_shape_counts.get) if def_shape_counts else "unknown"
+        primary_def = (
+            max(def_shape_counts, key=def_shape_counts.get) if def_shape_counts else "unknown"
+        )
 
         return ShapeReport(
             team=team,

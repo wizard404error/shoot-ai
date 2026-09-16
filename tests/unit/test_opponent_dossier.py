@@ -37,12 +37,54 @@ def _sample_match(overrides: dict | None = None) -> dict:
         "width_usage": 0.6,
         "build_up_style": "mixed",
         "players": [
-            {"name": "Keeper", "position": "GK", "minutes_played": 90, "goals": 0, "assists": 0, "xg": 0},
-            {"name": "Defender1", "position": "CB", "minutes_played": 90, "goals": 0, "assists": 0, "xg": 0.02},
-            {"name": "Mid1", "position": "CM", "minutes_played": 85, "goals": 1, "assists": 0, "xg": 0.3},
-            {"name": "Striker1", "position": "ST", "minutes_played": 80, "goals": 2, "assists": 1, "xg": 1.5},
-            {"name": "Winger1", "position": "RW", "minutes_played": 75, "goals": 0, "assists": 2, "xg": 0.8},
-            {"name": "Sub1", "position": "sub", "minutes_played": 15, "goals": 0, "assists": 0, "xg": 0},
+            {
+                "name": "Keeper",
+                "position": "GK",
+                "minutes_played": 90,
+                "goals": 0,
+                "assists": 0,
+                "xg": 0,
+            },
+            {
+                "name": "Defender1",
+                "position": "CB",
+                "minutes_played": 90,
+                "goals": 0,
+                "assists": 0,
+                "xg": 0.02,
+            },
+            {
+                "name": "Mid1",
+                "position": "CM",
+                "minutes_played": 85,
+                "goals": 1,
+                "assists": 0,
+                "xg": 0.3,
+            },
+            {
+                "name": "Striker1",
+                "position": "ST",
+                "minutes_played": 80,
+                "goals": 2,
+                "assists": 1,
+                "xg": 1.5,
+            },
+            {
+                "name": "Winger1",
+                "position": "RW",
+                "minutes_played": 75,
+                "goals": 0,
+                "assists": 2,
+                "xg": 0.8,
+            },
+            {
+                "name": "Sub1",
+                "position": "sub",
+                "minutes_played": 15,
+                "goals": 0,
+                "assists": 0,
+                "xg": 0,
+            },
         ],
         "scorers": [{"player": "Striker1", "goals": 2}],
         "assisters": [{"player": "Winger1", "assists": 1}],
@@ -53,7 +95,11 @@ def _sample_match(overrides: dict | None = None) -> dict:
 
 
 def test_detect_formations():
-    matches = [_sample_match({"formation": "4-3-3"}), _sample_match({"formation": "4-3-3"}), _sample_match({"formation": "4-4-2"})]
+    matches = [
+        _sample_match({"formation": "4-3-3"}),
+        _sample_match({"formation": "4-3-3"}),
+        _sample_match({"formation": "4-4-2"}),
+    ]
     forms = _detect_formations(matches)
     assert len(forms) >= 2
     assert forms[0].formation == "4-3-3"
@@ -79,7 +125,15 @@ def test_predict_lineup_empty():
 
 
 def test_build_key_players():
-    matches = [_sample_match(), _sample_match({"scorers": [{"player": "Striker1", "goals": 1}], "assisters": [{"player": "Mid1", "assists": 2}]})]
+    matches = [
+        _sample_match(),
+        _sample_match(
+            {
+                "scorers": [{"player": "Striker1", "goals": 1}],
+                "assisters": [{"player": "Mid1", "assists": 2}],
+            }
+        ),
+    ]
     players = _build_key_players(matches)
     assert len(players) > 0
     top = players[0]
@@ -91,8 +145,22 @@ def test_key_player_threat_scoring():
     matches = [
         {
             "players": [
-                {"name": "Star", "position": "ST", "minutes_played": 90, "goals": 5, "assists": 3, "xg": 4.0},
-                {"name": "RolePlayer", "position": "CM", "minutes_played": 90, "goals": 0, "assists": 0, "xg": 0.1},
+                {
+                    "name": "Star",
+                    "position": "ST",
+                    "minutes_played": 90,
+                    "goals": 5,
+                    "assists": 3,
+                    "xg": 4.0,
+                },
+                {
+                    "name": "RolePlayer",
+                    "position": "CM",
+                    "minutes_played": 90,
+                    "goals": 0,
+                    "assists": 0,
+                    "xg": 0.1,
+                },
             ],
             "scorers": [{"player": "Star", "goals": 5}],
             "assisters": [{"player": "Star", "assists": 3}],
@@ -118,14 +186,18 @@ def test_classify_build_up():
 
 
 def test_set_piece_tendencies():
-    matches = [_sample_match({"corners_for": 8, "set_piece_threat": 0.35, "set_piece_conceded": 0.3})]
+    matches = [
+        _sample_match({"corners_for": 8, "set_piece_threat": 0.35, "set_piece_conceded": 0.3})
+    ]
     tend = _detect_set_piece_tendencies(matches)
     assert len(tend) >= 2
     assert any("high" in t.lower() for t in tend)
 
 
 def test_set_piece_tendencies_empty():
-    tend = _detect_set_piece_tendencies([{"corners_for": 2, "set_piece_threat": 0.05, "set_piece_conceded": 0.02}])
+    tend = _detect_set_piece_tendencies(
+        [{"corners_for": 2, "set_piece_threat": 0.05, "set_piece_conceded": 0.02}]
+    )
     assert any("No significant" in t for t in tend)
 
 

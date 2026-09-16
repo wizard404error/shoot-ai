@@ -101,22 +101,20 @@ class SeasonImportService:
         rows = summary["matches"]
 
         for path in json_files:
-            if (
-                max_matches is not None
-                and summary["imported"] >= max_matches
-            ):
+            if max_matches is not None and summary["imported"] >= max_matches:
                 break
 
             external_id = path.stem
-            existing = await self.storage.get_match_by_external_id(
-                "statsbomb", external_id
-            )
+            existing = await self.storage.get_match_by_external_id("statsbomb", external_id)
             if existing is not None:
                 summary["skipped_already"] += 1
-                rows.append({
-                    "file": path.name, "status": "skipped_already",
-                    "match_id": existing,
-                })
+                rows.append(
+                    {
+                        "file": path.name,
+                        "status": "skipped_already",
+                        "match_id": existing,
+                    }
+                )
                 continue
 
             # Root-type gate: event files are a non-empty JSON list.
@@ -127,16 +125,23 @@ class SeasonImportService:
                     raw = json.load(f)
             except (OSError, json.JSONDecodeError) as exc:
                 summary["failed"] += 1
-                rows.append({
-                    "file": path.name, "status": "failed", "error": str(exc),
-                })
+                rows.append(
+                    {
+                        "file": path.name,
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
                 logger.warning(f"season import: unreadable file {path.name}: {exc}")
                 continue
             if not isinstance(raw, list) or not raw:
                 summary["skipped_not_events"] += 1
-                rows.append({
-                    "file": path.name, "status": "skipped_not_events",
-                })
+                rows.append(
+                    {
+                        "file": path.name,
+                        "status": "skipped_not_events",
+                    }
+                )
                 continue
             summary["eligible"] += 1
 
@@ -144,11 +149,7 @@ class SeasonImportService:
             meta = self._load_sidecar(path)
             comp = meta.get("competition") or competition
             s_id = meta.get("season_id", season_id)
-            m_date = (
-                meta.get("match_date")
-                or self._sb_match_date(raw)
-                or match_date
-            )
+            m_date = meta.get("match_date") or self._sb_match_date(raw) or match_date
 
             try:
                 match_summary = await sb.import_match(path)
@@ -159,14 +160,16 @@ class SeasonImportService:
                     competition=comp,
                     season_id=int(s_id) if s_id is not None else None,
                 )
-                await self.storage.register_match_external_id(
-                    match_id, "statsbomb", external_id
-                )
+                await self.storage.register_match_external_id(match_id, "statsbomb", external_id)
             except Exception as exc:  # one bad file never kills the season
                 summary["failed"] += 1
-                rows.append({
-                    "file": path.name, "status": "failed", "error": str(exc),
-                })
+                rows.append(
+                    {
+                        "file": path.name,
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
                 logger.warning(f"season import: {path.name} failed: {exc}")
                 continue
 
@@ -187,10 +190,12 @@ class SeasonImportService:
                     logger.warning(f"season import: progress callback failed: {exc}")
 
         logger.info(
-            "season import: %s -> imported=%d skipped_already=%d "
-            "skipped_not_events=%d failed=%d",
-            directory, summary["imported"], summary["skipped_already"],
-            summary["skipped_not_events"], summary["failed"],
+            "season import: %s -> imported=%d skipped_already=%d skipped_not_events=%d failed=%d",
+            directory,
+            summary["imported"],
+            summary["skipped_already"],
+            summary["skipped_not_events"],
+            summary["failed"],
         )
         return summary
 
@@ -209,12 +214,11 @@ class SeasonImportService:
             raise ValueError(f"not a file: {file_path}")
 
         external_id = file_path.stem
-        existing = await self.storage.get_match_by_external_id(
-            "statsbomb", external_id
-        )
+        existing = await self.storage.get_match_by_external_id("statsbomb", external_id)
         if existing is not None:
             return {
-                "file": file_path.name, "status": "skipped_already",
+                "file": file_path.name,
+                "status": "skipped_already",
                 "match_id": existing,
             }
 
@@ -230,12 +234,11 @@ class SeasonImportService:
             competition=meta.get("competition") or competition,
             season_id=(
                 int(meta.get("season_id", season_id))
-                if meta.get("season_id", season_id) is not None else None
+                if meta.get("season_id", season_id) is not None
+                else None
             ),
         )
-        await self.storage.register_match_external_id(
-            match_id, "statsbomb", external_id
-        )
+        await self.storage.register_match_external_id(match_id, "statsbomb", external_id)
         return {
             "file": file_path.name,
             "status": "imported",

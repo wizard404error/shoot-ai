@@ -74,7 +74,9 @@ class BacktestReport:
 
 def _log_loss(y_true: list[int], y_pred: list[float], eps: float = 1e-15) -> float:
     y_pred = [max(eps, min(1 - eps, p)) for p in y_pred]
-    return -sum(t * math.log(p) + (1 - t) * math.log(1 - p) for t, p in zip(y_true, y_pred)) / max(1, len(y_true))
+    return -sum(t * math.log(p) + (1 - t) * math.log(1 - p) for t, p in zip(y_true, y_pred)) / max(
+        1, len(y_true)
+    )
 
 
 def _brier_score(y_true: list[int], y_pred: list[float]) -> float:
@@ -107,7 +109,9 @@ def _auc_roc(y_true: list[int], y_pred: list[float]) -> float:
 
 
 def _calibration_curve(
-    y_true: list[int], y_pred: list[float], n_bins: int = 10,
+    y_true: list[int],
+    y_pred: list[float],
+    n_bins: int = 10,
 ) -> list[CalibrationBin]:
     pairs = list(zip(y_pred, y_true))
     bins = []
@@ -119,12 +123,15 @@ def _calibration_curve(
             continue
         mean_pred = sum(p for p, _ in in_bin) / len(in_bin)
         mean_act = sum(t for _, t in in_bin) / len(in_bin)
-        bins.append(CalibrationBin(
-            bin_low=low, bin_high=high,
-            count=len(in_bin),
-            mean_predicted=mean_pred,
-            mean_actual=mean_act,
-        ))
+        bins.append(
+            CalibrationBin(
+                bin_low=low,
+                bin_high=high,
+                count=len(in_bin),
+                mean_predicted=mean_pred,
+                mean_actual=mean_act,
+            )
+        )
     return bins
 
 

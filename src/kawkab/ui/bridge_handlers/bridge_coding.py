@@ -112,10 +112,12 @@ class CodingHandler:
         try:
             players = await self.storage_service.get_match_players(match_id)
             simple = [
-                {"track_id": p.get("track_id", 0),
-                 "name": p.get("name", f"Player {p.get('track_id', 0)}"),
-                 "jersey": p.get("jersey_number", "?"),
-                 "team": p.get("team", "unknown")}
+                {
+                    "track_id": p.get("track_id", 0),
+                    "name": p.get("name", f"Player {p.get('track_id', 0)}"),
+                    "jersey": p.get("jersey_number", "?"),
+                    "team": p.get("team", "unknown"),
+                }
                 for p in players
             ]
             return json.dumps({"success": True, "players": simple})
@@ -150,9 +152,12 @@ class CodingHandler:
             clip_svc = self.clip_service
             if clip_svc is None:
                 from kawkab.services.clip_service import ClipExtractionService
+
                 clip_svc = ClipExtractionService()
 
-            output_name = f"tag_{tag_id}_{tag.get('event_type','event')}_{tag.get('video_time',0):.0f}s.mp4"
+            output_name = (
+                f"tag_{tag_id}_{tag.get('event_type', 'event')}_{tag.get('video_time', 0):.0f}s.mp4"
+            )
             clip_path = await clip_svc.extract_clip(
                 video_path=video_path,
                 start_time=start,
@@ -198,13 +203,23 @@ class CodingHandler:
                     "color": "#16a34a",
                     "buttons": [
                         {"id": "pass", "label": "Pass", "shortcut": "1", "color": "#22c55e"},
-                        {"id": "through_ball", "label": "Through", "shortcut": "q", "color": "#4ade80"},
+                        {
+                            "id": "through_ball",
+                            "label": "Through",
+                            "shortcut": "q",
+                            "color": "#4ade80",
+                        },
                         {"id": "shot", "label": "Shot", "shortcut": "2", "color": "#ef4444"},
                         {"id": "goal", "label": "Goal", "shortcut": "3", "color": "#dc2626"},
                         {"id": "dribble", "label": "Dribble", "shortcut": "4", "color": "#3b82f6"},
                         {"id": "cross", "label": "Cross", "shortcut": "5", "color": "#60a5fa"},
                         {"id": "carry", "label": "Carry", "shortcut": "6", "color": "#818cf8"},
-                        {"id": "key_pass", "label": "Key Pass", "shortcut": "w", "color": "#a3e635"},
+                        {
+                            "id": "key_pass",
+                            "label": "Key Pass",
+                            "shortcut": "w",
+                            "color": "#a3e635",
+                        },
                     ],
                 },
                 {
@@ -213,7 +228,12 @@ class CodingHandler:
                     "color": "#ea580c",
                     "buttons": [
                         {"id": "tackle", "label": "Tackle", "shortcut": "7", "color": "#f97316"},
-                        {"id": "interception", "label": "Intercept", "shortcut": "8", "color": "#fb923c"},
+                        {
+                            "id": "interception",
+                            "label": "Intercept",
+                            "shortcut": "8",
+                            "color": "#fb923c",
+                        },
                         {"id": "press", "label": "Press", "shortcut": "9", "color": "#a855f7"},
                         {"id": "clearance", "label": "Clear", "shortcut": "e", "color": "#c084fc"},
                         {"id": "block", "label": "Block", "shortcut": "r", "color": "#e879f9"},
@@ -225,12 +245,42 @@ class CodingHandler:
                     "label": "Mistake",
                     "color": "#dc2626",
                     "buttons": [
-                        {"id": "error_positional", "label": "Pos Error", "shortcut": "z", "color": "#92400e"},
-                        {"id": "error_technical", "label": "Tech Error", "shortcut": "x", "color": "#b45309"},
-                        {"id": "error_decision", "label": "Dec Error", "shortcut": "c", "color": "#d97706"},
-                        {"id": "error_physical", "label": "Phy Error", "shortcut": "v", "color": "#f59e0b"},
-                        {"id": "missed_tackle", "label": "Miss Tackle", "shortcut": "b", "color": "#ef4444"},
-                        {"id": "bad_pass", "label": "Bad Pass", "shortcut": "n", "color": "#fca5a5"},
+                        {
+                            "id": "error_positional",
+                            "label": "Pos Error",
+                            "shortcut": "z",
+                            "color": "#92400e",
+                        },
+                        {
+                            "id": "error_technical",
+                            "label": "Tech Error",
+                            "shortcut": "x",
+                            "color": "#b45309",
+                        },
+                        {
+                            "id": "error_decision",
+                            "label": "Dec Error",
+                            "shortcut": "c",
+                            "color": "#d97706",
+                        },
+                        {
+                            "id": "error_physical",
+                            "label": "Phy Error",
+                            "shortcut": "v",
+                            "color": "#f59e0b",
+                        },
+                        {
+                            "id": "missed_tackle",
+                            "label": "Miss Tackle",
+                            "shortcut": "b",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "id": "bad_pass",
+                            "label": "Bad Pass",
+                            "shortcut": "n",
+                            "color": "#fca5a5",
+                        },
                     ],
                 },
                 {
@@ -239,9 +289,24 @@ class CodingHandler:
                     "color": "#0891b2",
                     "buttons": [
                         {"id": "corner", "label": "Corner", "shortcut": "m", "color": "#06b6d4"},
-                        {"id": "free_kick", "label": "Free Kick", "shortcut": ",", "color": "#22d3ee"},
-                        {"id": "throw_in", "label": "Throw In", "shortcut": ".", "color": "#67e8f9"},
-                        {"id": "goal_kick", "label": "Goal Kick", "shortcut": "/", "color": "#a5f3fc"},
+                        {
+                            "id": "free_kick",
+                            "label": "Free Kick",
+                            "shortcut": ",",
+                            "color": "#22d3ee",
+                        },
+                        {
+                            "id": "throw_in",
+                            "label": "Throw In",
+                            "shortcut": ".",
+                            "color": "#67e8f9",
+                        },
+                        {
+                            "id": "goal_kick",
+                            "label": "Goal Kick",
+                            "shortcut": "/",
+                            "color": "#a5f3fc",
+                        },
                         {"id": "penalty", "label": "Penalty", "shortcut": "p", "color": "#2dd4bf"},
                     ],
                 },

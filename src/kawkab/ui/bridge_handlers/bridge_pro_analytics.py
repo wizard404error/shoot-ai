@@ -48,11 +48,13 @@ class ProAnalyticsHandler:
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self._fetch_all_events(match_id)
             if not events:
-                return json.dumps({
-                    "success": False,
-                    "data_available": False,
-                    "reason": "no events stored for this match",
-                })
+                return json.dumps(
+                    {
+                        "success": False,
+                        "data_available": False,
+                        "reason": "no events stored for this match",
+                    }
+                )
 
             frames = await self._fetch_tracking_frames(match_id)
             report: dict[str, Any] = {
@@ -117,8 +119,19 @@ class ProAnalyticsHandler:
         meta = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
         out = dict(e)
         out["type"] = e.get("event_type") or e.get("type") or "unknown"
-        for key in ("x", "y", "end_x", "end_y", "start_x", "start_y",
-                    "is_goal", "xg", "distance_m", "angle_deg", "assist_type"):
+        for key in (
+            "x",
+            "y",
+            "end_x",
+            "end_y",
+            "start_x",
+            "start_y",
+            "is_goal",
+            "xg",
+            "distance_m",
+            "angle_deg",
+            "assist_type",
+        ):
             if key in meta and out.get(key) is None:
                 out[key] = meta[key]
         # Storage's SELECT also extracts x/y/xg/xa/xt via json_extract —
@@ -187,15 +200,19 @@ class ProAnalyticsHandler:
             if isinstance(ball, list) and ball:
                 b = ball[0].get("bbox")
                 if isinstance(b, list) and len(b) >= 4:
-                    ball_pos = [(float(b[0]) + float(b[2])) / 2.0,
-                                (float(b[1]) + float(b[3])) / 2.0]
-            out.append({
-                "timestamp": float(f.get("timestamp", 0.0) or 0.0),
-                "possession": "home",  # honest limitation: per-frame possession unknown
-                "ball_pos": ball_pos,
-                "home_positions": home_pos,
-                "away_positions": away_pos,
-            })
+                    ball_pos = [
+                        (float(b[0]) + float(b[2])) / 2.0,
+                        (float(b[1]) + float(b[3])) / 2.0,
+                    ]
+            out.append(
+                {
+                    "timestamp": float(f.get("timestamp", 0.0) or 0.0),
+                    "possession": "home",  # honest limitation: per-frame possession unknown
+                    "ball_pos": ball_pos,
+                    "home_positions": home_pos,
+                    "away_positions": away_pos,
+                }
+            )
         return out
 
     def _check_rate_limit(self) -> None:
@@ -210,11 +227,15 @@ class ProAnalyticsHandler:
         try:
             analyzer = EPVModel()
             report = analyzer.compute_match_epv(events)
-            data = report.to_dict() if hasattr(report, "to_dict") else {
-                "home_total": getattr(report, "home_total", 0.0),
-                "away_total": getattr(report, "away_total", 0.0),
-                "n_possessions": len(getattr(report, "possessions", []) or []),
-            }
+            data = (
+                report.to_dict()
+                if hasattr(report, "to_dict")
+                else {
+                    "home_total": getattr(report, "home_total", 0.0),
+                    "away_total": getattr(report, "away_total", 0.0),
+                    "n_possessions": len(getattr(report, "possessions", []) or []),
+                }
+            )
             return {"data_available": True, **data}
         except Exception as exc:
             return {"data_available": False, "reason": f"epv: {exc}"}
@@ -226,8 +247,7 @@ class ProAnalyticsHandler:
             links = compute_pass_flow(events, team="home")
             links += compute_pass_flow(events, team="away")
             if not links:
-                return {"data_available": False,
-                        "reason": "no completed passes with coordinates"}
+                return {"data_available": False, "reason": "no completed passes with coordinates"}
             serializable = [
                 {k: v for k, v in link.items() if isinstance(v, (int, float, str))}
                 for link in links[:200]
@@ -242,8 +262,10 @@ class ProAnalyticsHandler:
         try:
             clusters = cluster_pressing_events(events)
             if not clusters:
-                return {"data_available": False,
-                        "reason": "no pressing/defensive events with coordinates"}
+                return {
+                    "data_available": False,
+                    "reason": "no pressing/defensive events with coordinates",
+                }
             data = [c.to_dict() if hasattr(c, "to_dict") else vars(c) for c in clusters[:40]]
             return {"data_available": True, "n_clusters": len(clusters), "clusters": data}
         except Exception as exc:
@@ -260,9 +282,11 @@ class ProAnalyticsHandler:
                 for e in events
             )
             if not duels_present:
-                return {"data_available": False,
-                        "reason": "no duel-type events tagged in this match",
-                        "raw": data}
+                return {
+                    "data_available": False,
+                    "reason": "no duel-type events tagged in this match",
+                    "raw": data,
+                }
             return {"data_available": True, **data}
         except Exception as exc:
             return {"data_available": False, "reason": f"duels: {exc}"}
@@ -276,16 +300,27 @@ class ProAnalyticsHandler:
             for team in ("home", "away"):
                 data = analyzer.analyze_recoveries(events, team)
                 out[team] = data if isinstance(data, dict) else vars(data)
-            any_recoveries = any(
-                (out[t].get("total_recoveries") or out[t].get("recoveries")
-                 or out[t].get("n_recoveries") or 0) > 0
-                for t in ("home", "away")
-            ) if out else False
+            any_recoveries = (
+                any(
+                    (
+                        out[t].get("total_recoveries")
+                        or out[t].get("recoveries")
+                        or out[t].get("n_recoveries")
+                        or 0
+                    )
+                    > 0
+                    for t in ("home", "away")
+                )
+                if out
+                else False
+            )
             if not any_recoveries:
-                return {"data_available": False,
-                        "reason": "no recovery-type events (interception/tackle/"
-                                  "loose_ball/goal_kick/clearance) in this match",
-                        "raw": out}
+                return {
+                    "data_available": False,
+                    "reason": "no recovery-type events (interception/tackle/"
+                    "loose_ball/goal_kick/clearance) in this match",
+                    "raw": out,
+                }
             return {"data_available": True, "home": out["home"], "away": out["away"]}
         except Exception as exc:
             return {"data_available": False, "reason": f"ball_recovery: {exc}"}
@@ -297,8 +332,7 @@ class ProAnalyticsHandler:
             analyzer = BoxEntryAnalyzer()
             touches = analyzer.analyze_box_touches(events)
             entries = analyzer.analyze_box_entries(events)
-            return {"data_available": True,
-                    "box_touches": touches, "box_entries": entries}
+            return {"data_available": True, "box_touches": touches, "box_entries": entries}
         except Exception as exc:
             return {"data_available": False, "reason": f"box_entries: {exc}"}
 
@@ -321,9 +355,11 @@ class ProAnalyticsHandler:
             data = report.to_dict() if hasattr(report, "to_dict") else vars(report)
             n_crosses = data.get("total_crosses", 0) or len(data.get("crosses", []) or [])
             if not n_crosses:
-                return {"data_available": False,
-                        "reason": "no completed crosses with coordinates",
-                        "raw": data}
+                return {
+                    "data_available": False,
+                    "reason": "no completed crosses with coordinates",
+                    "raw": data,
+                }
             return {"data_available": True, **data}
         except Exception as exc:
             return {"data_available": False, "reason": f"crossing: {exc}"}
@@ -345,17 +381,21 @@ class ProAnalyticsHandler:
             tbs = detect_through_balls(events)
             data = [tb.to_dict() if hasattr(tb, "to_dict") else vars(tb) for tb in tbs[:50]]
             if not data:
-                return {"data_available": False,
-                        "reason": "no through-ball-pattern passes detected"}
+                return {
+                    "data_available": False,
+                    "reason": "no through-ball-pattern passes detected",
+                }
             return {"data_available": True, "n_through_balls": len(tbs), "through_balls": data}
         except Exception as exc:
             return {"data_available": False, "reason": f"through_balls: {exc}"}
 
     def _obv_block(self, frames: list[dict], events: list[dict]) -> dict[str, Any]:
         if not frames:
-            return {"data_available": False,
-                    "reason": "no persisted tracking frames (run video analysis, "
-                              "or this match is an event-data import)"}
+            return {
+                "data_available": False,
+                "reason": "no persisted tracking frames (run video analysis, "
+                "or this match is an event-data import)",
+            }
         from kawkab.core.obv import OffBallValuator
 
         try:
@@ -368,9 +408,11 @@ class ProAnalyticsHandler:
 
     def _offball_block(self, frames: list[dict]) -> dict[str, Any]:
         if not frames:
-            return {"data_available": False,
-                    "reason": "no persisted tracking frames (run video analysis, "
-                              "or this match is an event-data import)"}
+            return {
+                "data_available": False,
+                "reason": "no persisted tracking frames (run video analysis, "
+                "or this match is an event-data import)",
+            }
         from kawkab.core.offball_metrics import OffBallAnalyzer
 
         try:
@@ -404,7 +446,9 @@ class ProAnalyticsHandler:
                     "n_chains": len(chains),
                     "total_xg_contribution": round(
                         sum(c.to_dict().get("xg_contribution", 0.0) for c in chains), 4
-                    ) if chains else 0.0,
+                    )
+                    if chains
+                    else 0.0,
                     "top_chains": [c.to_dict() for c in chains[:8]],
                 }
             return {"data_available": True, **out}
@@ -438,13 +482,15 @@ class ProAnalyticsHandler:
 
         try:
             from kawkab.core.xt_model import ExpectedThreatModel
+
             model = ExpectedThreatModel()
             model.build_transition_matrix(events)
             grid = model.get_zone_values()
-            actions = compute_defensive_xt(events, grid, xT_rows=grid.shape[0], xT_cols=grid.shape[1])
+            actions = compute_defensive_xt(
+                events, grid, xT_rows=grid.shape[0], xT_cols=grid.shape[1]
+            )
             data = [a.to_dict() for a in actions[:60]]
-            return {"data_available": True,
-                    "n_defensive_actions": len(actions), "actions": data}
+            return {"data_available": True, "n_defensive_actions": len(actions), "actions": data}
         except Exception as exc:
             return {"data_available": False, "reason": f"defensive_xt: {exc}"}
 
@@ -455,16 +501,17 @@ class ProAnalyticsHandler:
             model = CornerKickXgModel()
             corners = [e for e in events if e.get("type") == "corner"]
             if not corners:
-                return {"data_available": False,
-                        "reason": "no corner events tagged in this match"}
+                return {"data_available": False, "reason": "no corner events tagged in this match"}
             ratings = []
             for c in corners:
                 r = model.compute_corner_danger_rating(c)
                 ratings.append(r if isinstance(r, (int, float)) else float(r))
-            return {"data_available": True,
-                    "n_corners": len(corners),
-                    "avg_danger_rating": round(sum(ratings) / len(ratings), 3),
-                    "ratings": [round(r, 3) for r in ratings[:30]]}
+            return {
+                "data_available": True,
+                "n_corners": len(corners),
+                "avg_danger_rating": round(sum(ratings) / len(ratings), 3),
+                "ratings": [round(r, 3) for r in ratings[:30]],
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"corner_xg: {exc}"}
 
@@ -474,13 +521,16 @@ class ProAnalyticsHandler:
         try:
             crosses = [e for e in events if e.get("type") == "cross"]
             if not crosses:
-                return {"data_available": False,
-                        "reason": "no cross events tagged in this match"}
+                return {"data_available": False, "reason": "no cross events tagged in this match"}
             results = [compute_cross_xg(e) for e in crosses[:80]]
             data = [r.to_dict() for r in results]
             total = sum(float(d.get("base_xg", 0.0) or 0.0) for d in data)
-            return {"data_available": True, "n_crosses": len(crosses),
-                    "total_cross_xg": round(total, 4), "crosses": data[:40]}
+            return {
+                "data_available": True,
+                "n_crosses": len(crosses),
+                "total_cross_xg": round(total, 4),
+                "crosses": data[:40],
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"crossing_xg: {exc}"}
 
@@ -493,13 +543,13 @@ class ProAnalyticsHandler:
                 return {"data_available": False, "reason": "no pass events"}
             results = compute_ep_batch(passes[:400])
             data = [r.to_dict() if hasattr(r, "to_dict") else vars(r) for r in results]
-            completed_ep = [float(d.get("ep", 0.0)) for d in data
-                            if d.get("completed", True)]
-            return {"data_available": True,
-                    "n_passes_evaluated": len(data),
-                    "avg_completed_ep": round(
-                        sum(completed_ep) / max(len(completed_ep), 1), 4),
-                    "sample": data[:25]}
+            completed_ep = [float(d.get("ep", 0.0)) for d in data if d.get("completed", True)]
+            return {
+                "data_available": True,
+                "n_passes_evaluated": len(data),
+                "avg_completed_ep": round(sum(completed_ep) / max(len(completed_ep), 1), 4),
+                "sample": data[:25],
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"expected_pass: {exc}"}
 
@@ -510,13 +560,18 @@ class ProAnalyticsHandler:
             analyzer = PassingTriangleAnalyzer()
             triangles = analyzer.detect_passing_triangles(events)
             if not triangles:
-                return {"data_available": False,
-                        "reason": "no passing triangles detected (needs consecutive "
-                                  "completed passes between player trios)"}
+                return {
+                    "data_available": False,
+                    "reason": "no passing triangles detected (needs consecutive "
+                    "completed passes between player trios)",
+                }
             # The O(n³) detector can emit thousands on high-volume event
             # imports; ship the aggregate + a bounded sample, not the full list.
-            return {"data_available": True, "n_triangles": len(triangles),
-                    "triangles": triangles[:30]}
+            return {
+                "data_available": True,
+                "n_triangles": len(triangles),
+                "triangles": triangles[:30],
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"passing_triangles: {exc}"}
 
@@ -528,39 +583,48 @@ class ProAnalyticsHandler:
             result = model.compute_scoreline_probabilities(events, n_sims=10000)
             scorelines = result.get("scorelines", {})
             if not scorelines:
-                return {"data_available": False,
-                        "reason": "no shots to estimate scoreline from"}
+                return {"data_available": False, "reason": "no shots to estimate scoreline from"}
             outcomes = model.compute_match_outcome_probs(scorelines)
             entropy = model.compute_scoreline_entropy(scorelines)
-            return {"data_available": True,
-                    "outcome_probs": outcomes,
-                    "scoreline_entropy": entropy,
-                    "remaining_minutes": result.get("remaining_minutes"),
-                    "top_scorelines": dict(list(scorelines.items())[:8])}
+            return {
+                "data_available": True,
+                "outcome_probs": outcomes,
+                "scoreline_entropy": entropy,
+                "remaining_minutes": result.get("remaining_minutes"),
+                "top_scorelines": dict(list(scorelines.items())[:8]),
+            }
         except Exception as exc:
             return {"data_available": False, "reason": f"scoreline: {exc}"}
 
     def _velocity_block(self, match_id: int) -> dict[str, Any]:
         """Velocity needs per-player trajectory data — honest when absent."""
-        return {"data_available": False,
-                "reason": "velocity analysis requires per-player pitch-space "
-                          "trajectories; available after homography-calibrated "
-                          "video analysis (physical_load_service reports sprints "
-                          "in the Squad view)"}
+        return {
+            "data_available": False,
+            "reason": "velocity analysis requires per-player pitch-space "
+            "trajectories; available after homography-calibrated "
+            "video analysis (physical_load_service reports sprints "
+            "in the Squad view)",
+        }
 
     def _influence_map_block(self, frames: list[dict]) -> dict[str, Any]:
         if not frames:
-            return {"data_available": False,
-                    "reason": "influence maps need pitch-space tracking frames "
-                              "(homography-calibrated video analysis)"}
+            return {
+                "data_available": False,
+                "reason": "influence maps need pitch-space tracking frames "
+                "(homography-calibrated video analysis)",
+            }
         # Frames persisted by CV are pixel-space bboxes; influence maps need
         # meters. Honest no rather than misleading pixel maps.
-        return {"data_available": False,
-                "reason": "influence maps need homography-calibrated (meters) "
-                          "positions; current frames are pixel-space"}
+        return {
+            "data_available": False,
+            "reason": "influence maps need homography-calibrated (meters) "
+            "positions; current frames are pixel-space",
+        }
 
     def _lineup_optimizer_block(self, match_id: int) -> dict[str, Any]:
-        return {"data_available": False,
-                "reason": "lineup optimization needs multi-match player history "
-                          "and profiles — exposed via the Squad view's per-player "
-                          "data, not a single-match report"}
+        return {
+            "data_available": False,
+            "reason": "lineup optimization needs multi-match player history "
+            "and profiles — exposed via the Squad view's per-player "
+            "data, not a single-match report",
+        }

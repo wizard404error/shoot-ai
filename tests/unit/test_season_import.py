@@ -62,9 +62,7 @@ def _match_row(storage, match_id: int) -> dict:
 
 
 def _external_ids(storage) -> set[tuple[str, str]]:
-    rows = storage._conn.execute(
-        "SELECT source, external_id FROM matches_external_ids"
-    ).fetchall()
+    rows = storage._conn.execute("SELECT source, external_id FROM matches_external_ids").fetchall()
     return {(r["source"], r["external_id"]) for r in rows}
 
 
@@ -106,9 +104,7 @@ class TestSeasonImport:
         season_dir = tmp_path / "season"
         season_dir.mkdir()
         _copy_with_sidecar(src, season_dir, "100010.json", None)
-        (season_dir / "lineups.json").write_text(
-            json.dumps({"team": "x"}), encoding="utf-8"
-        )
+        (season_dir / "lineups.json").write_text(json.dumps({"team": "x"}), encoding="utf-8")
         (season_dir / "empty.json").write_text("[]", encoding="utf-8")
 
         svc = SeasonImportService(storage)
@@ -129,14 +125,18 @@ class TestSeasonImport:
         season_dir = tmp_path / "season"
         season_dir.mkdir()
         _copy_with_sidecar(
-            src, season_dir, "100020.json",
+            src,
+            season_dir,
+            "100020.json",
             {"competition": "UCL", "season_id": 7, "match_date": "2025-05-31"},
         )
         _copy_with_sidecar(src, season_dir, "100021.json", None)
 
         svc = SeasonImportService(storage)
         summary = await svc.import_statsbomb_directory(
-            season_dir, competition="La Liga", season_id=3,
+            season_dir,
+            competition="La Liga",
+            season_id=3,
         )
         assert summary["imported"] == 2
 
@@ -231,7 +231,9 @@ class TestSeasonImport:
         season_dir = tmp_path / "season"
         season_dir.mkdir()
         _copy_with_sidecar(
-            src, season_dir, "100050.json",
+            src,
+            season_dir,
+            "100050.json",
             {"competition": "Serie A"},
         )
 
@@ -248,11 +250,9 @@ class TestExternalIdStorage:
     async def test_register_round_trip_and_duplicate_detection(self, storage):
 
         match_id = await storage.save_match("t", "")
-        assert await storage.register_match_external_id(
-            match_id, "statsbomb", "999") is True
+        assert await storage.register_match_external_id(match_id, "statsbomb", "999") is True
         # duplicate registration is a no-op returning False
-        assert await storage.register_match_external_id(
-            match_id, "statsbomb", "999") is False
+        assert await storage.register_match_external_id(match_id, "statsbomb", "999") is False
         assert await storage.get_match_by_external_id("statsbomb", "999") == match_id
         assert await storage.get_match_by_external_id("statsbomb", "nope") is None
 

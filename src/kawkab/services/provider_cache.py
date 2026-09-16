@@ -37,7 +37,9 @@ class ProviderCache:
         return entry.value
 
     def set(
-        self, key: str, value: Any,
+        self,
+        key: str,
+        value: Any,
         ttl_s: int | None = None,
         provider: str | None = None,
     ) -> None:
@@ -80,8 +82,11 @@ class ProviderCache:
         return base
 
     def update_rate_limit(
-        self, provider: str, remaining: int,
-        limit: int = 100, soft_limit_pct: float = 0.2,
+        self,
+        provider: str,
+        remaining: int,
+        limit: int = 100,
+        soft_limit_pct: float = 0.2,
     ) -> None:
         self._rate_limit_state[provider] = _RateLimitState(
             remaining=remaining,
@@ -95,8 +100,10 @@ class ProviderCache:
 
     def memoize(self, ttl_s: int | None = None, provider: str | None = None):
         """Decorator that caches async function results by args/kwargs."""
+
         def decorator(fn):
             import functools
+
             @functools.wraps(fn)
             async def wrapper(*args, **kwargs):
                 key_parts = [fn.__name__]
@@ -109,12 +116,15 @@ class ProviderCache:
                 result = await fn(*args, **kwargs)
                 self.set(key, result, ttl_s=ttl_s, provider=provider)
                 return result
+
             return wrapper
+
         return decorator
 
 
 class _CacheEntry:
     __slots__ = ("value", "expires_at")
+
     def __init__(self, value: Any, expires_at: float):
         self.value = value
         self.expires_at = expires_at
@@ -122,6 +132,7 @@ class _CacheEntry:
 
 class _RateLimitState:
     __slots__ = ("remaining", "limit", "soft_limit")
+
     def __init__(self, remaining: int, limit: int, soft_limit: int):
         self.remaining = remaining
         self.limit = limit

@@ -15,6 +15,7 @@
 5. Team fallbacks: no track-ID-parity fabrication anywhere (shot team,
    pass team, possession split, PPDA possession).
 """
+
 from __future__ import annotations
 
 import sys
@@ -322,7 +323,9 @@ class TestBallTrackerDtAndHsvGate:
         for i in range(5):
             det = bt.update(self._frame_with_ball(120, 40 + i * 5), i, i / 30.0)
             if det is not None:
-                assert det.conf < 0.3, "HSV fallback confidence must stay below the 0.3 recording gate"
+                assert det.conf < 0.3, (
+                    "HSV fallback confidence must stay below the 0.3 recording gate"
+                )
 
     def test_hsv_far_from_prediction_rejected(self):
         """A white blob far from the Kalman prediction must not latch on."""
@@ -369,9 +372,7 @@ class TestTrainedXgCoefficientsSanity:
                 _sys.path.insert(0, str(script.parent))
             import importlib.util
 
-            spec = importlib.util.spec_from_file_location(
-                "_xg_train_script", str(script)
-            )
+            spec = importlib.util.spec_from_file_location("_xg_train_script", str(script))
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             return mod
@@ -382,7 +383,10 @@ class TestTrainedXgCoefficientsSanity:
         mod = self._load()
         json_path = (
             Path(__file__).resolve().parent.parent.parent
-            / "src" / "kawkab" / "core" / "trained_xg_coefficients.json"
+            / "src"
+            / "kawkab"
+            / "core"
+            / "trained_xg_coefficients.json"
         )
         if not json_path.exists():
             pytest.skip("no trained coefficients committed")
@@ -421,9 +425,7 @@ class TestTrainedXgCoefficientsSanity:
         # Long-range central decay must be strictly decreasing.
         xg_by_dist = [xg_at(d) for d in (11.0, 20.0, 30.0, 40.0)]
         for i in range(len(xg_by_dist) - 1):
-            assert xg_by_dist[i] > xg_by_dist[i + 1], (
-                f"long-range xG must decrease: {xg_by_dist}"
-            )
+            assert xg_by_dist[i] > xg_by_dist[i + 1], f"long-range xG must decrease: {xg_by_dist}"
         assert xg_at(40.0) < 0.15, f"40m xG too high: {xg_at(40.0):.3f}"
         assert xg_at(11.0) > xg_at(30.0)
 
@@ -431,13 +433,13 @@ class TestTrainedXgCoefficientsSanity:
         from kawkab.core.xg_model import EnhancedXgModel
 
         model = EnhancedXgModel()
-        central = model.compute_single(model.extract_features(
-            {"distance_m": 11.0, "angle_deg": 0.0, "gk_distance_m": 8.0}))
-        wide = model.compute_single(model.extract_features(
-            {"distance_m": 11.0, "angle_deg": 80.0, "gk_distance_m": 8.0}))
-        assert wide < 0.85 * central, (
-            f"wide ({wide:.3f}) must be clearly < central ({central:.3f})"
+        central = model.compute_single(
+            model.extract_features({"distance_m": 11.0, "angle_deg": 0.0, "gk_distance_m": 8.0})
         )
+        wide = model.compute_single(
+            model.extract_features({"distance_m": 11.0, "angle_deg": 80.0, "gk_distance_m": 8.0})
+        )
+        assert wide < 0.85 * central, f"wide ({wide:.3f}) must be clearly < central ({central:.3f})"
 
 
 # ------------------------------------------------------------------

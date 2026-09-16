@@ -106,11 +106,15 @@ def compute_tracking_self_metrics(
     id_switches_per_track = total_id_switches / max(num_tracks, 1)
 
     # Score formula: penalize fragmentation and ID switches, reward mostly_tracked
-    score = max(0.0, min(1.0,
-        0.5 * mt_ratio
-        + 0.3 * max(0.0, 1.0 - frag_per_track / 5.0)
-        + 0.2 * max(0.0, 1.0 - id_switches_per_track / 3.0)
-    ))
+    score = max(
+        0.0,
+        min(
+            1.0,
+            0.5 * mt_ratio
+            + 0.3 * max(0.0, 1.0 - frag_per_track / 5.0)
+            + 0.2 * max(0.0, 1.0 - id_switches_per_track / 3.0),
+        ),
+    )
 
     return {
         "num_tracks": num_tracks,
@@ -217,8 +221,12 @@ def compute_merge_map_from_switches(
             overlap = track_frames[tid_a] & track_frames[tid_b]
             if overlap:
                 close = sum(
-                    1 for fn in overlap
-                    if abs(frame_positions[fn].get(tid_a, 999) - frame_positions[fn].get(tid_b, 999)) < spatial_threshold_px
+                    1
+                    for fn in overlap
+                    if abs(
+                        frame_positions[fn].get(tid_a, 999) - frame_positions[fn].get(tid_b, 999)
+                    )
+                    < spatial_threshold_px
                 )
                 if len(overlap) > 0 and close / len(overlap) > 0.5:
                     count_a = len(track_frames[tid_a])

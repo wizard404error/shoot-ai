@@ -39,10 +39,20 @@ class TestXgModelCacheIsolation:
     def _model(intercept: float) -> EnhancedXgModel:
         zero = dict.fromkeys(
             (
-                "distance_m", "distance_m_sq", "angle_sin", "angle_deg_sq_sin",
-                "is_header", "is_through_ball_assist", "is_cross_assist",
-                "is_one_on_one", "is_pressed", "is_volley", "is_free_kick",
-                "gk_distance_m", "gk_distance_m_sq", "is_rebound",
+                "distance_m",
+                "distance_m_sq",
+                "angle_sin",
+                "angle_deg_sq_sin",
+                "is_header",
+                "is_through_ball_assist",
+                "is_cross_assist",
+                "is_one_on_one",
+                "is_pressed",
+                "is_volley",
+                "is_free_kick",
+                "gk_distance_m",
+                "gk_distance_m_sq",
+                "is_rebound",
                 "is_big_chance",
             ),
             0.0,
@@ -66,7 +76,8 @@ class TestXgModelCacheIsolation:
         f = _features()
         first = m.compute_single(f)
         with patch.object(
-            m, "_compute_single_uncached",
+            m,
+            "_compute_single_uncached",
             side_effect=AssertionError("must be cached"),
         ):
             assert m.compute_single(f) == first
@@ -80,27 +91,43 @@ class TestAnalysisTeamStatsWired:
         frames = []
         for i in range(10):
             ball = Detection(
-                bbox=(100, 300, 105, 305), confidence=0.9,
-                class_id=32, class_name="sports ball", track_id=99,
+                bbox=(100, 300, 105, 305),
+                confidence=0.9,
+                class_id=32,
+                class_name="sports ball",
+                track_id=99,
             )
             # Players move each frame so _compute_player_stats records
             # real displacement -- the fixture must exercise the physical
             # stats that _compute_team_stats aggregates.
             home_p = Detection(
-                bbox=(110 + i * 8, 300, 130 + i * 8, 340), confidence=0.9,
-                class_id=0, class_name="person", track_id=1,
+                bbox=(110 + i * 8, 300, 130 + i * 8, 340),
+                confidence=0.9,
+                class_id=0,
+                class_name="person",
+                track_id=1,
             )
             away_p = Detection(
-                bbox=(400 + i * 6, 300, 420 + i * 6, 340), confidence=0.9,
-                class_id=0, class_name="person", track_id=2,
+                bbox=(400 + i * 6, 300, 420 + i * 6, 340),
+                confidence=0.9,
+                class_id=0,
+                class_name="person",
+                track_id=2,
             )
-            frames.append(FrameDetections(
-                frame_number=i, timestamp=i * 0.1,
-                detections=[ball, home_p, away_p],
-                image_width=1280, image_height=720,
-            ))
+            frames.append(
+                FrameDetections(
+                    frame_number=i,
+                    timestamp=i * 0.1,
+                    detections=[ball, home_p, away_p],
+                    image_width=1280,
+                    image_height=720,
+                )
+            )
         return MatchTrackData(
-            match_id=1, fps=10.0, total_frames=10, duration_seconds=1.0,
+            match_id=1,
+            fps=10.0,
+            total_frames=10,
+            duration_seconds=1.0,
             frames=frames,
             track_registry={1: {}, 2: {}, 99: {}},
             player_teams={1: "home", 2: "away"},
@@ -133,8 +160,10 @@ class TestAnalysisTeamStatsWired:
 
 def _oauth_provider():
     from kawkab.cloud.oauth import OAuthProvider, OAuthProviderConfig
+
     cfg = OAuthProviderConfig(
-        client_id="id", client_secret="secret",
+        client_id="id",
+        client_secret="secret",
         authorize_url="https://auth.example.com/auth",
         token_url="https://auth.example.com/token",
         userinfo_url="https://auth.example.com/userinfo",
@@ -178,6 +207,7 @@ class TestDecryptDictLogsFailures:
 
     def test_bad_ciphertext_field_is_left_and_logged(self):
         from kawkab.core import encryption
+
         init_fernet = encryption.init_fernet
         decrypt_dict = encryption.decrypt_dict
         init_fernet("ca1fca1f" * 16)
@@ -190,6 +220,7 @@ class TestDecryptDictLogsFailures:
 
     def test_roundtrip_still_clean(self):
         from kawkab.core import encryption
+
         init_fernet = encryption.init_fernet
         encrypt_dict = encryption.encrypt_dict
         decrypt_dict = encryption.decrypt_dict

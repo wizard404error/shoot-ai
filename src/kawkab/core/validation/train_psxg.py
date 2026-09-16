@@ -81,8 +81,8 @@ class OnTargetShot:
 
     distance_m: float
     angle_opening_deg: float
-    placement_x_m: float   # lateral, goal-center-relative (−3.66..3.66)
-    placement_z_m: float   # height above ground (0..2.44)
+    placement_x_m: float  # lateral, goal-center-relative (−3.66..3.66)
+    placement_z_m: float  # height above ground (0..2.44)
     is_header: bool
     is_free_kick: bool
     is_goal: bool
@@ -127,8 +127,11 @@ def extract_on_target_shots(corpus_dir: str | Path) -> list[OnTargetShot]:
                     is_free_kick=(shot_type_name == "Free Kick"),
                     is_goal=(shot.get("outcome", {}).get("name") == "Goal"),
                     match_id=m.match_id,
-                    body_part={"Right Foot": "right_foot", "Left Foot": "left_foot",
-                               "Head": "head"}.get(body_part_name, "other"),
+                    body_part={
+                        "Right Foot": "right_foot",
+                        "Left Foot": "left_foot",
+                        "Head": "head",
+                    }.get(body_part_name, "other"),
                 )
             )
     return shots
@@ -165,7 +168,7 @@ def build_feature_matrix(shots: list[OnTargetShot]) -> tuple[np.ndarray, np.ndar
         X[i] = [
             1.0,
             s.distance_m,
-            s.distance_m ** 2,
+            s.distance_m**2,
             s.angle_opening_deg,
             s.placement_z_m,
             abs(s.placement_x_m),
@@ -245,9 +248,17 @@ def main(argv: list[str] | None = None) -> int:
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
-        json.dump({**coeffs, "_model_name": "kawkab_psxg_trained_statsbomb",
-                   "_n_train_shots": len(train), "_trained_at": report["generated_at"],
-                   "_feature_names": PSXG_FEATURE_NAMES}, f, indent=2)
+        json.dump(
+            {
+                **coeffs,
+                "_model_name": "kawkab_psxg_trained_statsbomb",
+                "_n_train_shots": len(train),
+                "_trained_at": report["generated_at"],
+                "_feature_names": PSXG_FEATURE_NAMES,
+            },
+            f,
+            indent=2,
+        )
     print(f"[psxg-train] coefficients -> {out_path}")
 
     rp = Path(args.report)

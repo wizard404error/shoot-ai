@@ -84,9 +84,7 @@ def _detect_possession_chains_full(
     if not events:
         return []
 
-    sorted_indices = sorted(
-        range(len(events)), key=lambda i: events[i].get("timestamp", 0.0)
-    )
+    sorted_indices = sorted(range(len(events)), key=lambda i: events[i].get("timestamp", 0.0))
     chains: list[list[int]] = []
     current: list[int] = []
     current_team: str | None = None
@@ -244,30 +242,34 @@ def compute_territory_value(
                 reached_final_third = True
                 break
 
-        chain_summaries.append({
-            "chain_id": len(chain_summaries),
-            "team": chain_team,
-            "duration_sec": round(chain_duration, 1),
-            "pass_count": chain_passes,
-            "xT_gained": round(chain_xT, 4),
-            "reached_final_third": reached_final_third,
-        })
+        chain_summaries.append(
+            {
+                "chain_id": len(chain_summaries),
+                "team": chain_team,
+                "duration_sec": round(chain_duration, 1),
+                "pass_count": chain_passes,
+                "xT_gained": round(chain_xT, 4),
+                "reached_final_third": reached_final_third,
+            }
+        )
 
     # Build cells
     all_zones: set[tuple[int, int]] = set(gained.keys()) | set(conceded.keys())
     cells: list[TerritoryCell] = []
-    for (zx, zy) in all_zones:
+    for zx, zy in all_zones:
         g = gained.get((zx, zy), 0.0)
         c = conceded.get((zx, zy), 0.0)
-        cells.append(TerritoryCell(
-            zone_x=zx,
-            zone_y=zy,
-            xT_gained=g,
-            xT_conceded=c,
-            net_xT=g - c,
-            possession_time_pct=0.0,
-            event_count=zone_event_count.get((zx, zy), 0),
-        ))
+        cells.append(
+            TerritoryCell(
+                zone_x=zx,
+                zone_y=zy,
+                xT_gained=g,
+                xT_conceded=c,
+                net_xT=g - c,
+                possession_time_pct=0.0,
+                event_count=zone_event_count.get((zx, zy), 0),
+            )
+        )
 
     total_gained = sum(gained.values())
     total_conceded = sum(conceded.values())
@@ -277,12 +279,14 @@ def compute_territory_value(
     for cell in cells:
         total = cell.xT_gained + cell.xT_conceded
         if total > 0 and (cell.xT_gained / total) > 0.6:
-            dominant.append({
-                "zone_x": cell.zone_x,
-                "zone_y": cell.zone_y,
-                "advantage_pct": round(cell.xT_gained / total * 100, 1),
-                "net_xT": round(cell.net_xT, 4),
-            })
+            dominant.append(
+                {
+                    "zone_x": cell.zone_x,
+                    "zone_y": cell.zone_y,
+                    "advantage_pct": round(cell.xT_gained / total * 100, 1),
+                    "net_xT": round(cell.net_xT, 4),
+                }
+            )
 
     # Territory timeline
     timeline: list[dict] = []
@@ -290,11 +294,13 @@ def compute_territory_value(
         b = minute_buckets[minute]
         total_ev = b["team_events"] + b["opp_events"]
         control_pct = round(b["team_events"] / total_ev * 100, 1) if total_ev else 50.0
-        timeline.append({
-            "minute": minute,
-            "team_control_pct": control_pct,
-            "xT_gained_this_min": round(b["team_xT"], 4),
-        })
+        timeline.append(
+            {
+                "minute": minute,
+                "team_control_pct": control_pct,
+                "xT_gained_this_min": round(b["team_xT"], 4),
+            }
+        )
 
     return TerritoryReport(
         team=team_id,

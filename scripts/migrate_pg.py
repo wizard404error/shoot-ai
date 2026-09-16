@@ -5,6 +5,7 @@ the codebase uses, e.g. postgresql://user:pass@host:5432/dbname) rather
 than a hardcoded DSN -- this script used to embed a real local
 Postgres password directly in source.
 """
+
 import os
 import re
 import sys
@@ -18,12 +19,15 @@ if not DB:
         "  postgresql://postgres:<password>@localhost:5432/kawkab"
     )
 
+
 def main():
     conn = psycopg2.connect(DB)
     conn.autocommit = False
     cur = conn.cursor()
 
-    schema_path = os.path.join(os.path.dirname(__file__), "..", "src", "kawkab", "migrations", "pg_schema.sql")
+    schema_path = os.path.join(
+        os.path.dirname(__file__), "..", "src", "kawkab", "migrations", "pg_schema.sql"
+    )
     with open(schema_path, encoding="utf-8") as f:
         raw = f.read()
 
@@ -46,18 +50,18 @@ def main():
             # Find matching close paren
             depth, i = 1, 0
             while i < len(body) and depth > 0:
-                if body[i] == '(':
+                if body[i] == "(":
                     depth += 1
-                elif body[i] == ')':
+                elif body[i] == ")":
                     depth -= 1
                 i += 1
-            body = body[:i-1]  # exclude closing )
+            body = body[: i - 1]  # exclude closing )
             stmts[name] = body
 
     # 3. Topological sort by FK deps
     fk_deps = {}
     for name, body in stmts.items():
-        refs = re.findall(r'REFERENCES\s+(\w+)\s*\(', body)
+        refs = re.findall(r"REFERENCES\s+(\w+)\s*\(", body)
         fk_deps[name] = [r for r in refs if r != name and r in stmts]
 
     sorted_tables = topological_sort(fk_deps)
@@ -72,17 +76,31 @@ def main():
         if tbl == sorted_tables[0]:
             print(f"  DEBUG body for {tbl}: {repr(body[:200])}")
         # Remove FK constraints from body (both FOREIGN KEY clause and inline REFERENCES)
-        on_clause = r'(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?'
-        body_clean = re.sub(r',\s*\n?\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s+\w+\s*\([^)]+\)' + on_clause + on_clause, '', body)
-        body_clean = re.sub(r',\s*\n?\s*\w+\s+(?:INTEGER|INT|BIGINT|SMALLINT|REAL|TEXT)\s+REFERENCES\s+\w+\s*\([^)]+\)' + on_clause + on_clause, '', body_clean)
-        body_clean = re.sub(r',\s*\)', ')', body_clean)
+        on_clause = r"(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?"
+        body_clean = re.sub(
+            r",\s*\n?\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s+\w+\s*\([^)]+\)"
+            + on_clause
+            + on_clause,
+            "",
+            body,
+        )
+        body_clean = re.sub(
+            r",\s*\n?\s*\w+\s+(?:INTEGER|INT|BIGINT|SMALLINT|REAL|TEXT)\s+REFERENCES\s+\w+\s*\([^)]+\)"
+            + on_clause
+            + on_clause,
+            "",
+            body_clean,
+        )
+        body_clean = re.sub(r",\s*\)", ")", body_clean)
         sql = f"CREATE TABLE IF NOT EXISTS {tbl} ({body_clean})"
         run(cur, sql, tbl)
 
     # 5. Add FK constraints back
-    on_clause_rx = r'(\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?'
-    fk_clause_rx = rf'FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}'
-    inline_fk_rx = rf'(\w+)\s+(?:INTEGER|INT|BIGINT|SMALLINT)\s+REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}'
+    on_clause_rx = r"(\s+ON\s+(?:DELETE|UPDATE)\s+(?:SET\s+)?\w+)?"
+    fk_clause_rx = (
+        rf"FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}"
+    )
+    inline_fk_rx = rf"(\w+)\s+(?:INTEGER|INT|BIGINT|SMALLINT)\s+REFERENCES\s+(\w+)\s*\(([^)]+)\){on_clause_rx}{on_clause_rx}"
     fk_added = 0
     for tbl in sorted_tables:
         body = stmts[tbl]
@@ -114,26 +132,36 @@ def main():
 
     # 6. Indexes
     idx_count = 0
-    for m in re.finditer(r'CREATE\s+(UNIQUE\s+)?INDEX\s+IF NOT EXISTS\s+\w+\s+ON\s+\w+\s*\([^)]+\);', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE\s+(UNIQUE\s+)?INDEX\s+IF NOT EXISTS\s+\w+\s+ON\s+\w+\s*\([^)]+\);",
+        raw,
+        re.IGNORECASE,
+    ):
         run(cur, m.group(), "index", ignore_errors=True)
         idx_count += 1
     print(f"  Created {idx_count} indexes")
 
     # 7. Triggers
-    for m in re.finditer(r'CREATE TRIGGER\s+\w+[^;]+EXECUTE FUNCTION\s+set_updated_at\(\)\s*;', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE TRIGGER\s+\w+[^;]+EXECUTE FUNCTION\s+set_updated_at\(\)\s*;", raw, re.IGNORECASE
+    ):
         run(cur, m.group(), "trigger", ignore_errors=True)
         print("  + trigger added")
 
     # 8. RLS
-    for m in re.finditer(r'ALTER TABLE\s+\w+\s+ENABLE ROW LEVEL SECURITY;', raw, re.IGNORECASE):
+    for m in re.finditer(r"ALTER TABLE\s+\w+\s+ENABLE ROW LEVEL SECURITY;", raw, re.IGNORECASE):
         run(cur, m.group(), "RLS", ignore_errors=True)
-    for m in re.finditer(r'CREATE POLICY\s+\w+\s+ON\s+\w+\s+FOR ALL\s+USING\s*\(true\);', raw, re.IGNORECASE):
+    for m in re.finditer(
+        r"CREATE POLICY\s+\w+\s+ON\s+\w+\s+FOR ALL\s+USING\s*\(true\);", raw, re.IGNORECASE
+    ):
         run(cur, m.group(), "RLS policy", ignore_errors=True)
 
     conn.commit()
 
     # 9. Verify
-    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name")
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name"
+    )
     tables = [r[0] for r in cur.fetchall()]
     print(f"\nSchema migration complete! {len(tables)} tables created.")
     missing = set(stmts.keys()) - set(tables)
@@ -153,12 +181,13 @@ def run(cur, sql, label, ignore_errors=False):
     except Exception as e:
         if ignore_errors:
             return False
-        print(f"  FAILED {label}: {e}".encode('ascii', errors='replace').decode('ascii'))
+        print(f"  FAILED {label}: {e}".encode("ascii", errors="replace").decode("ascii"))
         raise
 
 
 def topological_sort(deps):
     from collections import defaultdict, deque
+
     graph = defaultdict(list)
     in_deg = defaultdict(int)
     for name in deps:

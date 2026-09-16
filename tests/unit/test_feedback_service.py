@@ -131,6 +131,7 @@ class TestFeedbackService:
         svc = FeedbackService(storage_service=None)
         feedback = CoachFeedback(coach_id="c1", match_id=1, overall_rating=5)
         import asyncio
+
         asyncio.run(svc.submit_feedback(feedback))
 
         assert svc.get_pending_counts()["feedback"] == 1

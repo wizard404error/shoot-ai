@@ -33,6 +33,7 @@ Honesty rules (same discipline as the model validation):
   - Frame-sampling stride is applied to BOTH video frames and GT
     consistently.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -124,9 +125,7 @@ def run_detection_rows(
 
             model = YOLO(model_name)
 
-        results = model.predict(
-            frame_bgr, conf=conf, classes=[0, 32], verbose=False
-        )
+        results = model.predict(frame_bgr, conf=conf, classes=[0, 32], verbose=False)
         dets = []
         if results and results[0].boxes is not None:
             for box in results[0].boxes:
@@ -134,9 +133,7 @@ def run_detection_rows(
                 x1, y1, x2, y2 = (float(v) for v in box.xyxy[0].tolist())
                 c = float(box.conf[0])
                 label = "person" if cls == 0 else "sports ball"
-                dets.append(
-                    {"bbox": (x1, y1, x2, y2), "confidence": c, "label": label}
-                )
+                dets.append({"bbox": (x1, y1, x2, y2), "confidence": c, "label": label})
         for out in tracker.update(frame_bgr, dets, period=1):
             if out["label"] != "person":
                 continue
@@ -171,9 +168,7 @@ def run_detection_rows(
 
     from kawkab.core.validation.soccernet_loader import fragmentation_stats
 
-    mot = compute_mot_metrics(
-        pred, gt_aligned, fp_threshold=match_threshold, is_normalized=False
-    )
+    mot = compute_mot_metrics(pred, gt_aligned, fp_threshold=match_threshold, is_normalized=False)
     return {
         "elapsed_s": round(elapsed, 2),
         "frames_processed": frames_processed,
@@ -190,31 +185,43 @@ def main(argv: list[str] | None = None) -> int:
         description="End-to-end (detection+tracking) benchmark vs SoccerNet GT",
     )
     ap.add_argument("--gt", required=True, help="path to SoccerNet gt.txt")
-    ap.add_argument("--source", required=True,
-                    help="video.mp4 path OR an img1/ directory of jpg frames")
-    ap.add_argument("--frames", type=int, default=600,
-                    help="max frames to PROCESS (stride applied after)")
-    ap.add_argument("--stride", type=int, default=1,
-                    help="process every Nth frame (GT aligned to match)")
+    ap.add_argument(
+        "--source", required=True, help="video.mp4 path OR an img1/ directory of jpg frames"
+    )
+    ap.add_argument(
+        "--frames", type=int, default=600, help="max frames to PROCESS (stride applied after)"
+    )
+    ap.add_argument(
+        "--stride", type=int, default=1, help="process every Nth frame (GT aligned to match)"
+    )
     ap.add_argument("--model", default="yolo11n.pt")
     ap.add_argument("--conf", type=float, default=0.35)
-    ap.add_argument("--match-threshold", type=float, default=40.0,
-                    help="CLEAR MOT match distance threshold in pixels")
+    ap.add_argument(
+        "--match-threshold",
+        type=float,
+        default=40.0,
+        help="CLEAR MOT match distance threshold in pixels",
+    )
     ap.add_argument("--out", default="docs/validation/tracking_e2e_benchmark.json")
     args = ap.parse_args(argv)
 
     half = load_gt(Path(args.gt), frame_limit=args.frames * args.stride)
     if not half.tracks:
-        print("no ground truth loaded — is the gt.txt a SoccerNet tracking file?",
-              file=sys.stderr)
+        print("no ground truth loaded — is the gt.txt a SoccerNet tracking file?", file=sys.stderr)
         return 1
-    print(f"[gt] game={half.game} half={half.half} players={len(half.tracks)} "
-          f"positions={half.n_positions}")
+    print(
+        f"[gt] game={half.game} half={half.half} players={len(half.tracks)} "
+        f"positions={half.n_positions}"
+    )
 
     row = run_detection_rows(
-        half, Path(args.source),
-        model_name=args.model, conf=args.conf, stride=args.stride,
-        max_frames=args.frames, match_threshold=args.match_threshold,
+        half,
+        Path(args.source),
+        model_name=args.model,
+        conf=args.conf,
+        stride=args.stride,
+        max_frames=args.frames,
+        match_threshold=args.match_threshold,
         iou_threshold=0.5,
     )
 
@@ -223,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": datetime.now(UTC).isoformat(),
         "provenance": {
             "ground_truth": f"SoccerNet tracking-2023, game={half.game}, "
-                            f"half={half.half}, frames 1..{half.max_frame}",
+            f"half={half.half}, frames 1..{half.max_frame}",
             "model": args.model,
             "detector_conf": args.conf,
             "stride": args.stride,
@@ -244,8 +251,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{'=' * 64}")
     print("  END-TO-END TRACKING BENCHMARK (YOLO → Norfair → CLEAR MOT)")
     print("=" * 64)
-    print(f"\n  e2e  ({row['elapsed_s']}s, {row['frames_processed']} frames, "
-          f"{row['n_pred_tracks']} tracks)")
+    print(
+        f"\n  e2e  ({row['elapsed_s']}s, {row['frames_processed']} frames, "
+        f"{row['n_pred_tracks']} tracks)"
+    )
     print(f"    MOTA        {row['mota']:.4f}")
     print(f"    MOTP        {row['motp']:.2f} px")
     print(f"    IDF1        {row['idf1']:.4f}")

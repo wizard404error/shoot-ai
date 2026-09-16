@@ -65,11 +65,9 @@ def audit_service(storage_mock):
 
 
 class TestAuditService:
-
     def test_log_event_creates_record(self, audit_service, storage_mock):
         row_id = audit_service.log_event(
-            "analysis.completed", "match", "42",
-            {"xg": 1.5, "shots": 10}, "coach@example.com"
+            "analysis.completed", "match", "42", {"xg": 1.5, "shots": 10}, "coach@example.com"
         )
         assert row_id > 0
         cursor = storage_mock._conn.cursor()

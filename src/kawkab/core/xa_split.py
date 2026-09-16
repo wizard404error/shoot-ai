@@ -145,12 +145,14 @@ def compute_xa_expected_vs_actual(
     for pid in all_ids:
         xa = player_xa.get(pid, 0.0)
         ast = player_assists.get(pid, 0)
-        results.append(XaExpectedVsActual(
-            player_id=pid,
-            xa=round(xa, 4),
-            actual_assists=ast,
-            difference=round(ast - xa, 4),
-        ))
+        results.append(
+            XaExpectedVsActual(
+                player_id=pid,
+                xa=round(xa, 4),
+                actual_assists=ast,
+                difference=round(ast - xa, 4),
+            )
+        )
 
     results.sort(key=lambda r: abs(r.difference), reverse=True)
     return results

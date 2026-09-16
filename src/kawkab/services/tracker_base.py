@@ -7,6 +7,7 @@ Usage:
     tracker = TrackerRegistry.create("deepocsort", cfg)
     tracks = tracker.update(detections, frame)
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -30,17 +31,14 @@ class TrackedObject:
 
 class BaseTracker(ABC):
     @abstractmethod
-    def update(self, detections: np.ndarray, frame: np.ndarray) -> list[TrackedObject]:
-        ...
+    def update(self, detections: np.ndarray, frame: np.ndarray) -> list[TrackedObject]: ...
 
     @abstractmethod
-    def reset(self) -> None:
-        ...
+    def reset(self) -> None: ...
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
 
 class TrackerRegistry:

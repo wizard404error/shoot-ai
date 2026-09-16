@@ -1,5 +1,4 @@
-"""Tests for BenchmarkService - performance measurement and system detection.
-"""
+"""Tests for BenchmarkService - performance measurement and system detection."""
 
 from __future__ import annotations
 
@@ -88,7 +87,6 @@ class TestBenchmarkService:
         assert unknown["model_size"] == "n"
         assert unknown["frame_skip"] == 5
 
-
     @pytest.mark.asyncio
     async def test_save_benchmark_to_database(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -99,8 +97,12 @@ class TestBenchmarkService:
             await storage.initialize()
 
             cursor = storage._conn.cursor()
-            cursor.execute("INSERT INTO teams (id, name, short_name) VALUES (1, 'Test Team', 'TST')")
-            cursor.execute("INSERT INTO matches (id, name, video_path) VALUES (1, 'Test Match', '/test.mp4')")
+            cursor.execute(
+                "INSERT INTO teams (id, name, short_name) VALUES (1, 'Test Team', 'TST')"
+            )
+            cursor.execute(
+                "INSERT INTO matches (id, name, video_path) VALUES (1, 'Test Match', '/test.mp4')"
+            )
             storage._conn.commit()
 
             svc = BenchmarkService()

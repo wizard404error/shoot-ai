@@ -51,9 +51,21 @@ def generate_sample_match() -> dict:
     ]
 
     event_types = [
-        "pass", "shot", "goal", "tackle", "foul", "corner",
-        "save", "substitution", "offside", "yellow_card",
-        "freekick", "cross", "dribble", "clearance", "interception",
+        "pass",
+        "shot",
+        "goal",
+        "tackle",
+        "foul",
+        "corner",
+        "save",
+        "substitution",
+        "offside",
+        "yellow_card",
+        "freekick",
+        "cross",
+        "dribble",
+        "clearance",
+        "interception",
     ]
 
     events = []
@@ -86,17 +98,19 @@ def generate_sample_match() -> dict:
             metadata["on_target"] = random.choice([True, False])
             metadata["body_part"] = random.choice(["foot", "head"])
 
-        events.append({
-            "id": event_id,
-            "type": event_type,
-            "team": team,
-            "player_track_id": player["track_id"],
-            "x": round(x, 1),
-            "y": round(y, 1),
-            "timestamp_s": round(t, 1),
-            "period": 1,
-            "metadata": metadata,
-        })
+        events.append(
+            {
+                "id": event_id,
+                "type": event_type,
+                "team": team,
+                "player_track_id": player["track_id"],
+                "x": round(x, 1),
+                "y": round(y, 1),
+                "timestamp_s": round(t, 1),
+                "period": 1,
+                "metadata": metadata,
+            }
+        )
         event_id += 1
         t += random.uniform(8, 45)
 
@@ -126,17 +140,19 @@ def generate_sample_match() -> dict:
             metadata["xG"] = round(random.uniform(0.02, 0.7), 3)
             metadata["on_target"] = random.choice([True, False])
 
-        events.append({
-            "id": event_id,
-            "type": event_type,
-            "team": team,
-            "player_track_id": player["track_id"],
-            "x": round(x, 1),
-            "y": round(y, 1),
-            "timestamp_s": round(t, 1),
-            "period": 2,
-            "metadata": metadata,
-        })
+        events.append(
+            {
+                "id": event_id,
+                "type": event_type,
+                "team": team,
+                "player_track_id": player["track_id"],
+                "x": round(x, 1),
+                "y": round(y, 1),
+                "timestamp_s": round(t, 1),
+                "period": 2,
+                "metadata": metadata,
+            }
+        )
         event_id += 1
         t += random.uniform(8, 45)
 
@@ -159,6 +175,7 @@ def generate_sample_match() -> dict:
 
 def generate_and_save(path: str = "sample_match.json") -> str:
     import json as j
+
     data = generate_sample_match()
     with open(path, "w", encoding="utf-8") as f:
         j.dump(data, f, indent=2, ensure_ascii=False)

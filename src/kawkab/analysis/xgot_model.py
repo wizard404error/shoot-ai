@@ -21,6 +21,7 @@ import numpy as np
 try:
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.linear_model import LogisticRegression
+
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -126,8 +127,14 @@ class XgotModel:
         return_features: bool = False,
     ) -> XgotResult:
         features = _extract_features(
-            distance_m, angle_deg, placement_x, placement_y,
-            body_part, one_on_one, shot_speed, defender_distance,
+            distance_m,
+            angle_deg,
+            placement_x,
+            placement_y,
+            body_part,
+            one_on_one,
+            shot_speed,
+            defender_distance,
         )
         if self._sk_model is not None and HAS_SKLEARN:
             X = np.array([[features[k] for k in sorted(features)]])
@@ -154,14 +161,19 @@ class XgotModel:
         return result
 
     def _bootstrap_ci(
-        self, features: dict[str, float], base_xgot: float,
-        n_iter: int = 200, ci_level: float = 0.95,
+        self,
+        features: dict[str, float],
+        base_xgot: float,
+        n_iter: int = 200,
+        ci_level: float = 0.95,
     ) -> tuple[float, float]:
         if not self._bootstrap_coefs:
             spread = 0.05
             return max(0.001, base_xgot - spread), min(0.999, base_xgot + spread)
         xgots = []
-        for coef_set in random.sample(self._bootstrap_coefs, min(n_iter, len(self._bootstrap_coefs))):
+        for coef_set in random.sample(
+            self._bootstrap_coefs, min(n_iter, len(self._bootstrap_coefs))
+        ):
             logit = coef_set.get("intercept", 0)
             for k, v in features.items():
                 logit += coef_set.get(k, 0.0) * v
@@ -181,9 +193,7 @@ class XgotModel:
             ci_high = min(1.0, ci_high + offset)
         return ci_low, ci_high
 
-    def compute_match(
-        self, events: list[dict[str, Any]]
-    ) -> XgotMatchReport:
+    def compute_match(self, events: list[dict[str, Any]]) -> XgotMatchReport:
         home_xgot = 0.0
         away_xgot = 0.0
         home_goals = 0
@@ -216,14 +226,16 @@ class XgotModel:
                 if is_goal:
                     away_goals += 1
 
-            details.append({
-                "timestamp": ev.get("timestamp", 0),
-                "team": team,
-                "xgot": result.xgot,
-                "ci_lower": result.ci_lower,
-                "ci_upper": result.ci_upper,
-                "is_goal": is_goal,
-            })
+            details.append(
+                {
+                    "timestamp": ev.get("timestamp", 0),
+                    "team": team,
+                    "xgot": result.xgot,
+                    "ci_lower": result.ci_lower,
+                    "ci_upper": result.ci_upper,
+                    "is_goal": is_goal,
+                }
+            )
 
         return XgotMatchReport(
             home_xgot=home_xgot,
@@ -240,7 +252,11 @@ class XgotModel:
         bootstrap: bool = True,
     ) -> dict[str, Any]:
         if not HAS_SKLEARN or len(shot_data) < 10:
-            return {"trained": False, "reason": "sklearn unavailable or too few samples", "samples": len(shot_data)}
+            return {
+                "trained": False,
+                "reason": "sklearn unavailable or too few samples",
+                "samples": len(shot_data),
+            }
 
         X_list = []
         y_list = []
@@ -275,9 +291,7 @@ class XgotModel:
         base_model.fit(X, y)
 
         if calibrate:
-            cal_model = CalibratedClassifierCV(
-                base_model, method="sigmoid", cv=3
-            )
+            cal_model = CalibratedClassifierCV(base_model, method="sigmoid", cv=3)
             cal_model.fit(X, y)
             self._sk_model = cal_model
             self._calibrated = True
@@ -299,8 +313,12 @@ class XgotModel:
                 Xb, yb = X[idx], y[idx]
                 try:
                     bm = LogisticRegression(
-                        penalty="elasticnet", solver="saga",
-                        C=1.0, l1_ratio=0.5, max_iter=2000, random_state=None,
+                        penalty="elasticnet",
+                        solver="saga",
+                        C=1.0,
+                        l1_ratio=0.5,
+                        max_iter=2000,
+                        random_state=None,
                     )
                     bm.fit(Xb, yb)
                     coefs_b = {"intercept": float(bm.intercept_[0])}

@@ -27,6 +27,7 @@ def test_get_miss(cache):
 def test_get_expired(cache):
     cache.set("key", "value", ttl_s=0)
     import time
+
     time.sleep(0.001)
     assert cache.get("key") is None
 

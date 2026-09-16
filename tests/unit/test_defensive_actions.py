@@ -18,8 +18,14 @@ class TestDefensiveActions:
 
     def test_extract_tackle(self):
         events = [
-            {"type": "tackle", "team": "home", "start_x": 40, "start_y": 30,
-             "completed": True, "timestamp": 600},
+            {
+                "type": "tackle",
+                "team": "home",
+                "start_x": 40,
+                "start_y": 30,
+                "completed": True,
+                "timestamp": 600,
+            },
         ]
         actions = extract_defensive_actions(events, "home")
         assert len(actions) == 1
@@ -28,8 +34,14 @@ class TestDefensiveActions:
 
     def test_extract_interception(self):
         events = [
-            {"type": "interception", "team": "away", "start_x": 50, "start_y": 34,
-             "completed": True, "timestamp": 900},
+            {
+                "type": "interception",
+                "team": "away",
+                "start_x": 50,
+                "start_y": 34,
+                "completed": True,
+                "timestamp": 900,
+            },
         ]
         actions = extract_defensive_actions(events, "away")
         assert len(actions) == 1
@@ -37,8 +49,14 @@ class TestDefensiveActions:
 
     def test_extract_pressure(self):
         events = [
-            {"type": "pressure", "team": "home", "start_x": 60, "start_y": 34,
-             "completed": False, "timestamp": 1200},
+            {
+                "type": "pressure",
+                "team": "home",
+                "start_x": 60,
+                "start_y": 34,
+                "completed": False,
+                "timestamp": 1200,
+            },
         ]
         actions = extract_defensive_actions(events, "home")
         assert len(actions) == 1
@@ -57,8 +75,9 @@ class TestDefensiveActions:
         assert len(hm.grid[0]) == 5
 
     def test_action_to_dict(self):
-        a = DefensiveAction(timestamp=600, team="home", action_type="tackle",
-                            x=40, y=30, success=True)
+        a = DefensiveAction(
+            timestamp=600, team="home", action_type="tackle", x=40, y=30, success=True
+        )
         d = a.to_dict()
         assert d["action_type"] == "tackle"
 
@@ -77,8 +96,15 @@ class TestFinalThirdEntry:
 
     def test_home_entry_via_pass(self):
         events = [
-            {"type": "pass", "team": "home", "start_x": 60, "end_x": 75,
-             "end_y": 30, "completed": True, "timestamp": 600},
+            {
+                "type": "pass",
+                "team": "home",
+                "start_x": 60,
+                "end_x": 75,
+                "end_y": 30,
+                "completed": True,
+                "timestamp": 600,
+            },
         ]
         report = analyze_final_third_entries(events)
         assert report.home_entries == 1
@@ -86,9 +112,16 @@ class TestFinalThirdEntry:
 
     def test_away_entry_via_cross(self):
         events = [
-            {"type": "pass", "team": "away", "pass_type": "cross",
-             "start_x": 50, "end_x": 80, "end_y": 34, "completed": False,
-             "timestamp": 900},
+            {
+                "type": "pass",
+                "team": "away",
+                "pass_type": "cross",
+                "start_x": 50,
+                "end_x": 80,
+                "end_y": 34,
+                "completed": False,
+                "timestamp": 900,
+            },
         ]
         report = analyze_final_third_entries(events)
         assert report.away_entries == 1
@@ -96,18 +129,36 @@ class TestFinalThirdEntry:
 
     def test_entry_not_counted_when_start_in_final_third(self):
         events = [
-            {"type": "pass", "team": "home", "start_x": 80, "end_x": 90,
-             "completed": True, "timestamp": 600},
+            {
+                "type": "pass",
+                "team": "home",
+                "start_x": 80,
+                "end_x": 90,
+                "completed": True,
+                "timestamp": 600,
+            },
         ]
         report = analyze_final_third_entries(events)
         assert report.home_entries == 0
 
     def test_success_percentage(self):
         events = [
-            {"type": "pass", "team": "home", "start_x": 60, "end_x": 75,
-             "completed": True, "timestamp": 600},
-            {"type": "pass", "team": "home", "start_x": 60, "end_x": 75,
-             "completed": False, "timestamp": 700},
+            {
+                "type": "pass",
+                "team": "home",
+                "start_x": 60,
+                "end_x": 75,
+                "completed": True,
+                "timestamp": 600,
+            },
+            {
+                "type": "pass",
+                "team": "home",
+                "start_x": 60,
+                "end_x": 75,
+                "completed": False,
+                "timestamp": 700,
+            },
         ]
         report = analyze_final_third_entries(events)
         assert report.home_entries == 2

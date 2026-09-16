@@ -42,8 +42,8 @@ from kawkab.core.match_anomaly_detection import (
 # xG Calibration — 6 tests
 # ================================================================
 
-class TestXgCalibration:
 
+class TestXgCalibration:
     def test_calibration_curve_perfect(self):
         preds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
         outc = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
@@ -94,20 +94,63 @@ class TestXgCalibration:
 # Model Comparison — 6 tests
 # ================================================================
 
-class TestModelComparisonService:
 
+class TestModelComparisonService:
     def test_compare_empty_events(self):
         reports = compare_xg_models([])
         assert reports == []
 
     def test_compare_with_shot_events(self):
         events = [
-            {"type": "shot", "is_goal": 0, "distance_m": 15, "angle_deg": 20, "body_part": "right_foot", "shot_type": "open_play"},
-            {"type": "shot", "is_goal": 1, "distance_m": 8, "angle_deg": 10, "body_part": "left_foot", "shot_type": "open_play"},
-            {"type": "shot", "is_goal": 0, "distance_m": 25, "angle_deg": 40, "body_part": "head", "shot_type": "header"},
-            {"type": "shot", "is_goal": 1, "distance_m": 5, "angle_deg": 5, "body_part": "right_foot", "shot_type": "open_play", "is_one_on_one": True},
-            {"type": "shot", "is_goal": 0, "distance_m": 30, "angle_deg": 35, "body_part": "right_foot", "shot_type": "volley"},
-            {"type": "shot", "is_goal": 0, "distance_m": 20, "angle_deg": 25, "body_part": "left_foot", "shot_type": "open_play"},
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 15,
+                "angle_deg": 20,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "is_goal": 1,
+                "distance_m": 8,
+                "angle_deg": 10,
+                "body_part": "left_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 25,
+                "angle_deg": 40,
+                "body_part": "head",
+                "shot_type": "header",
+            },
+            {
+                "type": "shot",
+                "is_goal": 1,
+                "distance_m": 5,
+                "angle_deg": 5,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+                "is_one_on_one": True,
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 30,
+                "angle_deg": 35,
+                "body_part": "right_foot",
+                "shot_type": "volley",
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 20,
+                "angle_deg": 25,
+                "body_part": "left_foot",
+                "shot_type": "open_play",
+            },
         ]
         # Need at least 6 for a 2/3 train split (test split needs at least 1)
         reports = compare_xg_models(events)
@@ -135,25 +178,67 @@ class TestModelComparisonService:
 
     def test_model_comparison_has_calibration_curve(self):
         events = [
-            {"type": "shot", "is_goal": 0, "distance_m": 15, "angle_deg": 20, "body_part": "right_foot", "shot_type": "open_play"},
-            {"type": "shot", "is_goal": 1, "distance_m": 8, "angle_deg": 10, "body_part": "left_foot", "shot_type": "open_play"},
-            {"type": "shot", "is_goal": 0, "distance_m": 25, "angle_deg": 40, "body_part": "head", "shot_type": "header"},
-            {"type": "shot", "is_goal": 1, "distance_m": 5, "angle_deg": 5, "body_part": "right_foot", "shot_type": "open_play"},
-            {"type": "shot", "is_goal": 0, "distance_m": 30, "angle_deg": 35, "body_part": "right_foot", "shot_type": "volley"},
-            {"type": "shot", "is_goal": 0, "distance_m": 20, "angle_deg": 25, "body_part": "left_foot", "shot_type": "open_play"},
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 15,
+                "angle_deg": 20,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "is_goal": 1,
+                "distance_m": 8,
+                "angle_deg": 10,
+                "body_part": "left_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 25,
+                "angle_deg": 40,
+                "body_part": "head",
+                "shot_type": "header",
+            },
+            {
+                "type": "shot",
+                "is_goal": 1,
+                "distance_m": 5,
+                "angle_deg": 5,
+                "body_part": "right_foot",
+                "shot_type": "open_play",
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 30,
+                "angle_deg": 35,
+                "body_part": "right_foot",
+                "shot_type": "volley",
+            },
+            {
+                "type": "shot",
+                "is_goal": 0,
+                "distance_m": 20,
+                "angle_deg": 25,
+                "body_part": "left_foot",
+                "shot_type": "open_play",
+            },
         ]
         reports = compare_xg_models(events)
         for r in reports:
-            assert hasattr(r.calibration_curve, 'bins')
-            assert hasattr(r.calibration_curve, 'ece')
+            assert hasattr(r.calibration_curve, "bins")
+            assert hasattr(r.calibration_curve, "ece")
 
 
 # ================================================================
 # xT Confidence — 6 tests
 # ================================================================
 
-class TestXtConfidence:
 
+class TestXtConfidence:
     def test_bootstrap_empty_events(self):
         intervals = bootstrap_xt([], n_resamples=10)
         assert intervals == {}
@@ -216,12 +301,16 @@ class TestXtConfidence:
 # Event Schema Validation — 6 tests
 # ================================================================
 
-class TestEventSchema:
 
+class TestEventSchema:
     def test_valid_event(self):
         ev = {
-            "type": "pass", "team": "home", "timestamp": 100.0,
-            "x": 50.0, "y": 34.0, "track_id": 1,
+            "type": "pass",
+            "team": "home",
+            "timestamp": 100.0,
+            "x": 50.0,
+            "y": 34.0,
+            "track_id": 1,
         }
         result = validate_event(ev)
         assert result.valid
@@ -229,8 +318,11 @@ class TestEventSchema:
 
     def test_invalid_x_bound(self):
         ev = {
-            "type": "pass", "team": "home", "timestamp": 100.0,
-            "x": 200.0, "y": 34.0,
+            "type": "pass",
+            "team": "home",
+            "timestamp": 100.0,
+            "x": 200.0,
+            "y": 34.0,
         }
         result = validate_event(ev)
         assert not result.valid
@@ -238,8 +330,11 @@ class TestEventSchema:
 
     def test_invalid_y_bound(self):
         ev = {
-            "type": "pass", "team": "home", "timestamp": 100.0,
-            "x": 50.0, "y": 100.0,
+            "type": "pass",
+            "team": "home",
+            "timestamp": 100.0,
+            "x": 50.0,
+            "y": 100.0,
         }
         result = validate_event(ev)
         assert not result.valid
@@ -252,8 +347,11 @@ class TestEventSchema:
 
     def test_wrong_type_for_timestamp(self):
         ev = {
-            "type": "shot", "team": "home", "timestamp": "abc",
-            "x": 50.0, "y": 34.0,
+            "type": "shot",
+            "team": "home",
+            "timestamp": "abc",
+            "x": 50.0,
+            "y": 34.0,
         }
         result = validate_event(ev)
         errors_str = " ".join(result.errors).lower()
@@ -276,8 +374,8 @@ class TestEventSchema:
 # Anomaly Detection — 8 tests
 # ================================================================
 
-class TestAnomalyDetection:
 
+class TestAnomalyDetection:
     def test_empty_events(self):
         report = detect_anomalies([])
         assert report.score == 0.0 or len(report.anomalies) > 0
@@ -286,9 +384,27 @@ class TestAnomalyDetection:
         events = [
             {"type": "pass", "team": "home", "timestamp": 0.0, "x": 50.0, "y": 34.0, "id": 1},
             {"type": "pass", "team": "away", "timestamp": 10.0, "x": 40.0, "y": 30.0, "id": 2},
-            {"type": "shot", "team": "home", "timestamp": 20.0, "x": 80.0, "y": 34.0, "is_goal": False, "xg": 0.05, "id": 3},
+            {
+                "type": "shot",
+                "team": "home",
+                "timestamp": 20.0,
+                "x": 80.0,
+                "y": 34.0,
+                "is_goal": False,
+                "xg": 0.05,
+                "id": 3,
+            },
             {"type": "pass", "team": "home", "timestamp": 30.0, "x": 50.0, "y": 34.0, "id": 4},
-            {"type": "shot", "team": "away", "timestamp": 40.0, "x": 20.0, "y": 34.0, "is_goal": True, "xg": 0.3, "id": 5},
+            {
+                "type": "shot",
+                "team": "away",
+                "timestamp": 40.0,
+                "x": 20.0,
+                "y": 34.0,
+                "is_goal": True,
+                "xg": 0.3,
+                "id": 5,
+            },
         ]
         report = detect_anomalies(events, match_duration_min=1.0)
         score = compute_data_quality_score(events, match_duration_min=1.0)
@@ -297,8 +413,24 @@ class TestAnomalyDetection:
 
     def test_impossible_speed_detected(self):
         events = [
-            {"type": "pass", "team": "home", "timestamp": 0.0, "x": 50.0, "y": 34.0, "id": 1, "speed_mps": 15.0},
-            {"type": "pass", "team": "home", "timestamp": 10.0, "x": 50.0, "y": 34.0, "id": 2, "speed_mps": 5.0},
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 0.0,
+                "x": 50.0,
+                "y": 34.0,
+                "id": 1,
+                "speed_mps": 15.0,
+            },
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 10.0,
+                "x": 50.0,
+                "y": 34.0,
+                "id": 2,
+                "speed_mps": 5.0,
+            },
         ]
         report = detect_anomalies(events, match_duration_min=1.0)
         assert any(a["type"] == "impossible_speed" for a in report.anomalies)
@@ -312,7 +444,14 @@ class TestAnomalyDetection:
 
     def test_missing_goal_high_xg(self):
         events = [
-            {"type": "shot", "team": "home", "timestamp": 100.0, "is_goal": False, "xg": 0.95, "id": 1},
+            {
+                "type": "shot",
+                "team": "home",
+                "timestamp": 100.0,
+                "is_goal": False,
+                "xg": 0.95,
+                "id": 1,
+            },
         ]
         report = detect_anomalies(events)
         assert any(a["type"] == "missing_goal_high_xg" for a in report.anomalies)
@@ -335,7 +474,15 @@ class TestAnomalyDetection:
     def test_too_many_subs(self):
         events = []
         for i in range(8):
-            events.append({"type": "substitution", "event_type": "substitution", "team": "home", "timestamp": float(i * 60), "id": i})
+            events.append(
+                {
+                    "type": "substitution",
+                    "event_type": "substitution",
+                    "team": "home",
+                    "timestamp": float(i * 60),
+                    "id": i,
+                }
+            )
         report = detect_anomalies(events)
         assert any(a["type"] == "too_many_subs" for a in report.anomalies)
 
@@ -352,8 +499,8 @@ class TestAnomalyDetection:
 # Quality Score — 6 tests
 # ================================================================
 
-class TestQualityScore:
 
+class TestQualityScore:
     def test_perfect_data(self):
         events = [
             {"type": "pass", "team": "home", "timestamp": 0.0, "x": 50.0, "y": 34.0, "id": 1},
@@ -400,11 +547,26 @@ class TestQualityScore:
 
     def test_score_drops_with_anomalies(self):
         clean_events = [
-            {"type": "pass", "team": "home", "timestamp": float(i * 10), "x": 50.0, "y": 34.0, "id": i}
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": float(i * 10),
+                "x": 50.0,
+                "y": 34.0,
+                "id": i,
+            }
             for i in range(10)
         ]
         dirty_events = clean_events + [
-            {"type": "pass", "team": "home", "timestamp": 100.0, "x": 50.0, "y": 34.0, "id": 99, "speed_mps": 20.0},
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": 100.0,
+                "x": 50.0,
+                "y": 34.0,
+                "id": 99,
+                "speed_mps": 20.0,
+            },
             {"type": "pass", "team": "home", "timestamp": 110.0, "x": 200.0, "y": 34.0, "id": 100},
         ]
         clean_score = compute_data_quality_score(clean_events)
@@ -415,6 +577,7 @@ class TestQualityScore:
 # ================================================================
 # Bridge Quality Slot — 4 tests
 # ================================================================
+
 
 class MockBridge:
     pass
@@ -443,10 +606,21 @@ class TestBridgeQualitySlot:
     async def test_get_match_quality_score_returns_json(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
-        storage = MockStorage([
-            {"type": "pass", "team": "home", "timestamp": 0.0, "x": 50.0, "y": 34.0, "id": 1},
-            {"type": "shot", "team": "home", "timestamp": 10.0, "x": 80.0, "y": 34.0, "is_goal": False, "xg": 0.05, "id": 2},
-        ])
+        storage = MockStorage(
+            [
+                {"type": "pass", "team": "home", "timestamp": 0.0, "x": 50.0, "y": 34.0, "id": 1},
+                {
+                    "type": "shot",
+                    "team": "home",
+                    "timestamp": 10.0,
+                    "x": 80.0,
+                    "y": 34.0,
+                    "is_goal": False,
+                    "xg": 0.05,
+                    "id": 2,
+                },
+            ]
+        )
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
         result_json = await handler.get_match_quality_score("1")
         result = json.loads(result_json)
@@ -460,10 +634,26 @@ class TestBridgeQualitySlot:
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
         events = [
-            {"type": "pass", "team": "home", "timestamp": float(i * 10), "x": 50.0, "y": 34.0, "id": i}
+            {
+                "type": "pass",
+                "team": "home",
+                "timestamp": float(i * 10),
+                "x": 50.0,
+                "y": 34.0,
+                "id": i,
+            }
             for i in range(12)
         ] + [
-            {"type": "shot", "team": "home", "timestamp": 120.0, "x": 80.0, "y": 34.0, "is_goal": False, "xg": 0.1, "id": 20},
+            {
+                "type": "shot",
+                "team": "home",
+                "timestamp": 120.0,
+                "x": 80.0,
+                "y": 34.0,
+                "is_goal": False,
+                "xg": 0.1,
+                "id": 20,
+            },
         ]
         storage = MockStorage(events)
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
@@ -474,9 +664,19 @@ class TestBridgeQualitySlot:
     async def test_quality_score_poor_with_anomalies(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 
-        storage = MockStorage([
-            {"type": "pass", "team": "home", "timestamp": 0.0, "x": 200.0, "y": 34.0, "id": 1, "speed_mps": 25.0},
-        ])
+        storage = MockStorage(
+            [
+                {
+                    "type": "pass",
+                    "team": "home",
+                    "timestamp": 0.0,
+                    "x": 200.0,
+                    "y": 34.0,
+                    "id": 1,
+                    "speed_mps": 25.0,
+                },
+            ]
+        )
         handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
         result = json.loads(await handler.get_match_quality_score("1"))
         assert "error" not in result, f"Unexpected error: {result.get('error')}"

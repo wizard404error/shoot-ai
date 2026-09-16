@@ -66,14 +66,21 @@ class AuthHandler:
             return
         try:
             import asyncio
+
             user = asyncio.run(svc.get_user_by_username("admin"))
             if user is None:
                 initial_password = secrets.token_urlsafe(16)
                 pwd_hash = _hash_password(initial_password)
-                asyncio.run(svc.create_user(
-                    "admin", pwd_hash, "admin", "admin@kawkab.ai", "Admin",
-                    must_reset_password=True,
-                ))
+                asyncio.run(
+                    svc.create_user(
+                        "admin",
+                        pwd_hash,
+                        "admin",
+                        "admin@kawkab.ai",
+                        "Admin",
+                        must_reset_password=True,
+                    )
+                )
                 creds_file = get_paths().appdata / "FIRST_RUN_ADMIN_PASSWORD.txt"
                 creds_file.write_text(
                     "Kawkab AI -- one-time admin credential\n"
@@ -105,6 +112,7 @@ class AuthHandler:
             self._ensure_admin()
 
             import asyncio
+
             user = asyncio.run(svc.get_user_by_username(username))
             if user is None:
                 return json.dumps({"error": "Invalid username or password"})
@@ -147,19 +155,21 @@ class AuthHandler:
             asyncio.run(svc.save_session(user["id"], token_hash, expires))
             asyncio.run(svc.audit_log(user["id"], username, "login", "auth", "session"))
 
-            return json.dumps({
-                "success": True,
-                "must_reset_password": bool(user.get("must_reset_password")),
-                "token": token_raw,
-                "user": {
-                    "id": user["id"],
-                    "username": user["username"],
-                    "display_name": user.get("display_name", ""),
-                    "role": user["role"],
-                    "team": user.get("team", ""),
-                    "email": user.get("email", ""),
+            return json.dumps(
+                {
+                    "success": True,
+                    "must_reset_password": bool(user.get("must_reset_password")),
+                    "token": token_raw,
+                    "user": {
+                        "id": user["id"],
+                        "username": user["username"],
+                        "display_name": user.get("display_name", ""),
+                        "role": user["role"],
+                        "team": user.get("team", ""),
+                        "email": user.get("email", ""),
+                    },
                 }
-            })
+            )
         except Exception as e:
             logger.error(f"login failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -171,6 +181,7 @@ class AuthHandler:
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
             import asyncio
+
             token_hash = _hash_str(token)
             asyncio.run(svc.delete_session(token_hash))
             return json.dumps({"success": True})
@@ -186,6 +197,7 @@ class AuthHandler:
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
             import asyncio
+
             token_hash = _hash_str(token)
             user = asyncio.run(svc.validate_session(token_hash))
             if user is None:
@@ -201,6 +213,7 @@ class AuthHandler:
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
             import asyncio
+
             token_hash = _hash_str(token)
             user = asyncio.run(svc.validate_session(token_hash))
             if user is None:
@@ -216,7 +229,9 @@ class AuthHandler:
                 return json.dumps({"error": "New password must be at least 8 characters"})
             new_hash = _hash_password(new_password)
             asyncio.run(svc.change_password(user["id"], new_hash))
-            asyncio.run(svc.audit_log(user["id"], user["username"], "change_password", "auth", "password"))
+            asyncio.run(
+                svc.audit_log(user["id"], user["username"], "change_password", "auth", "password")
+            )
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -228,6 +243,7 @@ class AuthHandler:
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
             import asyncio
+
             token_hash = _hash_str(token)
             user = asyncio.run(svc.validate_session(token_hash))
             if user is None:
@@ -247,6 +263,7 @@ class AuthHandler:
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
             import asyncio
+
             token_hash = _hash_str(token)
             user = asyncio.run(svc.validate_session(token_hash))
             if user is None:

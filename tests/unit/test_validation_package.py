@@ -293,11 +293,23 @@ class TestSplitAndPredict:
         from kawkab.core.validation.statsbomb_loader import StatsBombMatch, StatsBombShot
 
         pen = StatsBombShot(
-            distance_m=11.0, angle_deg=37.0, body_part="right_foot",
-            shot_type="penalty", gk_distance_m=0.0, is_pressed=False,
-            is_one_on_one=False, is_rebound=False, is_big_chance=False,
-            is_goal=True, statsbomb_xg=0.76, match_id="mp",
-            event_id="pe", minute=1, period=1, player_name="p", team_name="t",
+            distance_m=11.0,
+            angle_deg=37.0,
+            body_part="right_foot",
+            shot_type="penalty",
+            gk_distance_m=0.0,
+            is_pressed=False,
+            is_one_on_one=False,
+            is_rebound=False,
+            is_big_chance=False,
+            is_goal=True,
+            statsbomb_xg=0.76,
+            match_id="mp",
+            event_id="pe",
+            minute=1,
+            period=1,
+            player_name="p",
+            team_name="t",
             angle_deviation_deg=37.0,
         )
         matches.append(StatsBombMatch(match_id="mp", shots=[pen]))
@@ -306,12 +318,14 @@ class TestSplitAndPredict:
 
     def test_fit_fallback_on_tiny_data(self):
         from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
+
         train, _ = split_train_val(self._fake_matches(1))
         coeffs = fit_with_holdout(train)
         assert coeffs == ENHANCED_COEFFICIENTS  # <10 shots -> heuristic fallback
 
     def test_predict_returns_probabilities(self):
         from kawkab.core.xg_model import ENHANCED_COEFFICIENTS
+
         train, val = split_train_val(self._fake_matches(4))
         p = predict_xg(dict(ENHANCED_COEFFICIENTS), val)
         assert len(p) == len(val)
@@ -326,7 +340,13 @@ from kawkab.core.validation.metrica_loader import load_metrica_match
 class TestMetricaLoader:
     @pytest.fixture()
     def metrica_dir(self) -> Path:
-        d = Path(__file__).resolve().parents[2] / "data" / "ground_truth" / "metrica" / "Sample_Game_1"
+        d = (
+            Path(__file__).resolve().parents[2]
+            / "data"
+            / "ground_truth"
+            / "metrica"
+            / "Sample_Game_1"
+        )
         if not d.is_dir():
             pytest.skip("metrica data not on this machine")
         return d

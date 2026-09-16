@@ -128,9 +128,7 @@ class PlayerDevelopmentService:
                 overall_trend=TrendDirection.INSUFFICIENT_DATA,
                 strengths=[],
                 areas_to_improve=[],
-                notes=[
-                    f"Need at least {self.min_matches_for_trend} matches, got {len(history)}."
-                ],
+                notes=[f"Need at least {self.min_matches_for_trend} matches, got {len(history)}."],
             )
         history_sorted = sorted(history, key=lambda h: h.match_date)
         metrics = [
@@ -170,11 +168,7 @@ class PlayerDevelopmentService:
 
     def _extract_metric(self, m: PlayerMatchStat, metric: str) -> float:
         if metric == "pass_completion":
-            return (
-                m.passes_completed / m.passes_attempted
-                if m.passes_attempted > 0
-                else 0.0
-            )
+            return m.passes_completed / m.passes_attempted if m.passes_attempted > 0 else 0.0
         if metric == "distance_per_90":
             return self._per_90(m.distance_m, m.minutes_played)
         if metric == "sprints_per_90":
@@ -187,9 +181,7 @@ class PlayerDevelopmentService:
             return self._per_90(m.pressure_actions, m.minutes_played)
         return 0.0
 
-    def _compute_trend(
-        self, metric: str, values: list[float]
-    ) -> PlayerTrend:
+    def _compute_trend(self, metric: str, values: list[float]) -> PlayerTrend:
         n = len(values)
         if n < self.min_matches_for_trend:
             return PlayerTrend(
@@ -210,11 +202,9 @@ class PlayerDevelopmentService:
         num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
         den = sum((xi - mean_x) ** 2 for xi in x)
         slope = num / den if den > 0 else 0.0
-        window = values[-self.rolling_window:]
+        window = values[-self.rolling_window :]
         rolling_avg = sum(window) / len(window)
-        rolling_std = (
-            statistics.pstdev(window) if len(window) > 1 else 0.0
-        )
+        rolling_std = statistics.pstdev(window) if len(window) > 1 else 0.0
         cv = rolling_std / abs(rolling_avg) if rolling_avg != 0 else 0.0
         if cv > 0.3 and n >= self.rolling_window:
             direction = TrendDirection.VOLATILE
@@ -278,9 +268,7 @@ class PlayerDevelopmentService:
                     f"{t.metric}: declining slope {t.slope_per_match:.3f} per match"
                 )
             elif t.direction == TrendDirection.VOLATILE:
-                improvements.append(
-                    f"{t.metric}: high variance (std={t.rolling_std:.2f})"
-                )
+                improvements.append(f"{t.metric}: high variance (std={t.rolling_std:.2f})")
         return improvements[:5]
 
     def _generate_notes(

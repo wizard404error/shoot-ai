@@ -1,4 +1,5 @@
 """Run the 10-question debugging checklist from docs/archive/CYCLE_1_VIDEO_PIPELINE.md."""
+
 from __future__ import annotations
 
 import asyncio
@@ -41,7 +42,9 @@ async def run_checklist():
     print("A4: Processing...")
     frame_skip = 3  # lower = better quality but slower
     match_data = await svc.process_video(
-        video, frame_skip=frame_skip, enable_team_detection=True,
+        video,
+        frame_skip=frame_skip,
+        enable_team_detection=True,
     )
     print(f"    frame_skip={frame_skip}, effective={match_data.fps / (frame_skip + 1):.1f} FPS")
 
@@ -61,13 +64,17 @@ async def run_checklist():
     print(f"A6: Teams assigned to {team_count} tracks (home/away labels)")
     td = match_data.tracking_metrics.get("team_detection", {})
     if td:
-        print(f"    home_size={td.get('home_size')}, away_size={td.get('away_size')}, "
-              f"ref_size={td.get('ref_size')}")
+        print(
+            f"    home_size={td.get('home_size')}, away_size={td.get('away_size')}, "
+            f"ref_size={td.get('ref_size')}"
+        )
     print("")
 
     print("Q7: Auto-calibration?")
     auto_h = match_data.tracking_metrics.get("auto_homography")
-    print(f"A7: {'Auto-calibrated (homography matrix)' if auto_h else 'Not calibrated (pixel space)'}")
+    print(
+        f"A7: {'Auto-calibrated (homography matrix)' if auto_h else 'Not calibrated (pixel space)'}"
+    )
     print("")
 
     print("Q8: Did the pipeline process without crash?")
@@ -75,9 +82,11 @@ async def run_checklist():
     print("")
 
     print("Q9: What does the report look like?")
-    print(f"A9: Match type={match_data.match_type}, FPS={match_data.fps:.1f}, "
-          f"frames={match_data.total_frames}, duration={match_data.duration_seconds:.1f}s, "
-          f"sampled_frames={len(match_data.frames)}")
+    print(
+        f"A9: Match type={match_data.match_type}, FPS={match_data.fps:.1f}, "
+        f"frames={match_data.total_frames}, duration={match_data.duration_seconds:.1f}s, "
+        f"sampled_frames={len(match_data.frames)}"
+    )
     print("")
 
     print("Q10: What was the overall tracking quality assessment?")

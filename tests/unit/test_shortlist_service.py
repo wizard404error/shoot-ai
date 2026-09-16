@@ -64,9 +64,19 @@ class TestAddPlayer:
         assert eid1 == eid2
 
     def test_add_with_all_fields(self, svc: ShortlistService) -> None:
-        eid = svc.add_to_shortlist("p2", "Player Two", position="MID", team="Team B",
-                              league="La Liga", priority="high", notes="Watch list",
-                              scout_rating=8.5, age=24, nationality="Spain", estimated_value=15.0)
+        eid = svc.add_to_shortlist(
+            "p2",
+            "Player Two",
+            position="MID",
+            team="Team B",
+            league="La Liga",
+            priority="high",
+            notes="Watch list",
+            scout_rating=8.5,
+            age=24,
+            nationality="Spain",
+            estimated_value=15.0,
+        )
         assert eid > 0
         entry = svc.get_player_on_shortlist("p2")
         assert entry is not None
@@ -78,7 +88,12 @@ class TestAddPlayer:
         s = ShortlistService()
         assert s.add_to_shortlist("p1", "P1") == 0
         assert s.get_shortlist() == []
-        assert s.get_shortlist_stats() == {"total": 0, "by_status": {}, "by_priority": {}, "by_position": {}}
+        assert s.get_shortlist_stats() == {
+            "total": 0,
+            "by_status": {},
+            "by_priority": {},
+            "by_position": {},
+        }
         assert s.get_player_on_shortlist("p1") is None
 
 

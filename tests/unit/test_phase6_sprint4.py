@@ -94,38 +94,49 @@ class TestKawkabOfflineFunctionality:
         return results
 
     def test_save_get_matches_roundtrip(self):
-        r = self._simulate_offline([
-            {"type": "save_matches", "matches": [{"id": 1, "home": "A"}, {"id": 2, "home": "B"}]},
-            {"type": "get_matches"},
-        ])
+        r = self._simulate_offline(
+            [
+                {
+                    "type": "save_matches",
+                    "matches": [{"id": 1, "home": "A"}, {"id": 2, "home": "B"}],
+                },
+                {"type": "get_matches"},
+            ]
+        )
         assert r[0] == 2
         assert len(r[1]) == 2
         ids = {m["id"] for m in r[1]}
         assert ids == {1, 2}
 
     def test_enqueue_and_get_sync(self):
-        r = self._simulate_offline([
-            {"type": "enqueue_sync", "action": {"type": "create", "data": {}}},
-            {"type": "enqueue_sync", "action": {"type": "delete", "event_id": 5}},
-            {"type": "get_pending_sync"},
-        ])
+        r = self._simulate_offline(
+            [
+                {"type": "enqueue_sync", "action": {"type": "create", "data": {}}},
+                {"type": "enqueue_sync", "action": {"type": "delete", "event_id": 5}},
+                {"type": "get_pending_sync"},
+            ]
+        )
         assert len(r[2]) == 2
         assert r[2][0]["type"] == "create"
 
     def test_process_sync_clears_queue(self):
-        r = self._simulate_offline([
-            {"type": "enqueue_sync", "action": {"type": "update"}},
-            {"type": "enqueue_sync", "action": {"type": "delete"}},
-            {"type": "process_sync"},
-            {"type": "get_pending_sync"},
-        ])
+        r = self._simulate_offline(
+            [
+                {"type": "enqueue_sync", "action": {"type": "update"}},
+                {"type": "enqueue_sync", "action": {"type": "delete"}},
+                {"type": "process_sync"},
+                {"type": "get_pending_sync"},
+            ]
+        )
         assert r[2] == 2
         assert len(r[3]) == 0
 
     def test_empty_queue_process(self):
-        r = self._simulate_offline([
-            {"type": "process_sync"},
-        ])
+        r = self._simulate_offline(
+            [
+                {"type": "process_sync"},
+            ]
+        )
         assert r[0] == 0
 
     def test_reconnect_triggers_sync(self):
@@ -171,10 +182,25 @@ class TestServiceWorkerCacheStrategy:
 class TestSWStrategyBehavior:
     """Verify the three cache strategy patterns produce correct responses."""
 
-    STATIC_EXTENSIONS = {".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".woff2", ".ttf", ".eot", ".ico"}
+    STATIC_EXTENSIONS = {
+        ".css",
+        ".js",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".svg",
+        ".woff2",
+        ".ttf",
+        ".eot",
+        ".ico",
+    }
 
     def test_cache_first_detection(self):
-        assert re.search(r'\.\(css\|js\|png\|jpg\|jpeg\|gif\|svg\|woff2\?\|ttf\|eot\|ico\)', _SW_JS) is not None
+        assert (
+            re.search(r"\.\(css\|js\|png\|jpg\|jpeg\|gif\|svg\|woff2\?\|ttf\|eot\|ico\)", _SW_JS)
+            is not None
+        )
 
     def test_network_first_detection(self):
         assert "/bridge/" in _SW_JS or "/api/" in _SW_JS
@@ -190,6 +216,7 @@ class TestSWStrategyBehavior:
 # =============================================================================
 # Config Validation — 3 tests (plus extra) = 7 total
 # =============================================================================
+
 
 class TestWorkflowConfigValidation:
     """Validate YAML syntax and required fields in CI/CD configs."""

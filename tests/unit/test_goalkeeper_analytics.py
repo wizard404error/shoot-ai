@@ -36,10 +36,22 @@ class TestSaveQuality:
 
     def test_all_saves(self, gka):
         shots = [
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
-            {"placement_x": -0.3, "placement_y": 0.8, "shot_x": 85, "shot_y": 30,
-             "speed_mps": 20.0, "outcome": "save"},
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": -0.3,
+                "placement_y": 0.8,
+                "shot_x": 85,
+                "shot_y": 30,
+                "speed_mps": 20.0,
+                "outcome": "save",
+            },
         ]
         sq = gka.compute_save_quality(shots)
         assert sq.saves == 2
@@ -49,12 +61,30 @@ class TestSaveQuality:
 
     def test_mixed_outcomes(self, gka):
         shots = [
-            {"placement_x": 0.9, "placement_y": 0.1, "shot_x": 95, "shot_y": 34,
-             "speed_mps": 30.0, "outcome": "goal"},
-            {"placement_x": 0.2, "placement_y": 0.5, "shot_x": 80, "shot_y": 34,
-             "speed_mps": 15.0, "outcome": "save"},
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
+            {
+                "placement_x": 0.9,
+                "placement_y": 0.1,
+                "shot_x": 95,
+                "shot_y": 34,
+                "speed_mps": 30.0,
+                "outcome": "goal",
+            },
+            {
+                "placement_x": 0.2,
+                "placement_y": 0.5,
+                "shot_x": 80,
+                "shot_y": 34,
+                "speed_mps": 15.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
         ]
         sq = gka.compute_save_quality(shots)
         assert sq.goals_conceded == 1
@@ -64,20 +94,46 @@ class TestSaveQuality:
 
     def test_high_quality_saves(self, gka):
         shots = [
-            {"placement_x": 0.95, "placement_y": 0.05, "shot_x": 99, "shot_y": 34,
-             "speed_mps": 35.0, "outcome": "save"},
-            {"placement_x": 0.9, "placement_y": 0.1, "shot_x": 95, "shot_y": 34,
-             "speed_mps": 30.0, "outcome": "save"},
+            {
+                "placement_x": 0.95,
+                "placement_y": 0.05,
+                "shot_x": 99,
+                "shot_y": 34,
+                "speed_mps": 35.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.9,
+                "placement_y": 0.1,
+                "shot_x": 95,
+                "shot_y": 34,
+                "speed_mps": 30.0,
+                "outcome": "save",
+            },
         ]
         sq = gka.compute_save_quality(shots)
         assert sq.high_quality_saves >= 1
 
     def test_one_on_one(self, gka):
         shots = [
-            {"placement_x": 0.3, "placement_y": 0.5, "shot_x": 100, "shot_y": 34,
-             "speed_mps": 20.0, "outcome": "save", "one_on_one": True},
-            {"placement_x": 0.7, "placement_y": 0.3, "shot_x": 100, "shot_y": 34,
-             "speed_mps": 22.0, "outcome": "goal", "one_on_one": True},
+            {
+                "placement_x": 0.3,
+                "placement_y": 0.5,
+                "shot_x": 100,
+                "shot_y": 34,
+                "speed_mps": 20.0,
+                "outcome": "save",
+                "one_on_one": True,
+            },
+            {
+                "placement_x": 0.7,
+                "placement_y": 0.3,
+                "shot_x": 100,
+                "shot_y": 34,
+                "speed_mps": 22.0,
+                "outcome": "goal",
+                "one_on_one": True,
+            },
         ]
         sq = gka.compute_save_quality(shots)
         assert sq.one_on_one_saves == 1
@@ -86,10 +142,22 @@ class TestSaveQuality:
 
     def test_avg_psxg_per_shot(self, gka):
         shots = [
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "goal"},
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "goal",
+            },
         ]
         sq = gka.compute_save_quality(shots)
         assert sq.avg_psxg_per_shot > 0
@@ -126,7 +194,8 @@ class TestPositioning:
         positions = [{"x": 14.0, "y": 34.0}]
         sweeps = [{"x": 28.0, "y": 34.0, "gk_x": 14.0, "gk_y": 34.0}]
         pm = gka.compute_positioning(
-            tracking_positions=positions, sweeps=sweeps,
+            tracking_positions=positions,
+            sweeps=sweeps,
         )
         assert pm.position_samples == 1
         assert pm.sweep_actions == 1
@@ -140,9 +209,24 @@ class TestAerialCommand:
 
     def test_all_claimed(self, gka):
         crosses = [
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
-            {"action_type": "claim", "outcome": "complete", "under_pressure": True, "effective": True},
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": True,
+                "effective": True,
+            },
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
         ]
         ac = gka.compute_aerial_command(crosses)
         assert ac.crosses_claimed == 3
@@ -151,9 +235,24 @@ class TestAerialCommand:
 
     def test_mixed_aerial(self, gka):
         crosses = [
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
-            {"action_type": "punch", "outcome": "complete", "under_pressure": False, "effective": True},
-            {"action_type": "miss", "outcome": "failed", "under_pressure": False, "effective": False},
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
+            {
+                "action_type": "punch",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
+            {
+                "action_type": "miss",
+                "outcome": "failed",
+                "under_pressure": False,
+                "effective": False,
+            },
         ]
         ac = gka.compute_aerial_command(crosses)
         assert ac.crosses_claimed == 1
@@ -169,9 +268,27 @@ class TestDistribution:
 
     def test_short_distribution(self, gka):
         actions = [
-            {"action_type": "short_dist", "outcome": "complete", "distance_m": 10.0, "dest_x": 20.0, "progressive": False},
-            {"action_type": "short_dist", "outcome": "complete", "distance_m": 15.0, "dest_x": 30.0, "progressive": False},
-            {"action_type": "short_dist", "outcome": "failed", "distance_m": 12.0, "dest_x": 25.0, "progressive": False},
+            {
+                "action_type": "short_dist",
+                "outcome": "complete",
+                "distance_m": 10.0,
+                "dest_x": 20.0,
+                "progressive": False,
+            },
+            {
+                "action_type": "short_dist",
+                "outcome": "complete",
+                "distance_m": 15.0,
+                "dest_x": 30.0,
+                "progressive": False,
+            },
+            {
+                "action_type": "short_dist",
+                "outcome": "failed",
+                "distance_m": 12.0,
+                "dest_x": 25.0,
+                "progressive": False,
+            },
         ]
         gd = gka.compute_distribution(actions)
         assert gd.short_attempts == 3
@@ -181,8 +298,20 @@ class TestDistribution:
 
     def test_long_distribution(self, gka):
         actions = [
-            {"action_type": "long_dist", "outcome": "complete", "distance_m": 50.0, "dest_x": 80.0, "progressive": True},
-            {"action_type": "long_dist", "outcome": "failed", "distance_m": 55.0, "dest_x": 85.0, "progressive": False},
+            {
+                "action_type": "long_dist",
+                "outcome": "complete",
+                "distance_m": 50.0,
+                "dest_x": 80.0,
+                "progressive": True,
+            },
+            {
+                "action_type": "long_dist",
+                "outcome": "failed",
+                "distance_m": 55.0,
+                "dest_x": 85.0,
+                "progressive": False,
+            },
         ]
         gd = gka.compute_distribution(actions)
         assert gd.long_attempts == 2
@@ -191,9 +320,27 @@ class TestDistribution:
 
     def test_zones(self, gka):
         actions = [
-            {"action_type": "short_dist", "outcome": "complete", "distance_m": 10.0, "dest_x": 10.0, "progressive": False},
-            {"action_type": "long_dist", "outcome": "complete", "distance_m": 50.0, "dest_x": 80.0, "progressive": True},
-            {"action_type": "short_dist", "outcome": "complete", "distance_m": 15.0, "dest_x": 55.0, "progressive": False},
+            {
+                "action_type": "short_dist",
+                "outcome": "complete",
+                "distance_m": 10.0,
+                "dest_x": 10.0,
+                "progressive": False,
+            },
+            {
+                "action_type": "long_dist",
+                "outcome": "complete",
+                "distance_m": 50.0,
+                "dest_x": 80.0,
+                "progressive": True,
+            },
+            {
+                "action_type": "short_dist",
+                "outcome": "complete",
+                "distance_m": 15.0,
+                "dest_x": 55.0,
+                "progressive": False,
+            },
         ]
         gd = gka.compute_distribution(actions)
         assert gd.left_zone == 1
@@ -211,10 +358,22 @@ class TestMatchReport:
 
     def test_with_saves(self, gka):
         shots = [
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
         ]
         report = gka.compute_match_report("home", shots_faced=shots)
         assert report.save_quality.saves == 2
@@ -227,21 +386,43 @@ class TestMatchReport:
 
     def test_with_all_data(self, gka):
         shots = [
-            {"placement_x": 0.3, "placement_y": 0.6, "shot_x": 92, "shot_y": 34,
-             "speed_mps": 20.0, "outcome": "save"},
+            {
+                "placement_x": 0.3,
+                "placement_y": 0.6,
+                "shot_x": 92,
+                "shot_y": 34,
+                "speed_mps": 20.0,
+                "outcome": "save",
+            },
         ]
         crosses = [
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
         ]
         dist_actions = [
-            {"action_type": "short_dist", "outcome": "complete", "distance_m": 12.0, "dest_x": 25.0, "progressive": False},
+            {
+                "action_type": "short_dist",
+                "outcome": "complete",
+                "distance_m": 12.0,
+                "dest_x": 25.0,
+                "progressive": False,
+            },
         ]
         positions = [{"x": 12.0, "y": 34.0}]
         sweeps = [{"x": 30.0, "y": 34.0, "gk_x": 12.0, "gk_y": 34.0}]
         report = gka.compute_match_report(
-            "home", shots_faced=shots, cross_actions=crosses,
-            distribution_actions=dist_actions, tracking_positions=positions,
-            sweeps=sweeps, clean_sheet=True, player_name="Test GK",
+            "home",
+            shots_faced=shots,
+            cross_actions=crosses,
+            distribution_actions=dist_actions,
+            tracking_positions=positions,
+            sweeps=sweeps,
+            clean_sheet=True,
+            player_name="Test GK",
         )
         assert report.player_name == "Test GK"
         assert report.save_quality.saves == 1
@@ -267,10 +448,22 @@ class TestReportDict:
 
     def test_prevented_metric(self, gka):
         shots = [
-            {"placement_x": 0.7, "placement_y": 0.3, "shot_x": 95, "shot_y": 34,
-             "speed_mps": 28.0, "outcome": "save"},
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
+            {
+                "placement_x": 0.7,
+                "placement_y": 0.3,
+                "shot_x": 95,
+                "shot_y": 34,
+                "speed_mps": 28.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
         ]
         report = gka.compute_match_report("home", shots_faced=shots)
         d = report.to_dict()
@@ -302,33 +495,84 @@ class TestDataclasses:
 class TestAssessStrengthsWeaknesses:
     def test_elite_stopper(self, gka):
         shots = [
-            {"placement_x": 0.3, "placement_y": 0.6, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 20.0, "outcome": "save"},
-            {"placement_x": 0.3, "placement_y": 0.6, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 20.0, "outcome": "save"},
-            {"placement_x": 0.3, "placement_y": 0.6, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 20.0, "outcome": "save"},
+            {
+                "placement_x": 0.3,
+                "placement_y": 0.6,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 20.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.3,
+                "placement_y": 0.6,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 20.0,
+                "outcome": "save",
+            },
+            {
+                "placement_x": 0.3,
+                "placement_y": 0.6,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 20.0,
+                "outcome": "save",
+            },
         ]
         report = gka.compute_match_report("home", shots_faced=shots)
         assert any("Elite" in s for s in report.strengths)
 
     def test_below_average(self, gka):
         shots = [
-            {"placement_x": 0.7, "placement_y": 0.3, "shot_x": 95, "shot_y": 34,
-             "speed_mps": 28.0, "outcome": "goal"},
-            {"placement_x": 0.7, "placement_y": 0.3, "shot_x": 95, "shot_y": 34,
-             "speed_mps": 28.0, "outcome": "goal"},
-            {"placement_x": 0.5, "placement_y": 0.5, "shot_x": 90, "shot_y": 34,
-             "speed_mps": 25.0, "outcome": "save"},
+            {
+                "placement_x": 0.7,
+                "placement_y": 0.3,
+                "shot_x": 95,
+                "shot_y": 34,
+                "speed_mps": 28.0,
+                "outcome": "goal",
+            },
+            {
+                "placement_x": 0.7,
+                "placement_y": 0.3,
+                "shot_x": 95,
+                "shot_y": 34,
+                "speed_mps": 28.0,
+                "outcome": "goal",
+            },
+            {
+                "placement_x": 0.5,
+                "placement_y": 0.5,
+                "shot_x": 90,
+                "shot_y": 34,
+                "speed_mps": 25.0,
+                "outcome": "save",
+            },
         ]
         report = gka.compute_match_report("home", shots_faced=shots)
         assert any("Below-average" in w for w in report.weaknesses)
 
     def test_aerial_strength(self, gka):
         crosses = [
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
-            {"action_type": "claim", "outcome": "complete", "under_pressure": False, "effective": True},
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
+            {
+                "action_type": "claim",
+                "outcome": "complete",
+                "under_pressure": False,
+                "effective": True,
+            },
         ]
         report = gka.compute_match_report("home", cross_actions=crosses)
         assert any("Commanding" in s for s in report.strengths)

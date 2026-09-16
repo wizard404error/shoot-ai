@@ -62,21 +62,26 @@ def compute_pass_sonars(
         angle = math.degrees(math.atan2(dy, dx)) % 360
         dist = math.hypot(dx, dy)
         progress = abs(ex - sx)
-        player_passes[tid].append({
-            "angle": angle,
-            "dist": dist,
-            "progress": progress,
-            "completed": ev.get("completed", False),
-            "team": ev.get("team", "home"),
-        })
+        player_passes[tid].append(
+            {
+                "angle": angle,
+                "dist": dist,
+                "progress": progress,
+                "completed": ev.get("completed", False),
+                "team": ev.get("team", "home"),
+            }
+        )
 
     result = []
     for tid, passes in player_passes.items():
         sector_angle = 360.0 / sectors
-        sector_data = {i: PassSonarSector(
-            angle_center=i * sector_angle + sector_angle / 2,
-            angle_width=sector_angle,
-        ) for i in range(sectors)}
+        sector_data = {
+            i: PassSonarSector(
+                angle_center=i * sector_angle + sector_angle / 2,
+                angle_width=sector_angle,
+            )
+            for i in range(sectors)
+        }
 
         for p in passes:
             idx = int(p["angle"] / sector_angle) % sectors
@@ -93,14 +98,16 @@ def compute_pass_sonars(
                 sd.avg_progress /= sd.count
 
         team = passes[0]["team"]
-        result.append({
-            "track_id": tid,
-            "team": team,
-            "total_passes": len(passes),
-            "sectors": sorted(
-                [s.to_dict() for s in sector_data.values()],
-                key=lambda x: x["angle_center"],
-            ),
-        })
+        result.append(
+            {
+                "track_id": tid,
+                "team": team,
+                "total_passes": len(passes),
+                "sectors": sorted(
+                    [s.to_dict() for s in sector_data.values()],
+                    key=lambda x: x["angle_center"],
+                ),
+            }
+        )
 
     return sorted(result, key=lambda x: x["total_passes"], reverse=True)

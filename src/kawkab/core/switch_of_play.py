@@ -55,7 +55,12 @@ class SwitchOfPlayDetector:
         pitch_length: float = PITCH_LENGTH,
     ) -> dict[str, Any]:
         if event.get("type") != "pass":
-            return {"is_switch": False, "lateral_distance_m": 0.0, "total_distance_m": 0.0, "recipient_zone": ""}
+            return {
+                "is_switch": False,
+                "lateral_distance_m": 0.0,
+                "total_distance_m": 0.0,
+                "recipient_zone": "",
+            }
         sx = float(event.get("start_x", 0))
         sy = float(event.get("start_y", 0))
         ex = float(event.get("end_x", 0))
@@ -107,7 +112,9 @@ class SwitchOfPlayDetector:
                 teams[team]["completed"] += 1
             teams[team]["switches"].append(ev)
             teams[team]["lateral_dists"].append(result["lateral_distance_m"])
-            direction = "right" if float(ev.get("end_y", 0)) > float(ev.get("start_y", 0)) else "left"
+            direction = (
+                "right" if float(ev.get("end_y", 0)) > float(ev.get("start_y", 0)) else "left"
+            )
             teams[team]["directions"].append(direction)
         output: dict[str, Any] = {}
         for team, data in teams.items():
@@ -133,9 +140,9 @@ class SwitchOfPlayDetector:
                 "switch_count": total_sw,
                 "completion_rate": round(completed / total_sw, 3) if total_sw else 0.0,
                 "switches_leading_to_chances": leading_to_chances,
-                "avg_lateral_distance_m": round(
-                    sum(lateral_dists) / len(lateral_dists), 2
-                ) if lateral_dists else 0.0,
+                "avg_lateral_distance_m": round(sum(lateral_dists) / len(lateral_dists), 2)
+                if lateral_dists
+                else 0.0,
                 "preferred_direction": preferred,
             }
         for side in ("home", "away"):
@@ -202,9 +209,7 @@ class SwitchOfPlayDetector:
                 teams[team]["via_pass"] += 1
             elif entry_type in ("carry", "dribble"):
                 teams[team]["via_carry"] += 1
-            teams[team]["entry_zones"].append(
-                (result["zone_x"], result["zone_y"])
-            )
+            teams[team]["entry_zones"].append((result["zone_x"], result["zone_y"]))
         shot_events = [e for e in events if e.get("type") == "shot"]
         for team, data in teams.items():
             for entry in data["entries"]:

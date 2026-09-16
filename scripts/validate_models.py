@@ -70,12 +70,12 @@ def validate_xg(
     import numpy as np
 
     y = np.array([1.0 if s.is_goal else 0.0 for s in val])
-    brier_ci = bootstrap_ci(
-        (p_trained - y) ** 2, statistic="mean", n_bootstrap=1000, seed=seed
-    )
+    brier_ci = bootstrap_ci((p_trained - y) ** 2, statistic="mean", n_bootstrap=1000, seed=seed)
     brier_ci_sb = bootstrap_ci(
-        (np.asarray(p_sb, dtype=np.float64) - y) ** 2, statistic="mean",
-        n_bootstrap=1000, seed=seed,
+        (np.asarray(p_sb, dtype=np.float64) - y) ** 2,
+        statistic="mean",
+        n_bootstrap=1000,
+        seed=seed,
     )
 
     # Agreement with StatsBomb per-shot (not skill, just agreement)
@@ -162,10 +162,14 @@ def to_markdown(report: dict) -> str:
     lines.append("")
     xg = report["xg"]
     lines.append(f"- Active model: **{xg['active_model_provenance']}**")
-    lines.append(f"- Corpus: **{xg['n_matches']} StatsBomb open-data matches**, "
-                 f"{xg['n_shots_non_penalty']} non-penalty shots")
-    lines.append(f"- Match-level train/val split: seed {xg['split']['seed']}, "
-                 f"{xg['split']['val_fraction']:.0%} val ({xg['split']['n_val']} shots)")
+    lines.append(
+        f"- Corpus: **{xg['n_matches']} StatsBomb open-data matches**, "
+        f"{xg['n_shots_non_penalty']} non-penalty shots"
+    )
+    lines.append(
+        f"- Match-level train/val split: seed {xg['split']['seed']}, "
+        f"{xg['split']['val_fraction']:.0%} val ({xg['split']['n_val']} shots)"
+    )
     lines.append("")
     lines.append("| Model | Brier ↓ | AUC ↑ | LogLoss ↓ | ECE ↓ | mean xG |")
     lines.append("|---|---|---|---|---|---|")
@@ -185,18 +189,22 @@ def to_markdown(report: dict) -> str:
         f"- Per-shot agreement with StatsBomb xG: MAE {ag['per_shot_mae']:.4f}, r = {ag['per_shot_pearson_r']:.3f}"
     )
     lines.append("")
-    lines.append("*Penalties excluded (fixed 0.76 xG). Outcomes from StatsBomb "
-                 "open data (CC BY-NC-SA 4.0, non-commercial). Lower Brier = better; "
-                 "Brier 0.25 = coin-flip baseline.*")
+    lines.append(
+        "*Penalties excluded (fixed 0.76 xG). Outcomes from StatsBomb "
+        "open data (CC BY-NC-SA 4.0, non-commercial). Lower Brier = better; "
+        "Brier 0.25 = coin-flip baseline.*"
+    )
     lines.append("")
 
     if report.get("psxg"):
         ps = report["psxg"]
         lines.append("## PSxG (Post-Shot xG — goalkeeper metric)")
         lines.append("")
-        lines.append(f"- Trained on **{ps['n_on_target_shots']} on-target shots** "
-                     f"({ps['split']['n_train']} train / {ps['split']['n_val']} held-out, "
-                     f"match-level split)")
+        lines.append(
+            f"- Trained on **{ps['n_on_target_shots']} on-target shots** "
+            f"({ps['split']['n_train']} train / {ps['split']['n_val']} held-out, "
+            f"match-level split)"
+        )
         for ev in ps["evaluation"]:
             lines.append(
                 f"- {ev['model']}: Brier **{ev['brier']:.4f}**, AUC **{ev['auc']:.4f}**, "
@@ -209,10 +217,14 @@ def to_markdown(report: dict) -> str:
         s = xt["sanity"]
         lines.append("## xT (Expected Threat reference grid)")
         lines.append("")
-        lines.append(f"- League-wide grid trained from **{xt['n_matches']} matches / "
-                     f"{xt['n_actions']:,} actions** — shape {xt['grid_shape'][0]}x{xt['grid_shape'][1]}")
-        lines.append(f"- Monotonicity check: max own-half zone {s['max_own_half']:.4f} "
-                     f"< max final-third zone {s['max_final_third']:.4f} → **{s['monotonic']}**")
+        lines.append(
+            f"- League-wide grid trained from **{xt['n_matches']} matches / "
+            f"{xt['n_actions']:,} actions** — shape {xt['grid_shape'][0]}x{xt['grid_shape'][1]}"
+        )
+        lines.append(
+            f"- Monotonicity check: max own-half zone {s['max_own_half']:.4f} "
+            f"< max final-third zone {s['max_final_third']:.4f} → **{s['monotonic']}**"
+        )
         lines.append("")
     return "\n".join(lines)
 

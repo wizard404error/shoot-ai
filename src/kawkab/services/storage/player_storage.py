@@ -7,19 +7,31 @@ from kawkab.services.storage.base import BaseStorage
 
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
+
     SecurityValidator = _SecVal
 except ImportError:
+
     class _SecurityValidator:
         @staticmethod
-        def validate_match_id(mid): return int(mid)
+        def validate_match_id(mid):
+            return int(mid)
+
         @staticmethod
-        def validate_track_id(t): return int(t)
+        def validate_track_id(t):
+            return int(t)
+
         @staticmethod
-        def validate_jersey_number(j): return int(j)
+        def validate_jersey_number(j):
+            return int(j)
+
         @staticmethod
-        def sanitize_string(s, max_length=255): return str(s)[:max_length]
+        def sanitize_string(s, max_length=255):
+            return str(s)[:max_length]
+
         @staticmethod
-        def validate_positive_float(v, n="v"): return max(0.0, float(v))
+        def validate_positive_float(v, n="v"):
+            return max(0.0, float(v))
+
     SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
@@ -46,12 +58,24 @@ class PlayerStorage(BaseStorage):
                     match_id,
                     SecurityValidator.validate_track_id(player_data["track_id"]),
                     SecurityValidator.validate_jersey_number(player_data.get("jersey_number", 0)),
-                    SecurityValidator.sanitize_string(str(player_data.get("name", "")), max_length=100),
-                    SecurityValidator.sanitize_string(str(player_data.get("team", "")), max_length=50),
-                    SecurityValidator.sanitize_string(str(player_data.get("position", "")), max_length=30),
-                    SecurityValidator.validate_positive_float(player_data.get("distance_covered_m", 0), "distance"),
-                    SecurityValidator.validate_positive_float(player_data.get("max_speed_kmh", 0), "max_speed"),
-                    SecurityValidator.validate_positive_float(player_data.get("avg_speed_kmh", 0), "avg_speed"),
+                    SecurityValidator.sanitize_string(
+                        str(player_data.get("name", "")), max_length=100
+                    ),
+                    SecurityValidator.sanitize_string(
+                        str(player_data.get("team", "")), max_length=50
+                    ),
+                    SecurityValidator.sanitize_string(
+                        str(player_data.get("position", "")), max_length=30
+                    ),
+                    SecurityValidator.validate_positive_float(
+                        player_data.get("distance_covered_m", 0), "distance"
+                    ),
+                    SecurityValidator.validate_positive_float(
+                        player_data.get("max_speed_kmh", 0), "max_speed"
+                    ),
+                    SecurityValidator.validate_positive_float(
+                        player_data.get("avg_speed_kmh", 0), "avg_speed"
+                    ),
                     max(0, int(player_data.get("passes_attempted", 0))),
                     max(0, int(player_data.get("passes_completed", 0))),
                     max(0, int(player_data.get("shots", 0))),
@@ -72,21 +96,45 @@ class PlayerStorage(BaseStorage):
             cursor = self._conn.cursor()
             rows = []
             for p in players:
-                rows.append((
-                    match_id,
-                    SecurityValidator.validate_track_id(p.get("track_id", 0)),
-                    SecurityValidator.validate_jersey_number(p.get("jersey_number", 0)) if p.get("jersey_number") is not None else None,
-                    SecurityValidator.sanitize_string(str(p.get("name", "")), max_length=100),
-                    SecurityValidator.sanitize_string(str(p.get("team", "")), max_length=50),
-                    SecurityValidator.sanitize_string(str(p.get("position", "")), max_length=30),
-                    SecurityValidator.validate_positive_float(p.get("distance_covered_m", 0), "distance"),
-                    SecurityValidator.validate_positive_float(p.get("max_speed_kmh", 0), "max_speed"),
-                    SecurityValidator.validate_positive_float(p.get("avg_speed_kmh", 0), "avg_speed"),
-                    int(SecurityValidator.validate_positive_float(p.get("passes_attempted", 0), "passes_attempted")),
-                    int(SecurityValidator.validate_positive_float(p.get("passes_completed", 0), "passes_completed")),
-                    int(SecurityValidator.validate_positive_float(p.get("shots", 0), "shots")),
-                    int(SecurityValidator.validate_positive_float(p.get("tackles", 0), "tackles")),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        SecurityValidator.validate_track_id(p.get("track_id", 0)),
+                        SecurityValidator.validate_jersey_number(p.get("jersey_number", 0))
+                        if p.get("jersey_number") is not None
+                        else None,
+                        SecurityValidator.sanitize_string(str(p.get("name", "")), max_length=100),
+                        SecurityValidator.sanitize_string(str(p.get("team", "")), max_length=50),
+                        SecurityValidator.sanitize_string(
+                            str(p.get("position", "")), max_length=30
+                        ),
+                        SecurityValidator.validate_positive_float(
+                            p.get("distance_covered_m", 0), "distance"
+                        ),
+                        SecurityValidator.validate_positive_float(
+                            p.get("max_speed_kmh", 0), "max_speed"
+                        ),
+                        SecurityValidator.validate_positive_float(
+                            p.get("avg_speed_kmh", 0), "avg_speed"
+                        ),
+                        int(
+                            SecurityValidator.validate_positive_float(
+                                p.get("passes_attempted", 0), "passes_attempted"
+                            )
+                        ),
+                        int(
+                            SecurityValidator.validate_positive_float(
+                                p.get("passes_completed", 0), "passes_completed"
+                            )
+                        ),
+                        int(SecurityValidator.validate_positive_float(p.get("shots", 0), "shots")),
+                        int(
+                            SecurityValidator.validate_positive_float(
+                                p.get("tackles", 0), "tackles"
+                            )
+                        ),
+                    )
+                )
             cursor.executemany(
                 """
                 INSERT INTO players (

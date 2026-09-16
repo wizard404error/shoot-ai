@@ -1,4 +1,5 @@
 """Smoke test for CV service - verifies YOLOv11 loads on GPU."""
+
 import asyncio
 import sys
 

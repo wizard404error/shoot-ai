@@ -13,6 +13,7 @@ Pins four things:
 4. The computed GK distance (from gk_pitch_x/y metadata captured at
    shot time) actually lowers xG vs the same shot with no GK.
 """
+
 from __future__ import annotations
 
 import sys
@@ -108,16 +109,18 @@ class TestLiveShotPath:
         assert se.angle_deg is None
 
     def test_build_typed_shot_reads_gk_position(self, svc):
-        se = svc._build_typed_shot({
-            "type": "shot",
-            "team": "home",
-            "metadata": {
-                "distance_to_goal_m": 11.0,
-                "angle_to_goal_deg": 0.0,
-                "gk_pitch_x": 104.0,
-                "gk_pitch_y": 34.0,
-            },
-        })
+        se = svc._build_typed_shot(
+            {
+                "type": "shot",
+                "team": "home",
+                "metadata": {
+                    "distance_to_goal_m": 11.0,
+                    "angle_to_goal_deg": 0.0,
+                    "gk_pitch_x": 104.0,
+                    "gk_pitch_y": 34.0,
+                },
+            }
+        )
         assert se.distance_m == 11.0
         assert se.angle_deg == 0.0
         assert se.gk_position_x == 104.0
@@ -131,16 +134,20 @@ class TestLiveShotPath:
         metadata carries the pipeline's deviation-style angles.
         """
         _patch_active_model(monkeypatch)
-        central = svc._build_typed_shot({
-            "type": "shot",
-            "team": "home",
-            "metadata": {"distance_to_goal_m": 11.0, "angle_to_goal_deg": 0.0},
-        })
-        wide = svc._build_typed_shot({
-            "type": "shot",
-            "team": "home",
-            "metadata": {"distance_to_goal_m": 11.0, "angle_to_goal_deg": 60.0},
-        })
+        central = svc._build_typed_shot(
+            {
+                "type": "shot",
+                "team": "home",
+                "metadata": {"distance_to_goal_m": 11.0, "angle_to_goal_deg": 0.0},
+            }
+        )
+        wide = svc._build_typed_shot(
+            {
+                "type": "shot",
+                "team": "home",
+                "metadata": {"distance_to_goal_m": 11.0, "angle_to_goal_deg": 60.0},
+            }
+        )
         assert central.distance_m == 11.0 and central.angle_deg == 0.0
         assert wide.angle_deg == 60.0
         model = xg_model_mod.active_xg_model()
@@ -150,16 +157,20 @@ class TestLiveShotPath:
 
     def test_live_path_distance_decays(self, svc, monkeypatch):
         _patch_active_model(monkeypatch)
-        close = svc._build_typed_shot({
-            "type": "shot",
-            "team": "home",
-            "metadata": {"distance_to_goal_m": 6.0, "angle_to_goal_deg": 10.0},
-        })
-        far = svc._build_typed_shot({
-            "type": "shot",
-            "team": "home",
-            "metadata": {"distance_to_goal_m": 30.0, "angle_to_goal_deg": 10.0},
-        })
+        close = svc._build_typed_shot(
+            {
+                "type": "shot",
+                "team": "home",
+                "metadata": {"distance_to_goal_m": 6.0, "angle_to_goal_deg": 10.0},
+            }
+        )
+        far = svc._build_typed_shot(
+            {
+                "type": "shot",
+                "team": "home",
+                "metadata": {"distance_to_goal_m": 30.0, "angle_to_goal_deg": 10.0},
+            }
+        )
         model = xg_model_mod.active_xg_model()
         assert model.compute_single(model.extract_features(close)) > model.compute_single(
             model.extract_features(far)
@@ -176,16 +187,23 @@ class TestComputeXgSimpleTrained:
         """Values must come from the active model, not the old
         exp(-d/30) * cos² heuristic."""
         _patch_active_model(monkeypatch)
-        result = svc.compute_xg_simple([
-            {"type": "shot", "team": "home",
-             "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 20.0}},
-        ])
+        result = svc.compute_xg_simple(
+            [
+                {
+                    "type": "shot",
+                    "team": "home",
+                    "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 20.0},
+                },
+            ]
+        )
         expected = xg_model_mod.active_xg_model().compute_single(
-            xg_model_mod.active_xg_model().extract_features({
-                "type": "shot",
-                "distance_m": 12.0,
-                "angle_deg": 20.0,
-            })
+            xg_model_mod.active_xg_model().extract_features(
+                {
+                    "type": "shot",
+                    "distance_m": 12.0,
+                    "angle_deg": 20.0,
+                }
+            )
         )
         assert result["shot_details"][0]["xg"] == pytest.approx(expected, abs=1e-3)
 
@@ -200,14 +218,24 @@ class TestComputeXgSimpleTrained:
 
     def test_central_wide_ordering(self, svc, monkeypatch):
         _patch_active_model(monkeypatch)
-        center = svc.compute_xg_simple([
-            {"type": "shot", "team": "home",
-             "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 0.0}},
-        ])
-        wide = svc.compute_xg_simple([
-            {"type": "shot", "team": "home",
-             "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 75.0}},
-        ])
+        center = svc.compute_xg_simple(
+            [
+                {
+                    "type": "shot",
+                    "team": "home",
+                    "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 0.0},
+                },
+            ]
+        )
+        wide = svc.compute_xg_simple(
+            [
+                {
+                    "type": "shot",
+                    "team": "home",
+                    "metadata": {"distance_to_goal_m": 12.0, "angle_to_goal_deg": 75.0},
+                },
+            ]
+        )
         assert center["home"] > wide["home"]
 
 
@@ -315,8 +343,11 @@ class TestGkCapture:
 
         def frame(n, t, dets):
             return FrameDetections(
-                frame_number=n, timestamp=t, detections=dets,
-                image_width=1280, image_height=720,
+                frame_number=n,
+                timestamp=t,
+                detections=dets,
+                image_width=1280,
+                image_height=720,
             )
 
         # Pitch grid: 105 x 68 m → 20 px/m per benchmark_production_tracking.

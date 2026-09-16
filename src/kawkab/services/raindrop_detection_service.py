@@ -70,6 +70,7 @@ class RaindropDetectionService:
         try:
             import torch
             import torch.nn as nn
+
             self._torch = torch
             self._nn = nn
             if self._model_path and self._model_path != "":
@@ -129,7 +130,7 @@ class RaindropDetectionService:
         winW, winH = self.WINDOW_SIZE
         for y in range(0, image.shape[0] - winH + 1, self.STEP_SIZE):
             for x in range(0, image.shape[1] - winW + 1, self.STEP_SIZE):
-                yield (x, y, image[y:y + winH, x:x + winW])
+                yield (x, y, image[y : y + winH, x : x + winW])
 
     def _cnn_classify_windows(self, image: np.ndarray) -> list[tuple[int, int, float]]:
         if not self._cnn_available or self._cnn_model is None:
@@ -186,16 +187,16 @@ class RaindropDetectionService:
             detections.append((x, y, min(0.9, circularity)))
         return detections
 
-    def _merge_overlapping(self, detections: list[tuple[int, int, float]]) -> list[tuple[int, int, int, int]]:
+    def _merge_overlapping(
+        self, detections: list[tuple[int, int, float]]
+    ) -> list[tuple[int, int, int, int]]:
         rectangles: list[list[int]] = []
         for x, y, conf in detections:
             rect = [x, y, x + self.WINDOW_SIZE[0], y + self.WINDOW_SIZE[1]]
             rectangles.append(rect)
         if not rectangles:
             return []
-        merged = self._group_rectangles(
-            rectangles, self.GROUP_THRESHOLD, self.GROUP_EPS
-        )
+        merged = self._group_rectangles(rectangles, self.GROUP_THRESHOLD, self.GROUP_EPS)
         return [tuple(r) for r in merged]
 
     @staticmethod
@@ -235,10 +236,7 @@ class RaindropDetectionService:
             if len(cluster) <= group_threshold:
                 continue
             n = float(len(cluster))
-            avg = [
-                int(round(sum(r[i] for r in cluster) / n))
-                for i in range(4)
-            ]
+            avg = [int(round(sum(r[i] for r in cluster) / n)) for i in range(4)]
             merged.append(avg)
         return merged
 

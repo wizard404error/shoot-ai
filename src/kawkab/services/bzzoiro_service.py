@@ -41,9 +41,7 @@ class BzzoiroService:
     async def _ensure_client(self) -> None:
         if self._client is None:
             headers = {"Authorization": f"Token {self.api_key}"} if self.api_key else {}
-            self._client = httpx.AsyncClient(
-                base_url=BASE_URL, headers=headers, timeout=15.0
-            )
+            self._client = httpx.AsyncClient(base_url=BASE_URL, headers=headers, timeout=15.0)
 
     def _cache_get(self, key: str) -> Any | None:
         if key in self._cache:
@@ -100,16 +98,20 @@ class BzzoiroService:
             return []
         results = data.get("results", data) if isinstance(data, dict) else data
         teams = []
-        for t in (results or []):
-            teams.append({
-                "id": t.get("id"),
-                "name": t.get("name", ""),
-                "country": t.get("country", ""),
-                "logo": t.get("logo"),
-            })
+        for t in results or []:
+            teams.append(
+                {
+                    "id": t.get("id"),
+                    "name": t.get("name", ""),
+                    "country": t.get("country", ""),
+                    "logo": t.get("logo"),
+                }
+            )
         return teams
 
-    async def get_team_matches(self, team_id: int, date_from: str | None = None, date_to: str | None = None) -> list[dict]:
+    async def get_team_matches(
+        self, team_id: int, date_from: str | None = None, date_to: str | None = None
+    ) -> list[dict]:
         """Get matches for a team."""
         path = f"events/?team_ids={team_id}&limit=20"
         if date_from:
@@ -121,22 +123,24 @@ class BzzoiroService:
             return []
         events = data.get("events", data) if isinstance(data, dict) else data
         matches = []
-        for m in (events or []):
-            matches.append({
-                "id": m.get("id"),
-                "home_team": m.get("home_team", ""),
-                "away_team": m.get("away_team", ""),
-                "home_team_id": m.get("home_team_id"),
-                "away_team_id": m.get("away_team_id"),
-                "home_score": m.get("home_score"),
-                "away_score": m.get("away_score"),
-                "status": m.get("status", ""),
-                "event_date": m.get("event_date", ""),
-                "league_name": m.get("league_name", ""),
-                "league_id": m.get("league_id"),
-                "period": m.get("period"),
-                "current_minute": m.get("current_minute"),
-            })
+        for m in events or []:
+            matches.append(
+                {
+                    "id": m.get("id"),
+                    "home_team": m.get("home_team", ""),
+                    "away_team": m.get("away_team", ""),
+                    "home_team_id": m.get("home_team_id"),
+                    "away_team_id": m.get("away_team_id"),
+                    "home_score": m.get("home_score"),
+                    "away_score": m.get("away_score"),
+                    "status": m.get("status", ""),
+                    "event_date": m.get("event_date", ""),
+                    "league_name": m.get("league_name", ""),
+                    "league_id": m.get("league_id"),
+                    "period": m.get("period"),
+                    "current_minute": m.get("current_minute"),
+                }
+            )
         return matches
 
     async def get_team_squad(self, team_id: int) -> list[dict]:
@@ -146,15 +150,17 @@ class BzzoiroService:
             return []
         squad = data.get("players", data) if isinstance(data, dict) else data
         players = []
-        for p in (squad or []):
-            players.append({
-                "id": p.get("id"),
-                "name": p.get("name", ""),
-                "position": p.get("position", ""),
-                "jersey_number": p.get("jersey_number"),
-                "nationality": p.get("nationality"),
-                "date_of_birth": p.get("date_of_birth"),
-            })
+        for p in squad or []:
+            players.append(
+                {
+                    "id": p.get("id"),
+                    "name": p.get("name", ""),
+                    "position": p.get("position", ""),
+                    "jersey_number": p.get("jersey_number"),
+                    "nationality": p.get("nationality"),
+                    "date_of_birth": p.get("date_of_birth"),
+                }
+            )
         return players
 
     async def get_match_detail(self, event_id: int) -> dict | None:
@@ -187,20 +193,22 @@ class BzzoiroService:
             return []
         standings = data.get("standings", data) if isinstance(data, dict) else data
         rows = []
-        for s in (standings or []):
-            rows.append({
-                "position": s.get("position"),
-                "team_id": s.get("team_id"),
-                "team_name": s.get("team_name", ""),
-                "played": s.get("played"),
-                "wins": s.get("wins"),
-                "draws": s.get("draws"),
-                "losses": s.get("losses"),
-                "goals_for": s.get("goals_for"),
-                "goals_against": s.get("goals_against"),
-                "goal_diff": s.get("goal_diff"),
-                "points": s.get("points"),
-            })
+        for s in standings or []:
+            rows.append(
+                {
+                    "position": s.get("position"),
+                    "team_id": s.get("team_id"),
+                    "team_name": s.get("team_name", ""),
+                    "played": s.get("played"),
+                    "wins": s.get("wins"),
+                    "draws": s.get("draws"),
+                    "losses": s.get("losses"),
+                    "goals_for": s.get("goals_for"),
+                    "goals_against": s.get("goals_against"),
+                    "goal_diff": s.get("goal_diff"),
+                    "points": s.get("points"),
+                }
+            )
         return rows
 
     async def get_leagues(self) -> list[dict]:
@@ -210,13 +218,15 @@ class BzzoiroService:
             return []
         results = data.get("results", data) if isinstance(data, dict) else data
         leagues = []
-        for l in (results or []):
-            leagues.append({
-                "id": l.get("id"),
-                "name": l.get("name", ""),
-                "country": l.get("country", ""),
-                "is_active": l.get("is_active", False),
-            })
+        for l in results or []:
+            leagues.append(
+                {
+                    "id": l.get("id"),
+                    "name": l.get("name", ""),
+                    "country": l.get("country", ""),
+                    "is_active": l.get("is_active", False),
+                }
+            )
         return leagues
 
     async def get_live_events(self) -> list[dict]:
@@ -226,18 +236,20 @@ class BzzoiroService:
             return []
         events = data.get("events", data) if isinstance(data, dict) else data
         matches = []
-        for m in (events or []):
-            matches.append({
-                "id": m.get("id"),
-                "home_team": m.get("home_team", ""),
-                "away_team": m.get("away_team", ""),
-                "home_score": m.get("home_score"),
-                "away_score": m.get("away_score"),
-                "status": m.get("status", ""),
-                "league_name": m.get("league_name", ""),
-                "current_minute": m.get("current_minute"),
-                "period": m.get("period"),
-            })
+        for m in events or []:
+            matches.append(
+                {
+                    "id": m.get("id"),
+                    "home_team": m.get("home_team", ""),
+                    "away_team": m.get("away_team", ""),
+                    "home_score": m.get("home_score"),
+                    "away_score": m.get("away_score"),
+                    "status": m.get("status", ""),
+                    "league_name": m.get("league_name", ""),
+                    "current_minute": m.get("current_minute"),
+                    "period": m.get("period"),
+                }
+            )
         return matches
 
     async def get_predictions(self, event_id: int) -> dict | None:

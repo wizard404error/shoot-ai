@@ -45,6 +45,7 @@ class BodyPart(str, Enum):
     ANKLE = "ankle"
     FOOT = "foot"
 
+
 # Evidence-based recovery estimates (min_days, expected_days, max_days)
 # Sources: Ekstrand et al. (2011) UEFA Elite Club Injury Study,
 #   NCAA Injury Surveillance Program, BMJ Open Sport & Exercise Medicine
@@ -144,10 +145,17 @@ class InjuryRecord:
     def to_dict(self) -> dict:
         rec_min, rec_max = self.recovery_range_days()
         return {
-            "id": self.id, "player_id": self.player_id, "injury_type": self.injury_type,
-            "body_part": self.body_part, "severity": self.severity, "mechanism": self.mechanism,
-            "date_injured": self.date_injured, "date_recovered": self.date_recovered,
-            "match_id": self.match_id, "status": self.status, "notes": self.notes,
+            "id": self.id,
+            "player_id": self.player_id,
+            "injury_type": self.injury_type,
+            "body_part": self.body_part,
+            "severity": self.severity,
+            "mechanism": self.mechanism,
+            "date_injured": self.date_injured,
+            "date_recovered": self.date_recovered,
+            "match_id": self.match_id,
+            "status": self.status,
+            "notes": self.notes,
             "days_since_injury": self.days_since_injury(),
             "estimated_recovery_days": self.estimated_recovery_days(),
             "recovery_range_min": rec_min,
@@ -167,9 +175,17 @@ class InjuryTrackerService:
         cur = self._db.execute(
             """INSERT INTO injuries (player_id, match_id, injury_type, body_part, severity, mechanism, date_injured, status, notes)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (record.player_id, record.match_id, record.injury_type, record.body_part,
-             record.severity, record.mechanism, record.date_injured or datetime.now().isoformat(),
-             record.status, encrypted_notes),
+            (
+                record.player_id,
+                record.match_id,
+                record.injury_type,
+                record.body_part,
+                record.severity,
+                record.mechanism,
+                record.date_injured or datetime.now().isoformat(),
+                record.status,
+                encrypted_notes,
+            ),
         )
         self._db.commit()
         return cur.lastrowid

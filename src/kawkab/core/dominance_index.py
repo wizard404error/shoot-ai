@@ -78,12 +78,14 @@ def compute_dominance_index(
     # territory
     final_third_x = PITCH_LENGTH * FINAL_THIRD_PCT
     team_att_third = sum(
-        1 for e in team_events
+        1
+        for e in team_events
         if e.get("type") in ("pass", "carry", "shot", "cross")
         and (e.get("end_x", 0) > final_third_x or e.get("start_x", 0) > final_third_x)
     )
     opp_att_third = sum(
-        1 for e in opp_events
+        1
+        for e in opp_events
         if e.get("type") in ("pass", "carry", "shot", "cross")
         and (e.get("end_x", 0) > final_third_x or e.get("start_x", 0) > final_third_x)
     )
@@ -92,8 +94,7 @@ def compute_dominance_index(
 
     # pressing intensity: defensive actions by team vs opponent passes
     def_actions = sum(
-        1 for e in team_events
-        if e.get("type") in ("tackle", "interception", "block", "clearance")
+        1 for e in team_events if e.get("type") in ("tackle", "interception", "block", "clearance")
     )
     opp_passes = sum(1 for e in opp_events if e.get("type") == "pass")
     ratio = def_actions / max(opp_passes, 1)

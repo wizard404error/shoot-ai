@@ -23,15 +23,56 @@ PITCH_WIDTH = GAME.PITCH_WIDTH_M
 # ── Zone definitions ──────────────────────────────────────────────────────
 
 ZONE_DEFS: list[dict[str, Any]] = [
-    {"name": "left_defensive",   "x": (0.0, PITCH_LENGTH * 0.33), "y": (0.0, PITCH_WIDTH * 0.50)},
-    {"name": "left_mid",         "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67), "y": (0.0, PITCH_WIDTH * 0.50)},
-    {"name": "left_attacking",   "x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),       "y": (0.0, PITCH_WIDTH * 0.50)},
-    {"name": "right_defensive",  "x": (0.0, PITCH_LENGTH * 0.33), "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH)},
-    {"name": "right_mid",        "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67), "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH)},
-    {"name": "right_attacking",  "x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),       "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH)},
-    {"name": "central_defensive","x": (0.0, PITCH_LENGTH * 0.33), "y": (PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0], PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1])},
-    {"name": "central_mid",      "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67), "y": (PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0], PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1])},
-    {"name": "central_attacking","x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),       "y": (PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0], PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1])},
+    {"name": "left_defensive", "x": (0.0, PITCH_LENGTH * 0.33), "y": (0.0, PITCH_WIDTH * 0.50)},
+    {
+        "name": "left_mid",
+        "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67),
+        "y": (0.0, PITCH_WIDTH * 0.50),
+    },
+    {
+        "name": "left_attacking",
+        "x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),
+        "y": (0.0, PITCH_WIDTH * 0.50),
+    },
+    {
+        "name": "right_defensive",
+        "x": (0.0, PITCH_LENGTH * 0.33),
+        "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH),
+    },
+    {
+        "name": "right_mid",
+        "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67),
+        "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH),
+    },
+    {
+        "name": "right_attacking",
+        "x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),
+        "y": (PITCH_WIDTH * 0.50, PITCH_WIDTH),
+    },
+    {
+        "name": "central_defensive",
+        "x": (0.0, PITCH_LENGTH * 0.33),
+        "y": (
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0],
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1],
+        ),
+    },
+    {
+        "name": "central_mid",
+        "x": (PITCH_LENGTH * 0.33, PITCH_LENGTH * 0.67),
+        "y": (
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0],
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1],
+        ),
+    },
+    {
+        "name": "central_attacking",
+        "x": (PITCH_LENGTH * 0.67, PITCH_LENGTH),
+        "y": (
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0],
+            PITCH_WIDTH * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1],
+        ),
+    },
 ]
 
 # Overlap: central zones share some territory with wide zones.
@@ -88,8 +129,10 @@ class PressingTrapReport:
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _classify_trap_zone(x: float, y: float, pitch_length: float = PITCH_LENGTH,
-                        pitch_width: float = PITCH_WIDTH) -> str:
+
+def _classify_trap_zone(
+    x: float, y: float, pitch_length: float = PITCH_LENGTH, pitch_width: float = PITCH_WIDTH
+) -> str:
     """Classify a position into one of 9 zone names.
 
     Wide zones take priority; central is fallback when the point falls
@@ -132,14 +175,18 @@ def _compute_trap_rating(actions: int, passes_into: int, regains: int) -> float:
     action_score = min(1.0, actions / 20.0)
     funnel_score = min(1.0, passes_into / max(1, actions) * 2.0)
     regain_rate = regains / max(1, actions)
-    regain_score = regain_rate ** 0.6  # Diminishing returns beyond ~60%
+    regain_score = regain_rate**0.6  # Diminishing returns beyond ~60%
 
     return round(0.25 * action_score + 0.30 * funnel_score + 0.45 * regain_score, 4)
 
 
-def _find_trigger_events(events: list[dict], zone_name: str, team: str,
-                         pitch_length: float = PITCH_LENGTH,
-                         pitch_width: float = PITCH_WIDTH) -> tuple[str, int]:
+def _find_trigger_events(
+    events: list[dict],
+    zone_name: str,
+    team: str,
+    pitch_length: float = PITCH_LENGTH,
+    pitch_width: float = PITCH_WIDTH,
+) -> tuple[str, int]:
     """Find what type of event typically triggers traps in this zone.
 
     Looks at events in the 5 seconds *before* each defensive action in the
@@ -185,7 +232,10 @@ def _find_trigger_events(events: list[dict], zone_name: str, team: str,
                     dx = float(end_x) - float(start_x)
                     if abs(dx) < 5.0:
                         trigger_counts["backward_pass"] += 1
-                    elif end_y is not None and (float(end_y) < pitch_width * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0] or float(end_y) > pitch_width * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1]):
+                    elif end_y is not None and (
+                        float(end_y) < pitch_width * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[0]
+                        or float(end_y) > pitch_width * GAME.PRESSING_TRAP_ZONE_BOUNDARY_PCT[1]
+                    ):
                         trigger_counts["pass_to_wide"] += 1
                     else:
                         trigger_counts["pass_forward"] += 1
@@ -207,6 +257,7 @@ def _find_trigger_events(events: list[dict], zone_name: str, team: str,
 
 # ── Zone geometry helpers ─────────────────────────────────────────────────
 
+
 def _x_mid(x_range: tuple[float, float]) -> float:
     return (x_range[0] + x_range[1]) / 2.0
 
@@ -215,8 +266,7 @@ def _y_mid(y_range: tuple[float, float]) -> float:
     return (y_range[0] + y_range[1]) / 2.0
 
 
-def _in_zone(x: float, y: float, zone: dict[str, Any],
-             pitch_width: float = PITCH_WIDTH) -> bool:
+def _in_zone(x: float, y: float, zone: dict[str, Any], pitch_width: float = PITCH_WIDTH) -> bool:
     """Check if (x, y) falls within a zone definition.
 
     Central zones are narrower (middle 50 % width); wide zones are
@@ -237,9 +287,13 @@ def _in_zone(x: float, y: float, zone: dict[str, Any],
 
 # ── Main detection ────────────────────────────────────────────────────────
 
-def detect_pressing_traps(events: list[dict], team: str,
-                          pitch_length: float = PITCH_LENGTH,
-                          pitch_width: float = PITCH_WIDTH) -> PressingTrapReport:
+
+def detect_pressing_traps(
+    events: list[dict],
+    team: str,
+    pitch_length: float = PITCH_LENGTH,
+    pitch_width: float = PITCH_WIDTH,
+) -> PressingTrapReport:
     """Detect pressing traps from event data.
 
     Parameters
@@ -301,8 +355,7 @@ def detect_pressing_traps(events: list[dict], team: str,
                 ex = prev.get("end_x")
                 ey = prev.get("end_y")
                 if ex is not None and ey is not None:
-                    if _classify_trap_zone(float(ex), float(ey),
-                                           pitch_length, pitch_width) == z:
+                    if _classify_trap_zone(float(ex), float(ey), pitch_length, pitch_width) == z:
                         opp_passes += 1
         zone_opp_passes[z] += opp_passes
 
@@ -310,7 +363,10 @@ def detect_pressing_traps(events: list[dict], team: str,
         for k in range(i + 1, min(n, i + 8)):
             later = sorted_ev[k]
             if later.get("team") == team and later.get("type") in (
-                "pass", "carry", "shot", "dribble",
+                "pass",
+                "carry",
+                "shot",
+                "dribble",
             ):
                 zone_regains[z] += 1
                 break
@@ -342,21 +398,27 @@ def detect_pressing_traps(events: list[dict], team: str,
 
         # Classify trigger
         trigger_type, _ = _find_trigger_events(
-            sorted_ev, zname, team, pitch_length, pitch_width,
+            sorted_ev,
+            zname,
+            team,
+            pitch_length,
+            pitch_width,
         )
 
-        traps.append(PressingTrap(
-            zone_name=zname,
-            zone_x_range=zd["x"],
-            zone_y_range=zd["y"],
-            trigger_event_type=trigger_type,
-            defensive_actions_in_zone=actions,
-            opponent_passes_into_zone=opp_passes,
-            regain_possession_count=regains,
-            success_rate=success_rate,
-            intensity=intensity,
-            trap_rating=trap_rating,
-        ))
+        traps.append(
+            PressingTrap(
+                zone_name=zname,
+                zone_x_range=zd["x"],
+                zone_y_range=zd["y"],
+                trigger_event_type=trigger_type,
+                defensive_actions_in_zone=actions,
+                opponent_passes_into_zone=opp_passes,
+                regain_possession_count=regains,
+                success_rate=success_rate,
+                intensity=intensity,
+                trap_rating=trap_rating,
+            )
+        )
 
     traps.sort(key=lambda t: t.trap_rating, reverse=True)
 

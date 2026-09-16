@@ -116,8 +116,7 @@ class TestRecommendYoloVariant:
         assert recommend_yolo_variant("cpu") == "n"
 
     def test_auto_detect(self):
-        with patch("kawkab.core.gpu_acceleration.detect_gpu_tier",
-                   return_value="high"):
+        with patch("kawkab.core.gpu_acceleration.detect_gpu_tier", return_value="high"):
             assert recommend_yolo_variant() == "l"
 
     def test_unknown_tier_defaults_to_l(self):

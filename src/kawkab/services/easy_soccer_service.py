@@ -28,10 +28,13 @@ class EasySoccerService:
         if self._client is None:
             try:
                 import esd
+
                 self._client = esd.SofascoreClient()
                 self._available = True
             except ImportError:
-                logger.warning("EasySoccerData not installed. Install with: pip install EasySoccerData")
+                logger.warning(
+                    "EasySoccerData not installed. Install with: pip install EasySoccerData"
+                )
                 return None
             except Exception as e:
                 logger.warning(f"Failed to initialize EasySoccerData: {e}")

@@ -65,6 +65,7 @@ class TestCVServiceModelManager:
             mm = ModelManager(cache_dir=Path(tmpdir))
             # Remove the model directory to force failure
             import shutil
+
             shutil.rmtree(tmpdir)
             cv = CVService(model_size="n", model_manager=mm)
             # Should not crash on creation

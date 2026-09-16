@@ -241,7 +241,9 @@ class BatchService:
         self._running = False
         self._cancelled = False
         self._current_job = None
-        logger.info(f"Batch job {job_id} finished: {job.completed_matches}/{job.total_matches} matches")
+        logger.info(
+            f"Batch job {job_id} finished: {job.completed_matches}/{job.total_matches} matches"
+        )
         return job
 
     def cancel(self) -> None:

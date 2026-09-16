@@ -97,12 +97,15 @@ class HomographyService:
 
         pixel_pts = np.array(pixel_corners, dtype=np.float32)
 
-        pitch_pts = np.array([
-            [0, 0],
-            [pitch_length_m, 0],
-            [pitch_length_m, pitch_width_m],
-            [0, pitch_width_m],
-        ], dtype=np.float32)
+        pitch_pts = np.array(
+            [
+                [0, 0],
+                [pitch_length_m, 0],
+                [pitch_length_m, pitch_width_m],
+                [0, pitch_width_m],
+            ],
+            dtype=np.float32,
+        )
 
         H, _ = cv2_find_homography(pixel_pts, pitch_pts)
         if H is None:
@@ -192,17 +195,14 @@ class HomographyService:
         """Compute mean reprojection error in pixels."""
         try:
             import cv2
-            projected = cv2.perspectiveTransform(
-                src_pts.reshape(1, -1, 2), H
-            ).reshape(-1, 2)
+
+            projected = cv2.perspectiveTransform(src_pts.reshape(1, -1, 2), H).reshape(-1, 2)
             errors = np.linalg.norm(projected - dst_pts, axis=1)
             return float(np.mean(errors))
         except Exception:
             return 50.0
 
-    def save_calibration(
-        self, match_id: int, matrix: HomographyMatrix
-    ) -> Path:
+    def save_calibration(self, match_id: int, matrix: HomographyMatrix) -> Path:
         """Save homography calibration to disk for a match."""
         paths = get_paths()
         calib_dir = paths.appdata / "calibrations"
@@ -210,15 +210,19 @@ class HomographyService:
 
         calib_path = calib_dir / f"match_{match_id}.json"
         with open(calib_path, "w") as f:
-            json.dump({
-                "matrix": matrix.matrix,
-                "pitch_length_m": matrix.pitch_length_m,
-                "pitch_width_m": matrix.pitch_width_m,
-                "source": matrix.source,
-                "confidence": matrix.confidence,
-                "error_px": matrix.error_px,
-                "quality_issues": matrix.quality_issues,
-            }, f, indent=2)
+            json.dump(
+                {
+                    "matrix": matrix.matrix,
+                    "pitch_length_m": matrix.pitch_length_m,
+                    "pitch_width_m": matrix.pitch_width_m,
+                    "source": matrix.source,
+                    "confidence": matrix.confidence,
+                    "error_px": matrix.error_px,
+                    "quality_issues": matrix.quality_issues,
+                },
+                f,
+                indent=2,
+            )
 
         logger.info(f"Calibration saved: {calib_path}")
         return calib_path
@@ -315,10 +319,7 @@ class HomographyService:
         Returns:
             List of (timestamp, pitch_x_m, pitch_y_m)
         """
-        return [
-            (ts, *matrix.pixel_to_pitch(px, py))
-            for ts, px, py in pixel_positions
-        ]
+        return [(ts, *matrix.pixel_to_pitch(px, py)) for ts, px, py in pixel_positions]
 
     def convert_formation_to_pitch(
         self,
@@ -359,15 +360,16 @@ class HomographyService:
                     pixel_corners, pitch_length_m, pitch_width_m
                 )
                 src_pts = np.array(pixel_corners, dtype=np.float32)
-                dst_pts = np.array([
-                    [0, 0],
-                    [pitch_length_m, 0],
-                    [pitch_length_m, pitch_width_m],
-                    [0, pitch_width_m],
-                ], dtype=np.float32)
-                reprojection = self._compute_reprojection_error(
-                    matrix.to_array(), src_pts, dst_pts
+                dst_pts = np.array(
+                    [
+                        [0, 0],
+                        [pitch_length_m, 0],
+                        [pitch_length_m, pitch_width_m],
+                        [0, pitch_width_m],
+                    ],
+                    dtype=np.float32,
                 )
+                reprojection = self._compute_reprojection_error(matrix.to_array(), src_pts, dst_pts)
             except Exception as e:
                 issues.append(f"reprojection error: {e}")
                 reprojection = 999.0
@@ -457,4 +459,5 @@ class HomographyService:
 def cv2_find_homography(src: np.ndarray, dst: np.ndarray):
     """Wrapper to import cv2 lazily."""
     import cv2
+
     return cv2.findHomography(src, dst, cv2.RANSAC, 5.0)

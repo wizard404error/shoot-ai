@@ -14,6 +14,7 @@ Usage:
         fp_threshold=20.0,  # pixel distance
     )
 """
+
 from __future__ import annotations
 
 import logging

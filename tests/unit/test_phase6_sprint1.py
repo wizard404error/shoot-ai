@@ -13,14 +13,20 @@ class TestInjuryRiskBridge:
     @pytest.mark.asyncio
     async def test_get_injury_risk_success(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
             "knowledge_service": MagicMock(),
         }
         services["storage_service"].get_match_players.return_value = [
-            {"track_id": 1, "name": "Player 1", "team": "home", "position": "MID",
-             "jersey_number": "10"}
+            {
+                "track_id": 1,
+                "name": "Player 1",
+                "team": "home",
+                "position": "MID",
+                "jersey_number": "10",
+            }
         ]
         services["storage_service"].get_match_events.return_value = []
         handler = AnalysisHandler(bridge, services)
@@ -40,6 +46,7 @@ class TestInjuryRiskBridge:
         honest contract instead.)
         """
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
@@ -55,16 +62,15 @@ class TestInjuryRiskBridge:
     @pytest.mark.asyncio
     async def test_get_squad_injury_report_success(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
             "knowledge_service": MagicMock(),
         }
         services["storage_service"].get_match_players.return_value = [
-            {"track_id": 1, "name": "P1", "team": "home", "position": "MID",
-             "jersey_number": "10"},
-            {"track_id": 2, "name": "P2", "team": "away", "position": "FWD",
-             "jersey_number": "9"},
+            {"track_id": 1, "name": "P1", "team": "home", "position": "MID", "jersey_number": "10"},
+            {"track_id": 2, "name": "P2", "team": "away", "position": "FWD", "jersey_number": "9"},
         ]
         services["storage_service"].get_match_events.return_value = []
         handler = AnalysisHandler(bridge, services)
@@ -79,6 +85,7 @@ class TestInjuryRiskBridge:
     @pytest.mark.asyncio
     async def test_get_squad_injury_report_empty(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
@@ -95,14 +102,14 @@ class TestInjuryRiskBridge:
     @pytest.mark.asyncio
     async def test_get_squad_injury_report_high_risk(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
             "knowledge_service": MagicMock(),
         }
         services["storage_service"].get_match_players.return_value = [
-            {"track_id": 1, "name": "P1", "team": "home", "position": "MID",
-             "jersey_number": "10"},
+            {"track_id": 1, "name": "P1", "team": "home", "position": "MID", "jersey_number": "10"},
         ]
         services["storage_service"].get_match_events.return_value = [
             {"event_type": "sprint", "from_track_id": 1, "completed": True},
@@ -114,6 +121,7 @@ class TestInjuryRiskBridge:
     @pytest.mark.asyncio
     async def test_get_injury_risk_error_safe(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
@@ -132,6 +140,7 @@ class TestTrainingPlanBridge:
     @patch("kawkab.services.knowledge_service.KnowledgeService")
     async def test_generate_training_plan_success(self, mock_ks_cls):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         mock_kb = MagicMock()
         mock_kb.initialize = AsyncMock()
         mock_kb.get_drill.return_value = None
@@ -148,7 +157,10 @@ class TestTrainingPlanBridge:
             {"event_type": "shot", "from_track_id": 2},
         ]
         services["storage_service"].get_match_players.return_value = []
-        services["storage_service"].get_match.return_value = {"home_team": "Home", "away_team": "Away"}
+        services["storage_service"].get_match.return_value = {
+            "home_team": "Home",
+            "away_team": "Away",
+        }
         handler = AnalysisHandler(bridge, services)
         result = json.loads(await handler.generate_training_plan(1))
         assert result["success"] is True
@@ -160,6 +172,7 @@ class TestTrainingPlanBridge:
     @patch("kawkab.services.knowledge_service.KnowledgeService")
     async def test_generate_training_plan_structure(self, mock_ks_cls):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         mock_kb = MagicMock()
         mock_kb.initialize = AsyncMock()
         mock_kb.get_drill.return_value = None
@@ -173,7 +186,10 @@ class TestTrainingPlanBridge:
         }
         services["storage_service"].get_match_events.return_value = []
         services["storage_service"].get_match_players.return_value = []
-        services["storage_service"].get_match.return_value = {"home_team": "Home", "away_team": "Away"}
+        services["storage_service"].get_match.return_value = {
+            "home_team": "Home",
+            "away_team": "Away",
+        }
         handler = AnalysisHandler(bridge, services)
         result = json.loads(await handler.generate_training_plan(1))
         plan = result["plan"]
@@ -187,6 +203,7 @@ class TestTrainingPlanBridge:
     @patch("kawkab.services.knowledge_service.KnowledgeService")
     async def test_generate_training_plan_weekly_themes(self, mock_ks_cls):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         mock_kb = MagicMock()
         mock_kb.initialize = AsyncMock()
         mock_kb.get_drill.return_value = None
@@ -200,7 +217,10 @@ class TestTrainingPlanBridge:
         }
         services["storage_service"].get_match_events.return_value = []
         services["storage_service"].get_match_players.return_value = []
-        services["storage_service"].get_match.return_value = {"home_team": "Home", "away_team": "Away"}
+        services["storage_service"].get_match.return_value = {
+            "home_team": "Home",
+            "away_team": "Away",
+        }
         handler = AnalysisHandler(bridge, services)
         result = json.loads(await handler.generate_training_plan(1))
         themes = [w["theme"] for w in result["plan"]["weeks"]]
@@ -209,6 +229,7 @@ class TestTrainingPlanBridge:
     @pytest.mark.asyncio
     async def test_generate_training_plan_error_handling(self):
         from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+
         bridge = MagicMock()
         services = {
             "storage_service": AsyncMock(),
@@ -249,9 +270,36 @@ class TestACWRComputation:
 
     def test_acwr_normal(self):
         predictor = InjuryRiskPredictor()
-        workload = [50, 52, 48, 55, 60, 58, 65, 50, 48, 52,
-                    55, 60, 58, 62, 50, 48, 52, 55, 60, 58,
-                    65, 62, 50, 48, 52, 55, 60, 58]
+        workload = [
+            50,
+            52,
+            48,
+            55,
+            60,
+            58,
+            65,
+            50,
+            48,
+            52,
+            55,
+            60,
+            58,
+            62,
+            50,
+            48,
+            52,
+            55,
+            60,
+            58,
+            65,
+            62,
+            50,
+            48,
+            52,
+            55,
+            60,
+            58,
+        ]
         result = predictor.compute_acwr_overload(workload)
         assert result["acwr"] > 0
         assert result["risk_level"] in ("low", "moderate", "high", "critical")

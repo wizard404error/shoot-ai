@@ -105,9 +105,13 @@ class TestImportMatch:
         teams = {e.get("team") for e in events}
         assert teams <= {"home", "away"}
         # metadata carries pitch coords in meters
-        pass_events = [e for e in events if e.get("event_type") == "pass"
-                       and isinstance(e.get("metadata"), dict)
-                       and "start_x" in e["metadata"]]
+        pass_events = [
+            e
+            for e in events
+            if e.get("event_type") == "pass"
+            and isinstance(e.get("metadata"), dict)
+            and "start_x" in e["metadata"]
+        ]
         assert pass_events, "no pass events carry spatial metadata"
         for e in pass_events[:50]:
             assert 0.0 <= e["metadata"]["start_x"] <= 105.0

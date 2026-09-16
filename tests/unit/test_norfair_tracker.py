@@ -64,12 +64,15 @@ def _install_norfair_stub() -> None:
     sys.modules["norfair"] = norfair_mod
 
     cm_mod = types.ModuleType("norfair.camera_motion")
+
     class MotionEstimator:
         def __init__(self):
             self._update_count = 0
+
         def update(self, frame):
             self._update_count += 1
             return {"transformation_matrix": np.eye(3, dtype=np.float32)}
+
     cm_mod.MotionEstimator = MotionEstimator
     sys.modules["norfair.camera_motion"] = cm_mod
 
@@ -118,7 +121,6 @@ def fake_frame():
 
 
 class TestNorfairTracker:
-
     def test_init(self, nf_mod):
         tracker = nf_mod.NorfairTracker()
         assert tracker._initialized is False

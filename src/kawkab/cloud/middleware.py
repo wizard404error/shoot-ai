@@ -1,4 +1,5 @@
 """FastAPI middleware for rate limiting, pagination, and security."""
+
 from __future__ import annotations
 
 import time
@@ -34,7 +35,9 @@ class RateLimitMiddleware:
         # only when deploying behind the shipped nginx (infrastructure/
         # nginx.conf sets both headers) or an equivalent trusted proxy.
         self.trust_proxy_headers = os.environ.get("KAWKAB_TRUST_PROXY_HEADERS") == "1"
-        self._buckets: dict[str, dict] = defaultdict(lambda: {"tokens": 60, "last_refill": time.time()})
+        self._buckets: dict[str, dict] = defaultdict(
+            lambda: {"tokens": 60, "last_refill": time.time()}
+        )
         self._limits = {
             "/api/v1/matches/": 30,
             "/api/v1/analysis": 5,
@@ -70,7 +73,8 @@ class RateLimitMiddleware:
         if len(self._buckets) <= _MAX_BUCKETS:
             return
         stale = [
-            key for key, bucket in self._buckets.items()
+            key
+            for key, bucket in self._buckets.items()
             if now - bucket["last_refill"] > _PRUNE_IDLE_AFTER_S
         ]
         for key in stale:

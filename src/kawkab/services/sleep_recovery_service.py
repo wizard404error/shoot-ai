@@ -3,6 +3,7 @@
 Provides sleep record management from Oura Ring, WHOOP band, and manual entry,
 plus composite recovery scoring based on sleep quality, HRV, and training load.
 """
+
 from __future__ import annotations
 
 import csv
@@ -71,17 +72,19 @@ class SleepRecoveryService:
                 if not sleep_date:
                     sleep_date = entry.get("bedtime_start", "")[:10]
 
-                records.append(SleepRecord(
-                    date=sleep_date,
-                    bedtime=entry.get("bedtime_start", ""),
-                    wake_time=entry.get("bedtime_end", ""),
-                    total_sleep_h=round(total_h, 1),
-                    deep_sleep_pct=round(deep_pct, 1),
-                    rem_sleep_pct=round(rem_pct, 1),
-                    hrv_rmssd=entry.get("hrv_rmssd"),
-                    resting_hr=entry.get("resting_heart_rate"),
-                    source="oura",
-                ))
+                records.append(
+                    SleepRecord(
+                        date=sleep_date,
+                        bedtime=entry.get("bedtime_start", ""),
+                        wake_time=entry.get("bedtime_end", ""),
+                        total_sleep_h=round(total_h, 1),
+                        deep_sleep_pct=round(deep_pct, 1),
+                        rem_sleep_pct=round(rem_pct, 1),
+                        hrv_rmssd=entry.get("hrv_rmssd"),
+                        resting_hr=entry.get("resting_heart_rate"),
+                        source="oura",
+                    )
+                )
             except (TypeError, ValueError) as e:
                 logger.warning(f"Skipping malformed Oura entry: {e}")
                 continue
@@ -109,6 +112,7 @@ class SleepRecoveryService:
                 col_map = {h.strip().lower(): h for h in reader.fieldnames}
                 for row in reader:
                     try:
+
                         def _val(key: str, cast: callable = str) -> Any:
                             raw = row.get(col_map.get(key, ""), "").strip()
                             if not raw:
@@ -122,17 +126,19 @@ class SleepRecoveryService:
                         rhr = _val("resting_hr", float)
                         date_val = _val("date", str) or ""
 
-                        records.append(SleepRecord(
-                            date=date_val,
-                            bedtime=_val("bedtime", str) or "",
-                            wake_time=_val("wake_time", str) or "",
-                            total_sleep_h=_val("total_sleep_h", float) or 0.0,
-                            deep_sleep_pct=_val("deep_sleep_pct", float) or 0.0,
-                            rem_sleep_pct=_val("rem_sleep_pct", float) or 0.0,
-                            hrv_rmssd=hrv,
-                            resting_hr=rhr,
-                            source="whoop",
-                        ))
+                        records.append(
+                            SleepRecord(
+                                date=date_val,
+                                bedtime=_val("bedtime", str) or "",
+                                wake_time=_val("wake_time", str) or "",
+                                total_sleep_h=_val("total_sleep_h", float) or 0.0,
+                                deep_sleep_pct=_val("deep_sleep_pct", float) or 0.0,
+                                rem_sleep_pct=_val("rem_sleep_pct", float) or 0.0,
+                                hrv_rmssd=hrv,
+                                resting_hr=rhr,
+                                source="whoop",
+                            )
+                        )
                     except (TypeError, ValueError) as e:
                         logger.warning(f"Skipping malformed WHOOP row: {e}")
                         continue
@@ -149,7 +155,8 @@ class SleepRecoveryService:
             return []
         cutoff = datetime.now() - timedelta(days=days)
         filtered = [
-            r for r in records
+            r
+            for r in records
             if r.date and _parse_date(r.date) is not None and _parse_date(r.date) >= cutoff.date()
         ]
         return sorted(filtered, key=lambda r: r.date, reverse=True)
@@ -224,7 +231,9 @@ class SleepRecoveryService:
         parts: list[str] = []
 
         if score >= 80:
-            parts.append("Recovery is excellent — player is ready for full training and match load.")
+            parts.append(
+                "Recovery is excellent — player is ready for full training and match load."
+            )
         elif score >= 60:
             parts.append("Moderate recovery — consider lighter training load or an extra rest day.")
         elif score >= 40:

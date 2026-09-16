@@ -61,11 +61,13 @@ import time
 
 _start_time = time.time()
 
+
 @app.get("/health")
 def health():
     db_ok = False
     try:
         from kawkab.cloud.database import get_cloud_db
+
         db = get_cloud_db()
         db.execute("SELECT 1")
         db_ok = True
@@ -80,23 +82,28 @@ def health():
         "database": "connected" if db_ok else "unreachable",
     }
 
+
 @app.get("/health/ready")
 def health_ready():
     try:
         from kawkab.cloud.database import get_cloud_db
+
         db = get_cloud_db()
         db.execute("SELECT 1")
         return {"ready": True}
     except Exception as e:
         return {"ready": False, "error": str(e)}
 
+
 @app.get("/health/live")
 def health_live():
     return {"alive": True}
 
+
 @app.get("/metrics")
 def metrics():
     import gc
+
     return {
         "uptime_s": round(time.time() - _start_time, 1),
         "python_version": platform.python_version(),
@@ -107,10 +114,13 @@ def metrics():
 
 # ── Auth ──
 
+
 @app.post("/auth/register", response_model=TokenResponse)
 def register(body: UserRegister):
     db = get_cloud_db()
-    existing = db.execute("SELECT id FROM users WHERE email = ? OR username = ?", (body.email, body.username)).fetchone()
+    existing = db.execute(
+        "SELECT id FROM users WHERE email = ? OR username = ?", (body.email, body.username)
+    ).fetchone()
     if existing:
         raise HTTPException(status_code=400, detail="Email or username already taken")
     pwd_hash = hash_password(body.password)
@@ -123,9 +133,15 @@ def register(body: UserRegister):
     )
     db.commit()
     user_id = cur.lastrowid
-    user = dict(db.execute("SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    user = dict(
+        db.execute(
+            "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    )
     token = create_access_token(user_id, role=role)
     return TokenResponse(access_token=token, user=UserOut(**user))
+
 
 @app.post("/auth/login", response_model=TokenResponse)
 def login(body: UserLogin):
@@ -141,18 +157,24 @@ def login(body: UserLogin):
     # works identically on both backends (_ResultRow on Postgres already
     # is a dict subclass).
     user = dict(row)
-    token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=user.get("token_version", 0))
+    token = create_access_token(
+        user["id"], role=user.get("role", "analyst"), token_version=user.get("token_version", 0)
+    )
     del user["password_hash"]
     return TokenResponse(access_token=token, user=UserOut(**user))
+
 
 @app.get("/auth/me", response_model=UserOut)
 def me(user: dict = Depends(get_current_user)):
     return UserOut(**user)
 
+
 @app.post("/auth/change-password")
 def change_password(body: PasswordChange, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    row = db.execute("SELECT password_hash, token_version FROM users WHERE id = ?", (user["id"],)).fetchone()
+    row = db.execute(
+        "SELECT password_hash, token_version FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()
     if not verify_password(body.old_password, row["password_hash"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     # Bumping token_version invalidates every token issued before this
@@ -161,10 +183,14 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user)
     # changing their password. A fresh token is returned below so the
     # caller isn't forced to immediately log back in.
     new_token_version = row["token_version"] + 1
-    db.execute("UPDATE users SET password_hash = ?, token_version = ?, updated_at = datetime('now') WHERE id = ?",
-               (hash_password(body.new_password), new_token_version, user["id"]))
+    db.execute(
+        "UPDATE users SET password_hash = ?, token_version = ?, updated_at = datetime('now') WHERE id = ?",
+        (hash_password(body.new_password), new_token_version, user["id"]),
+    )
     db.commit()
-    new_token = create_access_token(user["id"], role=user.get("role", "analyst"), token_version=new_token_version)
+    new_token = create_access_token(
+        user["id"], role=user.get("role", "analyst"), token_version=new_token_version
+    )
     return {"ok": True, "access_token": new_token}
 
 
@@ -175,9 +201,11 @@ from kawkab.cloud.oauth import get_oauth_provider, get_configured_providers
 
 _oauth_states: dict[str, str] = {}  # state -> provider
 
+
 @app.get("/auth/oauth/providers")
 def oauth_providers():
     return {"providers": get_configured_providers()}
+
 
 @app.get("/auth/oauth/{provider}/authorize", response_model=OAuthAuthorizeResponse)
 def oauth_authorize(provider: str, redirect_uri: str = ""):
@@ -188,6 +216,7 @@ def oauth_authorize(provider: str, redirect_uri: str = ""):
     _oauth_states[state] = provider
     url = prov.get_authorize_url(redirect_uri or f"/auth/oauth/{provider}/callback", state)
     return OAuthAuthorizeResponse(authorize_url=url, state=state, provider=provider)
+
 
 @app.post("/auth/oauth/{provider}/callback", response_model=TokenResponse)
 def oauth_callback(provider: str, body: OAuthCallbackRequest):
@@ -220,7 +249,12 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
             (access_token, tokens.get("refresh_token"), row["user_id"]),
         )
         db.commit()
-        user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (row["user_id"],)).fetchone())
+        user = dict(
+            db.execute(
+                "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+                (row["user_id"],),
+            ).fetchone()
+        )
         # token_version must come from the DB, not default to 0: a
         # returning OAuth user may have had it bumped since (e.g. a
         # password change on a linked local-auth account), and minting a
@@ -250,12 +284,20 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
         (user_id, provider, provider_user_id, access_token, tokens.get("refresh_token")),
     )
     db.commit()
-    user = dict(db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?", (user_id,)).fetchone())
+    user = dict(
+        db.execute(
+            "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    )
     jwt_token = create_access_token(user_id, token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
+
 @app.post("/auth/link-oauth")
-def link_oauth_account(provider: str, provider_user_id: str, user: dict = Depends(get_current_user)):
+def link_oauth_account(
+    provider: str, provider_user_id: str, user: dict = Depends(get_current_user)
+):
     db = get_cloud_db()
     existing = db.execute(
         "SELECT id FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
@@ -270,26 +312,40 @@ def link_oauth_account(provider: str, provider_user_id: str, user: dict = Depend
     db.commit()
     return {"ok": True}
 
+
 @app.get("/auth/oauth/accounts")
 def list_oauth_accounts(user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    rows = db.execute("SELECT provider, provider_user_id, created_at FROM oauth_accounts WHERE user_id = ?", (user["id"],)).fetchall()
+    rows = db.execute(
+        "SELECT provider, provider_user_id, created_at FROM oauth_accounts WHERE user_id = ?",
+        (user["id"],),
+    ).fetchall()
     return [dict(r) for r in rows]
+
 
 @app.post("/auth/oauth/unlink")
 def unlink_oauth_account(provider: str, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    password_row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    password_row = db.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()
     if password_row and password_row["password_hash"] == "oauth":
-        pw_count = db.execute("SELECT COUNT(*) as c FROM oauth_accounts WHERE user_id = ?", (user["id"],)).fetchone()["c"]
+        pw_count = db.execute(
+            "SELECT COUNT(*) as c FROM oauth_accounts WHERE user_id = ?", (user["id"],)
+        ).fetchone()["c"]
         if pw_count <= 1:
-            raise HTTPException(status_code=400, detail="Cannot unlink last login method. Set a password first.")
-    db.execute("DELETE FROM oauth_accounts WHERE user_id = ? AND provider = ?", (user["id"], provider))
+            raise HTTPException(
+                status_code=400, detail="Cannot unlink last login method. Set a password first."
+            )
+    db.execute(
+        "DELETE FROM oauth_accounts WHERE user_id = ? AND provider = ?", (user["id"], provider)
+    )
     db.commit()
     return {"ok": True}
 
 
 # ── SAML SSO (Phase 4: wires the previously-orphaned saml_auth_service.py) ──
+
 
 class SAMLCallbackRequest(BaseModel):
     saml_response_xml: str
@@ -321,11 +377,13 @@ def saml_status():
     """
     svc = _get_saml_service()
     if not svc.available and os.environ.get("KAWKAB_SAML_IDP_SSO_URL"):
-        svc.register_idp(type(svc).SAMLIdentityProvider(
-            entity_id=os.environ.get("KAWKAB_SAML_IDP_ENTITY_ID", "club-idp"),
-            sso_url=os.environ["KAWKAB_SAML_IDP_SSO_URL"],
-            certificate=os.environ.get("KAWKAB_SAML_IDP_CERT", ""),
-        ))
+        svc.register_idp(
+            type(svc).SAMLIdentityProvider(
+                entity_id=os.environ.get("KAWKAB_SAML_IDP_ENTITY_ID", "club-idp"),
+                sso_url=os.environ["KAWKAB_SAML_IDP_SSO_URL"],
+                certificate=os.environ.get("KAWKAB_SAML_IDP_CERT", ""),
+            )
+        )
     return {
         "sdk_available": svc.available,
         "configured_idps": [i.entity_id for i in svc.get_configured_providers()],
@@ -345,9 +403,13 @@ def saml_configure(body: SAMLConfigIn, user: dict = Depends(get_current_user)):
         )
     from kawkab.services.saml_auth_service import SAMLIdentityProvider
 
-    svc.register_idp(SAMLIdentityProvider(
-        entity_id=body.entity_id, sso_url=body.sso_url, certificate=body.certificate,
-    ))
+    svc.register_idp(
+        SAMLIdentityProvider(
+            entity_id=body.entity_id,
+            sso_url=body.sso_url,
+            certificate=body.certificate,
+        )
+    )
     return {"ok": True, "entity_id": body.entity_id}
 
 
@@ -364,7 +426,10 @@ def saml_callback(body: SAMLCallbackRequest):
 
     email = result["email"]
     db = get_cloud_db()
-    row = db.execute("SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE email = ?", (email,)).fetchone()
+    row = db.execute(
+        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE email = ?",
+        (email,),
+    ).fetchone()
     if row:
         user = dict(row)
         if not user.get("is_active", 1):
@@ -385,15 +450,18 @@ def saml_callback(body: SAMLCallbackRequest):
         (username, email, "saml", result.get("name") or username),
     )
     db.commit()
-    user = dict(db.execute(
-        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
-        (cur.lastrowid,),
-    ).fetchone())
+    user = dict(
+        db.execute(
+            "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+            (cur.lastrowid,),
+        ).fetchone()
+    )
     jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
 
 # ── Sync ──
+
 
 @app.post("/sync/push")
 def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
@@ -422,32 +490,40 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
                 (op.entity_id, user["id"]),
             ).fetchone()
             if owned_by_other is not None:
-                conflicts.append(ConflictRecord(
-                    entity_type=op.entity_type,
-                    entity_id=op.entity_id,
-                    local_version=int(op.data.get("_version", 0)),
-                    remote_version=-1,
-                    local_data=op.data,
-                    remote_data={"error": "This id belongs to a project you do not own."},
-                ))
+                conflicts.append(
+                    ConflictRecord(
+                        entity_type=op.entity_type,
+                        entity_id=op.entity_id,
+                        local_version=int(op.data.get("_version", 0)),
+                        remote_version=-1,
+                        local_data=op.data,
+                        remote_data={"error": "This id belongs to a project you do not own."},
+                    )
+                )
                 continue
 
         if existing and op.op == "update":
             local_ver = int(op.data.get("_version", 0))
             if local_ver < existing["version"]:
-                conflicts.append(ConflictRecord(
-                    entity_type=op.entity_type,
-                    entity_id=op.entity_id,
-                    local_version=local_ver,
-                    remote_version=existing["version"],
-                    local_data=op.data,
-                    remote_data=json.loads(existing["data"]),
-                ))
+                conflicts.append(
+                    ConflictRecord(
+                        entity_type=op.entity_type,
+                        entity_id=op.entity_id,
+                        local_version=local_ver,
+                        remote_version=existing["version"],
+                        local_data=op.data,
+                        remote_data=json.loads(existing["data"]),
+                    )
+                )
                 continue
         if op.op == "delete":
-            db.execute("DELETE FROM projects WHERE id = ? AND owner_id = ?", (op.entity_id, user["id"]))
-            db.execute("INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
-                       (user["id"], payload.device_id, op.entity_type, op.entity_id, "delete"))
+            db.execute(
+                "DELETE FROM projects WHERE id = ? AND owner_id = ?", (op.entity_id, user["id"])
+            )
+            db.execute(
+                "INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
+                (user["id"], payload.device_id, op.entity_type, op.entity_id, "delete"),
+            )
             applied.append(op)
         elif op.op in ("create", "update"):
             data_json = json.dumps(op.data, ensure_ascii=False)
@@ -457,16 +533,25 @@ def sync_push(payload: SyncPayload, user: dict = Depends(get_current_user)):
             # bypassed or buggy, SQLite itself refuses to apply the update
             # when the existing row's owner_id doesn't match, rather than
             # silently overwriting another user's row.
-            db.execute("""INSERT INTO projects (id, name, owner_id, data, version)
+            db.execute(
+                """INSERT INTO projects (id, name, owner_id, data, version)
                           VALUES (?,?,?,?,?)
                           ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=datetime('now')
                           WHERE projects.owner_id = excluded.owner_id""",
-                       (op.entity_id, op.data.get("name", "Untitled"), user["id"], data_json, new_ver))
-            db.execute("INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
-                       (user["id"], payload.device_id, op.entity_type, op.entity_id, op.op))
+                (op.entity_id, op.data.get("name", "Untitled"), user["id"], data_json, new_ver),
+            )
+            db.execute(
+                "INSERT INTO sync_log (user_id, device_id, entity_type, entity_id, operation) VALUES (?,?,?,?,?)",
+                (user["id"], payload.device_id, op.entity_type, op.entity_id, op.op),
+            )
             applied.append(op)
     db.commit()
-    return SyncResponse(sync_token=str(datetime.now(timezone.utc).timestamp()), operations=applied, conflicts=conflicts)
+    return SyncResponse(
+        sync_token=str(datetime.now(timezone.utc).timestamp()),
+        operations=applied,
+        conflicts=conflicts,
+    )
+
 
 @app.post("/sync/pull")
 def sync_pull(payload: SyncPayload, user: dict = Depends(get_current_user)):
@@ -485,50 +570,70 @@ def sync_pull(payload: SyncPayload, user: dict = Depends(get_current_user)):
 
 # ── Teams ──
 
+
 @app.post("/teams")
 def create_team(body: TeamCreate, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    cur = db.execute("INSERT INTO teams (name, description, owner_id) VALUES (?, ?, ?)",
-                     (body.name, body.description, user["id"]))
-    db.execute("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'owner')",
-               (cur.lastrowid, user["id"]))
+    cur = db.execute(
+        "INSERT INTO teams (name, description, owner_id) VALUES (?, ?, ?)",
+        (body.name, body.description, user["id"]),
+    )
+    db.execute(
+        "INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'owner')",
+        (cur.lastrowid, user["id"]),
+    )
     db.commit()
     return {"ok": True, "team_id": cur.lastrowid}
+
 
 @app.get("/teams")
 def list_teams(user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    rows = db.execute("""SELECT t.*, tm.role FROM teams t
+    rows = db.execute(
+        """SELECT t.*, tm.role FROM teams t
                          JOIN team_members tm ON t.id = tm.team_id
-                         WHERE tm.user_id = ? ORDER BY t.name""", (user["id"],)).fetchall()
+                         WHERE tm.user_id = ? ORDER BY t.name""",
+        (user["id"],),
+    ).fetchall()
     return [dict(r) for r in rows]
+
 
 @app.post("/teams/{team_id}/invite")
 def invite_member(team_id: int, body: TeamInvite, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    owner = db.execute("SELECT role FROM team_members WHERE team_id = ? AND user_id = ?", (team_id, user["id"])).fetchone()
+    owner = db.execute(
+        "SELECT role FROM team_members WHERE team_id = ? AND user_id = ?", (team_id, user["id"])
+    ).fetchone()
     if not owner or owner["role"] not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
     token = str(uuid.uuid4())
-    db.execute("INSERT INTO team_invites (team_id, email, role, token) VALUES (?, ?, ?, ?)",
-               (team_id, body.email, body.role, token))
+    db.execute(
+        "INSERT INTO team_invites (team_id, email, role, token) VALUES (?, ?, ?, ?)",
+        (team_id, body.email, body.role, token),
+    )
     db.commit()
     return {"ok": True, "invite_token": token}
+
 
 @app.post("/teams/join/{token}")
 def accept_invite(token: str, user: dict = Depends(get_current_user)):
     db = get_cloud_db()
-    invite = db.execute("SELECT * FROM team_invites WHERE token = ? AND accepted = 0", (token,)).fetchone()
+    invite = db.execute(
+        "SELECT * FROM team_invites WHERE token = ? AND accepted = 0", (token,)
+    ).fetchone()
     if not invite:
         raise HTTPException(status_code=404, detail="Invalid or expired invite")
-    db.execute("INSERT OR IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)",
-               (invite["team_id"], user["id"], invite["role"]))
+    db.execute(
+        "INSERT OR IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)",
+        (invite["team_id"], user["id"], invite["role"]),
+    )
     db.execute("UPDATE team_invites SET accepted = 1 WHERE id = ?", (invite["id"],))
     db.commit()
     return {"ok": True, "team_id": invite["team_id"]}
 
 
 # ── Shared Projects ──
+
 
 @app.post("/projects/share")
 def share_project(body: SharedProject, user: dict = Depends(get_current_user)):
@@ -538,7 +643,10 @@ def share_project(body: SharedProject, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Project not found")
     if project["owner_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized")
-    db.execute("UPDATE projects SET is_shared = 1, team_id = ? WHERE id = ?", (body.team_id, body.project_id))
+    db.execute(
+        "UPDATE projects SET is_shared = 1, team_id = ? WHERE id = ?",
+        (body.team_id, body.project_id),
+    )
     db.commit()
     return {"ok": True}
 
@@ -620,14 +728,19 @@ async def ws_endpoint(websocket: WebSocket, project_id: str, token: str = Query(
                     except Exception:
                         pass
     except WebSocketDisconnect:
-        connected_clients[project_id] = [c for c in connected_clients.get(project_id, []) if c != websocket]
+        connected_clients[project_id] = [
+            c for c in connected_clients.get(project_id, []) if c != websocket
+        ]
 
 
 # ── Run ──
 
+
 def start(host: str = "0.0.0.0", port: int = 8741):
     import uvicorn
+
     uvicorn.run(app, host=host, port=port, log_level="info")
+
 
 if __name__ == "__main__":
     start()

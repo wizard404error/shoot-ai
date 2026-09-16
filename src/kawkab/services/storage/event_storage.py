@@ -9,28 +9,44 @@ import re
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import BaseStorage
 
+
 def _sanitize_column_name(name: str) -> str | None:
-    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+    if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
         return name
     return None
 
+
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
+
     SecurityValidator = _SecVal
 except ImportError:
+
     class _SecurityValidator:
         @staticmethod
-        def validate_match_id(mid): return int(mid)
+        def validate_match_id(mid):
+            return int(mid)
+
         @staticmethod
-        def validate_event_type(e): return str(e)
+        def validate_event_type(e):
+            return str(e)
+
         @staticmethod
-        def validate_event_dict(e): return e
+        def validate_event_dict(e):
+            return e
+
         @staticmethod
-        def validate_track_id(t): return int(t)
+        def validate_track_id(t):
+            return int(t)
+
         @staticmethod
-        def sanitize_string(s, max_length=255): return str(s)[:max_length]
+        def sanitize_string(s, max_length=255):
+            return str(s)[:max_length]
+
         @staticmethod
-        def validate_positive_float(v, n="v"): return max(0.0, float(v))
+        def validate_positive_float(v, n="v"):
+            return max(0.0, float(v))
+
     SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
@@ -80,17 +96,19 @@ class EventStorage(BaseStorage):
             rows = []
             for event in events:
                 SecurityValidator.validate_event_dict(event)
-                rows.append((
-                    match_id,
-                    event["type"],
-                    event["timestamp"],
-                    event.get("from_track_id"),
-                    event.get("to_track_id"),
-                    event.get("team"),
-                    event.get("completed", False),
-                    event.get("confidence", 0.0),
-                    json.dumps(event.get("metadata", {})),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        event["type"],
+                        event["timestamp"],
+                        event.get("from_track_id"),
+                        event.get("to_track_id"),
+                        event.get("team"),
+                        event.get("completed", False),
+                        event.get("confidence", 0.0),
+                        json.dumps(event.get("metadata", {})),
+                    )
+                )
             cursor.executemany(
                 """
                 INSERT INTO events (
@@ -123,8 +141,15 @@ class EventStorage(BaseStorage):
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._ensure_initialized("update_event"):
             return False
-        allowed = {"event_type", "team", "from_track_id", "to_track_id",
-                    "completed", "confidence", "metadata"}
+        allowed = {
+            "event_type",
+            "team",
+            "from_track_id",
+            "to_track_id",
+            "completed",
+            "confidence",
+            "metadata",
+        }
         try:
             SecurityValidator.validate_match_id(event_id)
             sets = []
@@ -152,9 +177,7 @@ class EventStorage(BaseStorage):
             sets.append("user_corrected = 1")
             vals.append(event_id)
             cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals
-            )
+            cursor.execute(f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals)
             self._conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
@@ -212,25 +235,25 @@ class EventStorage(BaseStorage):
             self._log_error("save_advanced_metrics", e)
             return 0
 
-    async def save_advanced_metrics_bulk(
-        self, match_id: int, metrics: list[dict]
-    ) -> int:
+    async def save_advanced_metrics_bulk(self, match_id: int, metrics: list[dict]) -> int:
         if not self._ensure_initialized("save_advanced_metrics_bulk"):
             return 0
         try:
             cursor = self._conn.cursor()
             rows = []
             for m in metrics:
-                rows.append((
-                    match_id,
-                    m.get("player_id"),
-                    m["metric_name"],
-                    m["metric_value"],
-                    m.get("metric_category", ""),
-                    m.get("pitch_zone", ""),
-                    m.get("timestamp"),
-                    json.dumps(m.get("metadata", {})),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        m.get("player_id"),
+                        m["metric_name"],
+                        m["metric_value"],
+                        m.get("metric_category", ""),
+                        m.get("pitch_zone", ""),
+                        m.get("timestamp"),
+                        json.dumps(m.get("metadata", {})),
+                    )
+                )
             cursor.executemany(
                 """
                 INSERT INTO advanced_metrics (

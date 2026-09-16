@@ -53,9 +53,7 @@ class PlayerPositionSmoother:
     def initialized(self) -> bool:
         return self._initialized and self._state is not None
 
-    def _init_state(
-        self, x: float, y: float, vx: float = 0.0, vy: float = 0.0
-    ) -> None:
+    def _init_state(self, x: float, y: float, vx: float = 0.0, vy: float = 0.0) -> None:
         self._state = np.array([x, y, vx, vy], dtype=np.float64)
         self._cov = np.eye(4, dtype=np.float64) * 5.0
         self._initialized = True
@@ -85,19 +83,25 @@ class PlayerPositionSmoother:
     def _predict(self, dt: float) -> None:
         if self._state is None or self._cov is None:
             return
-        F = np.array([
-            [1, 0, dt, 0],
-            [0, 1, 0, dt],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ], dtype=np.float64)
+        F = np.array(
+            [
+                [1, 0, dt, 0],
+                [0, 1, 0, dt],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ],
+            dtype=np.float64,
+        )
         dt2 = dt * dt
-        G = np.array([
-            [dt2 / 2, 0],
-            [0, dt2 / 2],
-            [dt, 0],
-            [0, dt],
-        ], dtype=np.float64)
+        G = np.array(
+            [
+                [dt2 / 2, 0],
+                [0, dt2 / 2],
+                [dt, 0],
+                [0, dt],
+            ],
+            dtype=np.float64,
+        )
         self._state = F @ self._state
         Q = G @ G.T * (self.q_std * self.q_std)
         Q = np.maximum(Q, np.eye(4) * 1e-6)
@@ -108,10 +112,13 @@ class PlayerPositionSmoother:
         if self._state is None or self._cov is None:
             return
         z = np.array([x, y], dtype=np.float64)
-        H = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-        ], dtype=np.float64)
+        H = np.array(
+            [
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+            ],
+            dtype=np.float64,
+        )
         R = np.eye(2, dtype=np.float64) * (self.r_std * self.r_std)
         y_vec = z - H @ self._state
         S = H @ self._cov @ H.T + R
@@ -124,9 +131,7 @@ class PlayerPositionSmoother:
         self._cov = IKH @ self._cov
         self._cov = np.maximum(self._cov, np.eye(4) * 1e-6)
 
-    def update(
-        self, x: float, y: float, dt: float
-    ) -> None:
+    def update(self, x: float, y: float, dt: float) -> None:
         """Feed a new (x, y) measurement, dt seconds since last measurement."""
         if not self._initialized:
             self._init_state(x, y)

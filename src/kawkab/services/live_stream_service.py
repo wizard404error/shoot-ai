@@ -47,18 +47,27 @@ class LiveStreamCaptureService:
             output_path = self.output_dir / filename
 
             cmd = [
-                "ffmpeg", "-y",
-                "-i", url,
-                "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-crf", "23",
-                "-c:a", "aac",
-                "-f", "mp4",
+                "ffmpeg",
+                "-y",
+                "-i",
+                url,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-crf",
+                "23",
+                "-c:a",
+                "aac",
+                "-f",
+                "mp4",
                 str(output_path),
             ]
 
             proc = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             self._processes[sid] = proc
@@ -66,11 +75,14 @@ class LiveStreamCaptureService:
             self._chapter_markers[sid] = []
 
             logger.info(f"Stream capture started: {sid} -> {output_path}")
-            return json.dumps({
-                "ok": True, "stream_id": sid,
-                "output": str(output_path),
-                "source_type": self.detect_source_type(url),
-            })
+            return json.dumps(
+                {
+                    "ok": True,
+                    "stream_id": sid,
+                    "output": str(output_path),
+                    "source_type": self.detect_source_type(url),
+                }
+            )
         except Exception as e:
             logger.error(f"start_capture failed: {e}")
             return json.dumps({"error": str(e)})
@@ -97,12 +109,14 @@ class LiveStreamCaptureService:
         try:
             proc = self._processes.get(stream_id)
             running = proc is not None and proc.poll() is None
-            return json.dumps({
-                "stream_id": stream_id,
-                "running": running,
-                "recording": self._recording.get(stream_id, False),
-                "chapters": len(self._chapter_markers.get(stream_id, [])),
-            })
+            return json.dumps(
+                {
+                    "stream_id": stream_id,
+                    "running": running,
+                    "recording": self._recording.get(stream_id, False),
+                    "chapters": len(self._chapter_markers.get(stream_id, [])),
+                }
+            )
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -112,11 +126,13 @@ class LiveStreamCaptureService:
             for sid in list(self._processes.keys()):
                 proc = self._processes.get(sid)
                 running = proc is not None and proc.poll() is None
-                result.append({
-                    "stream_id": sid,
-                    "running": running,
-                    "chapters": len(self._chapter_markers.get(sid, [])),
-                })
+                result.append(
+                    {
+                        "stream_id": sid,
+                        "running": running,
+                        "chapters": len(self._chapter_markers.get(sid, [])),
+                    }
+                )
             return json.dumps({"streams": result})
         except Exception as e:
             return json.dumps({"error": str(e)})
@@ -137,17 +153,19 @@ class LiveStreamCaptureService:
     def list_recordings(self) -> str:
         try:
             files = sorted(self.output_dir.glob("*.mp4"), key=os.path.getmtime, reverse=True)
-            return json.dumps({
-                "recordings": [
-                    {
-                        "path": str(f),
-                        "name": f.name,
-                        "size": f.stat().st_size,
-                        "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
-                    }
-                    for f in files[:50]
-                ]
-            })
+            return json.dumps(
+                {
+                    "recordings": [
+                        {
+                            "path": str(f),
+                            "name": f.name,
+                            "size": f.stat().st_size,
+                            "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                        }
+                        for f in files[:50]
+                    ]
+                }
+            )
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -175,15 +193,17 @@ class BroadcastOCRTagger:
             return None
         try:
             import cv2
+
             h, w = frame.shape[:2]
             # Scoreboard is typically in the top-left or top-center
-            roi = frame[0:int(h*0.12), int(w*0.05):int(w*0.45)]
+            roi = frame[0 : int(h * 0.12), int(w * 0.05) : int(w * 0.45)]
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
             _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
 
             # Use pytesseract if available
             try:
                 import pytesseract
+
                 text = pytesseract.image_to_string(thresh, config="--psm 7").strip()
                 if text:
                     return {"text": text, "source": "scoreboard"}

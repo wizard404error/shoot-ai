@@ -68,7 +68,7 @@ class TestBenchmarks:
         ratings = {
             1: {"name": "ST1", "pass_accuracy": 0.90, "shots": 5, "position": "ST"},
             2: {"name": "ST2", "pass_accuracy": 0.70, "shots": 3, "position": "CF"},
-            3: {"name": "MF",  "pass_accuracy": 0.95, "shots": 2, "position": "CM"},
+            3: {"name": "MF", "pass_accuracy": 0.95, "shots": 2, "position": "CM"},
         }
         # ST group should only include ST1 and ST2, not MF
         result = compute_player_benchmarks(ratings, position_group="ST")

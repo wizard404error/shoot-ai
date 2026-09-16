@@ -53,15 +53,69 @@ class TransfermarktIntegrationService:
 
         if name.lower() == "demo":
             results = [
-                {"id": 1, "name": "Player A", "position": "CF", "club": "Demo FC", "league": "Premier League", "market_value": 25000000, "age": 25, "nationality": "England"},
-                {"id": 2, "name": "Player B", "position": "CM", "club": "Demo FC", "league": "Premier League", "market_value": 18000000, "age": 28, "nationality": "Spain"},
-                {"id": 3, "name": "Player C", "position": "CB", "club": "Demo United", "league": "LaLiga", "market_value": 12000000, "age": 23, "nationality": "Brazil"},
-                {"id": 4, "name": "Player D", "position": "LW", "club": "Academy FC", "league": "Championship", "market_value": 5000000, "age": 19, "nationality": "France"},
-                {"id": 5, "name": "Player E", "position": "GK", "club": "Top Club", "league": "Bundesliga", "market_value": 35000000, "age": 27, "nationality": "Germany"},
+                {
+                    "id": 1,
+                    "name": "Player A",
+                    "position": "CF",
+                    "club": "Demo FC",
+                    "league": "Premier League",
+                    "market_value": 25000000,
+                    "age": 25,
+                    "nationality": "England",
+                },
+                {
+                    "id": 2,
+                    "name": "Player B",
+                    "position": "CM",
+                    "club": "Demo FC",
+                    "league": "Premier League",
+                    "market_value": 18000000,
+                    "age": 28,
+                    "nationality": "Spain",
+                },
+                {
+                    "id": 3,
+                    "name": "Player C",
+                    "position": "CB",
+                    "club": "Demo United",
+                    "league": "LaLiga",
+                    "market_value": 12000000,
+                    "age": 23,
+                    "nationality": "Brazil",
+                },
+                {
+                    "id": 4,
+                    "name": "Player D",
+                    "position": "LW",
+                    "club": "Academy FC",
+                    "league": "Championship",
+                    "market_value": 5000000,
+                    "age": 19,
+                    "nationality": "France",
+                },
+                {
+                    "id": 5,
+                    "name": "Player E",
+                    "position": "GK",
+                    "club": "Top Club",
+                    "league": "Bundesliga",
+                    "market_value": 35000000,
+                    "age": 27,
+                    "nationality": "Germany",
+                },
             ]
         else:
             results = [
-                {"id": 0, "name": name, "position": "N/A", "club": "Unknown", "league": "N/A", "market_value": 0, "age": 25, "nationality": "Unknown"},
+                {
+                    "id": 0,
+                    "name": name,
+                    "position": "N/A",
+                    "club": "Unknown",
+                    "league": "N/A",
+                    "market_value": 0,
+                    "age": 25,
+                    "nationality": "Unknown",
+                },
             ]
 
         self._set_cached(f"search:{name.lower()}", results)
@@ -107,12 +161,48 @@ class TransfermarktIntegrationService:
             return cached
 
         squad = [
-            {"id": 10, "name": f"{club_name} GK", "position": "GK", "age": 28, "market_value": 8000000},
-            {"id": 11, "name": f"{club_name} RB", "position": "RB", "age": 24, "market_value": 6000000},
-            {"id": 12, "name": f"{club_name} CB", "position": "CB", "age": 26, "market_value": 10000000},
-            {"id": 13, "name": f"{club_name} LB", "position": "LB", "age": 23, "market_value": 7000000},
-            {"id": 14, "name": f"{club_name} CM", "position": "CM", "age": 27, "market_value": 12000000},
-            {"id": 15, "name": f"{club_name} CF", "position": "CF", "age": 25, "market_value": 20000000},
+            {
+                "id": 10,
+                "name": f"{club_name} GK",
+                "position": "GK",
+                "age": 28,
+                "market_value": 8000000,
+            },
+            {
+                "id": 11,
+                "name": f"{club_name} RB",
+                "position": "RB",
+                "age": 24,
+                "market_value": 6000000,
+            },
+            {
+                "id": 12,
+                "name": f"{club_name} CB",
+                "position": "CB",
+                "age": 26,
+                "market_value": 10000000,
+            },
+            {
+                "id": 13,
+                "name": f"{club_name} LB",
+                "position": "LB",
+                "age": 23,
+                "market_value": 7000000,
+            },
+            {
+                "id": 14,
+                "name": f"{club_name} CM",
+                "position": "CM",
+                "age": 27,
+                "market_value": 12000000,
+            },
+            {
+                "id": 15,
+                "name": f"{club_name} CF",
+                "position": "CF",
+                "age": 25,
+                "market_value": 20000000,
+            },
         ]
 
         self._set_cached(f"squad:{club_name.lower()}", squad)

@@ -112,9 +112,7 @@ class StatsportsGpxParser(BaseWearableParser):
             hr = self._find_recursive_prefixed(ext, "hr", [_TRACKPOINT_EXT_NS])
             if hr is not None and hr.text:
                 dp.heart_rate_bpm = self._parse_float(hr.text)
-            spd = self._find_recursive_prefixed(
-                ext, "speed", [_SPEED_EXT_NS, _TRACKPOINT_EXT_NS]
-            )
+            spd = self._find_recursive_prefixed(ext, "speed", [_SPEED_EXT_NS, _TRACKPOINT_EXT_NS])
             if spd is not None and spd.text:
                 dp.speed_ms = self._parse_float(spd.text)
 
@@ -131,9 +129,7 @@ class StatsportsGpxParser(BaseWearableParser):
         return parent.find(f"{{*}}{tag}")
 
     @staticmethod
-    def _find_prefixed(
-        parent: ET.Element, tag: str, namespaces: list[str]
-    ) -> Optional[ET.Element]:
+    def _find_prefixed(parent: ET.Element, tag: str, namespaces: list[str]) -> Optional[ET.Element]:
         for ns in namespaces:
             el = parent.find(f"{{{ns}}}{tag}")
             if el is not None:

@@ -29,7 +29,9 @@ _KEYRING_USER = "encryption-key"
 
 
 def _derive_key(raw: bytes) -> bytes:
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"kawkab-medical-v1", iterations=600_000)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(), length=32, salt=b"kawkab-medical-v1", iterations=600_000
+    )
     return base64.urlsafe_b64encode(kdf.derive(raw))
 
 
@@ -87,9 +89,7 @@ def decrypt(ciphertext: str) -> str:
     return get_fernet().decrypt(ciphertext.encode()).decode()
 
 
-def encrypt_dict(
-    data: dict, fields: list[str], in_place: bool = True
-) -> dict:
+def encrypt_dict(data: dict, fields: list[str], in_place: bool = True) -> dict:
     result = data if in_place else dict(data)
     for field in fields:
         val = result.get(field)
@@ -98,9 +98,7 @@ def encrypt_dict(
     return result
 
 
-def decrypt_dict(
-    data: dict, fields: list[str], in_place: bool = True
-) -> dict:
+def decrypt_dict(data: dict, fields: list[str], in_place: bool = True) -> dict:
     result = data if in_place else dict(data)
     for field in fields:
         val = result.get(field)

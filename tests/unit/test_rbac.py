@@ -114,6 +114,7 @@ class TestRequirePermissionDependency:
     def setup_env_and_db(self):
         import os
         import tempfile
+
         self._old_secret = os.environ.get("KAWKAB_JWT_SECRET")
         self._old_db_url = os.environ.get("KAWKAB_DB_URL")
         self._old_cloud_db = os.environ.get("KAWKAB_CLOUD_DB")
@@ -140,6 +141,7 @@ class TestRequirePermissionDependency:
 
         from kawkab.cloud import database
         from kawkab.cloud.server import app
+
         database._local = threading.local()
         # Reset cached DB reference
         if hasattr(database._local, "conn"):
@@ -160,6 +162,7 @@ class TestRequirePermissionDependency:
         import time
 
         import jwt
+
         token = jwt.encode(
             {"sub": 1, "exp": int(time.time()) - 3600, "iat": int(time.time()) - 7200},
             "test-secret-for-testing-purposes-only-32chars",
@@ -169,7 +172,9 @@ class TestRequirePermissionDependency:
         assert resp.status_code == 401
 
     def test_garbage_token_returns_401(self, client):
-        resp = client.get("/api/v1/matches", headers={"Authorization": "Bearer garbage.invalid.token"})
+        resp = client.get(
+            "/api/v1/matches", headers={"Authorization": "Bearer garbage.invalid.token"}
+        )
         assert resp.status_code == 401
 
     def test_anonymous_endpoint_works_without_auth(self, client):
@@ -182,18 +187,23 @@ class TestRequirePermissionDependency:
     def registered_user(self, client):
         """Register a user and return a valid access token."""
         import uuid
+
         suffix = uuid.uuid4().hex[:8]
-        resp = client.post("/auth/register", json={
-            "username": f"rbac_user_{suffix}",
-            "email": f"rbac_{suffix}@test.com",
-            "password": "TestPass123!",
-            "display_name": "RBAC User",
-        })
+        resp = client.post(
+            "/auth/register",
+            json={
+                "username": f"rbac_user_{suffix}",
+                "email": f"rbac_{suffix}@test.com",
+                "password": "TestPass123!",
+                "display_name": "RBAC User",
+            },
+        )
         assert resp.status_code == 200, f"Register failed: {resp.status_code} {resp.text[:200]}"
         data = resp.json()
         yield data["access_token"]
         # Cleanup
         from kawkab.cloud.database import get_cloud_db
+
         db = get_cloud_db()
         db.execute("DELETE FROM users WHERE email = ?", (f"rbac_{suffix}@test.com",))
         db.commit()

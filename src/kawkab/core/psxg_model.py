@@ -52,8 +52,11 @@ if _PSXG_TRAINED_PATH.exists():
     try:
         with open(_PSXG_TRAINED_PATH) as _f:
             _raw = json.load(_f)
-        _clean = {k: float(v) for k, v in _raw.items()
-                  if isinstance(v, (int, float)) and not k.startswith("_")}
+        _clean = {
+            k: float(v)
+            for k, v in _raw.items()
+            if isinstance(v, (int, float)) and not k.startswith("_")
+        }
         if _clean:
             TRAINED_PSXG_COEFFICIENTS = _clean
             _PSXG_TRAINED_LOADED = True
@@ -86,7 +89,7 @@ def _compute_psxg_trained(
     height_m = placement_y * 2.44
     logit = c["intercept"]
     logit += c["distance_m"] * max(distance_m, 0.5)
-    logit += c["distance_m_sq"] * (distance_m ** 2)
+    logit += c["distance_m_sq"] * (distance_m**2)
     logit += c["angle_opening_deg"] * angle_deg
     logit += c["placement_height"] * height_m
     logit += c["placement_lateral_abs"] * abs(lateral_m)
@@ -163,8 +166,13 @@ def compute_psxg(
         PSxGResult with save probability and shot quality.
     """
     if not on_target:
-        return PSxGResult(psxg=0.0, save_probability=0.0, shot_quality=0.0,
-                          placement_x=placement_x, placement_y=placement_y)
+        return PSxGResult(
+            psxg=0.0,
+            save_probability=0.0,
+            shot_quality=0.0,
+            placement_x=placement_x,
+            placement_y=placement_y,
+        )
 
     # Trained model (fitted from StatsBomb on-target shots) takes priority;
     # the hand-tuned heuristic below is the no-weights fallback.
@@ -177,11 +185,13 @@ def compute_psxg(
             is_header=(body_part == "head"),
             is_free_kick=False,
         )
-        return PSxGResult(psxg=psxg,
-                          save_probability=1.0 - psxg,
-                          shot_quality=psxg,
-                          placement_x=placement_x,
-                          placement_y=placement_y)
+        return PSxGResult(
+            psxg=psxg,
+            save_probability=1.0 - psxg,
+            shot_quality=psxg,
+            placement_x=placement_x,
+            placement_y=placement_y,
+        )
 
     coef = PSXG_COEFFICIENTS
     logit = coef["intercept"]
@@ -261,13 +271,15 @@ def compute_match_psxg(events: list[dict[str, Any]]) -> PSxGMatchReport:
             if is_goal:
                 home_conceded += 1
 
-        details.append({
-            "timestamp": ev.get("timestamp", 0),
-            "team_shooting": team,
-            "psxg": round(result.psxg, 4),
-            "shot_quality": round(result.shot_quality, 3),
-            "is_goal": is_goal,
-        })
+        details.append(
+            {
+                "timestamp": ev.get("timestamp", 0),
+                "team_shooting": team,
+                "psxg": round(result.psxg, 4),
+                "shot_quality": round(result.shot_quality, 3),
+                "is_goal": is_goal,
+            }
+        )
 
     return PSxGMatchReport(
         home_psxg=home_psxg,

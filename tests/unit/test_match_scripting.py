@@ -61,12 +61,8 @@ class TestMatchScripting:
 
     def test_generate_match_script_home_dominant(self):
         script = generate_match_script("home_dominant")
-        home_events = sum(
-            1 for p in script.phases for e in p.events if e.team == "home"
-        )
-        away_events = sum(
-            1 for p in script.phases for e in p.events if e.team == "away"
-        )
+        home_events = sum(1 for p in script.phases for e in p.events if e.team == "home")
+        away_events = sum(1 for p in script.phases for e in p.events if e.team == "away")
         assert home_events > away_events
 
     def test_generate_match_script_invalid_template(self):

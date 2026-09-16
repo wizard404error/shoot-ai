@@ -30,6 +30,7 @@ logger = get_logger(__name__)
 @dataclass
 class SetPieceEvent:
     """Single set-piece occurrence with outcome."""
+
     set_piece_type: str  # 'corner', 'free_kick', 'throw_in'
     minute: int
     second: int
@@ -40,15 +41,20 @@ class SetPieceEvent:
     delivery_height: str  # 'low', 'medium', 'high'
     first_contact_x: float | None = None
     first_contact_y: float | None = None
-    outcome: str = "unknown"  # 'goal', 'shot', 'clearance', 'retention', 'interception', 'loss', 'offside'
+    outcome: str = (
+        "unknown"  # 'goal', 'shot', 'clearance', 'retention', 'interception', 'loss', 'offside'
+    )
     target_player_track_id: int | None = None
-    set_piece_routine: str | None = None  # 'near_post_flick', 'far_post', 'edge_of_box', 'short_corner', 'long_corner'
+    set_piece_routine: str | None = (
+        None  # 'near_post_flick', 'far_post', 'edge_of_box', 'short_corner', 'long_corner'
+    )
     confidence: float = 0.7
 
 
 @dataclass
 class SetPieceStats:
     """Aggregated set-piece stats for one team."""
+
     team: str
     total_corners: int = 0
     total_free_kicks: int = 0
@@ -75,6 +81,7 @@ class SetPieceStats:
 @dataclass
 class SetPieceReport:
     """Full set-piece report for a match."""
+
     home_stats: SetPieceStats
     away_stats: SetPieceStats
     home_events: list[SetPieceEvent]
@@ -286,12 +293,12 @@ class SetPieceService:
         if home.total_corners > 0:
             notes.append(
                 f"Home took {home.total_corners} corners: {home.corners_to_shots} shots, "
-                f"{home.corners_to_goals} goals ({home.shots_per_corner*100:.1f}% shot rate)"
+                f"{home.corners_to_goals} goals ({home.shots_per_corner * 100:.1f}% shot rate)"
             )
         if away.total_corners > 0:
             notes.append(
                 f"Away took {away.total_corners} corners: {away.corners_to_shots} shots, "
-                f"{away.corners_to_goals} goals ({away.shots_per_corner*100:.1f}% shot rate)"
+                f"{away.corners_to_goals} goals ({away.shots_per_corner * 100:.1f}% shot rate)"
             )
         if home_threat > away_threat + 1.0:
             notes.append("Home team significantly more dangerous from set pieces")
@@ -300,7 +307,9 @@ class SetPieceService:
         if home.short_corners > 0 and home.total_corners > 0:
             short_pct = home.short_corners / home.total_corners * 100
             if short_pct > 30:
-                notes.append(f"Home uses short corners {short_pct:.0f}% of the time (tactical setup play)")
+                notes.append(
+                    f"Home uses short corners {short_pct:.0f}% of the time (tactical setup play)"
+                )
         if home.favorite_target_zone and home.favorite_target_zone != "short":
             notes.append(f"Home favorite target zone: {home.favorite_target_zone}")
         if away.favorite_target_zone and away.favorite_target_zone != "short":
@@ -321,7 +330,7 @@ class SetPieceService:
         if stats.total_corners >= 5:
             if stats.shots_per_corner < 0.15:
                 recommendations.append(
-                    f"Low shot rate ({stats.shots_per_corner*100:.0f}%) — vary delivery types"
+                    f"Low shot rate ({stats.shots_per_corner * 100:.0f}%) — vary delivery types"
                 )
             if stats.short_corners == 0 and stats.total_corners >= 3:
                 recommendations.append("Try short corners to break down man-marking defenses")

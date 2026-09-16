@@ -21,9 +21,9 @@ import numpy as np
 
 # Speed zones in m/s (from professional sports science conventions)
 SPEED_ZONES = {
-    "walking": (0.0, 1.7),         # 0-6 km/h
-    "jogging": (1.7, 3.3),         # 6-12 km/h
-    "running": (3.3, 5.5),         # 12-20 km/h
+    "walking": (0.0, 1.7),  # 0-6 km/h
+    "jogging": (1.7, 3.3),  # 6-12 km/h
+    "running": (3.3, 5.5),  # 12-20 km/h
     "high_intensity": (5.5, 7.0),  # 20-25 km/h
     "sprinting": (7.0, float("inf")),  # >25 km/h
 }
@@ -41,7 +41,9 @@ class PlayerPhysicalMetrics:
 
     track_id: int = 0
     total_distance_m: float = 0.0
-    distance_by_zone: dict[str, float] = field(default_factory=lambda: dict.fromkeys(SPEED_ZONES, 0.0))
+    distance_by_zone: dict[str, float] = field(
+        default_factory=lambda: dict.fromkeys(SPEED_ZONES, 0.0)
+    )
     max_speed_ms: float = 0.0
     avg_speed_ms: float = 0.0
     sprint_count: int = 0
@@ -145,7 +147,7 @@ class PhysicalMetricsAnalyzer:
         # Displacements and speeds
         dx = np.diff(xs)
         dy = np.diff(ys)
-        dist = np.sqrt(dx ** 2 + dy ** 2)
+        dist = np.sqrt(dx**2 + dy**2)
         speeds = dist / dt  # m/s
 
         # Smooth speeds with 3-point moving average
@@ -186,7 +188,7 @@ class PhysicalMetricsAnalyzer:
         # Sprint distance
         sprint_mask = speeds_smooth >= self.SPRINT_THRESHOLD_MS
         if np.any(sprint_mask):
-            sprint_dist = float(np.sum(dist[sprint_mask[:len(dist)]]))
+            sprint_dist = float(np.sum(dist[sprint_mask[: len(dist)]]))
         else:
             sprint_dist = 0.0
 
@@ -200,7 +202,7 @@ class PhysicalMetricsAnalyzer:
                 in_hi = True
             elif not m:
                 in_hi = False
-        hi_dist = float(np.sum(dist[hi_mask[:len(dist)]])) if np.any(hi_mask) else 0.0
+        hi_dist = float(np.sum(dist[hi_mask[: len(dist)]])) if np.any(hi_mask) else 0.0
 
         # Acceleration/deceleration counts
         accel_count = int(np.sum(accels > self.ACCEL_THRESHOLD))
@@ -210,7 +212,7 @@ class PhysicalMetricsAnalyzer:
         # P_met = Running_cost * speed + Accel_cost * |accel| * speed  (simplified)
         # Pad accels to match speeds_smooth length (accels has 1 fewer element)
         if len(accels) < len(speeds_smooth):
-            accels_padded = np.pad(accels, (0, len(speeds_smooth) - len(accels)), mode='edge')
+            accels_padded = np.pad(accels, (0, len(speeds_smooth) - len(accels)), mode="edge")
         else:
             accels_padded = accels
         met_powers = RUNNING_COST * speeds_smooth + ACCEL_COST_FACTOR * np.abs(accels_padded)

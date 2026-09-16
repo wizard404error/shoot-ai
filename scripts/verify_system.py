@@ -1,5 +1,7 @@
 """Comprehensive system verification for Kawkab AI."""
+
 import os
+
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 import sys
@@ -26,6 +28,7 @@ def main() -> int:
     from kawkab.app import MainWindow
     from kawkab.ui.bridge import Bridge
     from kawkab.core.config import get_settings
+
     print("   [OK] All services + app + bridge import")
     print()
 
@@ -39,6 +42,7 @@ def main() -> int:
 
     print("3. GPU:")
     import torch
+
     print(f"   Device: {torch.cuda.get_device_name(0)}")
     print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     print(f"   CUDA: {torch.version.cuda}")
@@ -46,6 +50,7 @@ def main() -> int:
 
     print("4. Ollama:")
     import httpx
+
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
         models = [m["name"] for m in r.json().get("models", [])][:5]

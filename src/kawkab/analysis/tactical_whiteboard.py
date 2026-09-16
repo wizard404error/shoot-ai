@@ -118,97 +118,125 @@ class WhiteboardState:
 
 # Standard formation templates (normalized 0-100 coordinates)
 FORMATION_TEMPLATES: dict[str, FormationTemplate] = {
-    "4-4-2": FormationTemplate("4-4-2", "4-4-2", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 15, "pos": "LB", "num": 3},
-        {"x": 15, "y": 38, "pos": "CB", "num": 4},
-        {"x": 15, "y": 62, "pos": "CB", "num": 5},
-        {"x": 15, "y": 85, "pos": "RB", "num": 2},
-        {"x": 30, "y": 15, "pos": "LM", "num": 11},
-        {"x": 30, "y": 38, "pos": "CM", "num": 8},
-        {"x": 30, "y": 62, "pos": "CM", "num": 6},
-        {"x": 30, "y": 85, "pos": "RM", "num": 7},
-        {"x": 50, "y": 35, "pos": "ST", "num": 9},
-        {"x": 50, "y": 65, "pos": "ST", "num": 10},
-    ]),
-    "4-3-3": FormationTemplate("4-3-3", "4-3-3", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 15, "pos": "LB", "num": 3},
-        {"x": 15, "y": 38, "pos": "CB", "num": 4},
-        {"x": 15, "y": 62, "pos": "CB", "num": 5},
-        {"x": 15, "y": 85, "pos": "RB", "num": 2},
-        {"x": 30, "y": 38, "pos": "CM", "num": 8},
-        {"x": 30, "y": 50, "pos": "CDM", "num": 6},
-        {"x": 30, "y": 62, "pos": "CM", "num": 10},
-        {"x": 50, "y": 20, "pos": "LW", "num": 7},
-        {"x": 55, "y": 50, "pos": "ST", "num": 9},
-        {"x": 50, "y": 80, "pos": "RW", "num": 11},
-    ]),
-    "3-5-2": FormationTemplate("3-5-2", "3-5-2", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 30, "pos": "CB", "num": 4},
-        {"x": 15, "y": 50, "pos": "CB", "num": 5},
-        {"x": 15, "y": 70, "pos": "CB", "num": 3},
-        {"x": 30, "y": 10, "pos": "LWB", "num": 2},
-        {"x": 30, "y": 30, "pos": "CM", "num": 8},
-        {"x": 30, "y": 50, "pos": "CDM", "num": 6},
-        {"x": 30, "y": 70, "pos": "CM", "num": 10},
-        {"x": 30, "y": 90, "pos": "RWB", "num": 7},
-        {"x": 50, "y": 35, "pos": "ST", "num": 9},
-        {"x": 50, "y": 65, "pos": "ST", "num": 11},
-    ]),
-    "4-2-3-1": FormationTemplate("4-2-3-1", "4-2-3-1", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 15, "pos": "LB", "num": 3},
-        {"x": 15, "y": 38, "pos": "CB", "num": 4},
-        {"x": 15, "y": 62, "pos": "CB", "num": 5},
-        {"x": 15, "y": 85, "pos": "RB", "num": 2},
-        {"x": 28, "y": 35, "pos": "CDM", "num": 6},
-        {"x": 28, "y": 65, "pos": "CDM", "num": 8},
-        {"x": 42, "y": 20, "pos": "LW", "num": 7},
-        {"x": 42, "y": 50, "pos": "CAM", "num": 10},
-        {"x": 42, "y": 80, "pos": "RW", "num": 11},
-        {"x": 58, "y": 50, "pos": "ST", "num": 9},
-    ]),
-    "3-4-3": FormationTemplate("3-4-3", "3-4-3", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 30, "pos": "CB", "num": 4},
-        {"x": 15, "y": 50, "pos": "CB", "num": 5},
-        {"x": 15, "y": 70, "pos": "CB", "num": 3},
-        {"x": 30, "y": 10, "pos": "LM", "num": 2},
-        {"x": 30, "y": 38, "pos": "CM", "num": 8},
-        {"x": 30, "y": 62, "pos": "CM", "num": 6},
-        {"x": 30, "y": 90, "pos": "RM", "num": 7},
-        {"x": 50, "y": 20, "pos": "LW", "num": 11},
-        {"x": 55, "y": 50, "pos": "ST", "num": 9},
-        {"x": 50, "y": 80, "pos": "RW", "num": 10},
-    ]),
-    "5-3-2": FormationTemplate("5-3-2", "5-3-2", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 12, "y": 10, "pos": "LWB", "num": 3},
-        {"x": 12, "y": 30, "pos": "CB", "num": 4},
-        {"x": 12, "y": 50, "pos": "CB", "num": 5},
-        {"x": 12, "y": 70, "pos": "CB", "num": 6},
-        {"x": 12, "y": 90, "pos": "RWB", "num": 2},
-        {"x": 28, "y": 30, "pos": "CM", "num": 8},
-        {"x": 28, "y": 50, "pos": "CDM", "num": 7},
-        {"x": 28, "y": 70, "pos": "CM", "num": 10},
-        {"x": 48, "y": 35, "pos": "ST", "num": 9},
-        {"x": 48, "y": 65, "pos": "ST", "num": 11},
-    ]),
-    "4-1-4-1": FormationTemplate("4-1-4-1", "4-1-4-1", [
-        {"x": 5, "y": 50, "pos": "GK", "num": 1},
-        {"x": 15, "y": 15, "pos": "LB", "num": 3},
-        {"x": 15, "y": 38, "pos": "CB", "num": 4},
-        {"x": 15, "y": 62, "pos": "CB", "num": 5},
-        {"x": 15, "y": 85, "pos": "RB", "num": 2},
-        {"x": 25, "y": 50, "pos": "CDM", "num": 6},
-        {"x": 38, "y": 15, "pos": "LM", "num": 7},
-        {"x": 38, "y": 38, "pos": "CM", "num": 8},
-        {"x": 38, "y": 62, "pos": "CM", "num": 10},
-        {"x": 38, "y": 85, "pos": "RM", "num": 11},
-        {"x": 55, "y": 50, "pos": "ST", "num": 9},
-    ]),
+    "4-4-2": FormationTemplate(
+        "4-4-2",
+        "4-4-2",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 15, "pos": "LB", "num": 3},
+            {"x": 15, "y": 38, "pos": "CB", "num": 4},
+            {"x": 15, "y": 62, "pos": "CB", "num": 5},
+            {"x": 15, "y": 85, "pos": "RB", "num": 2},
+            {"x": 30, "y": 15, "pos": "LM", "num": 11},
+            {"x": 30, "y": 38, "pos": "CM", "num": 8},
+            {"x": 30, "y": 62, "pos": "CM", "num": 6},
+            {"x": 30, "y": 85, "pos": "RM", "num": 7},
+            {"x": 50, "y": 35, "pos": "ST", "num": 9},
+            {"x": 50, "y": 65, "pos": "ST", "num": 10},
+        ],
+    ),
+    "4-3-3": FormationTemplate(
+        "4-3-3",
+        "4-3-3",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 15, "pos": "LB", "num": 3},
+            {"x": 15, "y": 38, "pos": "CB", "num": 4},
+            {"x": 15, "y": 62, "pos": "CB", "num": 5},
+            {"x": 15, "y": 85, "pos": "RB", "num": 2},
+            {"x": 30, "y": 38, "pos": "CM", "num": 8},
+            {"x": 30, "y": 50, "pos": "CDM", "num": 6},
+            {"x": 30, "y": 62, "pos": "CM", "num": 10},
+            {"x": 50, "y": 20, "pos": "LW", "num": 7},
+            {"x": 55, "y": 50, "pos": "ST", "num": 9},
+            {"x": 50, "y": 80, "pos": "RW", "num": 11},
+        ],
+    ),
+    "3-5-2": FormationTemplate(
+        "3-5-2",
+        "3-5-2",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 30, "pos": "CB", "num": 4},
+            {"x": 15, "y": 50, "pos": "CB", "num": 5},
+            {"x": 15, "y": 70, "pos": "CB", "num": 3},
+            {"x": 30, "y": 10, "pos": "LWB", "num": 2},
+            {"x": 30, "y": 30, "pos": "CM", "num": 8},
+            {"x": 30, "y": 50, "pos": "CDM", "num": 6},
+            {"x": 30, "y": 70, "pos": "CM", "num": 10},
+            {"x": 30, "y": 90, "pos": "RWB", "num": 7},
+            {"x": 50, "y": 35, "pos": "ST", "num": 9},
+            {"x": 50, "y": 65, "pos": "ST", "num": 11},
+        ],
+    ),
+    "4-2-3-1": FormationTemplate(
+        "4-2-3-1",
+        "4-2-3-1",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 15, "pos": "LB", "num": 3},
+            {"x": 15, "y": 38, "pos": "CB", "num": 4},
+            {"x": 15, "y": 62, "pos": "CB", "num": 5},
+            {"x": 15, "y": 85, "pos": "RB", "num": 2},
+            {"x": 28, "y": 35, "pos": "CDM", "num": 6},
+            {"x": 28, "y": 65, "pos": "CDM", "num": 8},
+            {"x": 42, "y": 20, "pos": "LW", "num": 7},
+            {"x": 42, "y": 50, "pos": "CAM", "num": 10},
+            {"x": 42, "y": 80, "pos": "RW", "num": 11},
+            {"x": 58, "y": 50, "pos": "ST", "num": 9},
+        ],
+    ),
+    "3-4-3": FormationTemplate(
+        "3-4-3",
+        "3-4-3",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 30, "pos": "CB", "num": 4},
+            {"x": 15, "y": 50, "pos": "CB", "num": 5},
+            {"x": 15, "y": 70, "pos": "CB", "num": 3},
+            {"x": 30, "y": 10, "pos": "LM", "num": 2},
+            {"x": 30, "y": 38, "pos": "CM", "num": 8},
+            {"x": 30, "y": 62, "pos": "CM", "num": 6},
+            {"x": 30, "y": 90, "pos": "RM", "num": 7},
+            {"x": 50, "y": 20, "pos": "LW", "num": 11},
+            {"x": 55, "y": 50, "pos": "ST", "num": 9},
+            {"x": 50, "y": 80, "pos": "RW", "num": 10},
+        ],
+    ),
+    "5-3-2": FormationTemplate(
+        "5-3-2",
+        "5-3-2",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 12, "y": 10, "pos": "LWB", "num": 3},
+            {"x": 12, "y": 30, "pos": "CB", "num": 4},
+            {"x": 12, "y": 50, "pos": "CB", "num": 5},
+            {"x": 12, "y": 70, "pos": "CB", "num": 6},
+            {"x": 12, "y": 90, "pos": "RWB", "num": 2},
+            {"x": 28, "y": 30, "pos": "CM", "num": 8},
+            {"x": 28, "y": 50, "pos": "CDM", "num": 7},
+            {"x": 28, "y": 70, "pos": "CM", "num": 10},
+            {"x": 48, "y": 35, "pos": "ST", "num": 9},
+            {"x": 48, "y": 65, "pos": "ST", "num": 11},
+        ],
+    ),
+    "4-1-4-1": FormationTemplate(
+        "4-1-4-1",
+        "4-1-4-1",
+        [
+            {"x": 5, "y": 50, "pos": "GK", "num": 1},
+            {"x": 15, "y": 15, "pos": "LB", "num": 3},
+            {"x": 15, "y": 38, "pos": "CB", "num": 4},
+            {"x": 15, "y": 62, "pos": "CB", "num": 5},
+            {"x": 15, "y": 85, "pos": "RB", "num": 2},
+            {"x": 25, "y": 50, "pos": "CDM", "num": 6},
+            {"x": 38, "y": 15, "pos": "LM", "num": 7},
+            {"x": 38, "y": 38, "pos": "CM", "num": 8},
+            {"x": 38, "y": 62, "pos": "CM", "num": 10},
+            {"x": 38, "y": 85, "pos": "RM", "num": 11},
+            {"x": 55, "y": 50, "pos": "ST", "num": 9},
+        ],
+    ),
 }
 
 
@@ -243,8 +271,7 @@ class TacticalWhiteboard:
         if formation_home and formation_home in FORMATION_TEMPLATES:
             t = FORMATION_TEMPLATES[formation_home]
             state.players_home = [
-                {"x": p["x"], "y": p["y"], "number": p["num"],
-                 "position": p["pos"], "team": "home"}
+                {"x": p["x"], "y": p["y"], "number": p["num"], "position": p["pos"], "team": "home"}
                 for p in t.positions
             ]
             state.formation_home = formation_home
@@ -256,10 +283,15 @@ class TacticalWhiteboard:
 
     def list_states(self) -> list[dict]:
         return [
-            {"id": s.id, "name": s.name, "formation_home": s.formation_home,
-             "formation_away": s.formation_away, "timestamp": s.timestamp,
-             "annotation_count": len(s.annotations),
-             "player_count": len(s.players_home) + len(s.players_away)}
+            {
+                "id": s.id,
+                "name": s.name,
+                "formation_home": s.formation_home,
+                "formation_away": s.formation_away,
+                "timestamp": s.timestamp,
+                "annotation_count": len(s.annotations),
+                "player_count": len(s.players_home) + len(s.players_away),
+            }
             for s in self._states.values()
         ]
 
@@ -325,7 +357,10 @@ class TacticalWhiteboard:
         return True
 
     def set_players_from_formation(
-        self, state_id: str, formation_name: str, team: str = "home",
+        self,
+        state_id: str,
+        formation_name: str,
+        team: str = "home",
     ) -> list[dict] | None:
         state = self._states.get(state_id)
         if state is None:
@@ -334,8 +369,7 @@ class TacticalWhiteboard:
         if t is None:
             return None
         players = [
-            {"x": p["x"], "y": p["y"], "number": p["num"],
-             "position": p["pos"], "team": team}
+            {"x": p["x"], "y": p["y"], "number": p["num"], "position": p["pos"], "team": team}
             for p in t.positions
         ]
         if team == "home":
@@ -346,8 +380,9 @@ class TacticalWhiteboard:
             state.formation_away = formation_name
         return players
 
-    def move_player(self, state_id: str, player_index: int,
-                    x: float, y: float, team: str = "home") -> bool:
+    def move_player(
+        self, state_id: str, player_index: int, x: float, y: float, team: str = "home"
+    ) -> bool:
         state = self._states.get(state_id)
         if state is None:
             return False
@@ -365,7 +400,7 @@ class TacticalWhiteboard:
             return None
 
         svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}">\n'
-        svg += "  <rect width=\"100%\" height=\"100%\" fill=\"#1a5c2a\"/>\n"
+        svg += '  <rect width="100%" height="100%" fill="#1a5c2a"/>\n'
 
         sx, sy = width / self.PITCH_W, height / self.PITCH_H
 
@@ -409,7 +444,7 @@ class TacticalWhiteboard:
         color = a.get("color", "#ffffff")
         width = a.get("width", 2.0)
         opacity = a.get("opacity", 1.0)
-        dashed = "stroke-dasharray=\"6,3\"" if a.get("dashed") else ""
+        dashed = 'stroke-dasharray="6,3"' if a.get("dashed") else ""
         label = a.get("label", "")
 
         if atype == "line" and len(pts) >= 2:
@@ -445,8 +480,10 @@ class TacticalWhiteboard:
             return f'  <rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" fill="none" stroke="{color}" stroke-width="{width}" opacity="{opacity}" {dashed}/>\n'
 
         if atype == "freehand" and len(pts) >= 2:
-            d = " ".join(f"L{p['x'] * sx},{p['y'] * sy}" if i else f"M{p['x'] * sx},{p['y'] * sy}"
-                         for i, p in enumerate(pts))
+            d = " ".join(
+                f"L{p['x'] * sx},{p['y'] * sy}" if i else f"M{p['x'] * sx},{p['y'] * sy}"
+                for i, p in enumerate(pts)
+            )
             return f'  <path d="{d}" fill="none" stroke="{color}" stroke-width="{width}" opacity="{opacity}" {dashed}/>\n'
 
         if atype == "text" and len(pts) >= 1:
@@ -454,27 +491,36 @@ class TacticalWhiteboard:
             return f'  <text x="{tx}" y="{ty}" fill="{color}" font-size="{width * 4}" opacity="{opacity}">{label}</text>\n'
 
         if atype == "zone" and len(pts) >= 4:
-            d = " ".join(f"L{p['x'] * sx},{p['y'] * sy}" if i else f"M{p['x'] * sx},{p['y'] * sy}"
-                         for i, p in enumerate(pts))
+            d = " ".join(
+                f"L{p['x'] * sx},{p['y'] * sy}" if i else f"M{p['x'] * sx},{p['y'] * sy}"
+                for i, p in enumerate(pts)
+            )
             d += " Z"
             return f'  <path d="{d}" fill="{color}" fill-opacity="{opacity * 0.3}" stroke="{color}" stroke-width="{width}"/>\n'
 
         return ""
 
-    def generate_player_run(self, start_x: float, start_y: float,
-                            end_x: float, end_y: float,
-                            color: str = "#f39c12", label: str = "") -> Annotation:
+    def generate_player_run(
+        self,
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+        color: str = "#f39c12",
+        label: str = "",
+    ) -> Annotation:
         pts = [{"x": start_x, "y": start_y}, {"x": end_x, "y": end_y}]
         return Annotation(type="arrow", points=pts, color=color, width=3, label=label)
 
-    def generate_pass(self, start_x: float, start_y: float,
-                      end_x: float, end_y: float,
-                      color: str = "#2ecc71") -> Annotation:
+    def generate_pass(
+        self, start_x: float, start_y: float, end_x: float, end_y: float, color: str = "#2ecc71"
+    ) -> Annotation:
         pts = [{"x": start_x, "y": start_y}, {"x": end_x, "y": end_y}]
         return Annotation(type="arrow", points=pts, color=color, width=2, dashed=True)
 
-    def generate_shot(self, x: float, y: float, target_x: float = 100,
-                      target_y: float = 50) -> Annotation:
+    def generate_shot(
+        self, x: float, y: float, target_x: float = 100, target_y: float = 50
+    ) -> Annotation:
         pts = [{"x": x, "y": y}, {"x": target_x, "y": target_y}]
         return Annotation(type="arrow", points=pts, color="#e74c3c", width=3)
 

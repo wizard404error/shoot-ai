@@ -66,7 +66,7 @@ _SB_TYPE_MAP: dict[str, str] = {
     "Half Start": "half_start",
     "Half End": "half_end",
     "Starting XI": "starting_xi",
-    "Camera Flash": None,   # broadcast noise, not a football action
+    "Camera Flash": None,  # broadcast noise, not a football action
     "Referee Ball-Drop": "referee_ball_drop",
     # Complete census of remaining SB open-data types (verified against the
     # 297-match corpus): mapped to the core/ conventions the recovery /
@@ -79,8 +79,8 @@ _SB_TYPE_MAP: dict[str, str] = {
     "Block": "block",
     "Dribbled Past": "dribbled_past",
     "Shield": "shield",
-    "50/50": "duel",           # contested loose ball — duel-type module reads it
-    "Error": "miscontrol",      # SB 'Error' = unforced loss of possession
+    "50/50": "duel",  # contested loose ball — duel-type module reads it
+    "Error": "miscontrol",  # SB 'Error' = unforced loss of possession
     "Bad Behaviour": "foul",
     "Player Off": "player_off",
     "Player On": "player_on",
@@ -89,8 +89,15 @@ _SB_TYPE_MAP: dict[str, str] = {
 }
 
 # Events imported for analytics (skip pure metadata rows entirely)
-_SKIPPED_TYPES = {"Starting XI", "Half Start", "Half End", "Tactical Shift",
-                 "Substitution", "Injury Stoppage", "Camera Flash"}
+_SKIPPED_TYPES = {
+    "Starting XI",
+    "Half Start",
+    "Half End",
+    "Tactical Shift",
+    "Substitution",
+    "Injury Stoppage",
+    "Camera Flash",
+}
 
 ON_TARGET_OUTCOMES = {"Saved", "Goal", "Post", "Saved to Post"}
 SHOT_OUTCOME_MAP = {
@@ -132,8 +139,11 @@ class StatsBombImportService:
         # event's `team` is conventionally the home side in open data.
         first_team = (raw[0].get("team") or {}).get("name") or "Home"
         second_team = next(
-            ((e.get("team") or {}).get("name") for e in raw
-             if (e.get("team") or {}).get("name") not in (None, first_team)),
+            (
+                (e.get("team") or {}).get("name")
+                for e in raw
+                if (e.get("team") or {}).get("name") not in (None, first_team)
+            ),
             "Away",
         )
         home = home_team or first_team
@@ -173,13 +183,16 @@ class StatsBombImportService:
                 if key not in seen:
                     seen.add(key)
                     track_id = self._stable_track_id(team_name, player_name)
-                    await self.storage.save_player(match_id, {
-                        "track_id": track_id,
-                        "name": player_name,
-                        "team": team,
-                        "position": self._sb_position_name(ev.get("position")),
-                        "jersey_number": None,
-                    })
+                    await self.storage.save_player(
+                        match_id,
+                        {
+                            "track_id": track_id,
+                            "name": player_name,
+                            "team": team,
+                            "position": self._sb_position_name(ev.get("position")),
+                            "jersey_number": None,
+                        },
+                    )
                     player_ids[key] = track_id
                     imported_players += 1
 
@@ -242,18 +255,28 @@ class StatsBombImportService:
         name = (position or {}).get("name", "")
         mapping = {
             "Goalkeeper": "GK",
-            "Right Center Back": "CB", "Left Center Back": "CB",
-            "Center Back": "CB", "Right Back": "RB", "Left Back": "LB",
-            "Right Wing Back": "RWB", "Left Wing Back": "LWB",
+            "Right Center Back": "CB",
+            "Left Center Back": "CB",
+            "Center Back": "CB",
+            "Right Back": "RB",
+            "Left Back": "LB",
+            "Right Wing Back": "RWB",
+            "Left Wing Back": "LWB",
             "Defensive Midfield": "DM",
-            "Right Center Midfield": "CM", "Left Center Midfield": "CM",
+            "Right Center Midfield": "CM",
+            "Left Center Midfield": "CM",
             "Center Midfield": "CM",
-            "Right Midfield": "RM", "Left Midfield": "LM",
-            "Right Wing": "RW", "Left Wing": "LW",
+            "Right Midfield": "RM",
+            "Left Midfield": "LM",
+            "Right Wing": "RW",
+            "Left Wing": "LW",
             "Center Attacking Midfield": "AM",
-            "Right Attacking Midfield": "AM", "Left Attacking Midfield": "AM",
-            "Center Forward": "CF", "Left Center Forward": "CF",
-            "Right Center Forward": "CF", "Striker": "ST",
+            "Right Attacking Midfield": "AM",
+            "Left Attacking Midfield": "AM",
+            "Center Forward": "CF",
+            "Left Center Forward": "CF",
+            "Right Center Forward": "CF",
+            "Striker": "ST",
             "Secondary Striker": "SS",
         }
         return mapping.get(name, "MID")
@@ -320,15 +343,26 @@ class StatsBombImportService:
                 meta["angle_deviation_deg"] = round(angle_deviation_deg, 2)
                 body = (shot.get("body_part") or {}).get("name", "Right Foot")
                 shot_type = (shot.get("type") or {}).get("name", "Open Play")
-                meta["xg"] = round(self._xg_model.compute({
-                    "type": "shot",
-                    "distance_m": distance_m,
-                    "angle_deg": angle_deviation_deg,
-                    "body_part": {"Right Foot": "right_foot", "Left Foot": "left_foot",
-                                  "Head": "head"}.get(body, "right_foot"),
-                    "shot_type": {"Open Play": "open_play", "Free Kick": "free_kick",
-                                  "Penalty": "penalty"}.get(shot_type, "open_play"),
-                }), 4)
+                meta["xg"] = round(
+                    self._xg_model.compute(
+                        {
+                            "type": "shot",
+                            "distance_m": distance_m,
+                            "angle_deg": angle_deviation_deg,
+                            "body_part": {
+                                "Right Foot": "right_foot",
+                                "Left Foot": "left_foot",
+                                "Head": "head",
+                            }.get(body, "right_foot"),
+                            "shot_type": {
+                                "Open Play": "open_play",
+                                "Free Kick": "free_kick",
+                                "Penalty": "penalty",
+                            }.get(shot_type, "open_play"),
+                        }
+                    ),
+                    4,
+                )
             end_loc = shot.get("end_location") or []
             if len(end_loc) >= 2:
                 ex, ey = sb_to_meters(end_loc[:2])

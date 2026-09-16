@@ -116,20 +116,37 @@ class MuJoCoBallService:
         if self._available:
             try:
                 return self._simulate_mujoco(
-                    initial_speed, launch_angle_deg, spin_rps,
-                    direction_deg, duration_s, drag_coeff, magnus_coeff,
+                    initial_speed,
+                    launch_angle_deg,
+                    spin_rps,
+                    direction_deg,
+                    duration_s,
+                    drag_coeff,
+                    magnus_coeff,
                 )
             except Exception as e:
                 logger.warning(f"MuJoCo sim failed, falling back to analytical: {e}")
         return self._simulate_analytical(
-            initial_speed, launch_angle_deg, spin_rps,
-            direction_deg, duration_s, drag_coeff, magnus_coeff,
-            ball_mass, ball_radius,
+            initial_speed,
+            launch_angle_deg,
+            spin_rps,
+            direction_deg,
+            duration_s,
+            drag_coeff,
+            magnus_coeff,
+            ball_mass,
+            ball_radius,
         )
 
     def _simulate_mujoco(
-        self, initial_speed, launch_angle_deg, spin_rps,
-        direction_deg, duration_s, drag_coeff, magnus_coeff,
+        self,
+        initial_speed,
+        launch_angle_deg,
+        spin_rps,
+        direction_deg,
+        duration_s,
+        drag_coeff,
+        magnus_coeff,
     ) -> TrajectoryResult:
         mujoco = self._mujoco
         mujoco.mj_resetData(self._model, self._data)
@@ -167,10 +184,14 @@ class MuJoCoBallService:
             self._data.qfrc_applied[1] = ay_drag + ay_mag
             self._data.qfrc_applied[2] = az_drag + az_mag
             mujoco.mj_step(self._model, self._data)
-            points.append(TrajectoryPoint(
-                t=step * self._model.opt.timestep,
-                x=float(pos[0]), y=float(pos[1]), z=float(pos[2]),
-            ))
+            points.append(
+                TrajectoryPoint(
+                    t=step * self._model.opt.timestep,
+                    x=float(pos[0]),
+                    y=float(pos[1]),
+                    z=float(pos[2]),
+                )
+            )
             if pos[2] < 0 and step > 5:
                 break
         landing = points[-1] if points else TrajectoryPoint(0, 0, 0, 0)
@@ -188,9 +209,16 @@ class MuJoCoBallService:
         )
 
     def _simulate_analytical(
-        self, initial_speed, launch_angle_deg, spin_rps,
-        direction_deg, duration_s, drag_coeff, magnus_coeff,
-        ball_mass, ball_radius,
+        self,
+        initial_speed,
+        launch_angle_deg,
+        spin_rps,
+        direction_deg,
+        duration_s,
+        drag_coeff,
+        magnus_coeff,
+        ball_mass,
+        ball_radius,
     ) -> TrajectoryResult:
         v_rad = math.radians(launch_angle_deg)
         h_rad = math.radians(direction_deg)
@@ -204,7 +232,7 @@ class MuJoCoBallService:
         omega = spin_rps * 2 * math.pi
         for step in range(n_steps):
             points.append(TrajectoryPoint(t=step * dt, x=x, y=y, z=z))
-            speed = (vx ** 2 + vy ** 2 + vz ** 2) ** 0.5
+            speed = (vx**2 + vy**2 + vz**2) ** 0.5
             if speed < 0.05:
                 break
             drag = drag_coeff * speed
@@ -227,7 +255,7 @@ class MuJoCoBallService:
                 break
         landing = points[-1] if points else TrajectoryPoint(0, 0, 0, 0)
         max_h = max((p.z for p in points), default=0.0)
-        final_speed = (vx ** 2 + vy ** 2 + vz ** 2) ** 0.5
+        final_speed = (vx**2 + vy**2 + vz**2) ** 0.5
         return TrajectoryResult(
             points=points,
             landing_x=landing.x,

@@ -11,6 +11,7 @@ homography.
 
 These tests pin the shared indexing contract both sides must follow.
 """
+
 from __future__ import annotations
 
 

@@ -9,6 +9,7 @@ silently corrupts every downstream MOTA/IDF1 number. These tests pin:
   - GT stride alignment used by the e2e benchmark
   - fragmentation diagnostics
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -82,9 +83,7 @@ class TestParseGtLine:
 
     def test_soccernet_csv_variant(self, loader):
         """The real tracking-2023 format: CSV, left/top/width/height."""
-        frame, tid, x1, y1, x2, y2 = loader.parse_line(
-            "1,1,914,855,55,172,1,-1,-1,-1", 1
-        )
+        frame, tid, x1, y1, x2, y2 = loader.parse_line("1,1,914,855,55,172,1,-1,-1,-1", 1)
         assert frame == 1 and tid == 1
         assert (x1, y1, x2, y2) == (914.0, 855.0, 914.0 + 55.0, 855.0 + 172.0)
 
@@ -168,8 +167,14 @@ class TestStrideAlignment:
             assert self._align(positions, 1, 6) == positions
 
     def test_stride2_halves_frames(self):
-        positions = [(1, 0.0, 0.0), (2, 1.0, 0.0), (3, 2.0, 0.0),
-                     (4, 3.0, 0.0), (5, 4.0, 0.0), (6, 5.0, 0.0)]
+        positions = [
+            (1, 0.0, 0.0),
+            (2, 1.0, 0.0),
+            (3, 2.0, 0.0),
+            (4, 3.0, 0.0),
+            (5, 4.0, 0.0),
+            (6, 5.0, 0.0),
+        ]
         aligned = self._align(positions, 2, 3)
         # GT frames 2,4,6 → processed ranks 1,2,3
         assert aligned == [(1, 1.0, 0.0), (2, 3.0, 0.0), (3, 5.0, 0.0)]

@@ -87,11 +87,19 @@ def _run_detections(
                 boxes = results[0].boxes
                 if boxes is not None and len(boxes) > 0:
                     import torch
-                    dets_np = torch.cat([
-                        boxes.xyxy,
-                        boxes.conf.unsqueeze(1),
-                        boxes.cls.unsqueeze(1),
-                    ], dim=1).cpu().numpy()
+
+                    dets_np = (
+                        torch.cat(
+                            [
+                                boxes.xyxy,
+                                boxes.conf.unsqueeze(1),
+                                boxes.cls.unsqueeze(1),
+                            ],
+                            dim=1,
+                        )
+                        .cpu()
+                        .numpy()
+                    )
                     for d in dets_np:
                         # Only keep person class (0) for GT
                         if int(d[5]) == 0:  # cls == person
@@ -111,7 +119,9 @@ def _run_detections(
 
     cap.release()
     elapsed = time.time() - t0
-    logger.info(f"Done: {det_frame} detection frames in {elapsed:.1f}s ({det_frame/elapsed:.1f} fps)")
+    logger.info(
+        f"Done: {det_frame} detection frames in {elapsed:.1f}s ({det_frame / elapsed:.1f} fps)"
+    )
 
     return detections
 
@@ -287,7 +297,9 @@ def main():
 
     # ── 2. Run detections at pipeline threshold ──
     logger.info(f"Running YOLO at conf={args.pipeline_conf} (pipeline threshold)...")
-    raw_dets = _run_detections(model, args.video, args.pipeline_conf, args.frame_skip, args.max_frames)
+    raw_dets = _run_detections(
+        model, args.video, args.pipeline_conf, args.frame_skip, args.max_frames
+    )
     logger.info(f"  Total raw detections: {sum(len(d) for d in raw_dets.values())}")
 
     # ── 3. Run detections at high threshold (pseudo-GT) ──

@@ -63,10 +63,7 @@ class FluidX3DService:
     """
 
     def __init__(self, binary_path: str | None = None) -> None:
-        self._binary_path = (
-            binary_path
-            or os.environ.get("KAWKAB_FLUIDX3D_PATH")
-        )
+        self._binary_path = binary_path or os.environ.get("KAWKAB_FLUIDX3D_PATH")
         self._available = False
         self._check_binary()
 
@@ -144,9 +141,7 @@ class FluidX3DService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout_s
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
             if proc.returncode != 0:
                 return CfdResult(
                     success=False,

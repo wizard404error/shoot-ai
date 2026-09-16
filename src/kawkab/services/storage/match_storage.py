@@ -10,21 +10,30 @@ from kawkab.services.storage.base import BaseStorage
 
 
 def _sanitize_column_name(name: str) -> str | None:
-    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+    if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
         return name
     return None
 
+
 try:
     from kawkab.core.security import SecurityValidator as _SecVal
+
     SecurityValidator = _SecVal
 except ImportError:
+
     class _SecurityValidator:
         @staticmethod
-        def validate_match_id(mid): return int(mid)
+        def validate_match_id(mid):
+            return int(mid)
+
         @staticmethod
-        def validate_team_name(n): return str(n)
+        def validate_team_name(n):
+            return str(n)
+
         @staticmethod
-        def sanitize_string(s, max_length=255): return str(s)[:max_length]
+        def sanitize_string(s, max_length=255):
+            return str(s)[:max_length]
+
     SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
@@ -88,7 +97,10 @@ class MatchStorage(BaseStorage):
             return None
         try:
             cursor = self._conn.cursor()
-            cursor.execute("SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data FROM matches WHERE id = ?", (match_id,))
+            cursor.execute(
+                "SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data FROM matches WHERE id = ?",
+                (match_id,),
+            )
             row = cursor.fetchone()
             return dict(row) if row else None
         except Exception as e:
@@ -119,9 +131,7 @@ class MatchStorage(BaseStorage):
         except Exception as e:
             self._log_error("update_match_analysis", e)
 
-    async def update_match_teams(
-        self, match_id: int, home_team: str, away_team: str
-    ) -> None:
+    async def update_match_teams(self, match_id: int, home_team: str, away_team: str) -> None:
         if not self._ensure_initialized("update_match_teams"):
             return
         try:
@@ -163,9 +173,7 @@ class MatchStorage(BaseStorage):
                 return
             vals.append(match_id)
             cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-            )
+            cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
             self._conn.commit()
         except Exception as e:
             self._log_error("update_match_football_data", e)
@@ -203,9 +211,7 @@ class MatchStorage(BaseStorage):
                 return
             vals.append(match_id)
             cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-            )
+            cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
             self._conn.commit()
         except Exception as e:
             self._log_error("update_match_apifootball", e)
@@ -247,9 +253,7 @@ class MatchStorage(BaseStorage):
                 return
             vals.append(match_id)
             cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals
-            )
+            cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
             self._conn.commit()
         except Exception as e:
             self._log_error("update_match_bzzoiro", e)

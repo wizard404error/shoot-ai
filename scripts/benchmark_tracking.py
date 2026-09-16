@@ -65,9 +65,7 @@ def run_benchmark(data_dir: Path) -> dict[str, Any]:
 
     gt = load_metrica_ground_truth(data_dir)
     player_count = len(gt.home_tracks) + len(gt.away_tracks)
-    total_frames = sum(
-        len(t.frames) for t in (*gt.home_tracks.values(), *gt.away_tracks.values())
-    )
+    total_frames = sum(len(t.frames) for t in (*gt.home_tracks.values(), *gt.away_tracks.values()))
 
     gt_tracks = _gt_tracks_to_dict(gt)
 
@@ -131,9 +129,11 @@ def print_summary(report: dict[str, Any]) -> None:
         return
 
     gt = report.get("ground_truth", {})
-    print(f"\n  Ground Truth:  {gt.get('total_players', 0)} players, "
-          f"{gt.get('total_tracked_frames', 0)} frames, "
-          f"{gt.get('fps', 0):.1f} fps")
+    print(
+        f"\n  Ground Truth:  {gt.get('total_players', 0)} players, "
+        f"{gt.get('total_tracked_frames', 0)} frames, "
+        f"{gt.get('fps', 0):.1f} fps"
+    )
 
     mot = report.get("mot_metrics", {})
     print(f"\n  ── MOT Metrics ──")

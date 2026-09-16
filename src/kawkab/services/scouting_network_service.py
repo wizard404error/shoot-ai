@@ -60,9 +60,15 @@ class ScoutingNetworkService:
         with open(self._data_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
-    def search_players(self, query: str = "", position: str = "",
-                       min_age: int = 0, max_age: int = 99,
-                       league: str = "", min_rating: float = 0.0) -> list[dict]:
+    def search_players(
+        self,
+        query: str = "",
+        position: str = "",
+        min_age: int = 0,
+        max_age: int = 99,
+        league: str = "",
+        min_rating: float = 0.0,
+    ) -> list[dict]:
         query = query.lower().strip()
         results = []
         for p in self._players.values():
@@ -76,20 +82,22 @@ class ScoutingNetworkService:
                 continue
             if p.rating < min_rating:
                 continue
-            results.append({
-                "id": p.id,
-                "name": p.name,
-                "position": p.position,
-                "age": p.age,
-                "club": p.club,
-                "league": p.league,
-                "nationality": p.nationality,
-                "estimated_value": p.estimated_value,
-                "rating": p.rating,
-                "tags": p.tags,
-                "strengths": p.strengths[:3],
-                "scout_notes": p.scout_notes[:100] if p.scout_notes else "",
-            })
+            results.append(
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "position": p.position,
+                    "age": p.age,
+                    "club": p.club,
+                    "league": p.league,
+                    "nationality": p.nationality,
+                    "estimated_value": p.estimated_value,
+                    "rating": p.rating,
+                    "tags": p.tags,
+                    "strengths": p.strengths[:3],
+                    "scout_notes": p.scout_notes[:100] if p.scout_notes else "",
+                }
+            )
         results.sort(key=lambda x: x["rating"], reverse=True)
         return results
 
@@ -114,19 +122,34 @@ class ScoutingNetworkService:
             "submitted_by": p.submitted_by,
         }
 
-    def add_player(self, name: str, position: str = "", club: str = "",
-                   league: str = "", rating: float = 0.0,
-                   strengths: list[str] | None = None,
-                   weaknesses: list[str] | None = None,
-                   scout_notes: str = "",
-                   submitted_by: str = "",
-                   tags: list[str] | None = None) -> dict:
+    def add_player(
+        self,
+        name: str,
+        position: str = "",
+        club: str = "",
+        league: str = "",
+        rating: float = 0.0,
+        strengths: list[str] | None = None,
+        weaknesses: list[str] | None = None,
+        scout_notes: str = "",
+        submitted_by: str = "",
+        tags: list[str] | None = None,
+    ) -> dict:
         import uuid
+
         pid = str(uuid.uuid4())[:8]
         player = NetworkPlayer(
-            id=pid, name=name, position=position, club=club, league=league,
-            rating=rating, strengths=strengths or [], weaknesses=weaknesses or [],
-            scout_notes=scout_notes, submitted_by=submitted_by, tags=tags or [],
+            id=pid,
+            name=name,
+            position=position,
+            club=club,
+            league=league,
+            rating=rating,
+            strengths=strengths or [],
+            weaknesses=weaknesses or [],
+            scout_notes=scout_notes,
+            submitted_by=submitted_by,
+            tags=tags or [],
         )
         self._players[pid] = player
         self._save_data()

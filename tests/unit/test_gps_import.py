@@ -44,17 +44,21 @@ def _kinexon_sample(t, speed, accel, hr=72, p_load=0.5, x=0, y=0):
     }
 
 
-KINEXON_JSON = json.dumps({
-    "sessions": [{
-        "start_time": "2026-07-12T14:00:00",
-        "samples": [
-            _kinexon_sample(0.000, 0.0, 0.0, 72, 0.0),
-            _kinexon_sample(0.100, 2.5, 0.5, 75, 0.5),
-            _kinexon_sample(0.200, 5.0, 1.0, 78, 1.0),
-            _kinexon_sample(0.300, 7.5, 1.5, 82, 1.5),
+KINEXON_JSON = json.dumps(
+    {
+        "sessions": [
+            {
+                "start_time": "2026-07-12T14:00:00",
+                "samples": [
+                    _kinexon_sample(0.000, 0.0, 0.0, 72, 0.0),
+                    _kinexon_sample(0.100, 2.5, 0.5, 75, 0.5),
+                    _kinexon_sample(0.200, 5.0, 1.0, 78, 1.0),
+                    _kinexon_sample(0.300, 7.5, 1.5, 82, 1.5),
+                ],
+            }
         ]
-    }]
-})
+    }
+)
 
 
 # ─── Catapult CSV ──────────────────────────────────────────────────────────
@@ -177,10 +181,12 @@ def test_kinexon_empty():
 
 
 def test_kinexon_single_session():
-    data = json.dumps({
-        "start_time": "2026-07-12T14:00:00",
-        "samples": [{"timestamp": 0.0, "speed": 1.0, "distance": 0.1}]
-    })
+    data = json.dumps(
+        {
+            "start_time": "2026-07-12T14:00:00",
+            "samples": [{"timestamp": 0.0, "speed": 1.0, "distance": 0.1}],
+        }
+    )
     samples = parse_kinexon_json(data)
     assert len(samples) == 1
 
@@ -253,6 +259,3 @@ def test_import_gps_file_unsupported(tmp_path):
         assert False, "Should have raised ValueError"
     except ValueError:
         pass
-
-
-

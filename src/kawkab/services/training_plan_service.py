@@ -116,15 +116,11 @@ class TrainingPlanGenerator:
                     all_drill_ids.add(drill_id)
 
         for d in top_diagnoses:
-            priority_addressed.append(
-                d.rule_name_ar if language == "ar" else d.rule_name
-            )
+            priority_addressed.append(d.rule_name_ar if language == "ar" else d.rule_name)
 
         schedule = self._build_weekly_schedule(training_days_per_week, language)
 
-        overall_improvement = self._build_overall_improvement(
-            top_diagnoses, language
-        )
+        overall_improvement = self._build_overall_improvement(top_diagnoses, language)
 
         plan = TrainingPlan(
             plan_id=plan_id,
@@ -192,16 +188,14 @@ class TrainingPlanGenerator:
             language=language,
         )
 
-        expected = self._build_expected_improvements(
-            primary, secondary, tertiary, language
-        )
+        expected = self._build_expected_improvements(primary, secondary, tertiary, language)
 
         re_test = (
             f"Re-analyze with Kawkab AI: check if '{primary.rule_name}' "
             f"has improved (target: {primary.confidence * 0.7:.0%} reduction in issue severity)"
             if language == "en"
             else f"أعد التحليل بكوكب AI: تحقق من تحسن '{primary.rule_name_ar}' "
-                 f"(الهدف: تقليل {primary.confidence * 0.7:.0%} في شدة المشكلة)"
+            f"(الهدف: تقليل {primary.confidence * 0.7:.0%} في شدة المشكلة)"
         )
 
         return TrainingWeek(
@@ -258,20 +252,20 @@ class TrainingPlanGenerator:
                 if drill:
                     total_duration += drill.duration_min
 
-            sessions.append(DrillSession(
-                week=week_num,
-                day=day,
-                focus=focus,
-                drills=drills,
-                total_duration_min=total_duration,
-                intensity=session_intensity,
-            ))
+            sessions.append(
+                DrillSession(
+                    week=week_num,
+                    day=day,
+                    focus=focus,
+                    drills=drills,
+                    total_duration_min=total_duration,
+                    intensity=session_intensity,
+                )
+            )
 
         return sessions
 
-    def _build_weekly_schedule(
-        self, training_days: int, language: str
-    ) -> dict[str, list[str]]:
+    def _build_weekly_schedule(self, training_days: int, language: str) -> dict[str, list[str]]:
         """Build the weekly schedule structure."""
         days = self.WEEKLY_SCHEDULE[language][:training_days]
         schedule = {}
@@ -292,22 +286,16 @@ class TrainingPlanGenerator:
             if d is None:
                 continue
             if language == "ar":
-                improvements.append(
-                    f"تحسن بنسبة 30-40% في '{d.rule_name_ar}'"
-                )
+                improvements.append(f"تحسن بنسبة 30-40% في '{d.rule_name_ar}'")
             else:
-                improvements.append(
-                    f"30-40% improvement in '{d.rule_name}'"
-                )
+                improvements.append(f"30-40% improvement in '{d.rule_name}'")
         if not improvements:
             improvements = [
                 "Maintain current form" if language == "en" else "الحفاظ على المستوى الحالي"
             ]
         return improvements
 
-    def _build_overall_improvement(
-        self, diagnoses: list[Diagnosis], language: str
-    ) -> str:
+    def _build_overall_improvement(self, diagnoses: list[Diagnosis], language: str) -> str:
         """Build the overall expected improvement message."""
         if not diagnoses:
             return ""
@@ -335,7 +323,9 @@ class TrainingPlanGenerator:
             secondary_focus="",
             sessions=[],
             expected_improvements=[],
-            re_test_focus="Re-analyze after week 4" if language == "en" else "أعد التحليل بعد الأسبوع 4",
+            re_test_focus="Re-analyze after week 4"
+            if language == "en"
+            else "أعد التحليل بعد الأسبوع 4",
         )
 
     def export_to_dict(self, plan: TrainingPlan) -> dict[str, Any]:

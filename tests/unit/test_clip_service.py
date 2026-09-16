@@ -21,7 +21,6 @@ def clip_mod():
 
 
 class TestClipExtractionService:
-
     def test_init_creates_cache_dir(self, clip_mod, tmp_path):
         cache_dir = tmp_path / "clips"
         svc = clip_mod.ClipExtractionService(cache_dir=cache_dir)
@@ -78,7 +77,9 @@ class TestClipExtractionService:
     async def test_extract_clip_ffmpeg_not_found(self, clip_mod, tmp_path):
         (tmp_path / "input.mp4").write_text("fake")
         svc = clip_mod.ClipExtractionService(cache_dir=tmp_path)
-        with patch.object(asyncio, "create_subprocess_exec", AsyncMock(side_effect=FileNotFoundError)):
+        with patch.object(
+            asyncio, "create_subprocess_exec", AsyncMock(side_effect=FileNotFoundError)
+        ):
             result = await svc.extract_clip(
                 video_path=tmp_path / "input.mp4",
                 start_time=10.0,
@@ -106,7 +107,9 @@ class TestClipExtractionService:
     async def test_extract_clip_general_exception(self, clip_mod, tmp_path):
         (tmp_path / "input.mp4").write_text("fake")
         svc = clip_mod.ClipExtractionService(cache_dir=tmp_path)
-        with patch.object(asyncio, "create_subprocess_exec", AsyncMock(side_effect=RuntimeError("boom"))):
+        with patch.object(
+            asyncio, "create_subprocess_exec", AsyncMock(side_effect=RuntimeError("boom"))
+        ):
             result = await svc.extract_clip(
                 video_path=tmp_path / "input.mp4",
                 start_time=10.0,
@@ -184,7 +187,9 @@ class TestClipExtractionService:
         timestamps = [
             {"start": 10.0, "end": 20.0, "description": "Goal"},
         ]
-        with patch.object(asyncio, "create_subprocess_exec", AsyncMock(side_effect=FileNotFoundError)):
+        with patch.object(
+            asyncio, "create_subprocess_exec", AsyncMock(side_effect=FileNotFoundError)
+        ):
             results = await svc.extract_evidence_clips(
                 video_path=tmp_path / "input.mp4",
                 timestamps=timestamps,

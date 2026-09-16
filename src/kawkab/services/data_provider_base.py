@@ -48,8 +48,7 @@ class BaseDataProvider(ABC):
     """Abstract base for all external data provider integrations."""
 
     @abstractmethod
-    def get_provider_name(self) -> str:
-        ...
+    def get_provider_name(self) -> str: ...
 
     @abstractmethod
     async def search_matches(
@@ -60,16 +59,13 @@ class BaseDataProvider(ABC):
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         limit: int = 50,
-    ) -> list[ProviderMatch]:
-        ...
+    ) -> list[ProviderMatch]: ...
 
     @abstractmethod
-    async def get_match_events(self, match_id: str) -> list[ProviderEvent]:
-        ...
+    async def get_match_events(self, match_id: str) -> list[ProviderEvent]: ...
 
     @abstractmethod
-    async def get_match_lineups(self, match_id: str) -> list[ProviderLineup]:
-        ...
+    async def get_match_lineups(self, match_id: str) -> list[ProviderLineup]: ...
 
     async def import_match_to_db(self, match_id: str, db: Any) -> int:
         """Default import: fetches events + lineups, inserts into storage DB."""

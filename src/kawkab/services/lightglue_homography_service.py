@@ -23,9 +23,7 @@ from kawkab.services.homography_service import HomographyMatrix
 
 logger = logging.getLogger(__name__)
 
-MODEL_RELEASE_URL = (
-    "https://github.com/fabio-sim/LightGlue-ONNX/releases/download/v2.0"
-)
+MODEL_RELEASE_URL = "https://github.com/fabio-sim/LightGlue-ONNX/releases/download/v2.0"
 MODEL_FILENAME = "superpoint_lightglue_pipeline.onnx"
 MODEL_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -75,9 +73,7 @@ class LightGlueHomographyService:
 
     def _ensure_inputs(self) -> None:
         if not self.available:
-            raise RuntimeError(
-                "LightGlue model not found. Call ensure_model() first."
-            )
+            raise RuntimeError("LightGlue model not found. Call ensure_model() first.")
         self._load_session()
 
     # ------------------------------------------------------------------
@@ -117,9 +113,7 @@ class LightGlueHomographyService:
         batch = np.concatenate([inp0, inp1], axis=0)
 
         input_name = self._session.get_inputs()[0].name
-        kpts_out, matches_out, scores_out = self._session.run(
-            None, {input_name: batch}
-        )
+        kpts_out, matches_out, scores_out = self._session.run(None, {input_name: batch})
 
         good = scores_out > conf_threshold
         matches_out = matches_out[good]
@@ -142,8 +136,11 @@ class LightGlueHomographyService:
     # ------------------------------------------------------------------
 
     def compute_homography(
-        self, img0: np.ndarray, img1: np.ndarray,
-        pitch_length: float = 105.0, pitch_width: float = 68.0,
+        self,
+        img0: np.ndarray,
+        img1: np.ndarray,
+        pitch_length: float = 105.0,
+        pitch_width: float = 68.0,
     ) -> HomographyMatrix | None:
         """Match two images and return HomographyMatrix (img0 -> img1)."""
         result = self.match(img0, img1)
@@ -253,8 +250,10 @@ class LightGlueHomographyService:
         return pitch
 
     def auto_calibrate(
-        self, frame: np.ndarray,
-        pitch_length: float = 105.0, pitch_width: float = 68.0,
+        self,
+        frame: np.ndarray,
+        pitch_length: float = 105.0,
+        pitch_width: float = 68.0,
     ) -> HomographyMatrix | None:
         """Match frame against synthetic pitch template."""
         template = self._build_pitch_template()
@@ -282,13 +281,9 @@ class LightGlueHomographyService:
             dtype=np.float32,
         )
 
-        H_template_to_pitch = cv2.getPerspectiveTransform(
-            template_corners, pitch_corners
-        )
+        H_template_to_pitch = cv2.getPerspectiveTransform(template_corners, pitch_corners)
 
-        H_frame_to_template, mask = cv2.findHomography(
-            kpts_frame, kpts_template, cv2.RANSAC, 5.0
-        )
+        H_frame_to_template, mask = cv2.findHomography(kpts_frame, kpts_template, cv2.RANSAC, 5.0)
         if H_frame_to_template is None:
             return None
 
@@ -305,9 +300,7 @@ class LightGlueHomographyService:
                     pts_frame.reshape(-1, 1, 2).astype(np.float32),
                     H_frame_to_template,
                 )
-                errors = np.linalg.norm(
-                    projected.reshape(-1, 2) - pts_template, axis=1
-                )
+                errors = np.linalg.norm(projected.reshape(-1, 2) - pts_template, axis=1)
                 error = float(np.mean(errors))
             except Exception:
                 error = 999.0
@@ -341,9 +334,7 @@ class LightGlueHomographyService:
             return None
         kpts_frame, kpts_ref, conf = result
 
-        H_frame_to_ref, mask = cv2.findHomography(
-            kpts_frame, kpts_ref, cv2.RANSAC, 5.0
-        )
+        H_frame_to_ref, mask = cv2.findHomography(kpts_frame, kpts_ref, cv2.RANSAC, 5.0)
         if H_frame_to_ref is None:
             return None
 
@@ -361,9 +352,7 @@ class LightGlueHomographyService:
                     pts_frame.reshape(-1, 1, 2).astype(np.float32),
                     H_frame_to_ref,
                 )
-                errors = np.linalg.norm(
-                    projected.reshape(-1, 2) - pts_ref, axis=1
-                )
+                errors = np.linalg.norm(projected.reshape(-1, 2) - pts_ref, axis=1)
                 error = float(np.mean(errors))
             except Exception:
                 error = 999.0

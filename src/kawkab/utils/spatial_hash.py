@@ -51,9 +51,7 @@ class SpatialHash2D:
         """Return all objects in the cell containing (x, y)."""
         return self.grid.get(self._cell_coords(x, y), [])
 
-    def query_neighbors(
-        self, x: float, y: float, radius: float
-    ) -> list[Hashable]:
+    def query_neighbors(self, x: float, y: float, radius: float) -> list[Hashable]:
         """Return all objects within `radius` of (x, y).
 
         Inspects the 3x3 neighborhood of cells around the query point,
@@ -103,17 +101,13 @@ class SpatialHash3D:
     def insert(self, obj: Hashable, position: Sequence[float]) -> None:
         if len(position) < 3:
             raise ValueError(f"position must have 3 elements, got {len(position)}")
-        cx, cy, cz = self._cell_coords(
-            float(position[0]), float(position[1]), float(position[2])
-        )
+        cx, cy, cz = self._cell_coords(float(position[0]), float(position[1]), float(position[2]))
         self.grid[(cx, cy, cz)].append(obj)
 
     def query_cell(self, x: float, y: float, z: float) -> list[Hashable]:
         return self.grid.get(self._cell_coords(x, y, z), [])
 
-    def query_neighbors(
-        self, x: float, y: float, z: float, radius: float
-    ) -> list[Hashable]:
+    def query_neighbors(self, x: float, y: float, z: float, radius: float) -> list[Hashable]:
         if radius < 0:
             raise ValueError(f"radius must be non-negative, got {radius}")
         cx, cy, cz = self._cell_coords(x, y, z)

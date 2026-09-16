@@ -51,9 +51,7 @@ class KawkabPlugin(ABC):
     ) -> None:
         """Called before a match analysis begins."""
 
-    async def on_analysis_end(
-        self, match_id: int, result: dict[str, Any]
-    ) -> None:
+    async def on_analysis_end(self, match_id: int, result: dict[str, Any]) -> None:
         """Called after a match analysis completes."""
 
     async def on_frame(

@@ -621,20 +621,24 @@ class TestMultiCameraFusion:
         fusion.register_camera("cam2", H2, 0.8)
 
         reid_emb = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
-        tracks1 = [{
-            "track_id": 1,
-            "bbox": (100, 200, 120, 240),
-            "confidence": 0.9,
-            "class_name": "person",
-            "reid_embedding": reid_emb,
-        }]
-        tracks2 = [{
-            "track_id": 1,
-            "bbox": (110, 210, 130, 250),
-            "confidence": 0.85,
-            "class_name": "person",
-            "reid_embedding": reid_emb,
-        }]
+        tracks1 = [
+            {
+                "track_id": 1,
+                "bbox": (100, 200, 120, 240),
+                "confidence": 0.9,
+                "class_name": "person",
+                "reid_embedding": reid_emb,
+            }
+        ]
+        tracks2 = [
+            {
+                "track_id": 1,
+                "bbox": (110, 210, 130, 250),
+                "confidence": 0.85,
+                "class_name": "person",
+                "reid_embedding": reid_emb,
+            }
+        ]
 
         fusion.update("cam1", tracks1, 1.0)
         result = fusion.update("cam2", tracks2, 1.0)

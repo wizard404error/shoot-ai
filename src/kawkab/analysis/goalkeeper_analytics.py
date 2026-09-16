@@ -153,7 +153,8 @@ class GoalkeeperAnalytics:
         return self._available
 
     def compute_save_quality(
-        self, shots_faced: list[dict[str, Any]],
+        self,
+        shots_faced: list[dict[str, Any]],
     ) -> GKSaveQuality:
         """Evaluate shot-stopping using PSxG model."""
         sq = GKSaveQuality()
@@ -186,9 +187,12 @@ class GoalkeeperAnalytics:
                 angle_deg = math.degrees(angle_rad)
 
             result = compute_psxg(
-                distance_m=distance_m, angle_deg=angle_deg,
-                placement_x=placement_x, placement_y=placement_y,
-                shot_speed=speed, body_part=bp,
+                distance_m=distance_m,
+                angle_deg=angle_deg,
+                placement_x=placement_x,
+                placement_y=placement_y,
+                shot_speed=speed,
+                body_part=bp,
             )
             psxg = result.psxg
             total_psxg += psxg
@@ -258,7 +262,8 @@ class GoalkeeperAnalytics:
         return pm
 
     def compute_aerial_command(
-        self, cross_actions: list[dict[str, Any]],
+        self,
+        cross_actions: list[dict[str, Any]],
     ) -> GKAerialCommand:
         """Analyze GK aerial command from cross-related actions."""
         ac = GKAerialCommand()
@@ -285,7 +290,8 @@ class GoalkeeperAnalytics:
         return ac
 
     def compute_distribution(
-        self, distribution_actions: list[dict[str, Any]],
+        self,
+        distribution_actions: list[dict[str, Any]],
     ) -> GKDistribution:
         """Analyze GK distribution by type and zone."""
         gd = GKDistribution()
@@ -338,7 +344,8 @@ class GoalkeeperAnalytics:
         return gd
 
     def compute_match_report(
-        self, team: str,
+        self,
+        team: str,
         shots_faced: list[dict[str, Any]] | None = None,
         cross_actions: list[dict[str, Any]] | None = None,
         distribution_actions: list[dict[str, Any]] | None = None,
@@ -389,7 +396,8 @@ class GoalkeeperAnalytics:
         return max(0.0, min(100.0, rating))
 
     def _assess(
-        self, report: AdvancedGKReport,
+        self,
+        report: AdvancedGKReport,
     ) -> tuple[list[str], list[str]]:
         strengths: list[str] = []
         weaknesses: list[str] = []

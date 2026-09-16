@@ -78,14 +78,9 @@ class PassNetwork:
             if ev.get("completed", True):
                 raw[key]["completed"] += 1
 
-        self._edges = {
-            k: v for k, v in raw.items()
-            if v["attempted"] >= self.min_passes
-        }
+        self._edges = {k: v for k, v in raw.items() if v["attempted"] >= self.min_passes}
 
-    def get_connection_matrix(
-        self, team: str | None = None
-    ) -> dict[str, Any]:
+    def get_connection_matrix(self, team: str | None = None) -> dict[str, Any]:
         nodes: set[int] = set()
         edges_out: list[dict[str, Any]] = []
 
@@ -98,24 +93,25 @@ class PassNetwork:
             nodes.add(dst)
             completion_pct = (
                 round((stats["completed"] / stats["attempted"]) * 100, 1)
-                if stats["attempted"] > 0 else 0.0
+                if stats["attempted"] > 0
+                else 0.0
             )
-            edges_out.append({
-                "source": src,
-                "target": dst,
-                "attempted": stats["attempted"],
-                "completed": stats["completed"],
-                "completion_pct": completion_pct,
-            })
+            edges_out.append(
+                {
+                    "source": src,
+                    "target": dst,
+                    "attempted": stats["attempted"],
+                    "completed": stats["completed"],
+                    "completion_pct": completion_pct,
+                }
+            )
 
         return {
             "nodes": [{"id": n} for n in sorted(nodes)],
             "edges": sorted(edges_out, key=lambda e: -e["attempted"]),
         }
 
-    def get_strongest_links(
-        self, team: str, top_n: int = 5
-    ) -> list[dict[str, Any]]:
+    def get_strongest_links(self, team: str, top_n: int = 5) -> list[dict[str, Any]]:
         links = []
         for (src, dst), stats in self._edges.items():
             src_team = self._player_teams.get(src)
@@ -123,15 +119,18 @@ class PassNetwork:
                 continue
             completion_pct = (
                 round((stats["completed"] / stats["attempted"]) * 100, 1)
-                if stats["attempted"] > 0 else 0.0
+                if stats["attempted"] > 0
+                else 0.0
             )
-            links.append({
-                "source": src,
-                "target": dst,
-                "attempted": stats["attempted"],
-                "completed": stats["completed"],
-                "completion_pct": completion_pct,
-            })
+            links.append(
+                {
+                    "source": src,
+                    "target": dst,
+                    "attempted": stats["attempted"],
+                    "completed": stats["completed"],
+                    "completion_pct": completion_pct,
+                }
+            )
 
         links.sort(key=lambda x: -x["attempted"])
         return links[:top_n]

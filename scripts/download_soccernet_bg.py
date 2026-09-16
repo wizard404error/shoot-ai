@@ -1,4 +1,5 @@
 """Download SoccerNet tracking-2023 train split in background."""
+
 import logging
 import os
 import sys
@@ -13,19 +14,22 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(log_dir, "download_bg.log"), mode="w")
-    ]
+        logging.FileHandler(os.path.join(log_dir, "download_bg.log"), mode="w"),
+    ],
 )
 log = logging.getLogger("soccernet_dl")
 
 try:
     from SoccerNet.Downloader import SoccerNetDownloader
+
     dl = SoccerNetDownloader(LocalDirectory=log_dir)
 
     log.info("=" * 60)
     log.info("Starting SoccerNet tracking-2023 train split download")
     log.info("=" * 60)
-    dl.downloadDataTask(task="tracking-2023", split=["train"], password="SoccerNet", source="OwnCloud")
+    dl.downloadDataTask(
+        task="tracking-2023", split=["train"], password="SoccerNet", source="OwnCloud"
+    )
     log.info("Train split complete!")
 
     # Also download a few matches from spotting-ball-2025 (smaller, validation)
@@ -41,4 +45,5 @@ try:
 except Exception as e:
     log.error(f"Download failed: {type(e).__name__}: {e}")
     import traceback
+
     traceback.print_exc()

@@ -68,7 +68,9 @@ def create_test_tracking_data() -> MatchTrackData:
         detections = []
         ball_x = 100 + (i % 50) * 5
         ball_y = 300 + 20 * (i % 10) / 10
-        detections.append(make_detection(99, "sports ball", ball_x, ball_y, w=5, h=5, confidence=0.8))
+        detections.append(
+            make_detection(99, "sports ball", ball_x, ball_y, w=5, h=5, confidence=0.8)
+        )
         for p in range(1, 23):
             px = 100 + (p * 40) + (i % 20) * 2
             py = 150 + (p % 3) * 150 + (i % 10) * 3
@@ -109,9 +111,17 @@ class FakeCVService:
     def __init__(self, track_data):
         self._track_data = track_data
 
-    async def process_video(self, video_path, progress_callback=None, frame_skip=3,
-                            enable_team_detection=True, checkpoint_interval=0,
-                            resume_checkpoint=None, storage_service=None, match_id=0):
+    async def process_video(
+        self,
+        video_path,
+        progress_callback=None,
+        frame_skip=3,
+        enable_team_detection=True,
+        checkpoint_interval=0,
+        resume_checkpoint=None,
+        storage_service=None,
+        match_id=0,
+    ):
         # Signature mirrors the real CVService.process_video (which the
         # analysis handler calls with match_id= and storage_service=).
         # The old 4-param stub raised TypeError on every analyze_match
@@ -181,13 +191,25 @@ class FakeStorageService:
     async def save_event(self, match_id, event):
         self._events.append({"match_id": match_id, **event})
 
-    async def save_advanced_metrics(self, match_id, metric_name, metric_value, metric_category="", player_id=None, pitch_zone="", timestamp=None, metadata=None):
-        self._advanced_metrics.append({
-            "match_id": match_id,
-            "metric_name": metric_name,
-            "metric_value": metric_value,
-            "metric_category": metric_category,
-        })
+    async def save_advanced_metrics(
+        self,
+        match_id,
+        metric_name,
+        metric_value,
+        metric_category="",
+        player_id=None,
+        pitch_zone="",
+        timestamp=None,
+        metadata=None,
+    ):
+        self._advanced_metrics.append(
+            {
+                "match_id": match_id,
+                "metric_name": metric_name,
+                "metric_value": metric_value,
+                "metric_category": metric_category,
+            }
+        )
 
     async def get_match(self, match_id):
         return self._matches.get(match_id)
@@ -236,6 +258,7 @@ async def test_bridge_advanced_metrics_wiring():
         # Run analysis
         result_json = await bridge.analyze_match(match_id, str(video_path))
         import json
+
         result = json.loads(result_json)
 
         # Verify basic result
@@ -261,6 +284,7 @@ async def test_bridge_advanced_metrics_wiring():
 async def test_bridge_get_gpu_info():
     """Test that Bridge.get_gpu_info returns GPU info and recommendations."""
     from kawkab.services.benchmark_service import BenchmarkService
+
     bridge = Bridge(
         cv_service=FakeCVService(create_test_tracking_data()),
         enhancement_service=FakeEnhancementService(),
@@ -276,6 +300,7 @@ async def test_bridge_get_gpu_info():
     )
 
     import json
+
     result_json = bridge.get_gpu_info()
     result = json.loads(result_json)
 
@@ -318,6 +343,7 @@ async def test_bridge_frame_skip_parameter():
         bridge.storage_service = storage
         result_json = await bridge.analyze_match(match_id, str(video_path))
         import json
+
         result = json.loads(result_json)
         assert "error" not in result
 
@@ -352,6 +378,7 @@ async def test_bridge_works_without_advanced_metrics_services():
 
         result_json = await bridge.analyze_match(match_id, str(video_path))
         import json
+
         result = json.loads(result_json)
 
         assert "error" not in result

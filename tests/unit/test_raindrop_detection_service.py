@@ -160,6 +160,7 @@ class TestCNNClassifyWindows:
         mock_raw = MagicMock()
         mock_raw.squeeze.return_value = MagicMock()
         mock_model.return_value = mock_raw
+
         # softmax returns 2D tensor: [[p_clear, p_rain], ...]
         # Code does: probs = softmax(...)[0]; raindrop_prob = float(probs[1])
         class FakeProbs2D:
@@ -167,7 +168,9 @@ class TestCNNClassifyWindows:
                 class FakeProbs1D:
                     def __getitem__(self, j):
                         return [0.1, 0.9][j]
+
                 return FakeProbs1D()
+
         mock_torch.softmax = lambda *a, **kw: FakeProbs2D()
         mock_torch.no_grad.return_value.__enter__.return_value = None
         mock_torch.from_numpy.return_value = MagicMock()
@@ -238,10 +241,12 @@ class TestDetectWithMockedDetections:
     @pytest.fixture
     def svc_with_fake_detections(self):
         svc = RaindropDetectionService()
+
         # Use overlapping fake detections so groupRectangles keeps them
         def fake_classify(img):
             # All detections at same position so they overlap and merge
             return [(10, 10, 0.8), (10, 10, 0.7), (10, 10, 0.9)]
+
         svc._opencv_classify_windows = fake_classify
         return svc
 

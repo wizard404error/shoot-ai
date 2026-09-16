@@ -64,6 +64,7 @@ class TestSecurityValidator:
 
     def test_validate_video_path_accepted_in_docs(self, tmp_path, monkeypatch):
         from kawkab.core.paths import get_paths
+
         real_docs = get_paths().documents
         in_docs = real_docs / "test_video_accepted.mp4"
         in_docs.parent.mkdir(parents=True, exist_ok=True)
@@ -167,6 +168,7 @@ class TestTokenBucketRateLimiter:
 
     def test_security_validator_check_rate_limit_exhausted(self):
         import time
+
         now = time.time()
         _global_rate_limiter._buckets.clear()
         key = "analysis:test_exhaust"

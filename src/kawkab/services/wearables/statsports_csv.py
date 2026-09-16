@@ -128,8 +128,7 @@ class StatsportsCsvParser(BaseWearableParser):
             session.finalize()
 
         logger.info(
-            f"StatsportsCsvParser: parsed {len(session.data)} aggregate rows "
-            f"from {path.name}"
+            f"StatsportsCsvParser: parsed {len(session.data)} aggregate rows from {path.name}"
         )
         return session
 
@@ -157,7 +156,9 @@ class StatsportsCsvParser(BaseWearableParser):
                 dp.extras[f"sonra_{field_name}"] = val.strip()
 
         # Also store total distance in the main field for to_dict compatibility
-        td = self._parse_float(row.get(col["total_distance"])) if col.get("total_distance") else None
+        td = (
+            self._parse_float(row.get(col["total_distance"])) if col.get("total_distance") else None
+        )
         if td is not None:
             dp.distance_m = td
 
@@ -169,9 +170,7 @@ class StatsportsCsvParser(BaseWearableParser):
         return dp
 
     @staticmethod
-    def _resolve_columns(
-        lowered: list[str], raw_headers: list[str]
-    ) -> dict[str, Optional[str]]:
+    def _resolve_columns(lowered: list[str], raw_headers: list[str]) -> dict[str, Optional[str]]:
         col: dict[str, Optional[str]] = {}
         for field_name, aliases in _SONRA_ALIASES.items():
             for alias in aliases:

@@ -19,7 +19,7 @@ class RehabPhase(str, Enum):
 
 
 REHAB_PHASE_DURATIONS: dict[str, int] = {
-    "initial": 3,       # days
+    "initial": 3,  # days
     "protective": 7,
     "restorative": 14,
     "functional": 14,
@@ -28,11 +28,27 @@ REHAB_PHASE_DURATIONS: dict[str, int] = {
 }
 
 REHAB_MILESTONES: dict[str, list[str]] = {
-    "initial": ["Pain management initiated", "Range of motion assessed", "Ice/compression protocol started"],
+    "initial": [
+        "Pain management initiated",
+        "Range of motion assessed",
+        "Ice/compression protocol started",
+    ],
     "protective": ["Swelling reduced", "Protected weight-bearing achieved", "Pain at rest < 3/10"],
-    "restorative": ["Full range of motion restored", "Strength > 70% of unaffected side", "Proprioception exercises started"],
-    "functional": ["Sport-specific drills initiated", "Strength > 90% of unaffected side", "Agility exercises passed"],
-    "return_to_play": ["Full training without limitation", "Medical clearance obtained", "RTP protocol completed"],
+    "restorative": [
+        "Full range of motion restored",
+        "Strength > 70% of unaffected side",
+        "Proprioception exercises started",
+    ],
+    "functional": [
+        "Sport-specific drills initiated",
+        "Strength > 90% of unaffected side",
+        "Agility exercises passed",
+    ],
+    "return_to_play": [
+        "Full training without limitation",
+        "Medical clearance obtained",
+        "RTP protocol completed",
+    ],
     "maintenance": ["Maintenance program prescribed", "Follow-up scheduled"],
 }
 
@@ -53,9 +69,13 @@ class RehabPlan:
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id, "injury_id": self.injury_id, "phase": self.phase,
-            "start_date": self.start_date, "status": self.status,
-            "milestones": self.milestones, "notes": self.notes,
+            "id": self.id,
+            "injury_id": self.injury_id,
+            "phase": self.phase,
+            "start_date": self.start_date,
+            "status": self.status,
+            "milestones": self.milestones,
+            "notes": self.notes,
         }
 
 
@@ -67,15 +87,20 @@ class RehabService:
         if not start_date:
             start_date = datetime.now().isoformat()
         milestones_text = json.dumps(REHAB_MILESTONES["initial"])
-        encrypted_milestones = encrypt_dict({"milestones": milestones_text}, ["milestones"], in_place=False)["milestones"]
+        encrypted_milestones = encrypt_dict(
+            {"milestones": milestones_text}, ["milestones"], in_place=False
+        )["milestones"]
         cur = self._db.execute(
             "INSERT INTO rehab_plans (injury_id, phase, start_date, milestones, status) VALUES (?, ?, ?, ?, ?)",
             (injury_id, "initial", start_date, encrypted_milestones, "active"),
         )
         self._db.commit()
         return RehabPlan(
-            id=cur.lastrowid, injury_id=injury_id, phase="initial",
-            start_date=start_date, milestones=list(REHAB_MILESTONES["initial"]),
+            id=cur.lastrowid,
+            injury_id=injury_id,
+            phase="initial",
+            start_date=start_date,
+            milestones=list(REHAB_MILESTONES["initial"]),
         )
 
     def _decrypt_rehab(self, row: dict) -> dict:
@@ -108,7 +133,9 @@ class RehabService:
             return plan
         next_phase = phases[current_idx + 1].value
         milestones = REHAB_MILESTONES.get(next_phase, [])
-        encrypted = encrypt_dict({"milestones": json.dumps(milestones)}, ["milestones"], in_place=False)["milestones"]
+        encrypted = encrypt_dict(
+            {"milestones": json.dumps(milestones)}, ["milestones"], in_place=False
+        )["milestones"]
         self._db.execute(
             "UPDATE rehab_plans SET phase = ?, milestones = ?, updated_at = datetime('now') WHERE id = ?",
             (next_phase, encrypted, plan_id),
@@ -131,7 +158,9 @@ class RehabService:
         ms = list(plan.get("milestones", []))
         if milestone in ms:
             ms.remove(milestone)
-        encrypted = encrypt_dict({"milestones": json.dumps(ms)}, ["milestones"], in_place=False)["milestones"]
+        encrypted = encrypt_dict({"milestones": json.dumps(ms)}, ["milestones"], in_place=False)[
+            "milestones"
+        ]
         self._db.execute(
             "UPDATE rehab_plans SET milestones = ?, updated_at = datetime('now') WHERE id = ?",
             (encrypted, plan_id),

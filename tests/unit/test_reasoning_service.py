@@ -30,6 +30,7 @@ if "kawkab.services" not in sys.modules:
 # cv_service). We provide the three classes reasoning_service needs.
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _TeamStats:
     team_name: str = ""
@@ -85,9 +86,7 @@ if "kawkab.services.analysis_service" not in sys.modules:
 # Load knowledge_service and reasoning_service
 # ---------------------------------------------------------------------------
 if "kawkab.services.knowledge_service" not in sys.modules:
-    _kmod = load_service_module(
-        "kawkab.services.knowledge_service", "knowledge_service.py"
-    )
+    _kmod = load_service_module("kawkab.services.knowledge_service", "knowledge_service.py")
 else:
     _kmod = sys.modules["kawkab.services.knowledge_service"]
 
@@ -110,25 +109,51 @@ DiagnosisReport = _mod.DiagnosisReport
 # ===========================================================================
 
 
-def _make_rule(rule_id: str, pattern_type: str, severity: str = "medium",
-               category: str = "defensive", hypotheses: list | None = None):
-    h = hypotheses or [{"condition": "test", "action": "fix",
-                        "coaching_notes": {"en": "Fix this issue", "ar": "اصلح هذه المشكلة"},
-                        "recommended_drills": ["D001"]}]
+def _make_rule(
+    rule_id: str,
+    pattern_type: str,
+    severity: str = "medium",
+    category: str = "defensive",
+    hypotheses: list | None = None,
+):
+    h = hypotheses or [
+        {
+            "condition": "test",
+            "action": "fix",
+            "coaching_notes": {"en": "Fix this issue", "ar": "اصلح هذه المشكلة"},
+            "recommended_drills": ["D001"],
+        }
+    ]
     return TacticalRule(
-        rule_id=rule_id, category=category, subcategory="general",
-        severity=severity, names={"en": rule_id, "ar": f"قاعدة {rule_id}"},
-        description={"en": "Test rule"}, pattern_signature={"type": pattern_type},
-        hypotheses=h, recommended_drills=["D001"], sources=["test"],
+        rule_id=rule_id,
+        category=category,
+        subcategory="general",
+        severity=severity,
+        names={"en": rule_id, "ar": f"قاعدة {rule_id}"},
+        description={"en": "Test rule"},
+        pattern_signature={"type": pattern_type},
+        hypotheses=h,
+        recommended_drills=["D001"],
+        sources=["test"],
     )
 
 
-def _make_diagnosis(rule_id: str, name: str, confidence: float = 0.8,
-                    severity: str = "medium", drills: list[str] | None = None):
+def _make_diagnosis(
+    rule_id: str,
+    name: str,
+    confidence: float = 0.8,
+    severity: str = "medium",
+    drills: list[str] | None = None,
+):
     return Diagnosis(
-        rule_id=rule_id, rule_name=name, rule_name_ar=f"اسم {name}",
-        category="defensive", severity=severity, confidence=confidence,
-        evidence={"key": "value"}, explanation=f"Explanation for {name}",
+        rule_id=rule_id,
+        rule_name=name,
+        rule_name_ar=f"اسم {name}",
+        category="defensive",
+        severity=severity,
+        confidence=confidence,
+        evidence={"key": "value"},
+        explanation=f"Explanation for {name}",
         explanation_ar=f"شرح لـ {name}",
         recommended_drills=drills or ["D001"],
     )
@@ -138,8 +163,11 @@ def _make_match_analysis(match_id: int = 1, duration: float = 3600.0):
     home = TeamStats(team_name="Home", possession_pct=55.0)
     away = TeamStats(team_name="Away", possession_pct=45.0)
     return MatchAnalysis(
-        match_id=match_id, duration_seconds=duration,
-        home_team=home, away_team=away, players={},
+        match_id=match_id,
+        duration_seconds=duration,
+        home_team=home,
+        away_team=away,
+        players={},
         formations={"home": {"line_height": 0.75}},
     )
 
@@ -369,11 +397,22 @@ class TestDiagnoseMatch:
             _make_rule("R003", "poor_wide_play"),
         ]
         kb.get_drill.return_value = Drill(
-            drill_id="D001", name="Passing Drill", category="technical",
-            targets=["accuracy"], duration_min=15, players_required=6,
-            intensity="medium", equipment=[], space="half_pitch",
-            setup="", rules=[], progressions=[], regressions=[],
-            coaching_points=[], addresses_problems=[], source="test",
+            drill_id="D001",
+            name="Passing Drill",
+            category="technical",
+            targets=["accuracy"],
+            duration_min=15,
+            players_required=6,
+            intensity="medium",
+            equipment=[],
+            space="half_pitch",
+            setup="",
+            rules=[],
+            progressions=[],
+            regressions=[],
+            coaching_points=[],
+            addresses_problems=[],
+            source="test",
         )
 
         svc = ReasoningService(kb)
@@ -401,11 +440,22 @@ class TestDiagnoseMatch:
         rule.pattern_signature["zone"] = "left_channel"
         kb.get_all_rules.return_value = [rule]
         kb.get_drill.return_value = Drill(
-            drill_id="D001", name="Passing Drill", category="technical",
-            targets=["accuracy"], duration_min=15, players_required=6,
-            intensity="medium", equipment=[], space="half_pitch",
-            setup="", rules=[], progressions=[], regressions=[],
-            coaching_points=[], addresses_problems=[], source="test",
+            drill_id="D001",
+            name="Passing Drill",
+            category="technical",
+            targets=["accuracy"],
+            duration_min=15,
+            players_required=6,
+            intensity="medium",
+            equipment=[],
+            space="half_pitch",
+            setup="",
+            rules=[],
+            progressions=[],
+            regressions=[],
+            coaching_points=[],
+            addresses_problems=[],
+            source="test",
         )
         svc = ReasoningService(kb)
         analysis = _make_match_analysis()
@@ -435,11 +485,22 @@ class TestBuildPriorityActions:
     def test_builds_actions_from_diagnoses(self):
         kb = MagicMock(spec=KnowledgeService)
         kb.get_drill.return_value = Drill(
-            drill_id="D001", name="Drill A", category="technical",
-            targets=["accuracy"], duration_min=15, players_required=6,
-            intensity="medium", equipment=[], space="half_pitch",
-            setup="", rules=[], progressions=[], regressions=[],
-            coaching_points=[], addresses_problems=[], source="test",
+            drill_id="D001",
+            name="Drill A",
+            category="technical",
+            targets=["accuracy"],
+            duration_min=15,
+            players_required=6,
+            intensity="medium",
+            equipment=[],
+            space="half_pitch",
+            setup="",
+            rules=[],
+            progressions=[],
+            regressions=[],
+            coaching_points=[],
+            addresses_problems=[],
+            source="test",
         )
         svc = ReasoningService(kb)
         diags = [_make_diagnosis("R001", "Issue A", 0.9, "high")]

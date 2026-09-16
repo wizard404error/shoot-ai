@@ -1,5 +1,4 @@
-"""Tests for ValidationService - accuracy validation against ground truth.
-"""
+"""Tests for ValidationService - accuracy validation against ground truth."""
 
 from __future__ import annotations
 
@@ -39,7 +38,9 @@ class TestValidationService:
         svc = ValidationService()
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "gt.csv"
-            path.write_text("event_type,timestamp,team,player_id\npass,45.2,home,7\nshot,120.5,away,\n")
+            path.write_text(
+                "event_type,timestamp,team,player_id\npass,45.2,home,7\nshot,120.5,away,\n"
+            )
             events = svc.load_ground_truth_events(path)
             assert len(events) == 2
             assert events[0].event_type == "pass"
@@ -126,7 +127,9 @@ class TestValidationService:
 
                 # Insert a match first (FK constraint on validation_results)
                 conn = storage._conn
-                conn.execute("INSERT INTO matches (id, name, video_path, home_team, away_team, match_date) VALUES (1, 'Test Match', 'test.mp4', 'Home', 'Away', '2025-01-01')")
+                conn.execute(
+                    "INSERT INTO matches (id, name, video_path, home_team, away_team, match_date) VALUES (1, 'Test Match', 'test.mp4', 'Home', 'Away', '2025-01-01')"
+                )
                 conn.commit()
 
                 svc = ValidationService()

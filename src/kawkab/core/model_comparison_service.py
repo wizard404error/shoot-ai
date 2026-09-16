@@ -82,7 +82,11 @@ def compare_xg_models(events: list[dict]) -> list[ModelComparisonReport]:
                 dtype=np.float64,
             )
             dl_model.train(
-                dl_features, dl_labels, epochs=20, batch_size=min(32, len(train_events)), verbose=False
+                dl_features,
+                dl_labels,
+                epochs=20,
+                batch_size=min(32, len(train_events)),
+                verbose=False,
             )
         except Exception:
             pass
@@ -154,17 +158,25 @@ def compute_feature_importance(events: list[dict]) -> dict[str, float]:
         for e in shot_events:
             e_copy = dict(e)
             if feat_name == "body_part":
-                e_copy["body_part"] = "head" if e.get("body_part", "right_foot") == "right_foot" else "right_foot"
+                e_copy["body_part"] = (
+                    "head" if e.get("body_part", "right_foot") == "right_foot" else "right_foot"
+                )
             elif feat_name == "is_one_on_one":
                 e_copy["is_one_on_one"] = not bool(e.get("is_one_on_one", False))
             elif feat_name == "was_pressed":
                 e_copy["was_pressed"] = not bool(e.get("was_pressed", False))
             elif feat_name == "shot_type":
-                e_copy["shot_type"] = "volley" if e.get("shot_type", "open_play") != "volley" else "open_play"
+                e_copy["shot_type"] = (
+                    "volley" if e.get("shot_type", "open_play") != "volley" else "open_play"
+                )
             elif feat_name == "assist_type":
-                e_copy["assist_type"] = "cross" if e.get("assist_type", "standard") != "cross" else "standard"
+                e_copy["assist_type"] = (
+                    "cross" if e.get("assist_type", "standard") != "cross" else "standard"
+                )
             else:
-                e_copy[feat_name] = rng.uniform(0, 105) if feat_name == "distance_m" else rng.uniform(0, 90)
+                e_copy[feat_name] = (
+                    rng.uniform(0, 105) if feat_name == "distance_m" else rng.uniform(0, 90)
+                )
             permuted.append(e_copy)
 
         perm_preds = np.array([model.compute(e) for e in permuted], dtype=np.float64)

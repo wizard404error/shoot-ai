@@ -157,9 +157,7 @@ class KnowledgeService:
             except Exception as e:
                 logger.warning(f"Failed to load drill {yml_file}: {e}")
 
-        logger.info(
-            f"Knowledge base loaded: {rule_count} rules, {drill_count} drills"
-        )
+        logger.info(f"Knowledge base loaded: {rule_count} rules, {drill_count} drills")
         self._initialized = True
 
     def get_rule(self, rule_id: str) -> TacticalRule | None:
@@ -191,9 +189,7 @@ class KnowledgeService:
                 results.append(rule)
         return results
 
-    def find_drills_for_problem(
-        self, problem_signature: str
-    ) -> list[Drill]:
+    def find_drills_for_problem(self, problem_signature: str) -> list[Drill]:
         """Find drills that address a specific problem.
 
         Args:

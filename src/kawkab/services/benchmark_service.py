@@ -97,6 +97,7 @@ class BenchmarkService:
         }
         try:
             import platform
+
             info["cpu_name"] = platform.processor() or "unknown"
             info["ram_gb"] = round(psutil.virtual_memory().total / (1024**3), 1)
         except Exception as e:
@@ -104,6 +105,7 @@ class BenchmarkService:
 
         try:
             import torch
+
             if torch.cuda.is_available():
                 info["gpu_name"] = torch.cuda.get_device_name(0)
         except Exception as e:
@@ -137,6 +139,7 @@ class BenchmarkService:
 
         try:
             import torch
+
             if torch.cuda.is_available():
                 gpu_mem = torch.cuda.max_memory_allocated() / (1024 * 1024)
                 if gpu_mem > self._peak_gpu_memory_mb:
@@ -295,6 +298,7 @@ class BenchmarkService:
                 return {"error": f"Video not found: {video_path}", "fps": 0.0}
 
             import cv2
+
             cap = cv2.VideoCapture(str(vp))
             if not cap.isOpened():
                 return {"error": "Cannot open video", "fps": 0.0}
@@ -359,7 +363,9 @@ class BenchmarkService:
         cache = _load_benchmark_cache()
         if cache_key in cache:
             cached = cache[cache_key]
-            logger.info(f"Using cached benchmark for GPU tier={gpu_tier}: variant={cached['variant']}")
+            logger.info(
+                f"Using cached benchmark for GPU tier={gpu_tier}: variant={cached['variant']}"
+            )
             return cached["variant"]
 
         variants = ["n", "s", "m", "l", "x"]
@@ -367,7 +373,9 @@ class BenchmarkService:
 
         for var in variants:
             result = await BenchmarkService.measure_processing_speed(
-                var, video_path, gpu_enabled=gpu_enabled,
+                var,
+                video_path,
+                gpu_enabled=gpu_enabled,
                 test_duration_seconds=min(test_duration_seconds, 15.0),
             )
             ratio = result.get("realtime_ratio", 999.0)

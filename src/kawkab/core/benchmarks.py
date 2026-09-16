@@ -122,8 +122,12 @@ def compute_player_benchmarks(
 
     # Collect all stat values per field across players
     stat_fields = [
-        "pass_accuracy", "shots", "tackles", "distance_covered_m",
-        "passes_attempted", "passes_completed",
+        "pass_accuracy",
+        "shots",
+        "tackles",
+        "distance_covered_m",
+        "passes_attempted",
+        "passes_completed",
     ]
     stat_values: dict[str, list[float]] = {f: [] for f in stat_fields}
     stat_names = {
@@ -167,11 +171,13 @@ def compute_player_benchmarks(
 
         name = pdata.get("name", f"Player #{tid}")
         position = pdata.get("position", "unknown")
-        results.append(PlayerBenchmark(
-            track_id=tid,
-            name=name,
-            position=position,
-            results=benchmarks,
-        ))
+        results.append(
+            PlayerBenchmark(
+                track_id=tid,
+                name=name,
+                position=position,
+                results=benchmarks,
+            )
+        )
 
     return results

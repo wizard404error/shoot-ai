@@ -139,8 +139,12 @@ def predict_xg(
             "type": "shot",
             "distance_m": s.distance_m,
             "angle_deg": s.angle_deviation_deg,
-            "body_part": s.body_part if s.body_part in ("right_foot", "left_foot", "head") else "right_foot",
-            "shot_type": s.shot_type if s.shot_type in ("open_play", "free_kick", "penalty", "corner") else "open_play",
+            "body_part": s.body_part
+            if s.body_part in ("right_foot", "left_foot", "head")
+            else "right_foot",
+            "shot_type": s.shot_type
+            if s.shot_type in ("open_play", "free_kick", "penalty", "corner")
+            else "open_play",
             "gk_distance_m": s.gk_distance_m,
             "is_rebound": s.is_rebound,
             "is_big_chance": s.is_big_chance,
@@ -188,8 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--epochs", type=int, default=8000)
     parser.add_argument("--lr", type=float, default=0.5)
     parser.add_argument("--l2", type=float, default=0.001)
-    parser.add_argument("--force", action="store_true",
-                        help="train even when coefficients already exist (default: refuse)")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="train even when coefficients already exist (default: refuse)",
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.out)

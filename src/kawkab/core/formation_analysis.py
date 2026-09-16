@@ -191,7 +191,7 @@ class FormationAnalyzer:
         n = min(len(positions), 11)
         arr = np.array(positions[:n], dtype=np.float64)
         diff = arr[:, np.newaxis, :] - arr[np.newaxis, :, :]
-        dist = np.sqrt(np.sum(diff ** 2, axis=2))
+        dist = np.sqrt(np.sum(diff**2, axis=2))
         mask = np.triu(np.ones((n, n), dtype=bool), k=1)
         return float(np.mean(dist[mask])) if np.any(mask) else 0.0
 
@@ -271,9 +271,7 @@ class FormationAnalyzer:
             xs = np.array([p[0] for p in positions[:11]])
             if len(xs) >= 3 and xs.max() - xs.min() >= 15.0:
                 centroids3, labels3 = self._kmeans_1d(xs, 3)
-                centroids4, labels4 = (
-                    self._kmeans_1d(xs, 4) if len(xs) >= 4 else (None, None)
-                )
+                centroids4, labels4 = self._kmeans_1d(xs, 4) if len(xs) >= 4 else (None, None)
             else:
                 centroids3 = labels3 = centroids4 = labels4 = None
 

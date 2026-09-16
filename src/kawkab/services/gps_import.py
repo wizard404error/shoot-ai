@@ -46,6 +46,7 @@ SPEED_ZONE_THRESHOLDS = [
     (5, "sprinting", 7.0, float("inf")),
 ]
 
+
 def _speed_zone(speed_ms: float | None) -> int | None:
     if speed_ms is None:
         return None
@@ -105,6 +106,7 @@ def _parse_timestamp_seconds(ts_str: str, start_time: datetime | None = None) ->
 
 # ─── Catapult CSV ──────────────────────────────────────────────────────────
 
+
 def parse_catapult_csv(content: str | bytes) -> list[dict[str, Any]]:
     """Parse Catapult Vector CSV export to normalized sample list.
 
@@ -125,9 +127,13 @@ def parse_catapult_csv(content: str | bytes) -> list[dict[str, Any]]:
         speed = _safe_float(row.get("Speed (m/s)") or row.get("Speed") or row.get("speed"))
         hr = _safe_int(row.get("Heart Rate") or row.get("Heart_Rate") or row.get("HR"))
         dist = _safe_float(row.get("Distance (m)") or row.get("Distance") or row.get("distance"))
-        p_load = _safe_float(row.get("Player Load") or row.get("Player_Load") or row.get("PlayerLoad"))
+        p_load = _safe_float(
+            row.get("Player Load") or row.get("Player_Load") or row.get("PlayerLoad")
+        )
         met_power = _safe_float(
-            row.get("Metabolic Power (W/kg)") or row.get("Metabolic Power") or row.get("MetabolicPower")
+            row.get("Metabolic Power (W/kg)")
+            or row.get("Metabolic Power")
+            or row.get("MetabolicPower")
         )
         lat = _safe_float(row.get("Lat") or row.get("lat") or row.get("Latitude"))
         lon = _safe_float(row.get("Lon") or row.get("lon") or row.get("Longitude"))
@@ -160,6 +166,7 @@ def parse_catapult_csv(content: str | bytes) -> list[dict[str, Any]]:
 
 # ─── STATSports CSV ────────────────────────────────────────────────────────
 
+
 def parse_statsports_csv(content: str | bytes) -> list[dict[str, Any]]:
     """Parse STATSports Apex CSV export to normalized sample list.
 
@@ -176,7 +183,9 @@ def parse_statsports_csv(content: str | bytes) -> list[dict[str, Any]]:
         ts = _parse_timestamp_seconds(row.get("Time (s)") or row.get("Time") or "0")
         speed_kmh = _safe_float(row.get("Speed (km/h)") or row.get("Speed") or row.get("speed"))
         speed_ms = round(speed_kmh / 3.6, 3) if speed_kmh is not None else None
-        hr = _safe_int(row.get("HR (bpm)") or row.get("HR") or row.get("hr") or row.get("Heart Rate"))
+        hr = _safe_int(
+            row.get("HR (bpm)") or row.get("HR") or row.get("hr") or row.get("Heart Rate")
+        )
         dist = _safe_float(row.get("Distance (m)") or row.get("Distance") or row.get("distance"))
 
         accel_x = _safe_float(row.get("Accel X (g)") or row.get("Accel X") or row.get("accel_x"))
@@ -198,7 +207,9 @@ def parse_statsports_csv(content: str | bytes) -> list[dict[str, Any]]:
         else:
             net_accel = None
 
-        p_load = _safe_float(row.get("Player Load") or row.get("Player_Load") or row.get("PlayerLoad"))
+        p_load = _safe_float(
+            row.get("Player Load") or row.get("Player_Load") or row.get("PlayerLoad")
+        )
         met_power = _safe_float(
             row.get("Metabolic Power") or row.get("MetabolicPower") or row.get("metabolic_power")
         )
@@ -230,6 +241,7 @@ def parse_statsports_csv(content: str | bytes) -> list[dict[str, Any]]:
 
 
 # ─── Kinexon JSON ──────────────────────────────────────────────────────────
+
 
 def parse_kinexon_json(content: str | bytes) -> list[dict[str, Any]]:
     """Parse Kinexon JSON export to normalized sample list.
@@ -303,6 +315,7 @@ def parse_kinexon_json(content: str | bytes) -> list[dict[str, Any]]:
 
 # ─── Auto-detect ───────────────────────────────────────────────────────────
 
+
 def import_gps_file(path: str | Path) -> list[dict[str, Any]]:
     """Auto-detect and import a GPS data file.
 
@@ -346,7 +359,11 @@ def compute_session_summary(
     accels = [s["acceleration"] for s in samples if s["acceleration"] is not None]
 
     total_dist = sum(distances) if distances else 0.0
-    duration = max(s["timestamp"] for s in samples) - min(s["timestamp"] for s in samples) if len(samples) > 1 else 0.0
+    duration = (
+        max(s["timestamp"] for s in samples) - min(s["timestamp"] for s in samples)
+        if len(samples) > 1
+        else 0.0
+    )
 
     # Distance by speed zone
     dist_by_zone = {}

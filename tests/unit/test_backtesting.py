@@ -171,7 +171,15 @@ def test_calibration_chart_data():
 
 
 def test_backtest_metrics_to_dict():
-    m = BacktestMetrics(model_name="xG", log_loss=0.5, brier_score=0.15, auc_roc=0.85, calibration_error=0.05, samples=100, positives=30)
+    m = BacktestMetrics(
+        model_name="xG",
+        log_loss=0.5,
+        brier_score=0.15,
+        auc_roc=0.85,
+        calibration_error=0.05,
+        samples=100,
+        positives=30,
+    )
     d = m.to_dict()
     assert d["model_name"] == "xG"
     assert d["log_loss"] == 0.5
@@ -194,7 +202,11 @@ def test_calibration_bin_to_dict():
 
 
 def test_well_calibrated_model():
-    y_true = [1 if p > 0.5 else 0 for _ in range(100) for p in [0.9, 0.1, 0.7, 0.3, 0.8, 0.2, 0.6, 0.4, 0.95, 0.05]]
+    y_true = [
+        1 if p > 0.5 else 0
+        for _ in range(100)
+        for p in [0.9, 0.1, 0.7, 0.3, 0.8, 0.2, 0.6, 0.4, 0.95, 0.05]
+    ]
     y_pred = [0.9, 0.1, 0.7, 0.3, 0.8, 0.2, 0.6, 0.4, 0.95, 0.05] * 10
     report = evaluate_model(y_true, y_pred, "well_calibrated", n_bins=5)
     assert report.metrics.calibration_error < 0.1

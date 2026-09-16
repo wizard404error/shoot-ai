@@ -97,9 +97,7 @@ class ExpectedThreatModel:
         self._ze_values: np.ndarray | None = None
 
     @functools.lru_cache(maxsize=256)
-    def _zone_from_position(
-        self, x: float, y: float
-    ) -> tuple[int, int]:
+    def _zone_from_position(self, x: float, y: float) -> tuple[int, int]:
         if self.attacking_direction == "left":
             x = PITCH_LENGTH - x
         col = min(self.cols - 1, max(0, int(x / self.pitch_length * self.cols)))

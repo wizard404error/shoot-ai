@@ -17,6 +17,7 @@ Overlay modes:
 Features flag (comma-separated, default: "bbox,id,ball"):
     bbox, id, ball, heatmap, passes, metrics
 """
+
 from __future__ import annotations
 
 import argparse
@@ -205,18 +206,21 @@ def render_tactical_annotations(
     # Formation labels (top-right corner)
     h = frame.shape[0]
     home_fmt, away_fmt = formation_labels
-    cv2.putText(frame, f"Home: {home_fmt}", (10, h - 80),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 0), 2)
-    cv2.putText(frame, f"Away: {away_fmt}", (10, h - 55),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 200), 2)
+    cv2.putText(
+        frame, f"Home: {home_fmt}", (10, h - 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 0), 2
+    )
+    cv2.putText(
+        frame, f"Away: {away_fmt}", (10, h - 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 200), 2
+    )
 
     # Possession % overlay (top-center area)
     possession = estimate_possession(frame_idx, ball_by_frame, frame_samples, team_by_tid)
     pct_text = f"Poss: H {possession.get('home', 50):.0f}% - A {possession.get('away', 50):.0f}%"
     (tw, th), _ = cv2.getTextSize(pct_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
     cx = frame.shape[1] // 2
-    cv2.putText(frame, pct_text, (cx - tw // 2, 60),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(
+        frame, pct_text, (cx - tw // 2, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+    )
 
 
 def render_metrics_overlay(
@@ -231,26 +235,38 @@ def render_metrics_overlay(
     h, w = frame.shape[:2]
 
     # FPS
-    cv2.putText(frame, f"FPS: {fps:.1f}", (w - 160, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    cv2.putText(
+        frame, f"FPS: {fps:.1f}", (w - 160, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2
+    )
 
     # Player count
     n_players = 0
     if current_sample:
-        n_players = sum(
-            1 for d in current_sample.get("detections", [])
-            if d[2] != "sports ball"
-        )
-    cv2.putText(frame, f"Players: {n_players}", (w - 160, 55),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        n_players = sum(1 for d in current_sample.get("detections", []) if d[2] != "sports ball")
+    cv2.putText(
+        frame,
+        f"Players: {n_players}",
+        (w - 160, 55),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 255, 255),
+        2,
+    )
 
     # Ball speed (px/frame from consecutive positions)
     bx = ball_by_frame.get(frame_idx)
     bx_prev = ball_by_frame.get(frame_idx - 1)
     if bx and bx_prev:
         speed = np.hypot(bx[0] - bx_prev[0], bx[1] - bx_prev[1])
-        cv2.putText(frame, f"Ball speed: {speed:.0f} px/f", (w - 160, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(
+            frame,
+            f"Ball speed: {speed:.0f} px/f",
+            (w - 160, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
+            2,
+        )
 
     # MOT metrics if available
     if mot_metrics:
@@ -258,13 +274,27 @@ def render_metrics_overlay(
         for key in ("MOTA", "MOTP", "IDF1"):
             val = mot_metrics.get(key)
             if val is not None:
-                cv2.putText(frame, f"{key}: {val:.2f}", (w - 160, y_off),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.putText(
+                    frame,
+                    f"{key}: {val:.2f}",
+                    (w - 160, y_off),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (255, 255, 255),
+                    2,
+                )
                 y_off += 25
 
     # Frame number
-    cv2.putText(frame, f"Frame: {frame_idx}", (w - 160, h - 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+    cv2.putText(
+        frame,
+        f"Frame: {frame_idx}",
+        (w - 160, h - 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (200, 200, 200),
+        1,
+    )
 
 
 def render(
@@ -303,7 +333,11 @@ def render(
     # Preload heatmaps if needed
     heatmaps: dict[str, np.ndarray] = {}
     if "heatmap" in features:
-        heatmaps = load_heatmaps(Path(tracking_data.get("_source", "")), w, h) if tracking_data.get("_source") else {}
+        heatmaps = (
+            load_heatmaps(Path(tracking_data.get("_source", "")), w, h)
+            if tracking_data.get("_source")
+            else {}
+        )
 
     # Pass history for tactical mode
     pass_history: deque = deque(maxlen=10)
@@ -325,13 +359,17 @@ def render(
             break
 
         # Find sample data for this frame
-        while (sample_idx < len(tracking_data["frames"])
-               and tracking_data["frames"][sample_idx]["frame"] < frame_idx):
+        while (
+            sample_idx < len(tracking_data["frames"])
+            and tracking_data["frames"][sample_idx]["frame"] < frame_idx
+        ):
             sample_idx += 1
 
         current_sample = None
-        if (sample_idx < len(tracking_data["frames"])
-                and tracking_data["frames"][sample_idx]["frame"] == frame_idx):
+        if (
+            sample_idx < len(tracking_data["frames"])
+            and tracking_data["frames"][sample_idx]["frame"] == frame_idx
+        ):
             current_sample = tracking_data["frames"][sample_idx]
 
         # --- Feature: heatmap ---
@@ -358,8 +396,9 @@ def render(
                         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     if "id" in features and tid is not None:
                         label = f"#{tid}"
-                        cv2.putText(frame, label, (x1, y1 - 5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        cv2.putText(
+                            frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
+                        )
 
         # --- Feature: ball ---
         if "ball" in features:
@@ -370,9 +409,8 @@ def render(
 
             if show_ball_trail:
                 trail = [
-                    ball_by_frame.get(f) for f in range(
-                        max(frame_idx - 30, 0), frame_idx + 1, 3
-                    )
+                    ball_by_frame.get(f)
+                    for f in range(max(frame_idx - 30, 0), frame_idx + 1, 3)
                     if f in ball_by_frame
                 ]
                 for i in range(1, len(trail)):
@@ -384,23 +422,45 @@ def render(
         # --- Feature: passes (tactical) ---
         if "passes" in features:
             render_tactical_annotations(
-                frame, frame_idx, ball_by_frame, tracking_data["team_by_tid"],
-                tracking_data.get("frames", []), pass_history,
+                frame,
+                frame_idx,
+                ball_by_frame,
+                tracking_data["team_by_tid"],
+                tracking_data.get("frames", []),
+                pass_history,
             )
 
         # --- Feature: metrics ---
         if "metrics" in features:
             render_metrics_overlay(
-                frame, frame_idx, fps, ball_by_frame, current_sample,
+                frame,
+                frame_idx,
+                fps,
+                ball_by_frame,
+                current_sample,
                 tracking_data.get("mot_metrics", {}),
             )
 
         # Info overlay (always visible)
-        cv2.putText(frame, f"Frame: {frame_idx}/{total_frames}",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.putText(
+            frame,
+            f"Frame: {frame_idx}/{total_frames}",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
         time_s = frame_idx / fps
-        cv2.putText(frame, f"Time: {int(time_s//60)}:{int(time_s%60):02d}",
-                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.putText(
+            frame,
+            f"Time: {int(time_s // 60)}:{int(time_s % 60):02d}",
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
 
         out.write(frame)
         rendered += 1
@@ -420,16 +480,23 @@ def render(
 def main():
     parser = argparse.ArgumentParser(description="Render tracking overlay video")
     parser.add_argument("--video", type=str, required=True, help="Input video")
-    parser.add_argument("--tracking", type=str, default="tracking_output",
-                        help="Tracking output directory")
-    parser.add_argument("--output", type=str, default="tracking_overlay.mp4",
-                        help="Output video path")
+    parser.add_argument(
+        "--tracking", type=str, default="tracking_output", help="Tracking output directory"
+    )
+    parser.add_argument(
+        "--output", type=str, default="tracking_overlay.mp4", help="Output video path"
+    )
     parser.add_argument("--max-frames", type=int, default=0, help="Limit frames")
     parser.add_argument("--no-ball-trail", action="store_true", help="Hide ball trail")
-    parser.add_argument("--features", type=str, default="bbox,id,ball",
-                        help="Comma-separated overlay features: bbox,id,ball,heatmap,passes,metrics")
-    parser.add_argument("--heatmap-alpha", type=float, default=0.35,
-                        help="Heatmap blend alpha (default: 0.35)")
+    parser.add_argument(
+        "--features",
+        type=str,
+        default="bbox,id,ball",
+        help="Comma-separated overlay features: bbox,id,ball,heatmap,passes,metrics",
+    )
+    parser.add_argument(
+        "--heatmap-alpha", type=float, default=0.35, help="Heatmap blend alpha (default: 0.35)"
+    )
     args = parser.parse_args()
 
     tracking = load_tracking(args.tracking)
@@ -439,11 +506,15 @@ def main():
 
     features = [f.strip() for f in args.features.split(",") if f.strip()]
 
-    render(args.video, tracking, args.output,
-           max_frames=args.max_frames,
-           show_ball_trail=not args.no_ball_trail,
-           features=features,
-           alpha=args.heatmap_alpha)
+    render(
+        args.video,
+        tracking,
+        args.output,
+        max_frames=args.max_frames,
+        show_ball_trail=not args.no_ball_trail,
+        features=features,
+        alpha=args.heatmap_alpha,
+    )
 
 
 if __name__ == "__main__":

@@ -291,12 +291,28 @@ async def _mid(storage):
 async def test_initialize_creates_tables(storage):
     cursor = storage._conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = {row["name"] for row in cursor.fetchall()}
-    for t in ["matches", "events", "players", "advanced_metrics",
-              "benchmark_results", "validation_results", "coach_feedback",
-              "issue_reports", "usage_sessions", "video_clips",
-              "clip_playlists", "player_profiles", "user_corrections",
-              "reports", "gps_sessions", "gps_samples", "acwr_daily",
-              "users", "user_sessions", "audit_events_local"]:
+    for t in [
+        "matches",
+        "events",
+        "players",
+        "advanced_metrics",
+        "benchmark_results",
+        "validation_results",
+        "coach_feedback",
+        "issue_reports",
+        "usage_sessions",
+        "video_clips",
+        "clip_playlists",
+        "player_profiles",
+        "user_corrections",
+        "reports",
+        "gps_sessions",
+        "gps_samples",
+        "acwr_daily",
+        "users",
+        "user_sessions",
+        "audit_events_local",
+    ]:
         assert t in tables, f"Missing table: {t}"
 
 
@@ -345,10 +361,16 @@ async def test_update_match_teams(storage):
 @pytest.mark.asyncio
 async def test_save_and_get_events(storage):
     match_id = await _mid(storage)
-    eid = await storage.save_event(match_id, {
-        "type": "pass", "timestamp": 10.0, "team": "home",
-        "completed": True, "confidence": 0.9,
-    })
+    eid = await storage.save_event(
+        match_id,
+        {
+            "type": "pass",
+            "timestamp": 10.0,
+            "team": "home",
+            "completed": True,
+            "confidence": 0.9,
+        },
+    )
     assert eid > 0
     events = await storage.get_match_events(match_id)
     assert len(events) == 1
@@ -381,9 +403,14 @@ async def test_save_events_bulk_bad_event_rollback(storage):
 @pytest.mark.asyncio
 async def test_update_event(storage):
     match_id = await _mid(storage)
-    eid = await storage.save_event(match_id, {
-        "type": "pass", "timestamp": 5.0, "team": "home",
-    })
+    eid = await storage.save_event(
+        match_id,
+        {
+            "type": "pass",
+            "timestamp": 5.0,
+            "team": "home",
+        },
+    )
     ok = await storage.update_event(eid, {"team": "away"})
     assert ok is True
     events = await storage.get_match_events(match_id)
@@ -393,9 +420,14 @@ async def test_update_event(storage):
 @pytest.mark.asyncio
 async def test_update_event_no_changes(storage):
     match_id = await _mid(storage)
-    eid = await storage.save_event(match_id, {
-        "type": "pass", "timestamp": 5.0, "team": "home",
-    })
+    eid = await storage.save_event(
+        match_id,
+        {
+            "type": "pass",
+            "timestamp": 5.0,
+            "team": "home",
+        },
+    )
     ok = await storage.update_event(eid, {})
     assert ok is False
 
@@ -403,9 +435,14 @@ async def test_update_event_no_changes(storage):
 @pytest.mark.asyncio
 async def test_delete_event(storage):
     match_id = await _mid(storage)
-    eid = await storage.save_event(match_id, {
-        "type": "pass", "timestamp": 5.0, "team": "home",
-    })
+    eid = await storage.save_event(
+        match_id,
+        {
+            "type": "pass",
+            "timestamp": 5.0,
+            "team": "home",
+        },
+    )
     ok = await storage.delete_event(eid)
     assert ok is True
     assert len(await storage.get_match_events(match_id)) == 0
@@ -422,9 +459,16 @@ async def test_delete_event_twice(storage):
 @pytest.mark.asyncio
 async def test_save_and_get_players(storage):
     match_id = await _mid(storage)
-    pid = await storage.save_player(match_id, {
-        "track_id": 10, "jersey_number": 7, "name": "Player1", "team": "home", "position": "ST",
-    })
+    pid = await storage.save_player(
+        match_id,
+        {
+            "track_id": 10,
+            "jersey_number": 7,
+            "name": "Player1",
+            "team": "home",
+            "position": "ST",
+        },
+    )
     assert pid > 0
     players = await storage.get_match_players(match_id)
     assert len(players) == 1
@@ -490,8 +534,11 @@ async def test_get_reports_wrong_language(storage):
 async def test_save_benchmark(storage):
     match_id = await _mid(storage)
     result = BenchmarkResult(
-        match_id=match_id, video_path="/v/test.mp4",
-        total_time_seconds=10.0, realtime_ratio=1.0, fps_effective=30.0,
+        match_id=match_id,
+        video_path="/v/test.mp4",
+        total_time_seconds=10.0,
+        realtime_ratio=1.0,
+        fps_effective=30.0,
     )
     bid = await storage.save_benchmark(result)
     assert bid > 0
@@ -501,8 +548,13 @@ async def test_save_benchmark(storage):
 async def test_get_recent_benchmarks(storage):
     match_id = await _mid(storage)
     for i in range(3):
-        r = BenchmarkResult(match_id=match_id, video_path=f"/v/{i}.mp4",
-                            total_time_seconds=float(i), realtime_ratio=1.0, fps_effective=30.0)
+        r = BenchmarkResult(
+            match_id=match_id,
+            video_path=f"/v/{i}.mp4",
+            total_time_seconds=float(i),
+            realtime_ratio=1.0,
+            fps_effective=30.0,
+        )
         await storage.save_benchmark(r)
     benchmarks = await storage.get_recent_benchmarks(2)
     assert len(benchmarks) == 2
@@ -512,8 +564,9 @@ async def test_get_recent_benchmarks(storage):
 async def test_save_validation_result(storage):
     match_id = await _mid(storage)
     report = ValidationReport(
-        match_id=match_id, ground_truth_source="manual",
-        results=[ValidationResult("events", "pass_f1", 0.8, 1.0, 0.2, 20.0, 0.8, 10)]
+        match_id=match_id,
+        ground_truth_source="manual",
+        results=[ValidationResult("events", "pass_f1", 0.8, 1.0, 0.2, 20.0, 0.8, 10)],
     )
     ids = await storage.save_validation_result(report)
     assert len(ids) == 1
@@ -522,8 +575,11 @@ async def test_save_validation_result(storage):
 @pytest.mark.asyncio
 async def test_get_validation_results(storage):
     match_id = await _mid(storage)
-    report = ValidationReport(match_id=match_id, ground_truth_source="manual",
-                              results=[ValidationResult("events", "pass_f1", 0.8, 1.0, 0.2, 20.0, 0.8, 10)])
+    report = ValidationReport(
+        match_id=match_id,
+        ground_truth_source="manual",
+        results=[ValidationResult("events", "pass_f1", 0.8, 1.0, 0.2, 20.0, 0.8, 10)],
+    )
     await storage.save_validation_result(report)
     results = await storage.get_validation_results(match_id)
     assert len(results) == 1
@@ -532,9 +588,13 @@ async def test_get_validation_results(storage):
 @pytest.mark.asyncio
 async def test_save_and_get_feedback(storage):
     match_id = await _mid(storage)
-    fid = await storage.save_feedback({
-        "coach_id": "coach1", "match_id": match_id, "overall_rating": 4,
-    })
+    fid = await storage.save_feedback(
+        {
+            "coach_id": "coach1",
+            "match_id": match_id,
+            "overall_rating": 4,
+        }
+    )
     assert fid > 0
     feedback = await storage.get_all_feedback()
     assert len(feedback) == 1
@@ -544,10 +604,14 @@ async def test_save_and_get_feedback(storage):
 @pytest.mark.asyncio
 async def test_save_and_get_issues(storage):
     match_id = await _mid(storage)
-    iid = await storage.save_issue({
-        "category": "bug", "severity": "high", "description": "Crash on load",
-        "match_id": match_id,
-    })
+    iid = await storage.save_issue(
+        {
+            "category": "bug",
+            "severity": "high",
+            "description": "Crash on load",
+            "match_id": match_id,
+        }
+    )
     assert iid > 0
     issues = await storage.get_all_issues()
     assert len(issues) == 1
@@ -556,21 +620,33 @@ async def test_save_and_get_issues(storage):
 
 @pytest.mark.asyncio
 async def test_save_usage_session(storage):
-    uid = await storage.save_usage_session({
-        "session_id": "sess1", "features_used": ["video", "analytics"],
-        "duration_seconds": 120, "match_count": 1, "gpu_tier": "mid", "model_size": "n",
-    })
+    uid = await storage.save_usage_session(
+        {
+            "session_id": "sess1",
+            "features_used": ["video", "analytics"],
+            "duration_seconds": 120,
+            "match_count": 1,
+            "gpu_tier": "mid",
+            "model_size": "n",
+        }
+    )
     assert uid > 0
 
 
 @pytest.mark.asyncio
 async def test_save_and_get_clips(storage):
     match_id = await _mid(storage)
-    cid = await storage.save_clip({
-        "match_id": match_id, "event_type": "goal",
-        "start_seconds": 10.0, "end_seconds": 20.0, "duration_seconds": 10.0,
-        "source_video_path": "/v/test.mp4", "output_path": "/v/clip.mp4",
-    })
+    cid = await storage.save_clip(
+        {
+            "match_id": match_id,
+            "event_type": "goal",
+            "start_seconds": 10.0,
+            "end_seconds": 20.0,
+            "duration_seconds": 10.0,
+            "source_video_path": "/v/test.mp4",
+            "output_path": "/v/clip.mp4",
+        }
+    )
     assert cid > 0
     clips = await storage.get_clips_for_match(match_id)
     assert len(clips) == 1
@@ -579,11 +655,17 @@ async def test_save_and_get_clips(storage):
 @pytest.mark.asyncio
 async def test_save_and_get_playlists(storage):
     match_id = await _mid(storage)
-    cid = await storage.save_clip({
-        "match_id": match_id, "event_type": "goal",
-        "start_seconds": 0.0, "end_seconds": 10.0, "duration_seconds": 10.0,
-        "source_video_path": "/v/t.mp4", "output_path": "/v/c.mp4",
-    })
+    cid = await storage.save_clip(
+        {
+            "match_id": match_id,
+            "event_type": "goal",
+            "start_seconds": 0.0,
+            "end_seconds": 10.0,
+            "duration_seconds": 10.0,
+            "source_video_path": "/v/t.mp4",
+            "output_path": "/v/c.mp4",
+        }
+    )
     pid = await storage.save_playlist({"name": "Highlights", "clip_ids": [cid]})
     assert pid > 0
     playlists = await storage.get_playlists()
@@ -592,9 +674,13 @@ async def test_save_and_get_playlists(storage):
 
 @pytest.mark.asyncio
 async def test_save_and_get_player_profiles(storage):
-    ppid = await storage.save_player_profile({
-        "display_name": "Messi", "jersey_number": 10, "preferred_position": "ST",
-    })
+    ppid = await storage.save_player_profile(
+        {
+            "display_name": "Messi",
+            "jersey_number": 10,
+            "preferred_position": "ST",
+        }
+    )
     assert ppid > 0
     profiles = await storage.get_all_player_profiles()
     assert len(profiles) == 1
@@ -621,7 +707,9 @@ async def test_update_match_football_data(storage):
 @pytest.mark.asyncio
 async def test_update_match_apifootball(storage):
     match_id = await _mid(storage)
-    await storage.update_match_apifootball(match_id, apifb_fixture_id=999, apifb_league_id=1, apifb_season=2024)
+    await storage.update_match_apifootball(
+        match_id, apifb_fixture_id=999, apifb_league_id=1, apifb_season=2024
+    )
     m = await storage.get_match(match_id)
     assert m["apifb_fixture_id"] == 999
 
@@ -743,7 +831,9 @@ async def test_close_idempotent(storage):
 @pytest.mark.asyncio
 async def test_benchmark_minimal_fields(storage):
     match_id = await _mid(storage)
-    r = BenchmarkResult(match_id=0, video_path="", total_time_seconds=0.0, realtime_ratio=0.0, fps_effective=0.0)
+    r = BenchmarkResult(
+        match_id=0, video_path="", total_time_seconds=0.0, realtime_ratio=0.0, fps_effective=0.0
+    )
     bid = await storage.save_benchmark(r)
     assert bid > 0
 
@@ -758,11 +848,20 @@ async def test_validation_result_empty_results(storage):
 
 # ── Coding Tags Tests ──────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_save_coding_tag(storage):
     match_id = await _mid(storage)
-    tag = {"event_type": "shot", "video_time": 123.45, "player_name": "Messi",
-           "team": "home", "period": 1, "notes": "Great shot", "lead_ms": 2000, "lag_ms": 3000}
+    tag = {
+        "event_type": "shot",
+        "video_time": 123.45,
+        "player_name": "Messi",
+        "team": "home",
+        "period": 1,
+        "notes": "Great shot",
+        "lead_ms": 2000,
+        "lag_ms": 3000,
+    }
     tag_id = await storage.save_coding_tag(match_id, tag)
     assert tag_id > 0
 
@@ -771,6 +870,7 @@ async def test_save_coding_tag(storage):
     assert tags[0]["event_type"] == "shot"
     assert abs(tags[0]["video_time"] - 123.45) < 0.001
     assert tags[0]["player_name"] == "Messi"
+
 
 @pytest.mark.asyncio
 async def test_save_coding_tag_missing_fields(storage):
@@ -784,11 +884,13 @@ async def test_save_coding_tag_missing_fields(storage):
     tag_id = await storage.save_coding_tag(match_id, {"video_time": 10.0})
     assert tag_id == 0
 
+
 @pytest.mark.asyncio
 async def test_save_coding_tag_minimal(storage):
     match_id = await _mid(storage)
     tag_id = await storage.save_coding_tag(match_id, {"event_type": "pass", "video_time": 30.0})
     assert tag_id > 0
+
 
 @pytest.mark.asyncio
 async def test_get_coding_tags_empty(storage):
@@ -798,6 +900,7 @@ async def test_get_coding_tags_empty(storage):
 
     tags = await storage.get_coding_tags(999)
     assert tags == []
+
 
 @pytest.mark.asyncio
 async def test_multiple_coding_tags_order(storage):
@@ -811,6 +914,7 @@ async def test_multiple_coding_tags_order(storage):
     assert tags[0]["video_time"] == 5.0
     assert tags[1]["video_time"] == 10.0
     assert tags[2]["video_time"] == 15.0
+
 
 @pytest.mark.asyncio
 async def test_get_coding_tags_by_type(storage):
@@ -829,12 +933,19 @@ async def test_get_coding_tags_by_type(storage):
     nonexistent = await storage.get_coding_tags_by_type(match_id, "goalkick")
     assert nonexistent == []
 
+
 @pytest.mark.asyncio
 async def test_get_coding_tags_by_player(storage):
     match_id = await _mid(storage)
-    await storage.save_coding_tag(match_id, {"event_type": "pass", "video_time": 10.0, "player_track_id": 1})
-    await storage.save_coding_tag(match_id, {"event_type": "shot", "video_time": 20.0, "player_track_id": 2})
-    await storage.save_coding_tag(match_id, {"event_type": "tackle", "video_time": 30.0, "player_track_id": 1})
+    await storage.save_coding_tag(
+        match_id, {"event_type": "pass", "video_time": 10.0, "player_track_id": 1}
+    )
+    await storage.save_coding_tag(
+        match_id, {"event_type": "shot", "video_time": 20.0, "player_track_id": 2}
+    )
+    await storage.save_coding_tag(
+        match_id, {"event_type": "tackle", "video_time": 30.0, "player_track_id": 1}
+    )
 
     p1_tags = await storage.get_coding_tags_by_player(match_id, 1)
     assert len(p1_tags) == 2
@@ -844,6 +955,7 @@ async def test_get_coding_tags_by_player(storage):
 
     p3_tags = await storage.get_coding_tags_by_player(match_id, 3)
     assert p3_tags == []
+
 
 @pytest.mark.asyncio
 async def test_update_coding_tag(storage):
@@ -859,12 +971,14 @@ async def test_update_coding_tag(storage):
     assert tags[0]["event_type"] == "shot"
     assert tags[0]["notes"] == "Updated"
 
+
 @pytest.mark.asyncio
 async def test_update_coding_tag_invalid_field(storage):
     match_id = await _mid(storage)
     tag_id = await storage.save_coding_tag(match_id, {"event_type": "pass", "video_time": 10.0})
     ok = await storage.update_coding_tag(tag_id, {"nonexistent_field": "value"})
     assert not ok
+
 
 @pytest.mark.asyncio
 async def test_delete_coding_tag(storage):
@@ -883,13 +997,22 @@ async def test_delete_coding_tag(storage):
     ok = await storage.delete_coding_tag(999)
     assert not ok
 
+
 @pytest.mark.asyncio
 async def test_get_coding_tag_stats(storage):
     match_id = await _mid(storage)
-    await storage.save_coding_tag(match_id, {"event_type": "pass", "video_time": 10.0, "player_name": "Messi"})
-    await storage.save_coding_tag(match_id, {"event_type": "pass", "video_time": 15.0, "player_name": "Messi"})
-    await storage.save_coding_tag(match_id, {"event_type": "shot", "video_time": 20.0, "player_name": "Ronaldo"})
-    await storage.save_coding_tag(match_id, {"event_type": "tackle", "video_time": 30.0, "player_name": "Messi"})
+    await storage.save_coding_tag(
+        match_id, {"event_type": "pass", "video_time": 10.0, "player_name": "Messi"}
+    )
+    await storage.save_coding_tag(
+        match_id, {"event_type": "pass", "video_time": 15.0, "player_name": "Messi"}
+    )
+    await storage.save_coding_tag(
+        match_id, {"event_type": "shot", "video_time": 20.0, "player_name": "Ronaldo"}
+    )
+    await storage.save_coding_tag(
+        match_id, {"event_type": "tackle", "video_time": 30.0, "player_name": "Messi"}
+    )
 
     stats = await storage.get_coding_tag_stats(match_id)
     assert stats["total"] == 4
@@ -899,6 +1022,7 @@ async def test_get_coding_tag_stats(storage):
     assert stats["by_player"]["Messi"] == 3
     assert stats["by_player"]["Ronaldo"] == 1
 
+
 @pytest.mark.asyncio
 async def test_get_coding_tag_stats_empty(storage):
     match_id = await _mid(storage)
@@ -906,6 +1030,7 @@ async def test_get_coding_tag_stats_empty(storage):
     assert stats["total"] == 0
     assert stats["by_type"] == {}
     assert stats["by_player"] == {}
+
 
 @pytest.mark.asyncio
 async def test_coding_tags_uninitialized_conn():
@@ -919,6 +1044,7 @@ async def test_coding_tags_uninitialized_conn():
     assert await svc.update_coding_tag(1, {"event_type": "shot"}) is False
     assert await svc.delete_coding_tag(1) is False
     assert await svc.get_coding_tag_stats(1) == {"total": 0, "by_type": {}, "by_player": {}}
+
 
 @pytest.mark.asyncio
 async def test_coding_tags_multiple_matches(storage):
@@ -935,13 +1061,16 @@ async def test_coding_tags_multiple_matches(storage):
     assert tags1[0]["event_type"] == "pass"
     assert tags2[0]["event_type"] == "shot"
 
+
 # ─── GPS / Physical Data ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_save_gps_session(storage):
     match_id = await _mid(storage)
     session_id = await storage.save_gps_session(match_id, 1, "match", "catapult")
     assert session_id > 0
+
 
 @pytest.mark.asyncio
 async def test_get_gps_sessions(storage):
@@ -951,25 +1080,31 @@ async def test_get_gps_sessions(storage):
     assert len(sessions) == 1
     assert sessions[0]["session_type"] == "match"
 
+
 @pytest.mark.asyncio
 async def test_get_gps_sessions_empty(storage):
     sessions = await storage.get_gps_sessions(999)
     assert sessions == []
 
+
 @pytest.mark.asyncio
 async def test_update_gps_session_stats(storage):
     match_id = await _mid(storage)
     sid = await storage.save_gps_session(match_id, 1, "match", "catapult")
-    await storage.update_gps_session_stats(sid, {
-        "duration_s": 3600.0,
-        "total_distance_m": 10500.0,
-        "max_speed_kmh": 32.5,
-        "avg_speed_kmh": 8.2,
-        "total_player_load": 850.0,
-    })
+    await storage.update_gps_session_stats(
+        sid,
+        {
+            "duration_s": 3600.0,
+            "total_distance_m": 10500.0,
+            "max_speed_kmh": 32.5,
+            "avg_speed_kmh": 8.2,
+            "total_player_load": 850.0,
+        },
+    )
     sessions = await storage.get_gps_sessions(match_id)
     assert sessions[0]["total_distance_m"] == 10500.0
     assert sessions[0]["max_speed_kmh"] == 32.5
+
 
 @pytest.mark.asyncio
 async def test_save_gps_samples_bulk(storage):
@@ -983,22 +1118,28 @@ async def test_save_gps_samples_bulk(storage):
     count = await storage.save_gps_samples_bulk(sid, samples)
     assert count == 3
 
+
 @pytest.mark.asyncio
 async def test_get_gps_samples(storage):
     match_id = await _mid(storage)
     sid = await storage.save_gps_session(match_id, 1, "match", "catapult")
-    await storage.save_gps_samples_bulk(sid, [
-        {"timestamp": 0.0, "speed_ms": 0.0, "distance": 0.0},
-        {"timestamp": 0.1, "speed_ms": 2.5, "distance": 0.25},
-    ])
+    await storage.save_gps_samples_bulk(
+        sid,
+        [
+            {"timestamp": 0.0, "speed_ms": 0.0, "distance": 0.0},
+            {"timestamp": 0.1, "speed_ms": 2.5, "distance": 0.25},
+        ],
+    )
     samples = await storage.get_gps_samples(sid)
     assert len(samples) == 2
     assert samples[0]["speed_ms"] == 0.0
     assert samples[1]["speed_ms"] == 2.5
 
+
 @pytest.mark.asyncio
 async def test_get_gps_samples_empty(storage):
     assert await storage.get_gps_samples(999) == []
+
 
 @pytest.mark.asyncio
 async def test_save_and_get_acwr(storage):
@@ -1010,6 +1151,7 @@ async def test_save_and_get_acwr(storage):
     assert data[0]["acwr"] == 1.15
     assert data[1]["acwr"] == 1.11
 
+
 @pytest.mark.asyncio
 async def test_get_acwr_limit(storage):
     pid = 1
@@ -1018,6 +1160,7 @@ async def test_get_acwr_limit(storage):
     data = await storage.get_player_acwr(pid, limit=10)
     assert len(data) == 10
 
+
 @pytest.mark.asyncio
 async def test_get_player_gps_summary(storage):
     match_id = await _mid(storage)
@@ -1025,6 +1168,7 @@ async def test_get_player_gps_summary(storage):
     await storage.save_gps_session(match_id, 1, "training", "statsports")
     summary = await storage.get_player_gps_summary(1)
     assert len(summary) == 2
+
 
 @pytest.mark.asyncio
 async def test_gps_uninitialized_conn():
@@ -1039,6 +1183,7 @@ async def test_gps_uninitialized_conn():
     assert await svc.get_player_acwr(1) == []
     assert await svc.get_player_gps_summary(1) == []
 
+
 # ─── Squad Injury Report ────────────────────────────────────────────────────
 # get_squad_injury_report() was a broken api_v1.py call (StorageService had
 # no such method -- the real logic lives on InjuryTrackerService, keyed by
@@ -1046,6 +1191,7 @@ async def test_gps_uninitialized_conn():
 # new StorageService.get_squad_injury_report() added to fix that: it
 # resolves team_id -> player_profiles ids via matches.home_team_id/
 # away_team_id + player_match_links, then delegates to InjuryTrackerService.
+
 
 def _create_injury_tables(storage):
     storage._conn.executescript("""
