@@ -344,9 +344,7 @@ def _generate_notable_patterns(
         backward_passes = sum(
             1 for ev in pass_events if ev.get("direction", "").lower() == "backward"
         )
-        lateral_passes = sum(
-            1 for ev in pass_events if ev.get("direction", "").lower() in ("lateral", "square")
-        )
+        _ = sum(1 for ev in pass_events if ev.get("direction", "").lower() in ("lateral", "square"))
         total_p = len(pass_events)
         if total_p > 0 and forward_passes / total_p > 0.5:
             patterns.append(f"Direct passing style ({forward_passes}/{total_p} passes forward).")

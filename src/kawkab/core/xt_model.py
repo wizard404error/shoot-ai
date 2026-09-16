@@ -192,7 +192,7 @@ class ExpectedThreatModel:
         if self._transition is None or not self._transition:
             return ze
 
-        n_zones = self.rows * self.cols
+        _ = self.rows * self.cols
         xT = ze.flatten().copy()
 
         # Power iteration: xT_new[src] = ze[src] + gamma * sum(prob * xT[dst])

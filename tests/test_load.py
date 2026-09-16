@@ -68,7 +68,7 @@ def large_match_list():
         "Wanderers",
         "United FC",
     ]
-    for i in range(500):
+    for _i in range(500):
         matches.append(
             {
                 "name": f"{random.choice(teams)} vs {random.choice(teams)}",
@@ -92,7 +92,7 @@ def test_xg_computation_throughput(benchmark):
     config = XGConfig()
 
     shots = []
-    for i in range(1000):
+    for _i in range(1000):
         shots.append(
             {
                 "x": random.uniform(0, 105),
@@ -136,7 +136,7 @@ def test_event_storage_bulk_throughput(large_event_set, benchmark, tmp_path):
     """Benchmark bulk storage of 10,000 events."""
     from kawkab.core.database_sharding import SeasonShardManager
 
-    db_path = tmp_path / "load_test.db"
+    _ = tmp_path / "load_test.db"
     shard = SeasonShardManager(str(tmp_path))
 
     match_id = shard.store_match(

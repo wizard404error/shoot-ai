@@ -611,7 +611,7 @@ class AnalysisHandler:
             if self.benchmark_service is not None:
                 self.benchmark_service.start_stage("save")
             self.profiler.begin("save")
-            for track_id, player in analysis.players.items():
+            for _track_id, player in analysis.players.items():
                 await self.storage_service.save_player(
                     match_id=match_id,
                     player_data={
@@ -671,7 +671,7 @@ class AnalysisHandler:
                     physical_loads = await self.physical_load_service.compute_physical_load(
                         track_data, homography_matrix
                     )
-                    for track_id, m in physical_loads.items():
+                    for _track_id, m in physical_loads.items():
                         await self.storage_service.save_advanced_metrics(
                             match_id=match_id,
                             metric_name="sprint_count",
@@ -712,7 +712,7 @@ class AnalysisHandler:
                     pressure_metrics = await self.pressure_metrics_service.compute_pressure_metrics(
                         track_data, all_events, homography_matrix
                     )
-                    for team, m in pressure_metrics.items():
+                    for _team, m in pressure_metrics.items():
                         await self.storage_service.save_advanced_metrics(
                             match_id=match_id,
                             metric_name="ppda",
@@ -950,7 +950,7 @@ class AnalysisHandler:
                 if corrected:
                     by_type[etype]["corrected"] += 1
 
-            for etype, stats in by_type.items():
+            for _etype, stats in by_type.items():
                 stats["avg_confidence"] = (
                     round(stats["total_confidence"] / stats["count"], 3) if stats["count"] else 0
                 )
@@ -2458,10 +2458,10 @@ class AnalysisHandler:
                 return json.dumps({"phases": []})
 
             total_time = max(1.0, events[-1].get("timestamp", 0) - events[0].get("timestamp", 0))
-            phase_names = {"settled_possession", "transition", "counter", "set_piece", "direct"}
+            _ = {"settled_possession", "transition", "counter", "set_piece", "direct"}
             phases = []
             window = 5.0
-            t_start = events[0].get("timestamp", 0)
+            _ = events[0].get("timestamp", 0)
 
             i = 0
             while i < len(events):
@@ -2545,7 +2545,7 @@ class AnalysisHandler:
 
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
-            players = await self.storage_service.get_match_players(match_id)
+            _ = await self.storage_service.get_match_players(match_id)
 
             home_positions = {}
             away_positions = {}
@@ -2697,7 +2697,7 @@ class AnalysisHandler:
             match_id = SecurityValidator.validate_match_id(match_id)
             track_id = SecurityValidator.validate_match_id(track_id)
             events = await self.storage_service.get_match_events(match_id)
-            players = await self.storage_service.get_match_players(match_id)
+            _ = await self.storage_service.get_match_players(match_id)
 
             player_events = [
                 e
@@ -2713,7 +2713,7 @@ class AnalysisHandler:
             )
             shots = sum(1 for e in player_events if e.get("event_type") == "shot")
             tackles = sum(1 for e in player_events if e.get("event_type") == "tackle")
-            interceptions = sum(1 for e in player_events if e.get("event_type") == "interception")
+            _ = sum(1 for e in player_events if e.get("event_type") == "interception")
             carries = sum(1 for e in player_events if e.get("event_type") == "carry")
             dribbles = sum(1 for e in player_events if e.get("event_type") == "dribble")
             goals = sum(1 for e in player_events if e.get("event_type") == "goal")
@@ -5104,7 +5104,7 @@ class AnalysisHandler:
             ag = np.array(frame.away_grid)
             total = hg.size
             home_cells = int(np.sum(hg > 0.5))
-            away_cells = int(np.sum(ag > 0.5))
+            _ = int(np.sum(ag > 0.5))
             ball_control_pct = round((home_cells / max(total, 1)) * 100.0, 1)
 
             return json.dumps(
@@ -5620,7 +5620,7 @@ class AnalysisHandler:
 
             match_data = self.storage_service.get_match(match_id_val) or {}
             events = self.storage_service.get_match_events(match_id_val) or []
-            players = self.storage_service.get_match_players(match_id_val) or []
+            _ = self.storage_service.get_match_players(match_id_val) or []
 
             home_team = match_data.get("home_team", "Home")
             away_team = match_data.get("away_team", "Away")
@@ -5650,7 +5650,7 @@ class AnalysisHandler:
             goal_counts = {}
             for ev in events:
                 event_type = ev.get("event_type", "")
-                team_name = ev.get("team", "")
+                _ = ev.get("team", "")
                 player_name = ev.get("player", "")
                 if event_type == "goal" and player_name:
                     goal_counts[player_name] = goal_counts.get(player_name, 0) + 1

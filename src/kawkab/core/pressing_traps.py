@@ -137,7 +137,7 @@ def _classify_trap_zone(
     Wide zones take priority; central is fallback when the point falls
     in the middle 50 % of pitch width.
     """
-    third_w = pitch_width / 3.0
+    _ = pitch_width / 3.0
 
     # Determine longitudinal third
     if x < pitch_length * 0.33:
@@ -193,7 +193,7 @@ def _find_trigger_events(
     """
     trigger_counts: dict[str, int] = defaultdict(int)
     sorted_ev = sorted(events, key=lambda e: e.get("timestamp", 0.0))
-    n = len(sorted_ev)
+    _ = len(sorted_ev)
 
     for i, ev in enumerate(sorted_ev):
         if ev.get("type") not in ("tackle", "interception", "foul"):

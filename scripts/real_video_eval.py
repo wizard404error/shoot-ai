@@ -316,14 +316,14 @@ def main():
     logger.info(f"  Total predicted tracks: {len(pred_tracks)}")
 
     # ── 5. Build pseudo-GT tracks (unique ID per detection) ──
-    gt_tracks = _build_gt_tracks(gt_dets)
+    _ = _build_gt_tracks(gt_dets)
 
     # ── 6. Compute metrics ──
     det_metrics = _match_by_iou_and_id(raw_dets, gt_dets)
     mota = _compute_iou_mota(raw_dets, gt_dets)
 
     tracked_dets: dict[int, np.ndarray] = {}
-    for tid, positions in pred_tracks.items():
+    for _tid, positions in pred_tracks.items():
         for fn, bbox in positions:
             if fn not in tracked_dets:
                 tracked_dets[fn] = []

@@ -154,8 +154,8 @@ def analyze_trap_transitions(
                 )
                 total_time_delta += time_delta
 
-    traps_with_links = set(l.trap_index for l in links)
-    traps_with_goals = set(l.trap_index for l in links if l.goal_scored)
+    traps_with_links = {l.trap_index for l in links}
+    traps_with_goals = {l.trap_index for l in links if l.goal_scored}
     conversion_rate = len(traps_with_links) / max(successful_count, 1)
     goal_conversion_rate = len(traps_with_goals) / max(successful_count, 1)
     avg_time = total_time_delta / max(len(links), 1)

@@ -161,7 +161,7 @@ class TestStrideAlignment:
 
     def test_stride1_identity(self, loader, gt_file):
         half = loader.load(gt_file)
-        for tid, positions in half.tracks.items():
+        for _tid, positions in half.tracks.items():
             assert self._align(positions, 1, 6) == positions
 
     def test_stride2_halves_frames(self):

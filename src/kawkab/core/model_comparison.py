@@ -364,7 +364,8 @@ def _evaluate_on_split(
                     "is_big_chance",
                 ]
                 importances = {
-                    fn: abs(float(c)) for fn, c in zip(feature_names, log_model.coef_[0])
+                    fn: abs(float(c))
+                    for fn, c in zip(feature_names, log_model.coef_[0], strict=False)
                 }
         except ImportError:
             pass
@@ -401,15 +402,11 @@ def _evaluate_on_split(
 
     dist_edges = [0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
     dist_labels = ["0-5m", "5-10m", "10-15m", "15-20m", "20-25m", "25+m"]
-    distance_buckets = _compute_buckets(
-        all_predictions, test_labels, test_distances, dist_edges, dist_labels
-    )
+    _ = _compute_buckets(all_predictions, test_labels, test_distances, dist_edges, dist_labels)
 
     angle_edges = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
     angle_labels = ["0-10°", "10-20°", "20-30°", "30-40°", "40-50°"]
-    angle_buckets = _compute_buckets(
-        all_predictions, test_labels, test_angles, angle_edges, angle_labels
-    )
+    _ = _compute_buckets(all_predictions, test_labels, test_angles, angle_edges, angle_labels)
 
     calibration_chart_data = _compute_calibration_chart(all_predictions, test_labels)
 

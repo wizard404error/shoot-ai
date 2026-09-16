@@ -170,7 +170,7 @@ class WeatherImageClassifier:
         return WeatherClassification(
             predicted_class=WEATHER_CLASSES[int(np.argmax(probs))],
             confidence=float(np.max(probs)),
-            class_probabilities={c: float(p) for c, p in zip(WEATHER_CLASSES, probs)},
+            class_probabilities={c: float(p) for c, p in zip(WEATHER_CLASSES, probs, strict=False)},
             brightness=brightness,
             edge_density=edge_density,
             blue_dominance=blue_dom,

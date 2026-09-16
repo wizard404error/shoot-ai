@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
 from fastapi import HTTPException
 
@@ -128,10 +130,8 @@ class TestRequirePermissionDependency:
             os.environ["KAWKAB_JWT_SECRET"] = self._old_secret
         if self._old_cloud_db:
             os.environ["KAWKAB_CLOUD_DB"] = self._old_cloud_db
-        try:
+        with contextlib.suppress(OSError):
             os.remove(db_path)
-        except OSError:
-            pass
 
     @pytest.fixture
     def client(self):
@@ -145,10 +145,8 @@ class TestRequirePermissionDependency:
         database._local = threading.local()
         # Reset cached DB reference
         if hasattr(database._local, "conn"):
-            try:
+            with contextlib.suppress(Exception):
                 database._local.conn.close()
-            except Exception:
-                pass
             del database._local.conn
         return TestClient(app)
 

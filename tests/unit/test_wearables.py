@@ -85,7 +85,7 @@ def _write_gpx(path: Path, n: int = 50) -> None:
         'xmlns:speed="http://www.garmin.com/xmlschemas/SpeedExtension/v1">',
         "  <trk><trkseg>",
     ]
-    base_ts = 1751700000  # arbitrary epoch (unused; kept for reference)
+    _ = 1751700000  # arbitrary epoch (unused; kept for reference)
     for i in range(n):
         lines.append(f'    <trkpt lat="{53.430 + i * 1e-5:.6f}" lon="{-2.960 + i * 1e-5:.6f}">')
         lines.append(f"      <ele>{10.0 + i * 0.01:.2f}</ele>")

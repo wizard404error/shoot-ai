@@ -32,7 +32,7 @@ class TestClipLibraryService:
     def test_init_creates_output_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir) / "clips"
-            svc = ClipLibraryService(output_dir=output_dir)
+            _ = ClipLibraryService(output_dir=output_dir)
             assert output_dir.exists()
 
     def test_get_clip_path(self):

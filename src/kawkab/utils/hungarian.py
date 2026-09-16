@@ -114,7 +114,7 @@ def hungarian_match(
             cost[i, j] = cost_fn(pred, det)
     row_ind, col_ind, _ = hungarian(cost)
     matches = []
-    for r, c in zip(row_ind, col_ind):
+    for r, c in zip(row_ind, col_ind, strict=False):
         if cost[r, c] <= max_cost:
             matches.append((int(r), int(c)))
     return matches

@@ -5,6 +5,7 @@ tactical, fitness, recruitment, and monitoring endpoints."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 from pathlib import Path
@@ -1191,10 +1192,8 @@ async def import_statsbomb_match(
         raise HTTPException(500, f"import failed: {exc}") from exc
     finally:
         if tmp_json_path:
-            try:
+            with contextlib.suppress(OSError):
                 _Path(tmp_json_path).unlink()
-            except OSError:
-                pass
 
 
 class SeasonImportIn(BaseModel):

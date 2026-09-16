@@ -90,7 +90,7 @@ class PassPatternAnalyzer:
             return "possession_maintenance"
 
         start_x = sequence[0].get("start_x", PITCH_LENGTH / 2)
-        end_x = sequence[-1].get("end_x", PITCH_LENGTH / 2)
+        _ = sequence[-1].get("end_x", PITCH_LENGTH / 2)
         side = _lateral_direction(sequence)
         forward_progress = _net_forward_progress(sequence)
 
@@ -190,7 +190,7 @@ class PassPatternAnalyzer:
 
         # Count how many build-up sequences ended with a shot within 5 events
         sorted_ev = sorted(team_events, key=lambda e: e.get("timestamp", 0))
-        last_seq_idx = 0
+        _ = 0
         for seq in build_up_seqs:
             last_ts = seq[-1].get("timestamp", 0)
             for ev in sorted_ev:

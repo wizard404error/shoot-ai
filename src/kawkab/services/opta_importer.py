@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -55,10 +56,8 @@ class OptaF7Importer(BaseDataProvider):
                 try:
                     match_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
                 except ValueError:
-                    try:
+                    with contextlib.suppress(ValueError):
                         match_date = datetime.strptime(date_str, "%Y-%m-%d")
-                    except ValueError:
-                        pass
 
         team_elements = match_data.findall(f".//{ns}Team")
         for team_el in team_elements:

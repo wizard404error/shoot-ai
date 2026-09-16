@@ -196,7 +196,7 @@ async def run_full_pipeline(
     print(f"  Confidence: {match_analysis.confidence_overall:.1%}")
 
     print("\nStep 5/6: Save to database...")
-    for tid, player in match_analysis.players.items():
+    for _tid, player in match_analysis.players.items():
         await storage.save_player(
             match_id=match_id,
             player_data={

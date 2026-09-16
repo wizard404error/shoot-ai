@@ -113,7 +113,7 @@ def classify_player_role(
     backward_pct = backward_passes / max(total_passes, 1)
 
     # shot characteristics
-    avg_shot_x = _avg_position(shots, "start_x", "start_y")[0] if shots else 0
+    _ = _avg_position(shots, "start_x", "start_y")[0] if shots else 0
     shot_volume = len(shots) / max(total_actions, 1)
 
     # wide vs central
@@ -143,7 +143,7 @@ def classify_player_role(
     scores["full_back"] = fb_score
 
     ifb_score = fb_score * 0.5
-    pos_central = 1.0 - abs(avg_y_rel - 0.5) * 2
+    _ = 1.0 - abs(avg_y_rel - 0.5) * 2
     ifb_score += max(0, avg_x_rel - 0.3) * 3
     scores["inverted_fullback"] = ifb_score
 

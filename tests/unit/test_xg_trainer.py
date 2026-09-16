@@ -111,7 +111,7 @@ class TestGenerateSyntheticData:
     def test_consistent_with_seed(self):
         a = generate_synthetic_training_data(n_shots=100, seed=42)
         b = generate_synthetic_training_data(n_shots=100, seed=42)
-        for sa, sb in zip(a, b):
+        for sa, sb in zip(a, b, strict=False):
             assert sa.is_goal == sb.is_goal
 
 

@@ -23,14 +23,14 @@ def clear_providers():
 
 
 def make_config(**kwargs) -> OAuthProviderConfig:
-    defaults = dict(
-        client_id="test_id",
-        client_secret="test_secret",
-        authorize_url="https://auth.example.com/auth",
-        token_url="https://auth.example.com/token",
-        userinfo_url="https://auth.example.com/userinfo",
-        scopes=["openid", "email"],
-    )
+    defaults = {
+        "client_id": "test_id",
+        "client_secret": "test_secret",
+        "authorize_url": "https://auth.example.com/auth",
+        "token_url": "https://auth.example.com/token",
+        "userinfo_url": "https://auth.example.com/userinfo",
+        "scopes": ["openid", "email"],
+    }
     defaults.update(kwargs)
     return OAuthProviderConfig(**defaults)
 

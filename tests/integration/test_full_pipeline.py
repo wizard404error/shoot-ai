@@ -150,7 +150,7 @@ async def test_full_pipeline() -> None:
     physical_loads = await phys_svc.compute_physical_load(track_data, homography)
 
     assert len(physical_loads) > 0
-    for tid, metrics in physical_loads.items():
+    for _tid, metrics in physical_loads.items():
         assert metrics.total_distance_m >= 0
         assert metrics.max_speed_kmh <= 40.0  # human limit
 
@@ -163,7 +163,7 @@ async def test_full_pipeline() -> None:
     )
 
     assert "home" in pressure_metrics or "away" in pressure_metrics
-    for team, metrics in pressure_metrics.items():
+    for _team, metrics in pressure_metrics.items():
         assert metrics.ppda_overall >= 0
         assert metrics.pressure_events >= 0
 

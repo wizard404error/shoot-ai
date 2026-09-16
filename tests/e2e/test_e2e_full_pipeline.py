@@ -542,7 +542,7 @@ class TestResultsStructure:
         result = await svc.analyze_match(track_data, match_id=3)
         players = result.players
         assert len(players) >= 1
-        for pid, pstats in players.items():
+        for _pid, pstats in players.items():
             assert pstats.track_id is not None
             assert pstats.team in ("home", "away", None)
             assert pstats.distance_covered_m >= 0

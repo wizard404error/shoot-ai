@@ -214,7 +214,7 @@ class ModelMonitoringService:
         }
 
     def get_monitoring_dashboard(self) -> dict[str, Any]:
-        models_seen = set(s.model_name for s in self.monitor._snapshots)
+        models_seen = {s.model_name for s in self.monitor._snapshots}
         dashboard: dict[str, Any] = {
             "models": {},
             "total_evaluations": len(self.monitor._snapshots),

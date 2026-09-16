@@ -191,7 +191,7 @@ class RaindropDetectionService:
         self, detections: list[tuple[int, int, float]]
     ) -> list[tuple[int, int, int, int]]:
         rectangles: list[list[int]] = []
-        for x, y, conf in detections:
+        for x, y, _conf in detections:
             rect = [x, y, x + self.WINDOW_SIZE[0], y + self.WINDOW_SIZE[1]]
             rectangles.append(rect)
         if not rectangles:

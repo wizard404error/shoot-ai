@@ -28,7 +28,7 @@ class TrackingMixin:
         prev_positions: dict[int, tuple[float, float]] = {}
         max_speed_per_player: dict[int, float] = {}
 
-        fps = track_data.fps
+        _ = track_data.fps
         # Uncalibrated-distance approximation. The old 720.0/self.pitch_width
         # constant assumed 720p frames with the pitch spanning the full frame
         # height -- wrong by ~1.5x on 1080p sources (and more on zoomed shots).

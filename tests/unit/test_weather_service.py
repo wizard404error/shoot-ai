@@ -191,7 +191,7 @@ class TestWeatherServiceInit:
     def test_advanced_classifiers_fallback(self) -> None:
         # In a test env without kawkab.services importable, the fallback
         # path is hit. This just verifies the WeatherService still works.
-        svc = WeatherService()
+        _ = WeatherService()
         # Just verify the service can produce conditions
         cond = WeatherService.from_manual(temperature_c=20)
         assert cond.temperature_c == 20

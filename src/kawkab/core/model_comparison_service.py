@@ -151,7 +151,7 @@ def compute_feature_importance(events: list[dict]) -> dict[str, float]:
 
     importances: dict[str, float] = {}
     rng = random.Random(42)
-    for feat_name, default_val in features:
+    for feat_name, _default_val in features:
         permuted = []
         for e in shot_events:
             e_copy = dict(e)

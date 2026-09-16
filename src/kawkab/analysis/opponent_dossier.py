@@ -326,9 +326,9 @@ def _predict_scoreline(matches: list[dict[str, Any]]) -> ScorelinePrediction:
     home_score = round(avg_for)
     away_score = round(avg_against)
     total_goals = avg_for + avg_against
-    btts = sum(1 for g1, g2 in zip(goals_for, goals_against) if g1 > 0 and g2 > 0) / max(
-        1, len(goals_for)
-    )
+    btts = sum(
+        1 for g1, g2 in zip(goals_for, goals_against, strict=False) if g1 > 0 and g2 > 0
+    ) / max(1, len(goals_for))
     lam_for = max(0.1, avg_for)
     lam_against = max(0.1, avg_against)
     home_win = 1 - math.exp(-lam_for) * (1 + (1 - math.exp(-lam_against)))
@@ -383,7 +383,7 @@ def generate_dossier(
         recs.append("Target set piece opportunities")
 
     formations = _detect_formations(matches)
-    formation_names = [f.formation for f in formations[:3]]
+    _ = [f.formation for f in formations[:3]]
     lineup = _predict_lineup(matches)
     key_players = _build_key_players(matches)
     pressing = _classify_pressing(matches)

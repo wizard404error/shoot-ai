@@ -148,7 +148,7 @@ class PhysiologicalMergeService:
                         report.correlation_speed_r = float(vr)
                 timeline = []
                 v_idx = 0
-                for w_idx, wdp in enumerate(wearable_data):
+                for _w_idx, wdp in enumerate(wearable_data):
                     while (
                         v_idx < len(video_trajectory) - 1
                         and video_trajectory[v_idx + 1][0] < wdp.timestamp_s

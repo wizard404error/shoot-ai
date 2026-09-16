@@ -102,7 +102,7 @@ def analyze_game_state(
 
         # Defensive line
         home_pos = fdata.get("home_positions", [])
-        away_pos = fdata.get("away_positions", [])
+        _ = fdata.get("away_positions", [])
         if home_pos:
             def_line_sum[state] += sum(p[0] for p in home_pos) / len(home_pos)
             def_line_count[state] += 1

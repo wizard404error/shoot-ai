@@ -1327,7 +1327,7 @@ class PostgresStorageAdapter:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
-            r = await conn.execute(
+            _ = await conn.execute(
                 """INSERT INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections)
                    VALUES ($1,$2,$3,$4::jsonb,$5::jsonb)
                    ON CONFLICT (match_id, frame_number) DO UPDATE
@@ -2896,7 +2896,7 @@ class PostgresStorageAdapter:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
-            r = await conn.execute(
+            _ = await conn.execute(
                 "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
                 key,
                 value,
@@ -2918,7 +2918,7 @@ class PostgresStorageAdapter:
         if not self._pool:
             return False
         async with self._pool.acquire() as conn:
-            r = await conn.execute(
+            _ = await conn.execute(
                 "INSERT INTO schema_version (version) VALUES ($1) ON CONFLICT (version) DO NOTHING",
                 version,
             )

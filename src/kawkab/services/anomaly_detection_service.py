@@ -92,7 +92,7 @@ class AnomalyDetectionService:
         metrics = getattr(track_data, "tracking_metrics", {}) or {}
 
         validated = metrics.get("validated_player_tracks", 0)
-        raw = metrics.get("raw_tracks_detected", 0)
+        _ = metrics.get("raw_tracks_detected", 0)
         fragmentation = metrics.get("fragmentation_rate", 0)
         quality = metrics.get("tracking_quality", "")
 

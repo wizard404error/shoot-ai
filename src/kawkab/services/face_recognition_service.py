@@ -254,12 +254,12 @@ class FaceRecognitionService:
             "Match identification: %d / %d players identified",
             len(identified),
             len(
-                set(
+                {
                     d.track_id
                     for f in track_data.frames
                     for d in f.detections
                     if d.class_name == "person" and d.track_id is not None
-                )
+                }
             ),
         )
         return identified

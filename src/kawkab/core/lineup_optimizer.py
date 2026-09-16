@@ -433,7 +433,7 @@ class LineupOptimizer:
             template = self._templates.get(fm, [])
             count = 0.0
             for pos_name, _, _ in template:
-                for cat, members in categories.items():
+                for _cat, members in categories.items():
                     if pos_name in members:
                         count += 1.0
                         break

@@ -69,7 +69,7 @@ class TestModelMonitor:
 
     def test_get_trend(self):
         monitor = ModelMonitor()
-        for i in range(3):
+        for _i in range(3):
             preds = np.array([0.2, 0.8])
             labels = np.array([0.0, 1.0])
             monitor.record_snapshot("trend2", preds, labels)

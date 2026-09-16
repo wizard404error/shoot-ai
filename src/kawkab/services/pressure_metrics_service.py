@@ -16,6 +16,7 @@ and defensive organization.
 
 from __future__ import annotations
 
+import contextlib
 import math
 from dataclasses import dataclass, field
 
@@ -232,10 +233,8 @@ class PressureMetricsService:
             by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2
 
             if homography_matrix is not None:
-                try:
+                with contextlib.suppress(Exception):
                     bx, by = homography_matrix.pixel_to_pitch(bx, by)
-                except Exception:
-                    pass
 
             # Find ball carrier (closest player to ball)
             carrier = None
@@ -246,10 +245,8 @@ class PressureMetricsService:
                 px = (det.bbox[0] + det.bbox[2]) / 2
                 py = (det.bbox[1] + det.bbox[3]) / 2
                 if homography_matrix is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         px, py = homography_matrix.pixel_to_pitch(px, py)
-                    except Exception:
-                        pass
                 d = math.sqrt((bx - px) ** 2 + (by - py) ** 2)
                 if d < carrier_dist and d < 3.0:  # within 3m of ball
                     carrier_dist = d
@@ -274,10 +271,8 @@ class PressureMetricsService:
                 px = (det.bbox[0] + det.bbox[2]) / 2
                 py = (det.bbox[1] + det.bbox[3]) / 2
                 if homography_matrix is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         px, py = homography_matrix.pixel_to_pitch(px, py)
-                    except Exception:
-                        pass
                 d = math.sqrt((px - bx) ** 2 + (py - by) ** 2)
                 if d < self.PRESSURE_DISTANCE_M:
                     other_team = self._get_player_team(track_data, det.track_id)
@@ -366,10 +361,8 @@ class PressureMetricsService:
                 py = (det.bbox[1] + det.bbox[3]) / 2
 
                 if homography_matrix is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         px, py = homography_matrix.pixel_to_pitch(px, py)
-                    except Exception:
-                        pass
 
                 positions.append((px, py))
 

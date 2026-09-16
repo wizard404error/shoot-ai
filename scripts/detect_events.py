@@ -122,8 +122,8 @@ def is_toward_goal(x: float, y: float, dx: float, dy: float, field_w: float = 19
     right_goal_dist = field_w - x
     toward_left = dx < 0
     toward_right = dx > 0
-    near_left_goal = x < field_w * GOAL_LINE_X_RATIO
-    near_right_goal = x > field_w * (1 - GOAL_LINE_X_RATIO)
+    _ = x < field_w * GOAL_LINE_X_RATIO
+    _ = x > field_w * (1 - GOAL_LINE_X_RATIO)
     if left_goal_dist < right_goal_dist:
         return toward_left
     else:

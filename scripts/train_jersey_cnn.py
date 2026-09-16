@@ -139,7 +139,7 @@ def prepare_patches(images: list[np.ndarray], labels: list[int]):
     digits_list: list[np.ndarray] = []
     digit_labels: list[int] = []
 
-    for img, jersey_num in zip(images, labels):
+    for img, jersey_num in zip(images, labels, strict=False):
         if jersey_num < 0 or jersey_num > 99:
             continue
         patches = _isolate_digits(img)

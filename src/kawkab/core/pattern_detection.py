@@ -124,7 +124,7 @@ class TacticalPatternDetector:
     ) -> list[dict[str, Any]]:
         all_patterns: list[dict[str, Any]] = []
         for midx, events in enumerate(match_events_list):
-            for team in set(e.get("team", "") for e in events if e.get("type") == "pass"):
+            for team in {e.get("team", "") for e in events if e.get("type") == "pass"}:
                 patterns = self.detect_recurring_sequences(events, team, min_occurrences=1)
                 for p in patterns:
                     all_patterns.append(
@@ -171,7 +171,7 @@ class TacticalPatternDetector:
                     group.append(all_patterns[j])
                     handled[j] = True
             if len(group) >= 2:
-                matches = list(set(p["match_idx"] for p in group))
+                matches = list({p["match_idx"] for p in group})
                 if len(matches) >= 2:
                     avg_shot_rate = sum(p["shot_rate"] for p in group) / len(group)
                     cross_match.append(
@@ -180,7 +180,7 @@ class TacticalPatternDetector:
                             "matches": sorted(matches),
                             "total_occurrences": sum(p["count"] for p in group),
                             "avg_shot_rate": round(avg_shot_rate, 2),
-                            "teams_involved": list(set(p["team"] for p in group)),
+                            "teams_involved": list({p["team"] for p in group}),
                             "representative_seq": group[0]["representative_seq"],
                         }
                     )

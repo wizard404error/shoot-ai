@@ -58,7 +58,7 @@ class BallRecoveryAnalyzer:
                 y = PITCH_WIDTH / 2
         except TypeError:
             y = PITCH_WIDTH / 2
-        team = recovery_event.get("team", "home")
+        _ = recovery_event.get("team", "home")
 
         if ev_type == "interception":
             return ("interception", x, y)
@@ -72,7 +72,7 @@ class BallRecoveryAnalyzer:
         if ev_type == "clearance":
             return ("clearance", x, y)
 
-        prev_ev_types = {e.get("type", "") for e in previous_events[-5:]}
+        _ = {e.get("type", "") for e in previous_events[-5:]}
         if ev_type == "pass" and not recovery_event.get("completed", True):
             return ("loose_ball", x, y)
 
@@ -195,7 +195,7 @@ class BallRecoveryAnalyzer:
         self,
         events: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        teams = set(e.get("team", "") for e in events if e.get("team"))
+        teams = {e.get("team", "") for e in events if e.get("team")}
         result: dict[str, Any] = {}
 
         for team in teams:

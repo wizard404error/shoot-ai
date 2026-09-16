@@ -255,7 +255,7 @@ class TestXgRegression:
             grouped[key].append(s)
         violations = 0
         total = 0
-        for key, group in grouped.items():
+        for _key, group in grouped.items():
             sorted_group = sorted(group, key=lambda x: x["distance_m"])
             prev_xg = 1.0
             for s in sorted_group:

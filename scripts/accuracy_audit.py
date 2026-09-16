@@ -62,7 +62,7 @@ def _grade_from_score(score: float) -> str:
 def _brier_score(probs: list[float], outcomes: list[bool]) -> float:
     if not probs or len(probs) != len(outcomes):
         return 0.0
-    return float(np.mean([(p - o) ** 2 for p, o in zip(probs, outcomes)]))
+    return float(np.mean([(p - o) ** 2 for p, o in zip(probs, outcomes, strict=False)]))
 
 
 def _log_loss(probs: list[float], outcomes: list[bool], eps: float = 1e-15) -> float:
@@ -70,7 +70,12 @@ def _log_loss(probs: list[float], outcomes: list[bool], eps: float = 1e-15) -> f
         return 0.0
     probs = np.clip(probs, eps, 1 - eps)
     return float(
-        -np.mean([o * math.log(p) + (1 - o) * math.log(1 - p) for o, p in zip(outcomes, probs)])
+        -np.mean(
+            [
+                o * math.log(p) + (1 - o) * math.log(1 - p)
+                for o, p in zip(outcomes, probs, strict=False)
+            ]
+        )
     )
 
 
@@ -207,7 +212,7 @@ class AccuracyAudit:
 
             matched_gt = set()
             tp = 0
-            for ci, ct in enumerate(comp_times):
+            for _ci, ct in enumerate(comp_times):
                 best_d = tolerance_s
                 best_gi = None
                 for gi, gt_t in enumerate(gt_times):

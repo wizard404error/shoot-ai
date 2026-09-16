@@ -50,7 +50,7 @@ def _rk4_ball_trajectory(
     while t < max_t and pos[2] > 0:
 
         def derivatives(state):
-            p, v = state[:3], state[3:]
+            _, v = state[:3], state[3:]
             speed = np.linalg.norm(v)
             drag = -0.5 * rho * Cd * A * speed * v / m if speed > 0 else np.zeros(3)
             S = 4.1e-4

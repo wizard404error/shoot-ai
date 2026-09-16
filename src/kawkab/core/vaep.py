@@ -305,7 +305,7 @@ def compute_vaep(
         return []
 
     sorted_ev = sorted(events, key=lambda e: e.get("timestamp", 0))
-    n = len(sorted_ev)
+    _ = len(sorted_ev)
 
     # 1. Identify possession phases
     phases = _identify_possession_phases(sorted_ev)
@@ -560,7 +560,7 @@ def compute_vaep_v2(
     results = []
     pc_model = WeightedPitchControl()
 
-    for i, ev in enumerate(events):
+    for _i, ev in enumerate(events):
         ts = ev.get("timestamp", 0.0)
         team = ev.get("team", "home")
 

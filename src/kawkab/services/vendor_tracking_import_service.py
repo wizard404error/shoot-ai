@@ -31,6 +31,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -121,7 +122,7 @@ def assess_tracking_quality(frames: list[dict], fps: float | None = None) -> dic
         return {"frames": 0}
 
     times = [float(fr.get("timestamp", 0.0) or 0.0) for fr in frames]
-    deltas = [b - a for a, b in zip(times, times[1:]) if b > a]
+    deltas = [b - a for a, b in zip(times, times[1:], strict=False) if b > a]
     median_dt = sorted(deltas)[len(deltas) // 2] if deltas else 0.0
     gap_threshold = (2.0 * median_dt) if median_dt > 0 else 1e9
     frame_gaps = sum(1 for d in deltas if d > gap_threshold)
@@ -219,7 +220,7 @@ def parse_skillcorner(
 
     # Timestamp scale detection (see docstring)
     times = [_raw_time(it) for it in raw_frames if isinstance(it, dict)]
-    deltas = [b - a for a, b in zip(times, times[1:]) if b != a]
+    deltas = [b - a for a, b in zip(times, times[1:], strict=False) if b != a]
     if deltas:
         deltas.sort()
         median_delta = deltas[len(deltas) // 2]
@@ -383,10 +384,8 @@ def parse_epts(
         for child in el.iter():
             local = _epts_local(child.tag)
             if local == "section" and child.text:
-                try:
+                with contextlib.suppress(ValueError):
                     period = int(child.text)
-                except ValueError:
-                    pass
             elif local == "ball":
                 bx = _epts_attr(child, "x") or (child.findtext(".//x") or "0")
                 by = _epts_attr(child, "y") or (child.findtext(".//y") or "0")

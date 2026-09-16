@@ -176,10 +176,10 @@ class PositioningService:
             return []
         segments: list[list[tuple[int, tuple[float, float]]]] = []
         cur: list[tuple[int, tuple[float, float]]] = [path[0]]
-        for prev, cur_pt in zip(path, path[1:]):
+        for prev, cur_pt in zip(path, path[1:], strict=False):
             dx = (cur_pt[1][0] - prev[1][0]) * (self.pitch_length_m / 100.0)
             dy = (cur_pt[1][1] - prev[1][1]) * (self.pitch_width_m / 100.0)
-            step = math.hypot(dx, dy)
+            _ = math.hypot(dx, dy)
             cur.append(cur_pt)
         total = self._path_length(cur)
         if total >= min_distance_m:
@@ -188,7 +188,7 @@ class PositioningService:
 
     def _path_length(self, path: list[tuple[int, tuple[float, float]]]) -> float:
         total = 0.0
-        for a, b in zip(path, path[1:]):
+        for a, b in zip(path, path[1:], strict=False):
             dx = (b[1][0] - a[1][0]) * (self.pitch_length_m / 100.0)
             dy = (b[1][1] - a[1][1]) * (self.pitch_width_m / 100.0)
             total += math.hypot(dx, dy)

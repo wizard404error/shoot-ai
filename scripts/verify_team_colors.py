@@ -35,7 +35,7 @@ async def main() -> int:
 
     cap = cv2.VideoCapture(str(Path("data/sweden_1min.mp4").resolve()))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    _ = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     valid_tracks = set(track_data.track_registry.keys())
     home_set = {tid for tid, team in track_data.player_teams.items() if team == "home"}
     away_set = {tid for tid, team in track_data.player_teams.items() if team == "away"}

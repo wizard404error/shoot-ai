@@ -436,7 +436,7 @@ class TestPerformanceBenchmarks:
             runner.run_benchmark(module, n_events)
         checks = runner.check_thresholds()
         assert len(checks) == len(MODULES_TO_BENCHMARK)
-        for module, mean, threshold, status in checks:
+        for _module, _mean, _threshold, status in checks:
             assert status in ("PASS", "WARN")
 
     def test_empty_data_all_modules(self):

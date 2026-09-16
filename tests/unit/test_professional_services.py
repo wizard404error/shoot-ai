@@ -174,7 +174,7 @@ async def test_anomaly_quality_report_generation() -> None:
     """AnomalyDetectionService generates quality report correctly."""
     svc = AnomalyDetectionService()
 
-    anomalies = [
+    _ = [
         svc._check_physical_stats.__self__,  # Can't easily construct, test with empty
     ]
     # Test with empty anomalies

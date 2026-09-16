@@ -224,7 +224,7 @@ def _build_phase_breakdown(
             "avg_xg_per_shot": 0.0,
         }
 
-    for shot_idx, shot_ev in enumerate(side_events):
+    for _shot_idx, shot_ev in enumerate(side_events):
         if shot_ev.get("type") != "shot":
             continue
         # Find this shot's index in the full events list

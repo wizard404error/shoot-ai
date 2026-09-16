@@ -191,8 +191,8 @@ def compute_match_packing(
             continue
 
         team = ev.get("team", "home")
-        sx = ev.get("start_x", 52.5)
-        sy = ev.get("start_y", 34.0)
+        _ = ev.get("start_x", 52.5)
+        _ = ev.get("start_y", 34.0)
 
         # Estimate opponent positions from nearby events
         opp_positions: list[tuple[float, float]] = []

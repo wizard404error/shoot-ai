@@ -12,6 +12,7 @@ makes Kawkab AI data portable.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import math
@@ -286,10 +287,8 @@ class DataExportService:
             # Period detection: use explicit field or compute from timestamp
             period = meta.get("period")
             if period is None:
-                try:
+                with contextlib.suppress(KeyError, IndexError, TypeError):
                     period = e["period"]
-                except (KeyError, IndexError, TypeError):
-                    pass
             if period is None:
                 ts = float(e["timestamp"])
                 period = 1 if ts < 2700 else 2

@@ -76,7 +76,7 @@ def compute_xa_by_type(
     """
     split = XaSplit()
 
-    for i, ev in enumerate(events):
+    for _i, ev in enumerate(events):
         xa_val = ev.get("xA", ev.get("xa", 0.0))
         if not isinstance(xa_val, (int, float)) or xa_val <= 0:
             continue

@@ -165,8 +165,8 @@ def compute_momentum_index(
         )
 
     # Aggregate
-    total_mom = sum(p.momentum for p in points)
-    n = len(points) or 1
+    _ = sum(p.momentum for p in points)
+    _ = len(points) or 1
     home_mom_pct = 0.0
     away_mom_pct = 0.0
     neutral_count = 0

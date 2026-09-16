@@ -345,7 +345,11 @@ def generate_scout_report(
             "FW": (75, 0.5, 4.0, 2.0),
         }
         bv = bvec.get(bpos, (80, 1.0, 1.0, 4.0))
-        sim = 1.0 - sum(abs(a - b) / max(abs(b), 1.0) for a, b in zip(profile_vec, bv)) / 4.0
+        sim = (
+            1.0
+            - sum(abs(a - b) / max(abs(b), 1.0) for a, b in zip(profile_vec, bv, strict=False))
+            / 4.0
+        )
         if sim > 0.3:
             similar_players.append(
                 {

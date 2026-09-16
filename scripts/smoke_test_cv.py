@@ -1,6 +1,7 @@
 """Smoke test for CV service - verifies YOLOv11 loads on GPU."""
 
 import asyncio
+import contextlib
 import sys
 
 from kawkab.core.logging import setup_logging
@@ -21,10 +22,8 @@ async def main() -> int:
     model = cv._model
     if model is not None:
         device = "unknown"
-        try:
+        with contextlib.suppress(Exception):
             device = str(model.device)
-        except Exception:
-            pass
         print(f"[OK] Model device: {device}")
     print()
     print("[OK] YOLOv11l loaded successfully!")

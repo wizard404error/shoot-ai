@@ -73,7 +73,7 @@ class PassingTriangleAnalyzer:
                     ex = (
                         passes[i].get("end_x", 0) + passes[j].get("end_x", 0) + pk.get("end_x", 0)
                     ) / 3
-                    ey = (
+                    _ = (
                         passes[i].get("end_y", 0) + passes[j].get("end_y", 0) + pk.get("end_y", 0)
                     ) / 3
                     sx1, sy1 = passes[i].get("start_x", 0), passes[i].get("start_y", 0)
@@ -213,7 +213,7 @@ class PassingTriangleAnalyzer:
             "final_third_right",
         ]
         zone_counts: dict[str, int] = dict.fromkeys(zones, 0)
-        for t in triangles:
+        for _t in triangles:
             z = _zone_hex(
                 sum(e.get("end_x", 0) for e in team_events if e.get("type") == "pass")
                 / max(len(team_events), 1),

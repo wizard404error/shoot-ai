@@ -460,7 +460,7 @@ class PreMatchBriefing:
         lines.append("</div>")
 
         lines.append('<div class="briefing-column"><h3>🏴 Opponent</h3>')
-        opp_name = self.away_team if self.our_team == self.home_team else self.home_team
+        _ = self.away_team if self.our_team == self.home_team else self.home_team
         lines.append(
             f"<p>Formation: {self.opponent_preferred_formation} | Press: {self.opponent_pressing}</p>"
         )
@@ -573,7 +573,7 @@ class PreMatchBriefingService:
         prediction_confidence: str = "medium",
     ) -> PreMatchBriefing:
         our_team_name = home_team if our_side == "home" else away_team
-        opp_name = away_team if our_side == "home" else home_team
+        _ = away_team if our_side == "home" else home_team
 
         briefing = PreMatchBriefing(
             home_team=home_team,

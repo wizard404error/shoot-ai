@@ -52,7 +52,7 @@ class PressingEfficiencyAnalyzer:
             goals_from_traps = 0
             used_shot_indices: set[int] = set()
 
-            team_positions = np.array(
+            _ = np.array(
                 [
                     [
                         # dict.get(k, default) returns None when the key

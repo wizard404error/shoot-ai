@@ -121,7 +121,7 @@ async def test_update_user_login(storage):
 @pytest.mark.asyncio
 async def test_failed_login_locks_account(storage):
     await storage.create_user("lockuser", "hash")
-    for i in range(4):
+    for _i in range(4):
         r = await storage.record_failed_login("lockuser")
         assert r > 0
     r = await storage.record_failed_login("lockuser")

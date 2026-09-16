@@ -140,7 +140,7 @@ class StatsportsCsvParser(BaseWearableParser):
         dp = WearableDataPoint(timestamp_s=float(row_idx))
 
         # Map every Sonra column to extras with "sonra_" prefix
-        for field_name, aliases in _SONRA_ALIASES.items():
+        for field_name, _aliases in _SONRA_ALIASES.items():
             header = col.get(field_name)
             if header is None:
                 continue

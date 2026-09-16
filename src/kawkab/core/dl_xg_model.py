@@ -16,6 +16,7 @@ References:
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import math
@@ -519,10 +520,8 @@ def _get_dl_xg_model(model_path: str | None = None) -> DLXgModel:
     if _dl_xg_model is None:
         _dl_xg_model = DLXgModel()
         if model_path:
-            try:
+            with contextlib.suppress(FileNotFoundError, json.JSONDecodeError):
                 _dl_xg_model.load(model_path)
-            except (FileNotFoundError, json.JSONDecodeError):
-                pass
         else:
             # Use heuristic xG coefficients as pseudo-trained weights
             # so the DL model gives reasonable output even without training

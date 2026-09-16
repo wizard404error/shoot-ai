@@ -74,7 +74,6 @@ class ArabicGlossary:
         result: dict[str, Any] = {"terms": {}}
         current_section: dict[str, dict] | None = None
         current_term: dict | None = None
-        current_key: str = ""
         for line in text.splitlines():
             if not line.strip() or line.strip().startswith("#"):
                 continue
@@ -92,7 +91,7 @@ class ArabicGlossary:
                 term_key = content[:-1]
                 current_term = {}
                 current_section[term_key] = current_term
-                current_key = term_key
+                _ = term_key
                 continue
             if current_term is None:
                 continue

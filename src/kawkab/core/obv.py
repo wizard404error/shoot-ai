@@ -130,7 +130,7 @@ class OffBallValuator:
         if not player_trajectories:
             return OBVMatchReport(team=team)
 
-        team_player_ids = set(player_trajectories.keys())
+        _ = set(player_trajectories.keys())
 
         results: dict[int, OBVPlayerResult] = {}
 
@@ -336,7 +336,7 @@ class OffBallValuator:
         px, py = player_pos
         drawn = 0
 
-        for opp_tid, traj in opponent_trajs.items():
+        for _opp_tid, traj in opponent_trajs.items():
             if len(traj) <= frame_idx:
                 continue
 

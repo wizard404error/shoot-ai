@@ -317,7 +317,7 @@ def estimate_squad_value(
         else:
             age_dist["veteran"] += 1
 
-    avg_perf = sum(v.performance_score for v in valuations) / len(valuations) if valuations else 0
+    _ = sum(v.performance_score for v in valuations) / len(valuations) if valuations else 0
     total_baseline = sum(
         v.position_baseline * v.age_multiplier * _league_multiplier(league_tier) for v in valuations
     )

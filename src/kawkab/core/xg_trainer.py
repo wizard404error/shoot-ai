@@ -180,7 +180,7 @@ def fit_from_shots(
         return dict(ENHANCED_COEFFICIENTS)
     X, y = _build_feature_matrix(shots)
     theta, _ = batch_gradient_descent(X, y)
-    coeffs = dict(zip(FEATURE_NAMES, theta.tolist()))
+    coeffs = dict(zip(FEATURE_NAMES, theta.tolist(), strict=False))
     coeffs["_model_name"] = model_name
     coeffs["_n_shots"] = len(shots)
     coeffs["_goal_rate"] = float(np.mean(y))

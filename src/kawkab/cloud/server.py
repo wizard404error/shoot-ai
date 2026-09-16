@@ -195,6 +195,7 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user)
 
 # ── OAuth ──
 
+import contextlib
 import secrets
 
 from kawkab.cloud.oauth import get_configured_providers, get_oauth_provider
@@ -723,10 +724,8 @@ async def ws_endpoint(websocket: WebSocket, project_id: str, token: str = Query(
             # Broadcast to other clients in the same project
             for client in connected_clients.get(project_id, []):
                 if client != websocket:
-                    try:
+                    with contextlib.suppress(Exception):
                         await client.send_text(data)
-                    except Exception:
-                        pass
     except WebSocketDisconnect:
         connected_clients[project_id] = [
             c for c in connected_clients.get(project_id, []) if c != websocket

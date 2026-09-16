@@ -27,6 +27,7 @@ All importers normalize to a common sample dict:
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import logging
@@ -269,10 +270,8 @@ def parse_kinexon_json(content: str | bytes) -> list[dict[str, Any]]:
     sessions = data.get("sessions", [data])  # allow single object or list
     for session in sessions:
         start_time = None
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             start_time = datetime.fromisoformat(session.get("start_time", ""))
-        except (ValueError, TypeError):
-            pass
 
         for raw in session.get("samples", []):
             ts = raw.get("timestamp", 0)

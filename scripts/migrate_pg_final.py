@@ -10,6 +10,7 @@ DSN -- this script used to embed a real local Postgres password
 directly in source.
 """
 
+import contextlib
 import os
 import re
 import sys
@@ -88,10 +89,8 @@ def main():
     )
     existing = [r[0] for r in cur.fetchall()]
     for t in existing:
-        try:
+        with contextlib.suppress(Exception):
             cur.execute(f'DROP TABLE IF EXISTS "{t}" CASCADE')
-        except Exception:
-            pass
     if existing:
         print(f"  Dropped {len(existing)} existing tables")
 
@@ -189,17 +188,13 @@ def main():
 
     # Phase 6: RLS
     for m in re.finditer(r"ALTER TABLE\s+\w+\s+ENABLE ROW LEVEL SECURITY;", raw, re.IGNORECASE):
-        try:
+        with contextlib.suppress(Exception):
             cur.execute(m.group())
-        except Exception:
-            pass
     for m in re.finditer(
         r"CREATE POLICY\s+\w+\s+ON\s+\w+\s+FOR ALL\s+USING\s*\(true\);", raw, re.IGNORECASE
     ):
-        try:
+        with contextlib.suppress(Exception):
             cur.execute(m.group())
-        except Exception:
-            pass
 
     # Verify
     cur.execute(

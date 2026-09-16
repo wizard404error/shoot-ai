@@ -225,7 +225,7 @@ class AutoUpdaterService:
     def _compare_versions(v1: str, v2: str) -> int:
         parts1 = [int(x) for x in v1.split(".") if x.isdigit()]
         parts2 = [int(x) for x in v2.split(".") if x.isdigit()]
-        for a, b in zip(parts1, parts2):
+        for a, b in zip(parts1, parts2, strict=False):
             if a > b:
                 return 1
             if a < b:

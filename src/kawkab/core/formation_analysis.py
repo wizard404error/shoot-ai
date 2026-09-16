@@ -173,7 +173,7 @@ class FormationAnalyzer:
         if best_formation != "unknown":
             return best_formation
 
-        sorted_by_x = sorted(positions, key=lambda p: p[0])
+        _ = sorted(positions, key=lambda p: p[0])
         n_def = max(2, min(5, round(n * 0.4)))
         n_att = max(1, min(4, round(n * 0.3)))
         n_mid = n - n_def - n_att

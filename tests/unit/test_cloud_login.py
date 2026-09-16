@@ -10,6 +10,7 @@ See cloud/server.py::login and CLAUDE.md's Tier 0 launch-blocker notes.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 import uuid
@@ -41,10 +42,8 @@ class TestAuthLogin:
             os.environ.pop("KAWKAB_CLOUD_DB", None)
         if self._old_db_url:
             os.environ["KAWKAB_DB_URL"] = self._old_db_url
-        try:
+        with contextlib.suppress(OSError):
             os.remove(db_path)
-        except OSError:
-            pass
 
     @pytest.fixture
     def client(self):

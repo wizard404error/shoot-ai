@@ -384,7 +384,7 @@ def render(
             if current_sample:
                 for det in current_sample.get("detections", []):
                     bbox = det[0]
-                    conf = det[1]
+                    _ = det[1]
                     cls_name = det[2]
                     tid = det[3]
                     if cls_name == "sports ball":

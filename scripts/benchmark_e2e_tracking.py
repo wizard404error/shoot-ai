@@ -82,7 +82,7 @@ def run_detection_rows(
         if not image_files:
             raise RuntimeError(f"no jpg frames in {source}")
         reader = (str(p) for p in image_files)
-        total_available = len(image_files)
+        _ = len(image_files)
         video_fps = 25.0
         use_video = False
     else:

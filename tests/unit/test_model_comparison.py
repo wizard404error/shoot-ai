@@ -95,7 +95,7 @@ class TestModelComparison:
             make_shot(xg_heuristic=0.5, is_goal=i % 3 == 0, distance_m=10.0 + i) for i in range(30)
         ]
         report = compare_xg_models(shots, test_fraction=0.3, random_seed=42)
-        for model_name, chart in report.calibration_chart_data.items():
+        for _model_name, chart in report.calibration_chart_data.items():
             assert len(chart["bins"]) == 10
 
     def test_log_loss_calculation(self):
@@ -176,7 +176,7 @@ class TestCrossValidation:
         report = compare_xg_models(
             shots, n_folds=3, random_seed=42, compute_feature_importance=False
         )
-        for model_name, stats in report.cv_summary.items():
+        for _model_name, stats in report.cv_summary.items():
             assert "log_loss_mean" in stats
             assert "log_loss_std" in stats
             assert "n_folds" in stats

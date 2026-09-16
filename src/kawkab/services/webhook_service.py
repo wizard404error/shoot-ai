@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -75,10 +76,8 @@ class WebhookService:
                 continue
             if "*" not in wh.get("events", []) and event_type not in wh.get("events", []):
                 continue
-            try:
+            with contextlib.suppress(Exception):
                 self._send(wh, event_type, payload)
-            except Exception:
-                pass
 
     def _send(self, webhook: dict, event_type: str, payload: dict):
         body = json.dumps(

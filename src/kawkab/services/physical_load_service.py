@@ -16,6 +16,7 @@ player load, prevent injury, and optimize conditioning.
 
 from __future__ import annotations
 
+import contextlib
 import math
 from dataclasses import dataclass
 from typing import Any
@@ -92,10 +93,8 @@ class PhysicalLoadService:
                 cy = (y1 + y2) / 2
 
                 if homography_matrix is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         cx, cy = homography_matrix.pixel_to_pitch(cx, cy)
-                    except Exception:
-                        pass
 
                 if tid not in player_trajectories:
                     player_trajectories[tid] = []

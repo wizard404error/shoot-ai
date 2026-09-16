@@ -364,7 +364,7 @@ async def _run_batch(args):
     base_out.mkdir(parents=True, exist_ok=True)
 
     # Use an in-memory BatchService for job tracking (no DB required)
-    batch_svc = BatchService()
+    _ = BatchService()
     job = BatchJob(
         id=0,
         name=f"batch-{args.pattern}-{input_dir.name}",
@@ -391,7 +391,7 @@ async def _run_batch(args):
             job.failed_matches += 1
             print(f"  Unhandled error: {e}")
 
-        elapsed = time.time() - 0  # placeholder
+        _ = time.time() - 0  # placeholder
         print(
             f"  Progress: {job.completed_matches + job.failed_matches}/{job.total_matches} "
             f"({job.completed_matches} ok, {job.failed_matches} failed)"
@@ -743,7 +743,7 @@ def _run_e2e(args):
         for tid in list(player_teams.keys()):
             track_registry[tid] = {"first_pixel_x": 200.0 if tid <= 11 else 800.0}
 
-        synthetic_track = _MatchTrackData(
+        _ = _MatchTrackData(
             match_id=match_id,
             fps=30.0,
             total_frames=n_frames,

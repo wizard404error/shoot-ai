@@ -235,7 +235,7 @@ class TacticalShapeAnalyzer:
         snapshots: list[ShapeSnapshot] = []
         ts_min = min(e.get("timestamp", 0) for e in team_events)
         ts_max = max(e.get("timestamp", 0) for e in team_events)
-        duration = max(ts_max - ts_min, 1.0)
+        _ = max(ts_max - ts_min, 1.0)
 
         # Group events into windows
         window_s = 30.0
@@ -328,7 +328,7 @@ class TacticalShapeAnalyzer:
             attacking_shape=attacking_shape,
             defensive_shape=attacking_shape,
             has_diamond_midfield=diamond,
-            attacking_line_count=len(set(p[0] for p in positions)),
+            attacking_line_count=len({p[0] for p in positions}),
             triangle_count=len(triangles),
             is_attacking_phase=True,
         )

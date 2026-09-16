@@ -171,9 +171,9 @@ class FlankAnalyzer:
         team_passes = [e for e in events if e.get("team") == team and e.get("type") == "pass"]
         switches: list[dict[str, Any]] = []
         for e in team_passes:
-            sx = float(e.get("start_x", 0))
+            _ = float(e.get("start_x", 0))
             sy = float(e.get("start_y", GOAL_CENTER_Y))
-            ex = float(e.get("end_x", 0))
+            _ = float(e.get("end_x", 0))
             ey = float(e.get("end_y", GOAL_CENTER_Y))
             start_flank = classify_zone(sy, PITCH_WIDTH)
             end_flank = classify_zone(ey, PITCH_WIDTH)
@@ -198,7 +198,7 @@ class FlankAnalyzer:
 
     def generate_flank_report(self, events: list[dict[str, Any]]) -> dict[str, Any]:
         output: dict[str, Any] = {}
-        for team in set(e.get("team", "") for e in events if e.get("team")):
+        for team in {e.get("team", "") for e in events if e.get("team")}:
             output[team] = {
                 "build_up": self.analyze_build_up_side(events, team),
                 "attack_side": self.analyze_attack_side(events, team),

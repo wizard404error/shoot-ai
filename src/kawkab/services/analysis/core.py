@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
 import statistics
 from collections import defaultdict
@@ -120,10 +121,8 @@ class AnalysisServiceCore:
         for i in range(1, len(parts) + 1):
             prefix = ".".join(parts[:i])
             if prefix not in __import__("sys").modules:
-                try:
+                with contextlib.suppress(ImportError):
                     __import__("importlib").import_module(prefix)
-                except ImportError:
-                    pass
 
     async def analyze_match(
         self, track_data: MatchTrackData, match_id: int = 0, homography_matrix=None
@@ -204,7 +203,7 @@ class AnalysisServiceCore:
         confidence = self._compute_confidence(track_data, events)
 
         shot_events = [e for e in typed_events if isinstance(e, ShotEvent)]
-        xg_model = active_xg_model()
+        _ = active_xg_model()
         for se in shot_events:
             gk_distance = None
             if se.gk_position_x is not None and se.x is not None and se.y is not None:
@@ -457,7 +456,7 @@ class AnalysisServiceCore:
         if not track_data.frames or not track_data.player_teams:
             return
 
-        team_to_side = {"home": "left", "away": "right"}
+        _ = {"home": "left", "away": "right"}
 
         for event in typed_events:
             ts = event.timestamp
@@ -506,7 +505,7 @@ class AnalysisServiceCore:
             min_angle = 0.0
             count_within_5m = 0
 
-            for tid, ox, oy in opponents:
+            for _tid, ox, oy in opponents:
                 dx = ox - sx
                 dy = oy - sy
                 dist_pitch = self._pixel_dist_to_meters(sx, sy, ox, oy, homography_matrix)
@@ -773,7 +772,7 @@ class AnalysisServiceCore:
             players[tid].max_speed_kmh = max_speed
             players[tid].positions = [(ts, x, y) for ts, x, y in smoothed]
 
-        for tid, player in players.items():
+        for _tid, player in players.items():
             if track_data.duration_seconds > 0:
                 player.avg_speed_kmh = player.distance_covered_m / track_data.duration_seconds * 3.6
 

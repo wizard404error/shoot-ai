@@ -127,7 +127,7 @@ def _generate_observations(report: TacticalReport) -> list[str]:
     # Transitions
     if report.home_transitions:
         hc = getattr(report.home_transitions, "counter_attacks", 0)
-        hct = getattr(report.home_transitions, "counter_attacks", 0)
+        _ = getattr(report.home_transitions, "counter_attacks", 0)
         if hc > 5:
             obs.append(f"{report.home.team} relied on counter-attacks ({hc} total)")
 

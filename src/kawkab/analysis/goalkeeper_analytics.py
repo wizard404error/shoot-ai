@@ -272,7 +272,7 @@ class GoalkeeperAnalytics:
 
         for ca in cross_actions:
             action = ca.get("action_type", "")
-            outcome = ca.get("outcome", "")
+            _ = ca.get("outcome", "")
             pressure = bool(ca.get("under_pressure", False))
             effective = bool(ca.get("effective", True))
             ac.crosses_faced += 1

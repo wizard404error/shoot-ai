@@ -93,8 +93,8 @@ class GoalkeeperService:
         reasonable approximation for amateur analysis.
         """
         goal_x = self.PITCH_LENGTH
-        goal_y_top = 34 - 3.66
-        goal_y_bottom = 34 + 3.66
+        _ = 34 - 3.66
+        _ = 34 + 3.66
         if shot_x > goal_x:
             shot_x = self.PITCH_LENGTH - shot_x
             goal_x = self.PITCH_LENGTH

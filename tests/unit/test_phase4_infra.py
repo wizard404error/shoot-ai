@@ -203,7 +203,7 @@ class TestTimingDecorator:
         def outer():
             return inner() + "_outer"
 
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True) as _:
             warnings.simplefilter("always")
             result = outer()
         assert result == "inner_outer"

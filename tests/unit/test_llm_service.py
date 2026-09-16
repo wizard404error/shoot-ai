@@ -175,7 +175,7 @@ class TestGenerateCoachReport:
             p.is_available = AsyncMock(return_value=True)
             p.generate = AsyncMock(return_value="Clip report")
         ctx = {"is_clip": True, "duration_seconds": 120}
-        result = await svc.generate_coach_report("Data", match_context=ctx)
+        _ = await svc.generate_coach_report("Data", match_context=ctx)
         assert "IMPORTANT CONTEXT" in svc.providers[0].generate.call_args[0][0]
 
 

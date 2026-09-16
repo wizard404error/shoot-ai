@@ -368,7 +368,7 @@ class VisualizationService:
         rows = math.ceil(n_players / cols)
 
         fig, axes = plt.subplots(
-            rows, cols, figsize=(4 * cols, 4 * rows), subplot_kw=dict(polar=True)
+            rows, cols, figsize=(4 * cols, 4 * rows), subplot_kw={"polar": True}
         )
         if n_players == 1:
             axes = [axes]
@@ -385,7 +385,7 @@ class VisualizationService:
             bin_width = 2 * math.pi / n_bins
             bin_counts = [0] * n_bins
             bin_distances = [0.0] * n_bins
-            for angle, dist in zip(angles, distances):
+            for angle, dist in zip(angles, distances, strict=False):
                 bin_idx = int((angle + math.pi) / bin_width) % n_bins
                 bin_counts[bin_idx] += 1
                 bin_distances[bin_idx] += dist
@@ -437,14 +437,14 @@ class VisualizationService:
         for idx, (player_id, passes) in enumerate(player_passes.items()):
             if idx >= len(axes):
                 break
-            ax = axes[idx]
+            _ = axes[idx]
             angles = [p[0] for p in passes]
             distances = [p[1] for p in passes]
             n_bins = 8
             bin_width = 2 * math.pi / n_bins
             bin_counts = [0] * n_bins
             bin_distances = [0.0] * n_bins
-            for angle, dist in zip(angles, distances):
+            for angle, dist in zip(angles, distances, strict=False):
                 bin_idx = int((angle + math.pi) / bin_width) % n_bins
                 bin_counts[bin_idx] += 1
                 bin_distances[bin_idx] += dist
@@ -454,7 +454,7 @@ class VisualizationService:
             max_dist = max(avg_distances) if max(avg_distances) > 0 else 1
             normalized = [d / max_dist for d in avg_distances]
             theta = [i * bin_width - math.pi for i in range(n_bins)]
-            theta_deg = [math.degrees(t) for t in theta]
+            _ = [math.degrees(t) for t in theta]
             params = [f"{i * 45}°" for i in range(n_bins)]
             ranges = [(0, 1.2)] * n_bins
             values = normalized

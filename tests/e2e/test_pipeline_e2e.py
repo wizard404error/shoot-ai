@@ -361,7 +361,7 @@ class TestE2ePipelineExecution:
     async def test_analyze_match_populates_players(self, svc, track_data):
         result = await svc.analyze_match(track_data, match_id=1)
         assert len(result.players) >= 1
-        for pid, pstats in result.players.items():
+        for _pid, pstats in result.players.items():
             assert pstats.track_id is not None
             assert pstats.distance_covered_m >= 0
             assert pstats.passes_attempted >= 0

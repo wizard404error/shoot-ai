@@ -139,7 +139,7 @@ class FormationEffectivenessAnalyzer:
                 "total_matches": 0,
                 "verdict": "No data",
             }
-        formations = set(m.get("formation", "") for m in formation_history if m.get("formation"))
+        formations = {m.get("formation", "") for m in formation_history if m.get("formation")}
         n_formations = len(formations)
         n_matches = len(formation_history)
         if n_formations == 0:
@@ -149,7 +149,7 @@ class FormationEffectivenessAnalyzer:
                 "total_matches": 0,
                 "verdict": "No formations recorded",
             }
-        max_expected = min(n_formations, 5)
+        _ = min(n_formations, 5)
         formation_ratio = n_formations / 5.0
         success_sum = 0.0
         n_success = 0

@@ -64,7 +64,7 @@ class ScorelineDistribution:
         final_home = sim_goals_home + goals_home_sofar
         final_away = sim_goals_away + goals_away_sofar
         counts: dict[str, int] = defaultdict(int)
-        for h, a in zip(final_home, final_away):
+        for h, a in zip(final_home, final_away, strict=False):
             counts[f"{int(h)}-{int(a)}"] += 1
         scorelines: dict[str, float] = {}
         for key, count in counts.items():

@@ -96,7 +96,9 @@ class HighlightReelService:
                 )
                 segment_paths.append((seg_path, c))
             results = await asyncio.gather(*tasks)
-            valid_segments = [(p, c) for (p, c), ok in zip(segment_paths, results) if ok]
+            valid_segments = [
+                (p, c) for (p, c), ok in zip(segment_paths, results, strict=False) if ok
+            ]
             if not valid_segments:
                 return json.dumps({"error": "No segments could be extracted"})
             concat_path = os.path.join(segment_dir, "concat_list.txt")

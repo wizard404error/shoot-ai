@@ -284,7 +284,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="drill",
                     source="community",
-                    **{k: v for k, v in sample.items()},
+                    **dict(sample.items()),
                 )
                 self._items[item.id] = item
 
@@ -298,7 +298,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="template",
                     source="community",
-                    **{k: v for k, v in sample.items()},
+                    **dict(sample.items()),
                 )
                 self._items[item.id] = item
 
@@ -312,7 +312,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="plugin",
                     source="community",
-                    **{k: v for k, v in sample.items()},
+                    **dict(sample.items()),
                 )
                 self._items[item.id] = item
 
@@ -355,7 +355,7 @@ class MarketplaceService:
         item = self._items.get(item_id)
         if not item:
             return None
-        return {k: v for k, v in vars(item).items()}
+        return dict(vars(item).items())
 
     def add_item(
         self,

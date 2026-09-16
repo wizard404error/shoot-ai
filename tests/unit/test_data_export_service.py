@@ -75,7 +75,7 @@ class TestDataExportService:
     @pytest.mark.asyncio
     async def test_export_match_csv_success(self, de_mod, mocker):
         svc = de_mod.DataExportService()
-        tmp = tempfile.mktemp(suffix=".db")
+        _ = tempfile.mktemp(suffix=".db")
         try:
             match_row = {
                 "id": 1,
@@ -619,7 +619,7 @@ class TestDataExportService:
         ]
         data = await self._sb_export(de_mod, events)
         length = data["events"][0]["pass"]["length"]
-        angle = data["events"][0]["pass"]["angle"]
+        _ = data["events"][0]["pass"]["angle"]
         assert length > 0
         import math
 

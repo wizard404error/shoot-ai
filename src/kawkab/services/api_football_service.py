@@ -198,7 +198,7 @@ class ApiFootballService:
             teams = item.get("teams", {})
             goals = item.get("goals", {})
             league = item.get("league", {})
-            score = item.get("score", {})
+            _ = item.get("score", {})
             matches.append(
                 {
                     "id": f.get("id"),

@@ -249,7 +249,7 @@ class AdvancedEventDetectionService:
             # Check if we have a dribble sequence
             if len(possession_chain) >= dribble_min_frames:
                 # Check if same player held ball for all frames
-                tids = set(p[1] for p in possession_chain)
+                tids = {p[1] for p in possession_chain}
                 if len(tids) == 1:
                     tid = list(tids)[0]
                     # Check distance moved
@@ -468,7 +468,7 @@ class AdvancedEventDetectionService:
     ) -> list[dict]:
         """Detect goals: shot events where ball crosses goal line and slows."""
         events = []
-        goal_cooldown = 300
+        _ = 300
 
         ball_positions: list[tuple[float, float, float, float, int]] = []
         for frame in track_data.frames:
@@ -549,7 +549,7 @@ class AdvancedEventDetectionService:
         """Detect corners: ball near corner arc after out of play."""
         events = []
         corner_radius = 5.0
-        ball_out_cooldown = 200
+        _ = 200
 
         ball_trail: list[tuple[float, float, float, float]] = []
         ball_lost_frames = 0
@@ -625,12 +625,11 @@ class AdvancedEventDetectionService:
         events = []
         stationary_frames = 0
         stationary_start_time = 0.0
-        stationary_pos: tuple[float, float] | None = None
         stationary_pitch_pos: tuple[float, float] | None = None
         MIN_STATIONARY_FRAMES = int(60 / 3)
         MAX_STATIONARY_DIST = 5.0 if homography_matrix else 20.0
         kick_speed_threshold = 15.0 if homography_matrix else 400.0
-        free_kick_cooldown = 300
+        _ = 300
 
         prev_ball_center: tuple[float, float] | None = None
         for frame in track_data.frames:
@@ -643,7 +642,6 @@ class AdvancedEventDetectionService:
             if ball_det is None:
                 stationary_frames = 0
                 stationary_start_time = 0.0
-                stationary_pos = None
                 stationary_pitch_pos = None
                 prev_ball_center = None
                 continue
@@ -669,7 +667,6 @@ class AdvancedEventDetectionService:
                 stationary_frames += 1
                 if stationary_start_time == 0.0:
                     stationary_start_time = frame.timestamp
-                    stationary_pos = (bx, by)
                     stationary_pitch_pos = (pitch_x, pitch_y)
             else:
                 if stationary_frames >= MIN_STATIONARY_FRAMES:
@@ -713,7 +710,7 @@ class AdvancedEventDetectionService:
 
                 stationary_frames = 0
                 stationary_start_time = 0.0
-                stationary_pos = None
+                _ = None
                 stationary_pitch_pos = None
 
         return events

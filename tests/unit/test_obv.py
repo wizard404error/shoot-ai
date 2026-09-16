@@ -170,7 +170,7 @@ class TestOffBallValuator:
                 )
             )
         report = obv.compute_obv(frames, team="home")
-        for pid, pr in report.players.items():
+        for _pid, pr in report.players.items():
             assert pr.space_creation_value >= 0.0
             assert pr.def_positioning_value >= 0.0
             assert pr.support_value >= 0.0

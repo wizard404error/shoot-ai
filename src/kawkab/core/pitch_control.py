@@ -214,8 +214,8 @@ class VoronoiPitchControl:
             hg = result.home_grid
             ag = result.away_grid
             if hg and ag:
-                pitch_x_per_col = pitch_length / self.grid_cols
-                for zone_idx, zone_name in enumerate([0, 1, 2]):
+                _ = pitch_length / self.grid_cols
+                for zone_idx, _zone_name in enumerate([0, 1, 2]):
                     c_start = int(zone_idx * self.grid_cols / 3)
                     c_end = int((zone_idx + 1) * self.grid_cols / 3)
                     zone_home = sum(
@@ -308,7 +308,7 @@ class WeightedPitchControl:
         Returns:
             PitchControlFrame with continuous control values and grid.
         """
-        total = self.grid_rows * self.grid_cols
+        _ = self.grid_rows * self.grid_cols
 
         all_players = home_positions + away_positions
         n_home = len(home_positions)

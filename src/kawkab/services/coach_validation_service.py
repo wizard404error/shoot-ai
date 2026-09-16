@@ -163,7 +163,7 @@ class CoachValidationService:
                 ),
             }
         all_usages = []
-        for cid, feats in self._usage.items():
+        for _cid, feats in self._usage.items():
             for feat in feats.values():
                 all_usages.append(feat)
         return {
@@ -200,7 +200,7 @@ class CoachValidationService:
             "top_issues": self.get_top_issues(),
             "coach_levels": {
                 level: sum(1 for c in coaches if c.level == level)
-                for level in set(c.level for c in coaches)
+                for level in {c.level for c in coaches}
             },
             "feature_adoption": {
                 "tracked": sum(

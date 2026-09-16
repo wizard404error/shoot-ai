@@ -135,7 +135,7 @@ class MultiCameraFusion:
         camera.timestamp = timestamp
         camera.tracks = tracks
 
-        pitch_tracks = self._project_to_pitch(camera_id, tracks)
+        _ = self._project_to_pitch(camera_id, tracks)
         self._match_across_cameras()
         self._handle_occlusions()
         self._cull_stale_tracks()
@@ -221,7 +221,7 @@ class MultiCameraFusion:
         used_cols: set[int] = set()
         track_groups: list[list[tuple[str, int]]] = []
 
-        for r, c in zip(row_ind, col_ind):
+        for r, c in zip(row_ind, col_ind, strict=False):
             if cost_matrix[r, c] > self.max_distance:
                 continue
             if r in used_rows or c in used_cols:

@@ -277,7 +277,7 @@ class MultiMatchAnalysisService:
         x_mean = sum(x) / n
         y_mean = sum(y) / n
 
-        numerator = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, y))
+        numerator = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, y, strict=False))
         denominator = sum((xi - x_mean) ** 2 for xi in x)
         slope = numerator / denominator if denominator > 0 else 0.0
 

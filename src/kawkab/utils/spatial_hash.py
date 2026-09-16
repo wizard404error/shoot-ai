@@ -143,7 +143,7 @@ def bulk_insert_2d(
         objs_iter = list(objs)
         if len(objs_iter) != len(positions_list):
             raise ValueError("positions and objs must have the same length")
-    for obj, pos in zip(objs_iter, positions_list):
+    for obj, pos in zip(objs_iter, positions_list, strict=False):
         sh.insert(obj, pos)
         inserted.append(obj)
     return inserted

@@ -170,10 +170,9 @@ def compute_win_probability(
 
     if use_xg:
         # Compute xG distribution over time for remaining-xG tracking
-        total_duration_s = match_duration_minutes * 60.0
+        _ = match_duration_minutes * 60.0
         home_xg_used = 0.0
         away_xg_used = 0.0
-        last_minute = 0.0
 
         for ev in sorted_events:
             minute = ev.get("timestamp", 0) / 60.0
@@ -211,7 +210,7 @@ def compute_win_probability(
                         away_score=away_score,
                     )
                 )
-                last_minute = minute
+                _ = minute
     else:
         # Legacy: Elo-based updates on goals
         for ev in sorted_events:

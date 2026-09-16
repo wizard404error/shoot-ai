@@ -1191,28 +1191,26 @@ class TestVideoHandler:
     def test_sync_set_offset(self, video_handler):
         with patch.object(
             video_handler._sync_service, "set_offset", return_value='{"ok": true}'
-        ) as mock_set:
+        ) as _:
             r = video_handler.sync_set_offset(0, 1.5)
             assert r == '{"ok": true}'
 
     def test_sync_positions(self, video_handler):
         with patch.object(
             video_handler._sync_service, "get_sync_positions", return_value='{"positions": []}'
-        ) as mock_pos:
+        ) as _:
             r = video_handler.sync_positions(120.0)
             assert r == '{"positions": []}'
 
     def test_sync_state(self, video_handler):
         with patch.object(
             video_handler._sync_service, "get_state", return_value='{"state": "ready"}'
-        ) as mock_st:
+        ) as _:
             r = video_handler.sync_state()
             assert r == '{"state": "ready"}'
 
     def test_sync_clear(self, video_handler):
-        with patch.object(
-            video_handler._sync_service, "clear", return_value='{"ok": true}'
-        ) as mock_cl:
+        with patch.object(video_handler._sync_service, "clear", return_value='{"ok": true}') as _:
             r = video_handler.sync_clear()
             assert r == '{"ok": true}'
 
@@ -1287,7 +1285,7 @@ class TestVideoHandler:
         )
         with patch.object(
             video_handler._highlight_reel, "compose_reel", return_value='{"path": "/reel.mp4"}'
-        ) as mock_reel:
+        ) as _:
             r = video_handler.reel_compose(clips_json, "reel.mp4")
             assert r == '{"path": "/reel.mp4"}'
 
@@ -1301,7 +1299,7 @@ class TestVideoHandler:
             video_handler._highlight_reel,
             "make_reel_from_events",
             return_value='{"path": "/reel.mp4"}',
-        ) as mock_reel:
+        ) as _:
             r = json.loads(video_handler.reel_from_events(1, events_json, "/v/test.mp4"))
             assert r["path"] == "/reel.mp4"
             assert "reel_id" in r

@@ -255,7 +255,7 @@ class TestValidationReportService:
         from kawkab.services.validation_report_service import ValidationReportService
 
         svc = ValidationReportService()
-        report = svc.write_report(out_dir=tmp_path)
+        _ = svc.write_report(out_dir=tmp_path)
         md_path = tmp_path / "validation_report.md"
         json_path = tmp_path / "validation_report.json"
         assert md_path.exists() and json_path.exists()

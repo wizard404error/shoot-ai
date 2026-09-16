@@ -107,10 +107,8 @@ class PossessionService:
         away_possession_time = 0.0
         home_player_stats: dict[int, PlayerPossessionStats] = {}
         away_player_stats: dict[int, PlayerPossessionStats] = {}
-        last_chain: PossessionChain | None = None
+        _: PossessionChain | None = None
         counter_presses = 0
-        last_event_team: str | None = None
-        last_event_time: float = 0.0
         last_lost_team: str | None = None
         last_lost_time: float = 0.0
         for event in events:
@@ -132,8 +130,6 @@ class PossessionService:
                     ended_by="unknown",
                     xg_generated=0.0,
                 )
-                last_event_team = team
-                last_event_time = t
                 if et == "pass" and event.get("completed", False) and player_id is not None:
                     stats = home_player_stats if team == home_team else away_player_stats
                     if player_id not in stats:
@@ -143,7 +139,7 @@ class PossessionService:
                     stats[player_id].successful_passes += 1
                     current_chain.n_passes += 1
                 continue
-            chain_duration = t - current_chain.start_time_s
+            _ = t - current_chain.start_time_s
             if et == "pass" and event.get("team") == current_chain.team:
                 current_chain.n_passes += 1
                 current_chain.end_time_s = t
@@ -171,8 +167,6 @@ class PossessionService:
                         away_possession_time += chain_dur
                     chains.append(current_chain)
                     current_chain = None
-                    last_event_team = team
-                    last_event_time = t
             elif et == "tackle" or et == "interception":
                 if team != current_chain.team:
                     current_chain.ended_by = "tackle"
@@ -197,8 +191,6 @@ class PossessionService:
                         ended_by="unknown",
                         xg_generated=0.0,
                     )
-                    last_event_team = team
-                    last_event_time = t
             elif et == "shot":
                 if player_id is not None:
                     stats = home_player_stats if team == home_team else away_player_stats
@@ -217,8 +209,6 @@ class PossessionService:
                     away_possession_time += chain_dur
                 chains.append(current_chain)
                 current_chain = None
-                last_event_team = team
-                last_event_time = t
             elif et == "foul":
                 if event.get("team") == current_chain.team:
                     current_chain.ended_by = "foul"
@@ -229,8 +219,6 @@ class PossessionService:
                         away_possession_time += chain_dur
                     chains.append(current_chain)
                     current_chain = None
-                    last_event_team = team
-                    last_event_time = t
             elif et == "out_of_play":
                 current_chain.ended_by = "out_of_play"
                 chain_dur = current_chain.end_time_s - current_chain.start_time_s
@@ -240,8 +228,8 @@ class PossessionService:
                     away_possession_time += chain_dur
                 chains.append(current_chain)
                 current_chain = None
-                last_event_team = team
-                last_event_time = t
+                _ = team
+                _ = t
             if player_id is not None and et in {"pass", "tackle", "interception", "shot"}:
                 stats = home_player_stats if team == home_team else away_player_stats
                 if player_id not in stats:
@@ -391,8 +379,8 @@ class PossessionService:
         """
         loss_time = float(loss_event.get("timestamp_s", loss_event.get("minute", 0) * 60))
         loss_team = loss_event.get("team", "home")
-        loss_x = loss_event.get("x", 50.0)
-        loss_y = loss_event.get("y", 34.0)
+        _ = loss_event.get("x", 50.0)
+        _ = loss_event.get("y", 34.0)
         context: list[dict] = []
         for ev in events:
             ev_time = float(ev.get("timestamp_s", ev.get("minute", 0) * 60))

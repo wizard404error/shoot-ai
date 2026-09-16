@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from typing import Any
@@ -219,7 +220,5 @@ class TransfermarktIntegrationService:
         self._save_cache()
         for f in os.listdir(self._cache_dir):
             if f.endswith(".json"):
-                try:
+                with contextlib.suppress(Exception):
                     os.remove(os.path.join(self._cache_dir, f))
-                except Exception:
-                    pass

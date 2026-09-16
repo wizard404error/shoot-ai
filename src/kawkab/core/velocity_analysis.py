@@ -97,7 +97,7 @@ class VelocityAnalyzer:
         total_sprints = 0
         total_distance = 0.0
         acc_profile: dict[str, int] = {"high_intensity": 0, "moderate": 0, "low": 0}
-        for pid, traj in players_trajectories.items():
+        for _pid, traj in players_trajectories.items():
             pv = self.compute_player_velocity(traj)
             all_speeds.extend(pv["velocities"])
             sprints = self.analyze_sprints(pv["velocities"])

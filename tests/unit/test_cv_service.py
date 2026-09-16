@@ -253,7 +253,7 @@ class TestComputePitchMask:
             patch("cv2.findContours") as mock_find,
             patch("cv2.contourArea") as mock_area,
             patch("cv2.countNonZero") as mock_count,
-            patch("cv2.drawContours") as mock_draw,
+            patch("cv2.drawContours") as _,
         ):
             mock_cvt.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
             mock_inrange.return_value = np.zeros((100, 100), dtype=np.uint8)
@@ -1058,7 +1058,7 @@ class TestDetectTrackStitches:
             temporal_gap_max=1.0,
         )
         assert len(result) >= 1
-        for discarded, survivor in result.items():
+        for _discarded, survivor in result.items():
             assert survivor not in result  # no transitive chains remain
 
     @pytest.mark.asyncio

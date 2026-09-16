@@ -622,9 +622,9 @@ class TestDominanceIndex:
             assert 0 <= report.sub_scores[key] <= 100
 
     def test_dominance_index_symmetric(self, sample_events):
-        home_report = compute_dominance_index(sample_events, "home")
-        away_report = compute_dominance_index(sample_events, "away")
-        assert home_report.index != away_report.index or True
+        _ = compute_dominance_index(sample_events, "home")
+        _ = compute_dominance_index(sample_events, "away")
+        assert True
 
     def test_dominance_report_dataclass(self):
         report = DominanceReport(
@@ -751,13 +751,13 @@ class TestSetPieceXT:
     def test_compute_set_piece_xt_by_type(self, sample_set_piece_events, sample_xT_grid):
         report = compute_set_piece_xt(sample_set_piece_events, sample_xT_grid)
         assert len(report.by_type) >= 1
-        for sp_type, zones in report.by_type.items():
+        for _sp_type, zones in report.by_type.items():
             assert len(zones) > 0
 
     def test_compute_set_piece_xt_total_xt(self, sample_set_piece_events, sample_xT_grid):
         report = compute_set_piece_xt(sample_set_piece_events, sample_xT_grid)
         assert len(report.total_xT_by_type) >= 1
-        for sp_type, total in report.total_xT_by_type.items():
+        for _sp_type, total in report.total_xT_by_type.items():
             assert total >= 0
 
     def test_compute_set_piece_xt_most_dangerous(self, sample_set_piece_events, sample_xT_grid):
@@ -790,7 +790,7 @@ class TestSetPieceXT:
 
     def test_compute_set_piece_xt_avg_xt_per_zone(self, sample_set_piece_events, sample_xT_grid):
         report = compute_set_piece_xt(sample_set_piece_events, sample_xT_grid)
-        for sp_type, zones in report.by_type.items():
+        for _sp_type, zones in report.by_type.items():
             for zone in zones:
                 assert zone.avg_xT >= 0
                 assert zone.count >= 1

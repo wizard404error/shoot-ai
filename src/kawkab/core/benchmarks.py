@@ -140,7 +140,7 @@ def compute_player_benchmarks(
     }
 
     # Extract numeric fields from player rating data
-    for tid, pdata in player_ratings.items():
+    for _tid, pdata in player_ratings.items():
         if not isinstance(pdata, dict):
             continue
         for stat_field in stat_fields:

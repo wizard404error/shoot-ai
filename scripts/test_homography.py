@@ -39,7 +39,7 @@ async def main() -> int:
     print("\n[3/4] Team color detection...")
     team_colors = await cv.detect_team_colors(video_path, sample_frames=10)
     team_counts = {}
-    for tid, info in team_colors.items():
+    for _tid, info in team_colors.items():
         cluster = info.get("cluster_id", -1)
         team_counts[cluster] = team_counts.get(cluster, 0) + 1
     print(f"  Players colored:  {len(team_colors)}")

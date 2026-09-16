@@ -184,7 +184,7 @@ class TestMatchScore:
         assert results[0].match_score == 100.0
 
     def test_better_match_higher_score(self) -> None:
-        criteria = SearchCriteria(age_min=18, age_max=18)
+        _ = SearchCriteria(age_min=18, age_max=18)
         pass
 
 

@@ -134,7 +134,7 @@ class ValidationService:
             lines = path.read_text(encoding="utf-8").strip().split("\n")
             if not lines:
                 return []
-            header = lines[0].split(",")
+            _ = lines[0].split(",")
             for line in lines[1:]:
                 parts = line.split(",")
                 if len(parts) < 3:
@@ -440,7 +440,7 @@ class ValidationService:
                 lines = csv_path.read_text(encoding="utf-8").strip().split("\n")
                 if len(lines) < 2:
                     continue
-                header = [h.strip().lower() for h in lines[0].split(",")]
+                _ = [h.strip().lower() for h in lines[0].split(",")]
                 for line in lines[1:]:
                     parts = line.split(",")
                     if len(parts) < 3:

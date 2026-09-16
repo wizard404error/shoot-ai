@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import sqlite3
 import threading
@@ -65,7 +66,7 @@ class _PostgresConnection:
 
     def _run(self, coro):
         try:
-            loop = asyncio.get_running_loop()
+            _ = asyncio.get_running_loop()
             # Already inside an event loop (e.g. TestClient) — schedule & wait
             import concurrent.futures
 
@@ -443,9 +444,7 @@ def _pg_migrate(db: _PostgresConnection) -> None:
     # a no-op against a database that already has a users table from
     # before token_version existed -- ADD COLUMN IF NOT EXISTS (Postgres-
     # only syntax, unlike SQLite) covers that upgrade path too.
-    try:
+    with contextlib.suppress(Exception):
         db.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0"
         )
-    except Exception:
-        pass

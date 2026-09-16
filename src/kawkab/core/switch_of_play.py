@@ -117,7 +117,7 @@ class SwitchOfPlayDetector:
             teams[team]["directions"].append(direction)
         output: dict[str, Any] = {}
         for team, data in teams.items():
-            shot_events = [e for e in events if e.get("type") == "shot"]
+            _ = [e for e in events if e.get("type") == "shot"]
             leading_to_chances = 0
             for sw in data["switches"]:
                 sw_idx = pass_events.index(sw) if sw in pass_events else -1
@@ -209,7 +209,7 @@ class SwitchOfPlayDetector:
             elif entry_type in ("carry", "dribble"):
                 teams[team]["via_carry"] += 1
             teams[team]["entry_zones"].append((result["zone_x"], result["zone_y"]))
-        shot_events = [e for e in events if e.get("type") == "shot"]
+        _ = [e for e in events if e.get("type") == "shot"]
         for team, data in teams.items():
             for entry in data["entries"]:
                 entry_idx = events.index(entry)

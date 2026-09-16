@@ -172,7 +172,7 @@ class TestVaepSurvival:
         ]
         result = compute_vaep(events)
         shot_vaep = abs(result[1]["vaep_value"])
-        pass_vaep = abs(result[0]["vaep_value"])
+        _ = abs(result[0]["vaep_value"])
         assert shot_vaep >= 0
 
     def test_delta_fields_present(self):

@@ -196,7 +196,7 @@ def run_synthetic_benchmark(
 
     # Build ground truth tracks dict for MOT computation
     gt_tracks: dict[int, list[tuple[int, float, float]]] = {}
-    all_players = {}
+    _ = {}
     for team in ("home", "away"):
         for label, positions in gt_data[team].items():
             if not positions:

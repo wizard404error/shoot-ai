@@ -75,7 +75,7 @@ class TestTrackingE2eSynthetic:
         assert bt.missed_frames == 0
 
     def test_ball_tracker_update_on_synthetic_frame(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)
@@ -90,7 +90,7 @@ class TestTrackingE2eSynthetic:
             assert det.conf >= 0.0
 
     def test_ball_tracker_update_multiple_frames(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)
@@ -107,7 +107,7 @@ class TestTrackingE2eSynthetic:
         assert len(bt.trail) >= 1
 
     def test_ball_tracker_reset(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)
@@ -120,7 +120,7 @@ class TestTrackingE2eSynthetic:
         assert len(bt.trail) == 0
 
     def test_ball_tracker_get_trail(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)
@@ -132,7 +132,7 @@ class TestTrackingE2eSynthetic:
         assert len(trail) >= 1
 
     def test_ball_tracker_missed_frames_prediction(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)
@@ -154,7 +154,7 @@ class TestTrackingE2eSynthetic:
                 # shape (6,1) on some versions, causing float() conversion to fail.
                 # This is a pre-existing issue in ball_tracker.py, not a test problem.
                 pass
-        assert pred_count >= 1 or True  # allow pass-through for known compat issue
+        assert True  # allow pass-through for known compat issue
 
     def test_camera_cut_detector_initializes(self):
         from kawkab.services.camera_cut_detector import CameraCutDetector
@@ -316,7 +316,7 @@ class TestTrackingE2eEdgeCases:
     """Edge cases for the tracking pipeline."""
 
     def test_ball_tracker_no_ball_on_frame(self):
-        cv2 = pytest.importorskip("cv2")
+        _ = pytest.importorskip("cv2")
         from kawkab.services.ball_tracker import BallTracker
 
         bt = BallTracker(fps=30.0)

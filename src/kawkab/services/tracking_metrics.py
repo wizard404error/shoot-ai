@@ -58,7 +58,7 @@ def compute_tracking_self_metrics(
     if not track_frames:
         return {"error": "no_tracks", "mot_self_consistency": 0.0}
 
-    total_frames = max(fd.frame_number for fd in frames) + 1 if frames else 1
+    _ = max(fd.frame_number for fd in frames) + 1 if frames else 1
     num_tracks = len(track_frames)
 
     # Fragmentation: count of tracked -> lost -> tracked transitions
@@ -67,7 +67,7 @@ def compute_tracking_self_metrics(
     partially_tracked = 0
     mostly_lost = 0
 
-    for tid, frames_set in track_frames.items():
+    for _tid, frames_set in track_frames.items():
         sorted_frames = sorted(frames_set)
         if len(sorted_frames) < 2:
             mostly_lost += 1

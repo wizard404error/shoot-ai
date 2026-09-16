@@ -160,7 +160,7 @@ class MuJoCoBallService:
         self._data.qvel[2] = vz
         n_steps = int(duration_s / self._model.opt.timestep)
         points: list[TrajectoryPoint] = []
-        t0 = time.monotonic()
+        _ = time.monotonic()
         for step in range(n_steps):
             pos = self._data.qpos[:3].copy()
             v = self._data.qvel[:3].copy()

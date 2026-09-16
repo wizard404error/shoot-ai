@@ -69,7 +69,7 @@ class PhysioTacticalCorrelationService:
                     [h.get("hr", h.get("heart_rate", 0)) or 0 for h in hr_timeline]
                 )
                 hr_times = np.array([h.get("t", h.get("timestamp", 0)) for h in hr_timeline])
-            event_types = set(e.get("type", "unknown") for e in events)
+            event_types = {e.get("type", "unknown") for e in events}
             for etype in event_types:
                 type_events = [e for e in events if e.get("type") == etype]
                 pre_speeds = []

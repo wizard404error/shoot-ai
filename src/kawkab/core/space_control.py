@@ -63,7 +63,7 @@ def compute_pitch_control_grid(
     gy = (np.arange(grid_rows) + 0.5) * pitch_width / grid_rows
 
     coords = np.array([(p[0], p[1]) for p in player_positions], dtype=np.float64)
-    n_players = len(coords)
+    _ = len(coords)
 
     dx = gx[np.newaxis, :, np.newaxis] - coords[np.newaxis, np.newaxis, :, 0]
     dy = gy[:, np.newaxis, np.newaxis] - coords[np.newaxis, np.newaxis, :, 1]

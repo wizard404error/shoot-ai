@@ -164,7 +164,7 @@ class ReasoningService:
             etype = ev.get("type", "")
             zone = ev.get("zone", "")
             timestamp = ev.get("timestamp", 0)
-            team = ev.get("team", "")
+            _ = ev.get("team", "")
             situation = ev.get("situation", "")
             outcome = ev.get("outcome", "")
 

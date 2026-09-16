@@ -87,7 +87,7 @@ class SAMLAuthService:
     def _build_authn_request(
         self, sp: SAMLServiceProvider, idp: SAMLIdentityProvider, relay_state: str
     ) -> str:
-        base_url = sp.acs_url.rstrip("/")
+        _ = sp.acs_url.rstrip("/")
         saml_request = (
             f'<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"'
             f' xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"'

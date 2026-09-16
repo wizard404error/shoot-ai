@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -79,10 +80,8 @@ class CloudSyncService:
     def logout(self) -> str:
         self._token = None
         self._user = None
-        try:
+        with contextlib.suppress(Exception):
             TOKEN_FILE.unlink(missing_ok=True)
-        except Exception:
-            pass
         return json.dumps({"ok": True})
 
     def get_me(self) -> str:

@@ -830,7 +830,7 @@ async def test_close_idempotent(storage):
 
 @pytest.mark.asyncio
 async def test_benchmark_minimal_fields(storage):
-    match_id = await _mid(storage)
+    _ = await _mid(storage)
     r = BenchmarkResult(
         match_id=0, video_path="", total_time_seconds=0.0, realtime_ratio=0.0, fps_effective=0.0
     )
@@ -840,7 +840,7 @@ async def test_benchmark_minimal_fields(storage):
 
 @pytest.mark.asyncio
 async def test_validation_result_empty_results(storage):
-    match_id = await _mid(storage)
+    _ = await _mid(storage)
     report = ValidationReport(match_id=1, ground_truth_source="auto")
     ids = await storage.save_validation_result(report)
     assert ids == []

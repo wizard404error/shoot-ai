@@ -267,7 +267,7 @@ class PeriodizationService:
         x = list(range(n))
         mean_x = sum(x) / n
         mean_y = sum(loads) / n
-        num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, loads))
+        num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, loads, strict=False))
         den = sum((xi - mean_x) ** 2 for xi in x)
         slope = num / den if den > 0 else 0.0
         if slope > 50:

@@ -98,7 +98,7 @@ class CardDetectionService:
         if self._cv2 is None or not frames:
             return []
         detections_per_frame: list[tuple[float, CardType | None, float]] = []
-        for ts, frame in zip(timestamps, frames):
+        for ts, frame in zip(timestamps, frames, strict=False):
             if frame is None or frame.size == 0:
                 continue
             try:

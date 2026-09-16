@@ -339,11 +339,11 @@ class CVService:
         # If a TrackingConfigRoot is provided, use its values over defaults
         if cfg is not None:
             d = cfg.detection
-            t = cfg.tracking
+            _ = cfg.tracking
             f = cfg.filter
-            sc = cfg.stitch
-            pc = cfg.performance
-            cc = cfg.color
+            _ = cfg.stitch
+            _ = cfg.performance
+            _ = cfg.color
             confidence_threshold = d.confidence_threshold
             ball_confidence_threshold = d.ball_confidence_threshold
             iou_threshold = d.iou_threshold
@@ -900,7 +900,7 @@ class CVService:
                     [tid for tid, _ in entries],
                     iou_threshold=0.3,
                 )
-                for d, tid in zip(label_dets, assigned):
+                for d, tid in zip(label_dets, assigned, strict=False):
                     d["track_id"] = tid
 
         # Build Detection objects
@@ -1894,7 +1894,7 @@ class CVService:
         def _det_center(d: Detection) -> tuple[float, float]:
             return ((d.bbox[0] + d.bbox[2]) / 2.0, (d.bbox[1] + d.bbox[3]) / 2.0)
 
-        for a, b in zip(real_idx, real_idx[1:]):
+        for a, b in zip(real_idx, real_idx[1:], strict=False):
             prev_real, next_real = frames[a], frames[b]
             fn_a, fn_b = prev_real.frame_number, next_real.frame_number
             gap = fn_b - fn_a
@@ -1920,7 +1920,9 @@ class CVService:
                     if math.hypot(nc[0] - pc[0], nc[1] - pc[1]) > max_jump:
                         new_dets.append(d)
                         continue
-                    bbox = tuple(pv + alpha * (nv - pv) for pv, nv in zip(p.bbox, n.bbox))
+                    bbox = tuple(
+                        pv + alpha * (nv - pv) for pv, nv in zip(p.bbox, n.bbox, strict=False)
+                    )
                     new_dets.append(
                         Detection(
                             bbox=bbox,
@@ -2010,7 +2012,7 @@ class CVService:
                     int(np.mean([c[1] for c in sb])),
                     int(np.mean([c[2] for c in sb])),
                 )
-                color_dist = sum((a - b) ** 2 for a, b in zip(avg_a, avg_b)) ** 0.5
+                color_dist = sum((a - b) ** 2 for a, b in zip(avg_a, avg_b, strict=False)) ** 0.5
                 signals["color"] = 1.0 if color_dist < 70 else -1.0
             # Signal 2: face embedding (ArcFace)
             if track_face_embeddings:
@@ -2124,7 +2126,9 @@ class CVService:
                             int(np.mean([c[1] for c in sb])),
                             int(np.mean([c[2] for c in sb])),
                         )
-                        color_dist = sum((a - b) ** 2 for a, b in zip(avg_a_c, avg_b_c)) ** 0.5
+                        color_dist = (
+                            sum((a - b) ** 2 for a, b in zip(avg_a_c, avg_b_c, strict=False)) ** 0.5
+                        )
                     else:
                         color_dist = 999.0
                     # Adaptive threshold: tracks with few embeddings need higher confidence
@@ -2181,7 +2185,7 @@ class CVService:
 
         row_ind, col_ind, _ = hungarian(cost)
         assigned: list[int | None] = [None] * n_dets
-        for i, j in zip(row_ind, col_ind):
+        for i, j in zip(row_ind, col_ind, strict=False):
             if i >= n_dets or j >= n_tracks:
                 continue  # dummy padding
             if cost[i, j] <= 1.0 - iou_threshold:
@@ -2303,7 +2307,7 @@ class CVService:
             logger.error(f"Cannot open video for jersey detection: {video_path}")
             return {}
 
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        _ = cap.get(cv2.CAP_PROP_FPS) or 30.0
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_count = 0
 

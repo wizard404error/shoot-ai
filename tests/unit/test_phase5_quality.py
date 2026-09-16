@@ -246,7 +246,7 @@ class TestXtConfidence:
         ]
         intervals = bootstrap_xt(events, n_resamples=20, grid_size=(5, 8))
         assert len(intervals) > 0
-        for key, interval in intervals.items():
+        for _key, interval in intervals.items():
             assert isinstance(interval, XtInterval)
             assert interval.ci_low <= interval.mean <= interval.ci_high
 
@@ -258,7 +258,7 @@ class TestXtConfidence:
         ]
         zones = zone_xt_with_ci(events, grid_size=(5, 8), n_resamples=10)
         assert isinstance(zones, dict)
-        for key, interval in zones.items():
+        for key, _interval in zones.items():
             assert isinstance(key, tuple)
             assert len(key) == 2
 
@@ -348,7 +348,7 @@ class TestEventSchema:
             "y": 34.0,
         }
         result = validate_event(ev)
-        errors_str = " ".join(result.errors).lower()
+        _ = " ".join(result.errors).lower()
         assert not result.valid
 
     def test_validate_events_mixed(self):

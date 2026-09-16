@@ -75,7 +75,7 @@ class TestSlidingWindow:
 
     def test_sliding_window_window_size(self, svc):
         image = np.ones((100, 100, 3), dtype=np.uint8)
-        for x, y, window in svc._sliding_window(image):
+        for _x, _y, window in svc._sliding_window(image):
             assert window.shape == (30, 30, 3)
             break
 

@@ -170,14 +170,14 @@ def compute_territory_value(
 
     # Map team id to a boolean flag
     team_team = team_events[0].get("team", "") if team_events else ""
-    opp_team = opponent_events[0].get("team", "") if opponent_events else ""
+    _ = opponent_events[0].get("team", "") if opponent_events else ""
 
     # Zone accumulation
     gained: dict[tuple[int, int], float] = defaultdict(float)
     conceded: dict[tuple[int, int], float] = defaultdict(float)
     zone_event_count: dict[tuple[int, int], int] = defaultdict(int)
-    total_ts_per_zone: dict[tuple[int, int], float] = defaultdict(float)
-    total_ts_all = 0.0
+    _: dict[tuple[int, int], float] = defaultdict(float)
+    _ = 0.0
 
     # Timeline
     minute_buckets: dict[int, dict[str, float]] = defaultdict(

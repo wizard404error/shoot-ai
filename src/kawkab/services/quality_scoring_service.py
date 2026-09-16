@@ -141,7 +141,7 @@ class QualityScoringService:
 
         metrics = getattr(track_data, "tracking_metrics", {}) or {}
         validated = metrics.get("validated_player_tracks", 0)
-        raw = metrics.get("raw_tracks_detected", 1)
+        _ = metrics.get("raw_tracks_detected", 1)
         fragmentation = metrics.get("fragmentation_rate", 0)
         quality = metrics.get("tracking_quality", "")
 
@@ -172,7 +172,7 @@ class QualityScoringService:
             return 0.0
 
         events = getattr(analysis, "events", []) or []
-        total_events = len(events)
+        _ = len(events)
         shots = sum(1 for e in events if e.get("type") == "shot")
         passes = sum(1 for e in events if e.get("type") == "pass")
 

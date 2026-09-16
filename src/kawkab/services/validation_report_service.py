@@ -407,7 +407,6 @@ class ValidationReportService:
             # feeds do not label carries; the service does the same).
             carries: list[dict[str, Any]] = []
             prev: tuple[float, float] | None = None
-            prev_t = 0.0
             team_flip = 0
             for fr in frames_raw:
                 if not fr["ball_pos"]:
@@ -431,7 +430,7 @@ class ValidationReportService:
                             }
                         )
                         team_flip += 1
-                prev, prev_t = (bx, by), fr["timestamp"]
+                prev, _ = (bx, by), fr["timestamp"]
             if not carries:
                 return ValidationSection(
                     name="carry_xt",
