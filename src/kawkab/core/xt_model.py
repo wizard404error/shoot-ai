@@ -14,9 +14,11 @@ References:
 from __future__ import annotations
 
 import functools
+import json
 import math
 import random
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -26,6 +28,40 @@ from kawkab.core.game_constants import GAME
 from kawkab.core.perf_timing import timed
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M
+
+# ── League-wide reference grid (pre-trained from StatsBomb open data) ────────
+# Auto-loaded as the cold-start default when a match's own events are too
+# sparse to learn from. Rebuild with:
+#   PYTHONPATH=src python -m kawkab.core.validation.train_xt --force
+_REFERENCE_GRID_PATH = Path(__file__).parent / "trained_xt_grid.json"
+_REFERENCE_GRID: np.ndarray | None = None
+_REFERENCE_GRID_SHAPE: tuple[int, int] | None = None
+
+
+def reference_grid_available() -> bool:
+    """True when the pre-trained league-wide xT grid is loadable."""
+    if _REFERENCE_GRID is not None:
+        return True
+    return _REFERENCE_GRID_PATH.exists()
+
+
+def _load_reference_grid() -> np.ndarray | None:
+    global _REFERENCE_GRID, _REFERENCE_GRID_SHAPE
+    if _REFERENCE_GRID is not None:
+        return _REFERENCE_GRID
+    if not _REFERENCE_GRID_PATH.exists():
+        return None
+    try:
+        with open(_REFERENCE_GRID_PATH) as f:
+            payload = json.load(f)
+        grid = np.asarray(payload.get("grid", []), dtype=np.float64)
+        if grid.ndim != 2 or grid.size == 0:
+            return None
+        _REFERENCE_GRID = grid
+        _REFERENCE_GRID_SHAPE = grid.shape
+        return _REFERENCE_GRID
+    except Exception:
+        return None
 
 
 class ExpectedThreatModel:
@@ -79,6 +115,12 @@ class ExpectedThreatModel:
         shots_from_zone = defaultdict(int)
         goals_from_zone = defaultdict(int)
 
+        n_actions = 0
+        for ev in events:
+            if ev.get("type") not in ("pass", "carry"):
+                continue
+            n_actions += 1
+
         for ev in events:
             if ev.get("type") not in ("pass", "carry"):
                 continue
@@ -115,6 +157,24 @@ class ExpectedThreatModel:
                 goals_from_zone[zone] += 1
 
         self._transition = dict(transitions)
+
+        # Cold-start rule: a match with too few actions produces a
+        # near-degenerate learned grid (a handful of zones with data,
+        # zeros elsewhere — misleading as a threat surface). Fall back
+        # to the league-wide reference grid trained from the StatsBomb
+        # corpus when the match itself can't support learning. The
+        # match's own goals-per-zone still overlay onto the reference
+        # when available (they're the model's ze term), so a data-rich
+        # match keeps its own learned behavior; only sparse ones borrow.
+        MIN_ACTIONS_FOR_LEARNING = 200
+        if n_actions < MIN_ACTIONS_FOR_LEARNING:
+            ref = _load_reference_grid()
+            if ref is not None and ref.shape == (self.rows, self.cols):
+                ze = self._solve_xT(possession_from_zone, goals_from_zone)
+                # Blend: reference grid carries the transition structure,
+                # the match's own ze (zone scoring rates) overlays it.
+                self._ze_values = 0.8 * ref + 0.2 * ze
+                return
         self._ze_values = self._solve_xT(possession_from_zone, goals_from_zone)
 
     def _solve_xT(

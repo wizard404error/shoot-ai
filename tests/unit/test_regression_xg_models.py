@@ -43,6 +43,17 @@ def _get_distance(x1, y1, x2, y2):
 
 
 def _get_angle(x, y):
+    """Subtended goal-OPENING angle (center + half goal width, capped 90).
+
+    NOTE on conventions: the legacy hand-tuned compute_xg coefficients
+    were calibrated against this subtended convention (central 6m ~90,
+    far wide shots -> small), and this file's tolerances were validated
+    against statsbomb_xg with it. The ENHANCED model + trainer use the
+    deviation-from-center convention instead (see
+    scripts/train_xg_from_statsbomb.py::_get_angle); both are
+    internally consistent within their own model. Do not "fix" one to
+    match the other without re-validating the tolerances here.
+    """
     dx = GOAL_CENTER_X - x
     dy = GOAL_CENTER_Y - y
     dist = math.sqrt(dx * dx + dy * dy)

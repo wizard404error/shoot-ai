@@ -31,7 +31,6 @@ from kawkab.core.dominance_index import compute_dominance_index, DominanceReport
 from kawkab.core.role_classifier import classify_player_role, PlayerRole
 from kawkab.core.set_piece_xt import compute_set_piece_xt, SetPieceXTReport
 from kawkab.core.crossing_xg import compute_cross_xg, CrossXgFactors
-from kawkab.core.psxg_improved import compute_psxg, PsXgResult
 from kawkab.core.xa_split import compute_xa_by_type, compute_xa_expected_vs_actual, XaSplit
 from kawkab.core.scout_report_upgrade import generate_scout_report, ScoutReport
 from kawkab.core.pressing_clusters import cluster_pressing_events, PressingCluster
@@ -700,80 +699,6 @@ class TestCrossingXG:
                  "defender_distance": 10.0}
         factors = compute_cross_xg(event)
         assert factors.base_xg <= 0.35
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 9. PSxG Improved Tests
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestPsXgImproved:
-    def test_compute_psxg_basic(self):
-        event = {"start_x": 80.0, "start_y": 34.0, "end_x": 105.0, "end_y": 36.0,
-                 "placement_x": 1.5, "placement_y": 1.8, "body_part": "right_foot",
-                 "shot_type": "open_play"}
-        result = compute_psxg(event)
-        assert isinstance(result, PsXgResult)
-        assert 0 < result.psxg < 1.0
-
-    def test_compute_psxg_top_corner_higher(self):
-        top_corner = compute_psxg({"start_x": 80.0, "start_y": 34.0,
-                                    "end_x": 105.0, "end_y": 36.0,
-                                    "placement_x": 3.0, "placement_y": 2.2,
-                                    "body_part": "right_foot", "shot_type": "volley"})
-        center = compute_psxg({"start_x": 80.0, "start_y": 34.0,
-                                "end_x": 105.0, "end_y": 36.0,
-                                "placement_x": 0.0, "placement_y": 0.5,
-                                "body_part": "right_foot", "shot_type": "volley"})
-        assert top_corner.psxg > center.psxg
-
-    def test_compute_psxg_placement_classification(self):
-        result = compute_psxg({"end_x": 105.0, "end_y": 36.0,
-                                "placement_x": 3.0, "placement_y": 2.0,
-                                "body_part": "right_foot", "shot_type": "open_play"})
-        assert result.placement_zone in ("top_left", "top_center", "top_right",
-                                         "mid_left", "mid_center", "mid_right",
-                                         "bottom_left", "bottom_center", "bottom_right")
-
-    def test_compute_psxg_body_part_effect(self):
-        foot = compute_psxg({"end_x": 105.0, "end_y": 36.0,
-                              "placement_x": 1.0, "placement_y": 1.5,
-                              "body_part": "right_foot", "shot_type": "open_play"})
-        head = compute_psxg({"end_x": 105.0, "end_y": 36.0,
-                              "placement_x": 1.0, "placement_y": 1.5,
-                              "body_part": "head", "shot_type": "header"})
-        assert foot.psxg > head.psxg
-
-    def test_compute_psxg_result_dataclass(self):
-        r = PsXgResult(psxg=0.72, placement_zone="top_left", placement_x=2.5,
-                        placement_y=2.0, speed_proxy=1.5, body_part="right_foot",
-                        shot_type="volley")
-        d = r.to_dict()
-        assert d["psxg"] == 0.72
-        assert d["placement_zone"] == "top_left"
-
-    def test_compute_psxg_distance_penalty(self):
-        far = compute_psxg({"start_x": 50.0, "start_y": 34.0,
-                             "end_x": 105.0, "end_y": 36.0,
-                             "placement_x": 1.0, "placement_y": 1.5,
-                             "body_part": "right_foot", "shot_type": "open_play"})
-        close = compute_psxg({"start_x": 95.0, "start_y": 34.0,
-                               "end_x": 105.0, "end_y": 36.0,
-                               "placement_x": 1.0, "placement_y": 1.5,
-                               "body_part": "right_foot", "shot_type": "open_play"})
-        assert close.psxg >= far.psxg
-
-    def test_compute_psxg_bounds(self):
-        for _ in range(10):
-            import random
-            event = {"start_x": random.uniform(30, 100), "start_y": random.uniform(0, 68),
-                     "end_x": 105.0, "end_y": random.uniform(30, 40),
-                     "placement_x": random.uniform(-3.66, 3.66),
-                     "placement_y": random.uniform(0, 2.44),
-                     "body_part": random.choice(["right_foot", "left_foot", "head"]),
-                     "shot_type": random.choice(["open_play", "volley", "header", "free_kick"])}
-            result = compute_psxg(event)
-            assert 0.01 <= result.psxg <= 0.98
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

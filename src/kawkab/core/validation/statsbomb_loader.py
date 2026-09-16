@@ -67,11 +67,39 @@ def sb_to_meters(loc: list[float] | tuple[float, float]) -> tuple[float, float]:
     return x_m, y_m
 
 
+def shot_deviation_angle(x_m: float, y_m: float) -> float:
+    """Deviation-from-central angle (deg) — EnhancedXgModel's convention.
+
+    0 deg = dead central (the goal-center line), approaching 90 deg =
+    along the goal line to the side. cos(deviation) is the visible-goal
+    fraction the serving model consumes via its (1 - cos) angle feature.
+
+    History (2026-09-16): ``shot_distance_angle`` below returns the
+    goal-OPENING angle (posts subtended from the shot — central ~36 deg,
+    goal-line-wide ~90+). Feeding that into the xG trainer trained every
+    angle coefficient BACKWARDS (wide shots outscoring central ones;
+    distance decay collapsed onto the angle term) — the exact bug the
+    56-shot fit in scripts/train_xg_from_statsbomb.py had, reintroduced
+    through this loader. That script's own _get_angle already carries the
+    corrected deviation convention and its docstring documents the same
+    history. Opening angle stays available (and is correct) for PSxG.
+    """
+    dx = GOAL_LINE_X - x_m
+    dy = GOAL_CENTER_Y - y_m
+    dist = math.hypot(dx, dy)
+    if dist < 0.5:
+        return 90.0
+    return min(math.degrees(math.atan2(abs(dy), abs(dx))), 90.0)
+
+
 def shot_distance_angle(x_m: float, y_m: float) -> tuple[float, float]:
-    """Distance (m) and angle (deg) from a shot position to the goal.
+    """Distance (m) and opening angle (deg) from a shot position to the goal.
 
     The goal is at (105, 34); angle is the opening angle subtended by the
-    goal mouth at the shot position, in degrees [0, 90].
+    goal mouth at the shot position, in degrees [0, 90]. PSxG's
+    ``angle_opening_deg`` feature expects exactly this convention — do
+    not "fix" it toward deviation-from-central (see
+    ``shot_deviation_angle`` for the xG-convention counterpart).
     """
     dx = GOAL_LINE_X - x_m
     dy = GOAL_CENTER_Y - y_m
@@ -153,7 +181,7 @@ class StatsBombShot:
 
     # Kawkab-native features (what the model consumes)
     distance_m: float
-    angle_deg: float
+    angle_deg: float              # goal-OPENING angle (PSxG convention)
     body_part: str            # "right_foot" | "left_foot" | "head" | "other"
     shot_type: str            # "open_play" | "free_kick" | "penalty" | "corner"
     gk_distance_m: float
@@ -172,11 +200,19 @@ class StatsBombShot:
     player_name: str
     team_name: str
 
+    # Deviation-from-central angle (xG convention, 0 = dead central).
+    # Appended last so positional constructions of the original fields
+    # keep their meaning; always computed by _parse_shot.
+    angle_deviation_deg: float
+
     def to_fit_dict(self) -> dict[str, Any]:
         """Dict suitable for ``xg_trainer.FitShot`` construction / fitting."""
         return {
             "distance_m": self.distance_m,
-            "angle_deg": self.angle_deg,
+            # xG features consume the DEVIATION convention (0 = central);
+            # the opening angle would train every angle term backwards
+            # (see shot_deviation_angle).
+            "angle_deg": self.angle_deviation_deg,
             "is_header": self.body_part == "head",
             "is_one_on_one": self.is_one_on_one,
             "is_pressed": self.is_pressed,
@@ -241,6 +277,7 @@ def _parse_shot(ev: dict[str, Any], match_id: str) -> StatsBombShot | None:
 
     x_m, y_m = sb_to_meters(loc)
     distance_m, angle_deg = shot_distance_angle(x_m, y_m)
+    angle_deviation_deg = shot_deviation_angle(x_m, y_m)
 
     body_part_name = (shot.get("body_part") or {}).get("name", "Right Foot")
     body_part = {
@@ -283,6 +320,7 @@ def _parse_shot(ev: dict[str, Any], match_id: str) -> StatsBombShot | None:
     return StatsBombShot(
         distance_m=distance_m,
         angle_deg=angle_deg,
+        angle_deviation_deg=angle_deviation_deg,
         body_part=body_part,
         shot_type=shot_type,
         gk_distance_m=gk_dist,

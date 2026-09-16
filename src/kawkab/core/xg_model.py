@@ -107,6 +107,7 @@ ENHANCED_COEFFICIENTS: dict[str, float] = {
 
 TRAINED_COEFFICIENTS: dict[str, float] = dict(ENHANCED_COEFFICIENTS)
 _TRAINED_COEFF_PATH = Path(__file__).parent / "trained_xg_coefficients.json"
+_TRAINED_LOADED_FROM_DISK = False
 if _TRAINED_COEFF_PATH.exists():
     try:
         with open(_TRAINED_COEFF_PATH) as _f:
@@ -114,8 +115,14 @@ if _TRAINED_COEFF_PATH.exists():
         _trained_clean = {k: v for k, v in _trained.items() if isinstance(v, (int, float)) and not k.startswith("_")}
         if _trained_clean:
             TRAINED_COEFFICIENTS.update(_trained_clean)
+            _TRAINED_LOADED_FROM_DISK = True
     except Exception:
         pass
+
+
+def trained_model_available() -> bool:
+    """True when fitted weights (not the hand-tuned heuristic) are active."""
+    return _TRAINED_LOADED_FROM_DISK
 
 
 def _validate_trained_coefficients() -> None:
@@ -201,6 +208,38 @@ def compute_xg_from_dict(event_dict: dict[str, Any]) -> float:
     CoordinateValidator.validate_event_spatial(event_dict)
     event = ShotEvent.from_dict(event_dict)
     return compute_xg_from_shot_event(event)
+
+
+# ── Trained-model access (the path live code should use) ────────────────────
+
+_ACTIVE_MODEL: EnhancedXgModel | None = None
+
+
+def active_xg_model() -> EnhancedXgModel:
+    """Module-level singleton exposing the best available xG model.
+
+    Returns the trained model (auto-loaded from
+    ``trained_xg_coefficients.json`` when present), falling back to the
+    enhanced heuristic. Check ``.coeffs_source`` for provenance.
+    """
+    global _ACTIVE_MODEL
+    if _ACTIVE_MODEL is None:
+        _ACTIVE_MODEL = EnhancedXgModel()
+    return _ACTIVE_MODEL
+
+
+def compute_xg_trained_from_dict(event_dict: dict[str, Any]) -> float:
+    """xG from a raw event dict using the ACTIVE (trained when available) model.
+
+    Same contract as ``compute_xg_from_dict`` but never the legacy model —
+    the legacy function is kept only for backward compatibility; new call
+    sites must use this one so trained weights actually reach the product.
+    """
+    model = active_xg_model()
+    raw: dict[str, Any] = dict(event_dict)
+    if raw.get("type") is None:
+        raw["type"] = "shot"
+    return model.compute(raw)
 
 
 def batch_compute_xg(
@@ -307,7 +346,19 @@ class EnhancedXgModel:
 
     def __init__(self, coefficients: dict[str, float] | None = None,
                  coeffs_source: str = "heuristic"):
-        self.coef = coefficients or TRAINED_COEFFICIENTS
+        if coefficients is not None:
+            self.coef = coefficients
+        else:
+            self.coef = TRAINED_COEFFICIENTS
+            # Provenance: "heuristic" is only honest when no fitted
+            # weights were found on disk. The old label always said
+            # "heuristic" even when trained coefficients had auto-loaded.
+            self.coeffs_source = (
+                "trained (trained_xg_coefficients.json)"
+                if _TRAINED_LOADED_FROM_DISK
+                else "heuristic"
+            )
+            return
         self.coeffs_source = coeffs_source
 
     @classmethod
@@ -318,6 +369,19 @@ class EnhancedXgModel:
 
     def extract_features(self, event: ShotEvent | dict[str, Any]) -> EnhancedXgFeatures:
         """Extract feature vector from a shot event."""
+        # Dict-only extras must be read BEFORE the ShotEvent conversion
+        # below replaces `event` -- the old code's post-conversion
+        # `isinstance(event, dict)` rebound check was unreachable dead
+        # code, so dict-supplied gk_distance_m / is_rebound /
+        # is_big_chance were silently dropped (gk_distance is the
+        # strongest feature in the trained model; dropping it made every
+        # trained-model evaluation run ~0.3 logits hot).
+        raw: dict[str, Any] = event if isinstance(event, dict) else {}
+        gk_distance_raw = raw.get("gk_distance_m")
+        is_rebound_raw = raw.get("is_rebound", False)
+        is_big_chance_raw = raw.get("is_big_chance", False)
+        assist_raw = raw.get("assist_type", "")
+
         if isinstance(event, dict):
             event = ShotEvent.from_dict(event)
 
@@ -326,26 +390,36 @@ class EnhancedXgModel:
         body_part = event.body_part.value if event.body_part else "right_foot"
         shot_type = event.shot_type.value if event.shot_type else "open_play"
 
+        # gk_distance priority: explicit dict value > event field (None
+        # when absent -- ShotEvent has no gk_distance_m attribute) > 0.
+        gk_distance = (
+            float(gk_distance_raw)
+            if gk_distance_raw is not None
+            else float(getattr(event, "gk_distance_m", 0.0) or 0.0)
+        )
+
         features = EnhancedXgFeatures(
             distance_m=distance_m,
             angle_deg=angle_deg,
             is_header=(body_part == "head"),
+            is_through_ball_assist=(assist_raw == "through_ball"),
+            is_cross_assist=(assist_raw == "cross"),
             is_one_on_one=event.is_one_on_one,
             is_pressed=event.was_pressed,
             is_volley=(shot_type in ("volley", "half_volley")),
             is_free_kick=(shot_type == "free_kick"),
             is_penalty=(shot_type == "penalty"),
-            gk_distance_m=getattr(event, "gk_distance_m", 0.0),
+            gk_distance_m=gk_distance,
         )
 
-        # Extract rebound: shot following a goalie save within 3s
-        # This is set externally via the event dict
-        if isinstance(event, dict):
-            features.is_rebound = event.get("is_rebound", False)
-            features.is_big_chance = event.get("is_big_chance", False)
+        # Rebound/big-chance: from the raw dict when available, else any
+        # attribute the event object carries.
+        if raw:
+            features.is_rebound = bool(is_rebound_raw)
+            features.is_big_chance = bool(is_big_chance_raw)
         else:
-            features.is_rebound = getattr(event, "is_rebound", False)
-            features.is_big_chance = getattr(event, "is_big_chance", False)
+            features.is_rebound = bool(getattr(event, "is_rebound", False))
+            features.is_big_chance = bool(getattr(event, "is_big_chance", False))
 
         return features
 

@@ -72,11 +72,11 @@ class ValidationReportService:
     def xg_calibration_section(self, max_matches: int = 40) -> ValidationSection:
         """xG model calibration vs StatsBomb's published xG on the corpus."""
         try:
+            from kawkab.core.validation.metrics import brier_score, roc_auc
             from kawkab.core.validation.statsbomb_loader import (
                 extract_shots_for_fitting,
                 load_statsbomb_corpus,
             )
-            from kawkab.core.validation.metrics import brier_score, roc_auc
             from kawkab.core.xg_model import active_xg_model
 
             # load_statsbomb_corpus is a lazy generator — use its limit
@@ -140,12 +140,12 @@ class ValidationReportService:
     def psxg_calibration_section(self, max_matches: int = 20) -> ValidationSection:
         """PSxG vs outcomes on corpus shots that were on target."""
         try:
+            from kawkab.core.psxg_model import compute_psxg
+            from kawkab.core.validation.metrics import brier_score
             from kawkab.core.validation.statsbomb_loader import (
                 extract_shots_for_fitting,
                 load_statsbomb_corpus,
             )
-            from kawkab.core.validation.metrics import brier_score
-            from kawkab.core.psxg_model import compute_psxg
 
             matches = list(load_statsbomb_corpus(self.corpus_dir, limit=max_matches))
             shots, _n_matches = extract_shots_for_fitting(matches)
@@ -345,7 +345,7 @@ class ValidationReportService:
                     name="ball_recovery", status="skipped",
                     reason="Metrica events fixture missing",
                 )
-            from kawkab.core.ball_recovery import BallRecoveryAnalyzer, RECOVERY_EVENT_TYPES
+            from kawkab.core.ball_recovery import RECOVERY_EVENT_TYPES, BallRecoveryAnalyzer
 
             events = data["events"]
             n_rec = sum(
@@ -457,12 +457,12 @@ class ValidationReportService:
                     name="physical_load", status="skipped",
                     reason="Metrica fixture missing",
                 )
-            from kawkab.services.physical_load_service import PhysicalLoadService
             from kawkab.services.cv_service import (
                 Detection,
                 FrameDetections,
                 MatchTrackData,
             )
+            from kawkab.services.physical_load_service import PhysicalLoadService
 
             mm = data["tracking"]
             svc = PhysicalLoadService()

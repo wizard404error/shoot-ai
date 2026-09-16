@@ -534,7 +534,7 @@ def compute_vaep_v2(
         return compute_vaep(events, None, lookahead)
 
     from kawkab.core.pitch_control import WeightedPitchControl
-    from kawkab.core.xg_model import compute_xg
+    from kawkab.core.xg_model import compute_xg_trained_from_dict
 
     results = []
     pc_model = WeightedPitchControl()
@@ -586,9 +586,14 @@ def compute_vaep_v2(
             angle_to_goal = math.degrees(
                 math.atan2(PITCH_WIDTH / 2 - ball_y, PITCH_LENGTH - ball_x)
             )
-            scoring_prob = compute_xg(
-                distance_m=dist_to_goal, angle_deg=abs(angle_to_goal)
-            )
+            # Trained xG as the scoring-probability term (the legacy
+            # compute_xg heuristic underestimated xG ~5x, deflating every
+            # frame-based VAEP value with it).
+            scoring_prob = compute_xg_trained_from_dict({
+                "type": "shot",
+                "distance_m": dist_to_goal,
+                "angle_deg": abs(angle_to_goal),
+            })
 
             vaep = (delta_home - delta_away) * scoring_prob
         else:
