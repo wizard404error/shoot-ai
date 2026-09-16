@@ -239,8 +239,14 @@ class TestWorkflowConfigValidation:
         steps = jobs["build-wheel"]["steps"]
         step_names = [s.get("name", "") for s in steps]
         assert any("Build wheel" in n or "build" in n.lower() for n in step_names)
-        # Verify GitHub Release is configured
-        assert any("softprops/action-gh-release" in str(s) for s in steps)
+        # GitHub Release publishing must be configured somewhere in the
+        # workflow, in a dedicated publish job that gates on the build jobs
+        # (desktop artifacts + wheel) so a green release implies green builds.
+        assert "publish" in jobs
+        publish_steps = jobs["publish"]["steps"]
+        assert any("softprops/action-gh-release" in str(s) for s in publish_steps)
+        publish_needs = jobs["publish"].get("needs", [])
+        assert "build-wheel" in publish_needs
 
     def test_pre_commit_config_valid(self):
         path = REPO_ROOT / ".pre-commit-config.yaml"

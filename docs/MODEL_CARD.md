@@ -23,10 +23,10 @@
 |---|---|
 | **Task** | Person ReID embedding |
 | **Architecture** | OSNet (Omni-Scale Network) |
-| **Weights** | `osnet_sportsmot.pt` from boxmot v3.0.0 |
+| **Weights** | `osnet_x1_0_msmt17.pt` auto-downloaded by boxmot at first use (verified against boxmot's TRAINED_URLS registry; sha256-pinned entries for all other weights live in `core/model_manager.py`) |
 | **Training data** | SportsMOT (multi-sport tracking dataset) |
 | **Output** | 512-d L2-normalized embedding vector |
-| **Used in** | boxmot BoT-SORT tracker (GPU tier medium+) and Norfair fallback |
+| **Used in** | boxmot BoT-SORT tracker (GPU tier medium+); boxmot downloads and manages the weights itself |
 | **Failure modes** | Same-kit players on same team, extreme motion blur, very low resolution crops |
 
 ### SoccerNet ReID (optional)
@@ -35,7 +35,7 @@
 |---|---|
 | **Task** | Football-specific person ReID embedding |
 | **Architecture** | ResNet-50 + CircleLoss |
-| **Weights** | `soccernet_reid.pt` (200 MB) from SoccerNet tracking |
+| **Weights** | `soccernet_reid.pt` (200 MB) — **local file only** (`core/model_manager.py` deliberately ships no download URL; no trustworthy public host exists) |
 | **Training data** | SoccerNet tracking dataset (football matches) |
 | **Output** | 512-d L2-normalized embedding vector |
 | **Used in** | Norfair tracker (fallback after OSNet) |
