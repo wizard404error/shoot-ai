@@ -225,3 +225,103 @@ describe('openModal / closeModal', function() {
         expect(function() { ui.closeModal('non-existent'); }).not.toThrow();
     });
 });
+
+// ── Modal focus trap (WCAG 2.1 §2.4.3 / §2.1.2) ─────────────────────────────
+
+describe('modal focus trap', function() {
+    var modal;
+
+    function buildModal() {
+        modal = document.createElement('div');
+        modal.id = 'trap-modal';
+        modal.className = 'hidden';
+        modal.innerHTML =
+            '<button id="trap-first">First</button>' +
+            '<input id="trap-mid" type="text" />' +
+            '<button id="trap-last">Last</button>';
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    function pressTab(modal, shiftKey) {
+        var ev = new window.KeyboardEvent('keydown', {
+            key: 'Tab', shiftKey: !!shiftKey, bubbles: true, cancelable: true
+        });
+        modal.dispatchEvent(ev);
+        return ev;
+    }
+
+    afterEach(function() {
+        if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+        modal = null;
+    });
+
+    it('openModal moves focus to the first focusable element', function() {
+        buildModal();
+        ui.openModal('trap-modal');
+        expect(document.activeElement.id).toBe('trap-first');
+        ui.closeModal('trap-modal');
+    });
+
+    it('Tab on the last element wraps to the first', function() {
+        buildModal();
+        ui.openModal('trap-modal');
+        document.getElementById('trap-last').focus();
+        var ev = pressTab(modal, false);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(document.activeElement.id).toBe('trap-first');
+        ui.closeModal('trap-modal');
+    });
+
+    it('Shift+Tab on the first element wraps to the last', function() {
+        buildModal();
+        ui.openModal('trap-modal');
+        var ev = pressTab(modal, true);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(document.activeElement.id).toBe('trap-last');
+        ui.closeModal('trap-modal');
+    });
+
+    it('Escape closes the modal', function() {
+        buildModal();
+        ui.openModal('trap-modal');
+        modal.dispatchEvent(new window.KeyboardEvent('keydown', {
+            key: 'Escape', bubbles: true, cancelable: true
+        }));
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    it('closeModal restores focus to the element that opened it', function() {
+        buildModal();
+        var opener = document.createElement('button');
+        opener.id = 'trap-opener';
+        document.body.appendChild(opener);
+        opener.focus();
+        ui.openModal('trap-modal');
+        expect(document.activeElement.id).toBe('trap-first');
+        ui.closeModal('trap-modal');
+        expect(document.activeElement.id).toBe('trap-opener');
+        opener.parentNode.removeChild(opener);
+    });
+
+    it('closeModal does not crash when the opener element is gone', function() {
+        buildModal();
+        var opener = document.createElement('button');
+        document.body.appendChild(opener);
+        opener.focus();
+        ui.openModal('trap-modal');
+        opener.parentNode.removeChild(opener);
+        expect(function() { ui.closeModal('trap-modal'); }).not.toThrow();
+    });
+
+    it('openModal focuses the modal itself when it has no focusable children', function() {
+        var bare = document.createElement('div');
+        bare.id = 'trap-bare';
+        bare.className = 'hidden';
+        document.body.appendChild(bare);
+        ui.openModal('trap-bare');
+        expect(document.activeElement).toBe(bare);
+        ui.closeModal('trap-bare');
+        bare.parentNode.removeChild(bare);
+    });
+});

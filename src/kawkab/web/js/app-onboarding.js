@@ -122,10 +122,16 @@
 
     function finish() {
         try { localStorage.setItem('kawkab_first_run_done', 'true'); } catch (e) { /* private mode */ }
-        var modal = document.getElementById('first-run-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = '';
+        if (window.KawkabUI && window.KawkabUI.closeModal) {
+            window.KawkabUI.closeModal('first-run-modal');
+            var modal = document.getElementById('first-run-modal');
+            if (modal) modal.style.display = '';
+        } else {
+            var modal = document.getElementById('first-run-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = '';
+            }
         }
     }
 
@@ -136,7 +142,16 @@
         var modal = document.getElementById('first-run-modal');
         if (!modal) return;
 
-        modal.classList.remove('hidden');
+        // Open via the shared modal helper: wires the focus trap (Tab
+        // cycles inside, Escape closes) and remembers the opener for
+        // focus restore. The title heading is the dialog's labelled target.
+        if (window.KawkabUI && window.KawkabUI.openModal) {
+            window.KawkabUI.openModal('first-run-modal');
+        } else {
+            modal.classList.remove('hidden');
+            modal.setAttribute('tabindex', '-1');
+            modal.focus();
+        }
         modal.style.display = 'flex';
         showPane(1);
 
@@ -174,11 +189,10 @@
         var sampleBtn = document.getElementById('onboarding-sample-btn');
         if (sampleBtn) sampleBtn.addEventListener('click', loadSample);
 
-        // Focus the dialog for keyboard users; Escape skips.
-        var title = document.getElementById('first-run-title');
-        if (title && title.focus) title.focus();
+        // Escape-to-close is handled by the shared modal focus trap when
+        // available; keep a fallback for bare-open mode.
         modal.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') finish();
+            if (e.key === 'Escape' && !(window.KawkabUI && window.KawkabUI.closeModal)) finish();
         });
     }
 
