@@ -14,6 +14,7 @@ and models can be downloaded on first run.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from pathlib import Path
 from typing import Callable
@@ -25,6 +26,14 @@ from kawkab.core.paths import get_paths
 
 logger = get_logger(__name__)
 
+# Domain-separated HMAC key for the local model manifest. This is NOT a
+# security boundary against a local attacker who can read this file -- it is
+# tamper-evidence: a models.json edited by hand (or corrupted on disk) fails
+# verification and is discarded, so a swapped checksum can never bless a
+# tampered model binary. For an offline desktop app this closes the real
+# gap (accidental/casual tampering) without a full PKI.
+_MANIFEST_HMAC_KEY = b"kawkab-model-manifest-v1:hmac-sha256"
+
 
 class ModelManager:
     """Manages AI model download, caching, and validation.
@@ -34,42 +43,39 @@ class ModelManager:
     and checksums.
     """
 
-    # Default model URLs (can be overridden via manifest)
+    # Default model URLs with PINNED checksums (verified by download on
+    # 2026-09-16). Every download is rejected if its sha256 does not match.
+    # ReID weights (OSNet / SoccerNet ResNet-50) are intentionally NOT listed:
+    # their historical URLs are dead (boxmot moved to its own TRAINED_URLS on
+    # Google Drive; the SoccerNet release asset was removed), and boxmot >= 19
+    # -- the pinned dependency -- auto-downloads its ReID weights itself.
+    # Shipping only yolo11n keeps the installer small; every other variant is
+    # fetched on demand (Settings > AI Models).
     DEFAULT_MODELS = {
         "yolo11n": {
             "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt",
             "size_mb": 5.4,
-            "sha256": None,  # Fetched at runtime or from manifest
+            "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
         },
         "yolo11s": {
             "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt",
-            "size_mb": 18.6,
-            "sha256": None,
+            "size_mb": 18.4,
+            "sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5",
         },
         "yolo11m": {
             "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt",
-            "size_mb": 38.9,
-            "sha256": None,
+            "size_mb": 38.8,
+            "sha256": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95",
         },
         "yolo11l": {
             "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11l.pt",
-            "size_mb": 51.5,
-            "sha256": None,
+            "size_mb": 49.0,
+            "sha256": "9ebd0e09d59811db4b1d61e2bc6730649608b1ac47f8dd01e2da6bca7c20023f",
         },
         "yolo11x": {
             "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11x.pt",
-            "size_mb": 97.1,
-            "sha256": None,
-        },
-        "osnet_x1_0": {
-            "url": "https://github.com/mikel-brostrom/boxmot/releases/download/v10.0.64/osnet_x1_0_msmt17.pt",
-            "size_mb": 11.0,
-            "sha256": None,
-        },
-        "soccernet_reid": {
-            "url": "https://github.com/SoccerNet/sn-tracking/releases/download/v1.0/resnet50_circleloss.pt",
-            "size_mb": 200.0,
-            "sha256": None,
+            "size_mb": 109.3,
+            "sha256": "7bc158aa95c0ebfdd87f70f01653c1131b93e92522dbe15c228bcd742e773a24",
         },
     }
 
@@ -81,20 +87,51 @@ class ModelManager:
         self._load_manifest()
 
     def _load_manifest(self) -> None:
-        """Load the model manifest from disk."""
+        """Load the model manifest from disk, verifying its HMAC signature.
+
+        A manifest that fails verification (hand-edited, corrupted, or
+        tampered) is discarded so its checksums can never be used to bless a
+        swapped model binary.
+        """
         if self.manifest_path.exists():
             try:
-                self._manifest = json.loads(self.manifest_path.read_text())
+                data = json.loads(self.manifest_path.read_text())
             except (json.JSONDecodeError, OSError) as e:
                 logger.warning(f"Failed to load model manifest: {e}")
                 self._manifest = {}
+                return
+            if isinstance(data, dict) and "models" in data and "hmac" in data:
+                if self._verify_manifest_hmac(data["models"], data["hmac"]):
+                    self._manifest = data["models"]
+                else:
+                    logger.warning(
+                        "Model manifest failed signature verification -- "
+                        "discarding (models will re-register on next download)"
+                    )
+                    self._manifest = {}
+            else:
+                # Legacy unsigned manifest: accept contents this once; they
+                # are re-signed on the next save.
+                self._manifest = data if isinstance(data, dict) else {}
         else:
             self._manifest = {}
 
+    @staticmethod
+    def _manifest_hmac(models: dict) -> str:
+        payload = json.dumps(models, sort_keys=True, separators=(",", ":")).encode()
+        return hmac.new(_MANIFEST_HMAC_KEY, payload, hashlib.sha256).hexdigest()
+
+    def _verify_manifest_hmac(self, models: dict, signature: str) -> bool:
+        return hmac.compare_digest(self._manifest_hmac(models), str(signature))
+
     def _save_manifest(self) -> None:
-        """Save the model manifest to disk."""
+        """Save the model manifest to disk with an HMAC signature."""
         try:
-            self.manifest_path.write_text(json.dumps(self._manifest, indent=2))
+            signed = {
+                "models": self._manifest,
+                "hmac": self._manifest_hmac(self._manifest),
+            }
+            self.manifest_path.write_text(json.dumps(signed, indent=2))
         except OSError as e:
             logger.warning(f"Failed to save model manifest: {e}")
 
