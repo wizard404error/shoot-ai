@@ -133,6 +133,7 @@
             <a href="#results-section" class="nav-item" data-section="results-section">Report</a>
             <a href="#briefing-section" class="nav-item" data-section="briefing-section">Briefing</a>
             <a href="#proanalytics-section" class="nav-item" data-section="proanalytics-section">Pro Analytics</a>
+            <a href="#whiteboard-section" class="nav-item" data-section="whiteboard-section">Whiteboard</a>
           </div>
           <div class="nav-group">
             <span class="nav-group-title">Coding</span>
@@ -2772,6 +2773,86 @@
                 </div>
                 <div id="proanalytics-content" class="briefing-content">
                     <p class="hint">Runs 12 elite analytical models (EPV, OBV, pass flow, pressing clusters, duels, ball recovery, box entries, switches, crossing, set pieces, through balls, off-ball) on the selected match. Cards report honest availability — tracking-frame models need a video-analyzed match.</p>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 Tactical Whiteboard (coach drawing board)
+                 ============================================================ -->
+            <section id="whiteboard-section" class="section hidden">
+                <h2 data-i18n="whiteboardTitle">🖊 Tactical Whiteboard</h2>
+                <div class="briefing-toolbar">
+                    <select id="wb-board-select" class="input" aria-label="Saved boards">
+                        <option value="">-- Saved Boards --</option>
+                    </select>
+                    <button id="wb-new-btn" class="btn btn-primary">➕ New Board</button>
+                    <button id="wb-delete-btn" class="btn btn-secondary">🗑 Delete</button>
+                    <span id="wb-status" class="briefing-status" aria-live="polite"></span>
+                </div>
+                <div id="wb-unnamed" class="whiteboard-setup hidden">
+                    <div class="pro-card">
+                        <h3>Name this board</h3>
+                        <div class="form-row">
+                            <input id="wb-name-input" class="input" type="text" placeholder="e.g. Pressing triggers vs high line" maxlength="80">
+                            <select id="wb-formation-select" class="input" aria-label="Home formation"></select>
+                            <button id="wb-create-btn" class="btn btn-primary">Create</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="wb-board" class="whiteboard-board hidden">
+                    <div class="whiteboard-toolbar" role="toolbar" aria-label="Drawing tools">
+                        <div class="form-row">
+                            <label for="wb-tool-select">Tool</label>
+                            <select id="wb-tool-select" class="input">
+                                <option value="arrow">Arrow</option>
+                                <option value="run">Run (solid orange)</option>
+                                <option value="pass">Pass (dashed green)</option>
+                                <option value="line">Line</option>
+                                <option value="freehand">Freehand</option>
+                                <option value="circle">Circle</option>
+                                <option value="rectangle">Rectangle</option>
+                                <option value="zone">Zone</option>
+                                <option value="text">Text</option>
+                            </select>
+                            <label for="wb-color-select">Color</label>
+                            <select id="wb-color-select" class="input">
+                                <option value="#ffffff">White</option>
+                                <option value="#f39c12">Run (orange)</option>
+                                <option value="#2ecc71">Pass (green)</option>
+                                <option value="#e74c3c">Shot (red)</option>
+                                <option value="#f1c40f">Yellow</option>
+                                <option value="#3498db">Blue</option>
+                            </select>
+                            <button id="wb-undo-btn" class="btn btn-secondary">Undo</button>
+                            <button id="wb-clear-btn" class="btn btn-secondary">Clear Drawings</button>
+                            <button id="wb-ball-btn" class="btn btn-secondary">⚽ Place Ball</button>
+                        </div>
+                        <div class="form-row">
+                            <label for="wb-home-formation">Home</label>
+                            <select id="wb-home-formation" class="input" aria-label="Home formation"></select>
+                            <label for="wb-away-formation">Away</label>
+                            <select id="wb-away-formation" class="input" aria-label="Away formation"></select>
+                            <button id="wb-apply-formations-btn" class="btn btn-secondary">Apply Formations</button>
+                            <button id="wb-template-both-btn" class="btn btn-secondary">⚖ Template Both Teams</button>
+                            <button id="wb-move-btn" class="btn btn-toggle" aria-pressed="false">✥ Move Players</button>
+                            <button id="wb-save-btn" class="btn btn-primary">💾 Save</button>
+                            <button id="wb-export-btn" class="btn btn-secondary">🖼 Export SVG</button>
+                        </div>
+                    </div>
+                    <div id="wb-canvas-wrap" class="whiteboard-canvas-wrap">
+                        <svg id="wb-canvas" class="whiteboard-canvas" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Tactics board pitch" data-testid="wb-canvas">
+                            <rect x="0" y="0" width="100" height="100" fill="#1a5c2a" stroke="white" stroke-width="0.4" vector-effect="non-scaling-stroke"></rect>
+                            <line x1="50" y1="0" x2="50" y2="100" stroke="white" stroke-width="0.3" stroke-dasharray="1.5,1" vector-effect="non-scaling-stroke"></line>
+                            <circle cx="50" cy="50" r="8" fill="none" stroke="white" stroke-width="0.3" vector-effect="non-scaling-stroke"></circle>
+                            <rect x="0" y="30" width="8" height="40" fill="none" stroke="white" stroke-width="0.3" vector-effect="non-scaling-stroke"></rect>
+                            <rect x="92" y="30" width="8" height="40" fill="none" stroke="white" stroke-width="0.3" vector-effect="non-scaling-stroke"></rect>
+                            <g id="wb-layer-zones"></g>
+                            <g id="wb-layer-annotations"></g>
+                            <g id="wb-layer-players"></g>
+                            <g id="wb-layer-draft"></g>
+                        </svg>
+                    </div>
+                    <p class="hint" id="wb-hint">Pick a tool, then drag on the pitch. Use "Move Players" to drag players; Save stores the board in the app database.</p>
                 </div>
             </section>
         </main>

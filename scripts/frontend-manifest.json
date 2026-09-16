@@ -31,6 +31,7 @@
     "js/app-search-compare.js",
     "js/tactical_sandbox.js",
     "js/app-briefing.js",
-    "js/app-proanalytics.js"
+    "js/app-proanalytics.js",
+    "js/app-whiteboard.js"
   ]
 }

@@ -191,6 +191,14 @@
                     new QWebChannel(qt.webChannelTransport, function(channel) {
                         bridge = channel.objects.kawkab;
                         window.__kawkab.bridge = bridge;
+                        // Global alias: the split modules (app-tactics,
+                        // app-briefing, app-squad, app-coding, app-opponent,
+                        // app-proanalytics, app-3d, live-tagging in
+                        // index.html) reference a free `bridge` variable,
+                        // which resolves to window.bridge -- without this
+                        // assignment it is always undefined and every one of
+                        // those features silently no-ops at runtime.
+                        window.bridge = bridge;
                         checkLLMStatus();
                         loadGPUInfo();
                         loadMatchHistory();
@@ -2922,6 +2930,12 @@
         if (window.KawkabTactics) return window.KawkabTactics.initTacticsWorkspace();
     }
 
+    // ── Tactical Whiteboard (delegated to app-whiteboard.js) ──
+
+    function initWhiteboardWorkspace() {
+        if (window.KawkabWhiteboard) return window.KawkabWhiteboard.initWhiteboardWorkspace();
+    }
+
     // ── 3D Pitch Visualization (delegated to app-3d.js) ──
 
     function loadPitch3dMatchSelect() {
@@ -4849,6 +4863,10 @@
             saveFilterState();
             initProAnalyticsWorkspace();
         });
+        router.register('whiteboard', 'whiteboard-section', function() {
+            saveFilterState();
+            initWhiteboardWorkspace();
+        });
 
         // Initialize PWA on load
         initPWA();
@@ -4928,6 +4946,7 @@
 
         // ── Phase 2.3-4 & 3-4 Init ──
         initTacticsWorkspace();
+        initWhiteboardWorkspace();
         initAiWorkspace();
         initSquadWorkspace();
         initSquadHealthTab();

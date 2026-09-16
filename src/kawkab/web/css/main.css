@@ -5699,3 +5699,67 @@ body {
   * { box-shadow: none !important; text-shadow: none !important; }
 }
 
+
+/* ── Tactical Whiteboard ─────────────────────────────────────────────── */
+.whiteboard-setup {
+    margin-bottom: 1rem;
+}
+
+.whiteboard-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.whiteboard-toolbar .form-row {
+    align-items: center;
+}
+
+.whiteboard-toolbar label {
+    font-size: 0.85rem;
+    color: var(--text-muted, #9ca3af);
+    white-space: nowrap;
+}
+
+.whiteboard-toolbar .input {
+    min-width: 0;
+    width: auto;
+    flex: 0 1 auto;
+}
+
+.whiteboard-canvas-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #1a5c2a;
+    touch-action: none;
+}
+
+.whiteboard-canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    cursor: crosshair;
+    user-select: none;
+}
+
+.whiteboard-canvas.wb-move-mode {
+    cursor: grab;
+}
+
+.btn-toggle {
+    border: 1px solid var(--border);
+}
+
+.btn-toggle.active {
+    background: var(--accent, #2563eb);
+    color: white;
+}
+
+/* Wider rows on the whiteboard toolbar on small screens */
+@media (max-width: 720px) {
+    .whiteboard-toolbar .form-row {
+        flex-wrap: wrap;
+    }
+}
