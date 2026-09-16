@@ -196,7 +196,7 @@ def parse_skillcorner(path: str | Path, *, pitch_length_m: float = KAWKAB_X_MAX,
     a seconds clock reads as ~0.04 — which self-calibrates per file
     instead of guessing from absolute magnitude.
     """
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if isinstance(data, list):
         data = {"frames": data}

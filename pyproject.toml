@@ -172,6 +172,10 @@ ignore = ["E501", "B008"]
 "tests/unit/test_multi_camera_fusion.py" = ["N806"]
 "tests/unit/test_lightglue_homography_service.py" = ["N806"]
 "tests/unit/test_xg_trainer.py" = ["N806"]
+# Feature-matrix variables (X, X_train, X_val) in the validation trainers —
+# same standard ML notation as test_xg_trainer above.
+"src/kawkab/core/validation/train_psxg.py" = ["N806"]
+"scripts/validate_models.py" = ["N806"]
 
 [tool.ruff.format]
 # ruff format replaces black (see .pre-commit-config.yaml) -- having both

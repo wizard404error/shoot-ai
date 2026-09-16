@@ -8,20 +8,32 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any
 
-import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from kawkab.api.models import (
-    MatchOut, MatchListOut, EventOut, PlayerOut,
-    ShotAnalysisOut, TacticalShapesOut, PressingOut,
-    PlayerRatingOut, SquadSummaryOut, MatchReportOut,
-    LlmQueryIn, LlmQueryOut, CalibrationOut, ModelComparisonOut,
-    FitnessOut, RecruitmentSearchIn, TransferFeeEstimateOut,
-    GamePlanOut, MonitoringDashboardOut, WebhookCreateIn, WebhookOut,
+    CalibrationOut,
+    EventOut,
+    FitnessOut,
+    GamePlanOut,
+    LlmQueryIn,
+    LlmQueryOut,
+    MatchOut,
+    MatchReportOut,
     ModelCardOut,
+    ModelComparisonOut,
+    MonitoringDashboardOut,
+    PlayerOut,
+    PlayerRatingOut,
+    PressingOut,
+    RecruitmentSearchIn,
+    ShotAnalysisOut,
+    SquadSummaryOut,
+    TacticalShapesOut,
+    TransferFeeEstimateOut,
+    WebhookCreateIn,
+    WebhookOut,
 )
 from kawkab.core.rbac import require_permission
 
@@ -207,13 +219,13 @@ async def analyze_shots(match_id: int, _user: dict = Depends(require_permission(
     _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     shots = [e for e in events if e.get("type") == "shot"]
-    from kawkab.core.xg_model import compute_xg_from_dict
+    from kawkab.core.xg_model import compute_xg_trained_from_dict
 
     shot_data = []
     total_xg = 0.0
     total_goals = 0
     for s in shots:
-        xg = compute_xg_from_dict(s)
+        xg = compute_xg_trained_from_dict(s)
         is_goal = bool(s.get("is_goal", False))
         total_xg += xg
         if is_goal:

@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -1306,7 +1306,7 @@ class PostgresStorageAdapter:
             else:
                 dt = datetime.fromisoformat(str(match_date))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             vals.append(dt)
         if competition is not None:
             sets.append(f"competition = ${len(vals) + 1}")

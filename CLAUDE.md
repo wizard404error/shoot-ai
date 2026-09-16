@@ -830,6 +830,241 @@ that masked several of these until tested in isolation.
     (`get_injury_risk`, `generate_training_plan`) — flagged as a
     follow-up task rather than fixed in this pass; see Known Gaps.
 
+## What was fixed this session (2026-09-07 — elite-readiness pass)
+
+**Environment note:** this session ran on a Linux machine (the repo's
+history is Windows-first); a `.venv-linux` (Python 3.12, uv-managed) was
+created with the analysis-surface deps (numpy/scipy/loguru/pydantic/pytest/
+fastapi/opencv-headless/ultralytics/PySide6). The documented Windows
+`.venv` remains untouched. Tests that import the full CV stack need those
+packages; pure-core tests (validation package, xG/xT/PSxG models) don't.
+
+**P1 — Models trained on real data (the elite-readiness unlock):**
+- `src/kawkab/core/validation/` — new package: StatsBomb loader (corpus →
+  Kawkab schema, freeze-frame GK distance, 120×80→105×68m conversion),
+  Metrica tracking loader (→ OBV/EPV frame schema), strict-validated metric
+  suite (Brier, BSS, reliability, tie-aware AUC, log loss, ECE, bootstrap
+  CI — NaN/out-of-range inputs raise, never silently propagate into a
+  report), and three trainers (`train_xg`, `train_psxg`, `train_xt`).
+- **xG trained**: 5,905 shots from 297 StatsBomb matches → fitted logistic
+  weights (`trained_xg_coefficients.json`, auto-loaded, heuristic kept as
+  fallback). Held-out 1,449 shots: **Brier 0.0707 vs StatsBomb's own
+  0.0667**, AUC 0.772 vs 0.780, ECE 0.0143 (heuristic was ECE 0.068 and
+  underestimated mean xG 5×). Provenance API:
+  `EnhancedXgModel().coeffs_source`, `trained_model_available()`;
+  `compute_xg_trained_from_dict()` is the function new call sites must
+  use (legacy `compute_xg_from_dict` kept for compat).
+- **PSxG trained + 3-implementation unification started**: fitted from
+  2,768 on-target shots (Brier 0.167, AUC 0.753). The empirical zone
+  table (top corners 0.34, top-center 0.156) caught the first feature
+  set conflating lateral/vertical into one center-distance radius —
+  redesigned as lateral×height interaction. `psxg_model.py` keeps its
+  legacy signature (goalkeeper_analytics depends on it) but loads
+  fitted coefficients; `psxg_improved.py`/`psxg_model_trained.py` remain
+  as compat heuristics (full deletion still open — see Known Gaps).
+- **xT reference grid**: league-wide 20×32 grid from 534,927 actions
+  (`trained_xt_grid.json`), monotonic (own-half 0.025 < final-third
+  0.897). `ExpectedThreatModel.build_transition_matrix` now falls back
+  to a reference-grid blend when a match has <200 actions (cold-start
+  matches previously got an all-zero grid).
+- `scripts/validate_models.py` — reproducible CLI emitting
+  `docs/validation/validation_report.json` + `REPORT.md` covering all
+  three models with bootstrap CIs. `MODEL_CARD.md` updated with the
+  measured tables and honest caveats (GK-distance features come from
+  SB freeze frames — not yet extracted from live video).
+
+**P2 — Trust debt cleared:**
+- `test_bridge_contract.py` grew a second contract layer: every
+  `self._X.method(...)` delegation in bridge.py must exist in the
+  matching `bridge_handlers/*.py` (the `ai_v2_list_convs` bug class).
+  Verified by planting a fake broken delegation — the test caught it.
+- Shadowed-duplicate methods merged: `get_injury_risk` (both old versions
+  were wrong — one read never-populated workload_d1..28 fields, the other
+  FABRICATED ACWR from a `100 + (i%20-10)` sawtooth; canonical version
+  uses real GPS `get_player_acwr` data with honest `insufficient_data`
+  when absent, response carries BOTH field-name conventions) and
+  `generate_training_plan` (kept the event-driven version; deleted the
+  mock-diagnosis dead copy). `ruff --select F811` on bridge_handlers/ is
+  now clean. `tests/unit/test_phase6_sprint1.py`'s unknown-player test
+  now pins the honest "Player not found" contract (it previously
+  asserted fabricated scores for nonexistent players).
+- `tests/integration/test_bridge_advanced_metrics.py`'s FakeCVService
+  signature was stale (missing `match_id`/`storage_service` params the
+  real `CVService.process_video` takes) — every analyze_match call
+  TypeError'd into error-payload asserts. Stub mirrors the real
+  signature now; 4/4 pass. (The CLAUDE.md note blaming the tempdir
+  path policy for these failures was wrong — the real cause was the
+  stale stub, found by actually reading the error.)
+- `pg_schema.sql` duplicate `seasons` table: second (silently no-op)
+  definition commented out with an explanatory note — canonical is the
+  first, narrower one.
+- `pressing_efficiency.py::compute_trap_to_shot_rate` had the same
+  None-vs-default `dict.get` bug class as tactical_shape_analyzer (fixed
+  there 2026-08-19 but not here): storage's json_extract emits `x: None`
+  for events without spatial data → `float(None)` TypeError. Fixed with
+  the same explicit None-check. Found via the interop tests below
+  running real imported data through it.
+
+**P4b — StatsBomb interop (the elite-club wedge):**
+- `services/statsbomb_import_service.py`: imports a StatsBomb events
+  file into the Kawkab DB (match + events + players + cached headline
+  metrics, xG computed by the trained model at import time). Clubs run
+  the full 117-model stack on their existing event data with zero video
+  capture. Handles the migration-015 dedup index (same-type/same-second
+  events by one player = true duplicates, skipped + counted).
+- `POST /api/v1/matches/import/statsbomb` — RBAC-gated (analysis:run),
+  accepts file_path (SecurityValidator-validated) or inline events_json.
+- `tests/unit/test_statsbomb_import_service.py` (7 tests, all against a
+  REAL migration-chained SQLite DB + real corpus files) — includes a
+  downstream-models smoke test proving pass-network, pressing, and
+  tactical-shape analyzers run on imported data unchanged.
+
+**New-test totals this session:** 41 (validation package) + 7 (import
+service) + 3 test files repaired (phase6: 18, bridge_advanced_metrics: 4,
+phase5 collection now works with cv2 installed). All green.
+
+**P4a — Pro Analytics suite wired (the 57-orphaned-modules gap, first tranche):**
+- `ui/bridge_handlers/bridge_pro_analytics.py` (new handler): one
+  `get_pro_analytics_report(match_id)` aggregating 12 elite modules —
+  OBV, EPV, pass flow, pressing clusters, duels, ball recovery, box
+  entries, switches of play, crossing, set pieces, through balls,
+  off-ball — each block with an honest `data_available` flag + reason.
+  Delegates to core/ exclusively; storage rows normalized ONCE centrally
+  (`_normalize_event`: event_type→type, metadata JSON → top-level
+  x/y/is_goal) instead of per-module adaptation.
+- Bridge slot `get_pro_analytics_report` + API endpoint
+  `GET /api/v1/matches/{id}/analysis/pro` (RBAC analysis:read) +
+  frontend section (`app-proanalytics.js`, nav "Pro Analytics", route
+  `proanalytics`, manifest entry, bundle rebuilt). Frontend cards render
+  per-block availability — never fabricated zeros.
+- **3 real core-module crashes fixed via real-imported-data testing**
+  (all the same None-vs-default bug class): `epv._to_zone` and
+  `epv.compute_possession_epv` (None/ZONE_WIDTH TypeError; end_x-start_x
+  on None), `ball_recovery._to_zone` + `classify_recovery`
+  (`math.isfinite(None)` TypeError). Each guarded with pitch-center
+  fallback.
+- `statsbomb_import_service._SB_TYPE_MAP` completed with the full
+  open-data type census (Ball Recovery→interception so core/ recovery
+  modules count it, Pressure, Block, Dribbled Past, Shield, 50/50→duel,
+  Error→miscontrol, Bad Behaviour, Player On/Off, Own Goal variants).
+- **`analyze_match` now passes `storage_service` to `process_video`** —
+  tracking-frame persistence (the documented non-default path that made
+  OBV/EPV/off-ball silently empty) is now the default for every video
+  analysis. Event-data imports still have no frames; those blocks report
+  data_available:False with the reason, per the honest-empty principle.
+- **Frontend test gate repaired** (was: jest-circus missing /
+  "Module not found" — the CLAUDE.md-documented flaky Node/jest combo
+  finally broken by a stale node_modules): `npm install` in
+  `src/kawkab/web` restored 118/118 tests passing. The bundler needed
+  `esbuild` resolvable from repo root (`npm install --no-save esbuild`
+  at root — web/node_modules has it but scripts/bundle-js.mjs resolves
+  from its own location).
+- `tests/unit/test_pro_analytics_handler.py` (6 tests): report shape,
+  event-blocks-compute on a real import, tracking-blocks honest-when-
+  absent, OBV/off-ball compute with synthetic frames, empty-store honest
+  failure, and the None-coordinate regression tests for EPV/ball_recovery.
+
+**P4a tranche 2 + season analytics (2026-09-07, second build pass):**
+- **Trained-model migration complete**: the last two live call sites on
+  the legacy heuristic migrated — `api_v1.get_shots_analysis` (the
+  `/analysis/shots` endpoint) and `vaep.py`'s frame-based scoring-prob
+  term (legacy heuristic underestimated xG ~5x, deflating every VAEP
+  value with it). `model_comparison.py`'s heuristic-vs-enhanced calls are
+  deliberate (that module's purpose is comparing them) — untouched.
+- **Pro Analytics tranche 2 (13 new blocks)**: carry_xt, xg_chain,
+  game_state, flank_analysis, defensive_xt, corner_xg, crossing_xg,
+  expected_pass, passing_triangles, scoreline + honest-empty velocity /
+  influence_map / lineup_optimizer (need calibrated tracking or season
+  history — reasons say so). 17 of 25 blocks compute live on a plain
+  StatsBomb import. Frontend ORDER/BLOCK_META extended; bundle rebuilt.
+- **3 more real core-module crashes fixed** (the None-coordinate bug
+  class, found by feeding real imported data through): `defensive_xt`
+  (zone math on None — unlocated defensive events are now SKIPPED, not
+  center-fallback: an xT-prevented value needs a real location);
+  `passing_triangles` (sorted() over a set containing None track_ids);
+  `scoreline_distribution` (sum over xg=None feeding Poisson rate).
+  Plus handler-side: scoreline's nested return shape was flattened
+  wrongly (reads result["scorelines"] now).
+- **PSxG trio unified**: `psxg_improved.py` and `psxg_model_trained.py`
+  DELETED (hand-tuned zone heuristics, zero product consumers — only
+  their own tests imported them). Their behavioral contracts (header <
+  foot, distance decay, bounds) were ported to `test_psxg_model.py`'s
+  new `TestTrainedModelBehavior`. Canonical: `psxg_model.py` with fitted
+  coefficients. The docstring history note in train_psxg.py updated.
+- **Season analytics handler** (`bridge_season_analytics.py` +
+  `get_season_pro_report` slot + `GET /api/v1/season/pro` + frontend
+  "Season Report" button): formation trends across matches (honestly
+  labeled approximation from event x-distributions — the true formation
+  detector needs tracking data and there is no formation column in the
+  schema), discipline/suspension risk from accumulated card events,
+  fixture difficulty with opponent strengths inferred from stored
+  results. 4 tests; single-match stores get an honest "needs ≥ 2
+  matches" response.
+- **Known-gaps count**: orphaned core/ modules down to ~30 (25 wired
+  across the two Pro Analytics tranches + season handler; the rest need
+  tracking-frame team assignment, season history, or are deliberately
+  dormant).
+
+## What was fixed this session (2026-09-16 — commit-integrity + xG angle-convention pass)
+
+**P0 — HEAD (907798a) was a broken commit.** The 2026-09-15 commit applied
+COMMIT-PLAN.md's "exclude the concurrent xG session's files" rule at
+whole-file granularity instead of hunk granularity, so the committed tree
+referenced files that were never committed:
+- `ui/bridge_handlers/__init__.py` imported `bridge_pro_analytics.py` /
+  `bridge_season_analytics.py` → `import kawkab.ui.bridge` crashed on a
+  fresh checkout of HEAD.
+- `core/xg_model.py` loaded `trained_xg_coefficients.json` (masked at
+  runtime by the heuristic fallback) and `__main__.py` wired a `validate`
+  CLI whose `scripts/validate_models.py` + `core/validation/train_*.py`
+  were also untracked.
+Fixed by committing the working tree in thematic groups (analytics
+handlers first — that alone repairs the import crash; then models; then
+the 2026-09-02 accuracy-audit fixes; then docs), with a scripted
+tracked→untracked reference audit run before staging.
+
+**P1 — the trained xG fit was built on the wrong angle convention (real
+bug, caught by the committed sanity guard shipping in the same commit):**
+- `validation/statsbomb_loader.shot_distance_angle` returns the
+  goal-OPENING angle (posts subtended from the shot; central ≈ 36°,
+  goal-line-wide ≈ 90°+). `EnhancedXgModel` (and the CV pipeline via
+  `atan2(|dy|,|dx|)`) consumes the DEVIATION-from-central convention
+  (0° = central; `1 − cos(angle)` with a negative coefficient). Training
+  on opening angle taught the model that WIDE shots score MORE —
+  `TestTrainedXgCoefficientsSanity` failed with 11m-central = 0.057 and
+  11m-wide = 0.49 — and distance decay collapsed onto the angle term
+  (fitted `angle_sin` = +5.89 on `1 − cos`). Same disease the 56-shot
+  fit had; scripts/train_xg_from_statsbomb.py's `_get_angle` had already
+  been fixed for exactly this and its docstring documents the history.
+- Fix: added `shot_deviation_angle` to the loader (opening angle KEPT —
+  PSxG's serving model is calibrated for it and its tests pin it) +
+  `StatsBombShot.angle_deviation_deg` (appended LAST so positional
+  constructions keep their meaning). `train_xg.py` feeds the deviation
+  on both the fit and predict boundaries; `statsbomb_import_service`
+  stores `angle_deviation_deg` alongside `angle_deg` (metadata key
+  `angle_deg` stays OPENING — the PSxG serving path reads it with a
+  positive-coefficient convention; live-CV events already emit
+  deviation-style `angle_to_goal_deg`, so imports are now consistent
+  with them).
+- Retrained from the committed 297-match corpus (offline, no network):
+  Brier 0.0707 / AUC **0.7724** (was 0.7667) / ECE 0.0143 / mean xG
+  0.0999 vs true 0.10 — wide < central now holds, distance decays.
+  `docs/validation/REPORT.md` + `MODEL_CARD.md` regenerated with the
+  corrected numbers.
+- Convention table (put this near any angle-eating model): xG →
+  deviation (0 = central); PSxG → opening (posts subtended). The
+  DB/event metadata `angle_deg` key holds OPENING for imports and the
+  CV pipeline stores `angle_to_goal_deg` (deviation) — a known wart,
+  documented rather than silently renamed.
+
+**Environment note:** this session ran in `.venv-linux` (Python 3.12).
+5 `test_raindrop_detection_service.py` failures are env-only (this venv's
+opencv build lacks `groupRectangles`; Windows CI has it) and 1
+`test_easy_soccer_service.py::test_get_event` failure likewise (the
+service does `import esd` inside the method; esd isn't installed here —
+CLAUDE.md documents playwright as esd's undeclared dependency). Not code
+bugs; not chased further.
+
 ## Known gaps (found, understood, deliberately not fixed this session — read before assuming any of these "just work")
 
 - **Storage backend divergence.** `StorageService` (SQLite) and
@@ -1028,7 +1263,11 @@ that masked several of these until tested in isolation.
   built — these two passes fixed what was *broken* and what was safely
   mechanical, not a full design-system migration.
 - **57 of 117 `core/` analytical modules are built and tested but not
-  wired into the UI** (Season Form + xA below have been). Full list by area:
+  wired into the UI** (down ~12 as of 2026-09-07 — the Pro Analytics
+  handler surfaces EPV, OBV, pass_flow, pressing_clusters, duels,
+  ball_recovery, box_entries, switch_of_play, crossing, set_pieces,
+  through_balls, offball_metrics; Season Form/xA/pressing-efficiency
+  wired earlier). Remaining by area (full list shrunk accordingly):
   - Attacking: `xa_split` (xA itself now wired, see below), `expected_pass`, `through_ball`,
     `crossing_analysis`, `crossing_xg`, `corner_xg`, `box_entries`,
     `packing`, `switch_of_play`
@@ -1067,14 +1306,15 @@ that masked several of these until tested in isolation.
   - **Three independent PSxG implementations exist** (`core/psxg_model.py`,
     used by `analysis/goalkeeper_analytics.py`; `core/psxg_improved.py` and
     `core/psxg_model_trained.py`, both fully tested but never imported by
-    anything). Despite the "trained" name, none of the three loads real
-    fitted weights from disk — all three are hand-tuned heuristics with
-    different signatures and return shapes (a dataclass, a *different*
-    dataclass, and a bare float, respectively). Not a simple
-    "delegate the weaker one to the stronger one" fix like pass_network/
-    progressive_actions were — would need picking one canonical API and
-    deciding whether the other two's ideas are worth folding in, or
-    deleting genuinely-tested-but-superseded code.
+    anything). **Partially resolved 2026-09-07:** `psxg_model.py` now loads
+    fitted coefficients (`trained_psxg_coefficients.json`, trained from
+    2,768 StatsBomb on-target shots; Brier 0.167 / AUC 0.753) while
+    keeping its legacy API. The other two files still exist as hand-tuned
+    zone-grid heuristics with different signatures/return shapes — full
+    unification (deleting them or folding their zone taxonomy into the
+    fitted model) is still open. None of the three is used by the live
+    CV pipeline's event path yet (goalkeeper_analytics is the only
+    consumer of psxg_model).
 - **113 of 325+ `@Slot` methods are never called from any JS file**
   (down from the original audit's count as this session wired a few more
   in) — includes the entire tactical whiteboard feature (19 slots, 45
@@ -1153,21 +1393,14 @@ that masked several of these until tested in isolation.
 - **`pytest tests/ -n auto` (full root tree, all of it) is not clean —
   found 3 more issues while running it for the first time as part of the
   final verification pass, past this two fixed above:
-  1. **`test_bridge_advanced_metrics_wiring` and
-     `test_bridge_frame_skip_parameter`** (`tests/integration/
-     test_bridge_advanced_metrics.py`) both build their fake video with
-     `tempfile.TemporaryDirectory()`, which is never under
-     `Documents/KawkabAI` — so `SecurityValidator.validate_video_path`
-     (correctly, per its own directory-allowlist policy) rejects it, and
-     `Bridge.analyze_match` returns `{"error": "Path traversal
-     denied..."}` instead of the success payload the test expects. This
-     predates this session (the directory restriction is an existing
-     policy, not something added here); these two tests were never updated
-     to account for it. Needs either mocking `SecurityValidator
-     .validate_video_path` for these two tests specifically, or pointing
-     the fixture at a real subdirectory under the KawkabAI documents path
-     — not done, since either choice affects how much these tests are
-     actually still testing what they claim to.
+  1. ~~**`test_bridge_advanced_metrics_wiring` and
+     `test_bridge_frame_skip_parameter`**~~ — **fixed 2026-09-07, and
+     the original diagnosis was wrong**: the failures were NOT the
+     tempdir-path policy — they were a stale `FakeCVService
+     .process_video` stub missing the `match_id`/`storage_service`
+     parameters the real method takes (every analyze_match call
+     TypeError'd into error-payload asserts). The stub now mirrors the
+     real signature; 4/4 pass.
   2. **Tests that pass individually can fail when the *entire* `tests/`
      tree runs together** (confirmed: `test_cv_service_model_manager.py`
      and all of `tests/e2e/test_e2e_video_pipeline.py` pass 100% clean in
@@ -1183,33 +1416,24 @@ that masked several of these until tested in isolation.
      audit across the stub-installing test files that
      `test_norfair_tracker.py` got.
   3. **`test_e2e_pipeline.py::TestCoverageConfig::test_coverage_fail_under_is_50`**
-     asserts `.github/workflows/test.yml` contains the literal string
-     `"fail-under=50"` — that string was never in `test.yml` (checked: zero
-     matches for `fail-under`/`fail_under` in the file), so this test
-     predates this session and was already failing before any of today's
-     coverage-threshold changes. The real threshold now honestly lives in
-     `pyproject.toml`'s `[tool.coverage.report] fail_under = 65` (coverage.py
-     reads it automatically); this test's premise — that `test.yml` needs
-     its own separate, duplicate CLI flag — was never true. Not fixed;
-     either delete the test or change what it asserts.
+     ~~fixed before 2026-09-07~~ — now asserts pyproject's
+     `fail_under = 65` (passes; see `tests/e2e/test_e2e_pipeline.py`
+     line ~227 for the current assertion).
 - **`test_bridge_contract.py` only checks that `bridge.py` has a `@Slot`
   for every JS call — not that the handler method the slot delegates to
   (`self._analysis.X(...)`, `self._auth.Y(...)`, etc.) actually exists.**
-  This is exactly the gap that let `ai_v2_list_convs` (see above) ship
-  broken: the slot was there, the handler method wasn't. Closing this
-  needs parsing `bridge.py`'s own `self._X.method(...)` delegation calls
-  and cross-checking each against the real handler classes' method sets —
-  more involved than the current JS-string-vs-slot-name regex, not
-  attempted this session.
-- **2 more shadowed-duplicate methods in `bridge_analysis.py`**:
-  `get_injury_risk` (lines ~2399 and ~2817) and `generate_training_plan`
-  (lines ~2514 and ~2875) are each defined twice in `AnalysisHandler`,
-  found via `ruff check --select F811` while verifying the
-  `get_squad_injury_report` fix above (which was the same bug). Not fixed
-  this pass — each needs the same investigation (which version has real
-  vs. fabricated data, which field names the frontend actually reads)
-  before merging. `ruff --select F811` against the rest of
-  `ui/bridge_handlers/` hasn't been run; there may be more.
+  ~~Closed 2026-09-07~~: `test_every_slot_delegation_targets_a_real_handler_method`
+  parses bridge.py's `self._X.method(...)` delegations and verifies each
+  against the real handler modules' method sets. Verified fail-positive
+  by planting a fake broken delegation.
+- **2 more shadowed-duplicate methods in `bridge_analysis.py`** — ~~fixed
+  2026-09-07~~: both merged (see "What was fixed" above); `ruff
+  --select F811` against `ui/bridge_handlers/` is clean as of this
+  session. The live-video xG event path still calls the legacy heuristic
+  `compute_xg_from_dict` in several places other than the fixed
+  `compute_goals_added` — migrating every call site to
+  `compute_xg_trained_from_dict` is open (grep
+  `compute_xg_from_dict` in services/ + bridge_handlers/).
 
 ## Graphify
 

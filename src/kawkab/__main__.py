@@ -785,7 +785,6 @@ def _run_validate(args):
     Exit code 0 = report written (even if numbers are bad — honesty is
     the gate, not optimism), matching scripts/validate_models.py.
     """
-    import json as _json
 
     from kawkab.services.validation_report_service import ValidationReportService
 
