@@ -107,6 +107,12 @@ def decrypt_dict(
         if val and isinstance(val, str):
             try:
                 result[field] = decrypt(val)
-            except Exception:
-                pass
+            except Exception as exc:
+                # A failed decrypt on a medical/PII field must never be
+                # silent: with a wrong or rotated key, "ciphertext" would
+                # otherwise be indistinguishable from "no data" downstream.
+                logger.warning(
+                    f"decrypt failed for field '{field}' "
+                    f"(len={len(val)}): {type(exc).__name__}: {exc}"
+                )
     return result

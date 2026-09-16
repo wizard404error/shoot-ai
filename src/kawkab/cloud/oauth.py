@@ -44,6 +44,7 @@ class OAuthProvider:
                 "grant_type": "authorization_code",
             },
             headers={"Accept": "application/json"},
+            timeout=10.0,
         )
         if resp.status_code != 200:
             return None
@@ -53,6 +54,7 @@ class OAuthProvider:
         resp = httpx.get(
             self.config.userinfo_url,
             headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10.0,
         )
         if resp.status_code != 200:
             return None
@@ -68,6 +70,7 @@ class OAuthProvider:
                 "grant_type": "refresh_token",
             },
             headers={"Accept": "application/json"},
+            timeout=10.0,
         )
         if resp.status_code != 200:
             return None

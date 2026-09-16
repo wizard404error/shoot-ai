@@ -423,9 +423,26 @@ class EnhancedXgModel:
 
         return features
 
-    @functools.lru_cache(maxsize=128)
     def compute_single(self, features: EnhancedXgFeatures) -> float:
-        """Compute xG for a single feature vector."""
+        """Compute xG for a single feature vector.
+
+        Results are memoized per model instance. A shared class-level
+        lru_cache here keyed on `features` alone leaked results across
+        model instances -- two EnhancedXgModels with different
+        coefficients could serve each other's cached xG values.
+        """
+        cache = self.__dict__.setdefault("_compute_single_cache", {})
+        try:
+            return cache[features]
+        except KeyError:
+            pass
+        value = self._compute_single_uncached(features)
+        if len(cache) >= 128:
+            cache.clear()
+        cache[features] = value
+        return value
+
+    def _compute_single_uncached(self, features: EnhancedXgFeatures) -> float:
         if features.is_penalty:
             return PENALTY_XG
 

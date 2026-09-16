@@ -146,8 +146,11 @@ class AnalysisServiceCore:
         possession = self._compute_possession(track_data, homography_matrix)
         pass_network = self._compute_pass_network(events, track_data.player_teams)
 
-        home = TeamStats(team_name="Home")
-        away = TeamStats(team_name="Away")
+        # Merge the event-driven team stats with the possession split.
+        # (_compute_player_stats fills only physical fields; all event counts
+        # live on these objects, so there is no double-counting.)
+        home = team_stats["home"]
+        away = team_stats["away"]
         home.possession_pct = possession["home"]
         away.possession_pct = possession["away"]
 
@@ -256,6 +259,10 @@ class AnalysisServiceCore:
                 "away": away_formation,
             },
             pressing_intensity=home_ppda.get("ppda") or 0.0,
+            ppda_breakdown={
+                "home": home_ppda,
+                "away": away_ppda,
+            },
             xg_total=xg_data,
             xt_total=xt_data,
             typed_events=typed_events,
