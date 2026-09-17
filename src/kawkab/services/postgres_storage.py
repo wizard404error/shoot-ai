@@ -38,6 +38,8 @@ class PostgresStorageAdapter:
     # ── Core connection methods ─────────────────────────────────────────────
 
     async def initialize(self):
+        if self._pool:
+            return  # idempotent: initialize() is safe to call repeatedly
         if not self._dsn:
             self._dsn = os.environ.get("KAWKAB_DB_URL")
         if not self._dsn:

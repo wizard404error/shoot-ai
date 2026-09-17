@@ -69,7 +69,14 @@ class StorageService:
 
     async def initialize(self) -> None:
         if self._use_postgres:
-            return  # PostgresStorageAdapter handles init via _pg delegation
+            # Bring up the adapter's connection pool. The old code early-
+            # returned here *without ever calling _pg.initialize()*, so the
+            # pool was never created and every delegated call fell into the
+            # adapter's no-pool fallback: Postgres deployments silently
+            # returned empty data instead of persisting anything.
+            if self._pg is not None:
+                await self._pg.initialize()
+            return
         from kawkab.core.migration_manager import MigrationManager
         from kawkab.core.paths import get_paths
 

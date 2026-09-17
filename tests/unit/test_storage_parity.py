@@ -274,3 +274,135 @@ class TestTrackingImportRoundTrip:
         assert got[0]["player_detections"][0]["x"] == pytest.approx(10.0)
         assert got[4]["ball_detections"][0]["y"] == pytest.approx(34.0)
         assert asyncio.run(sqlite_storage.get_tracking_frame_count(match_id)) == 5
+
+
+# ── Postgres-mode initialize contract ────────────────────────────────────────
+# StorageService.initialize() in Postgres mode used to early-return WITHOUT
+# calling the adapter's initialize(), so the pool was never created and every
+# delegated call hit the no-pool fallback: Postgres deployments silently
+# returned empty results. These tests pin the fixed contract.
+
+
+class TestPostgresModeInitializeContract:
+    """StorageService(dsn) + initialize() must actually bring the pool up."""
+
+    @pytest.mark.asyncio
+    async def test_pg_mode_initialize_calls_adapter_initialize(self):
+        """The regression: initialize() in Postgres mode must delegate."""
+        from kawkab.services.storage_service import StorageService
+
+        svc = StorageService(dsn="postgresql://user:pass@localhost:5432/kawkab_test")
+        assert svc._use_postgres is True
+        assert svc._pg is not None
+
+        calls = []
+
+        async def fake_init():
+            calls.append(True)
+
+        svc._pg.initialize = fake_init
+        await svc.initialize()
+        assert calls, "StorageService.initialize() must call _pg.initialize() in PG mode"
+
+    @pytest.mark.asyncio
+    async def test_pg_adapter_initialize_is_idempotent(self):
+        """Calling initialize() twice must not create two pools."""
+
+        from kawkab.services import postgres_storage
+
+        adapter = postgres_storage.PostgresStorageAdapter(
+            dsn="postgresql://user:pass@localhost:5432/kawkab_test"
+        )
+        created = []
+
+        class _FakePool:
+            async def close(self):
+                created.append("closed")
+
+        async def fake_create_pool(dsn, min_size=2, max_size=10):
+            created.append(dsn)
+            return _FakePool()
+
+        import asyncpg  # noqa: F401 -- proves the dep import path works
+
+        orig_create = None
+        try:
+            import asyncpg as _asyncpg
+
+            orig_create = _asyncpg.create_pool
+            _asyncpg.create_pool = fake_create_pool
+            await adapter.initialize()
+            await adapter.initialize()  # second call: must early-return
+        finally:
+            if orig_create is not None:
+                import asyncpg as _asyncpg
+
+                _asyncpg.create_pool = orig_create
+        assert created.count("postgresql://user:pass@localhost:5432/kawkab_test") == 1, (
+            "initialize() must be idempotent — one pool per adapter lifetime"
+        )
+
+    @pytest.mark.asyncio
+    async def test_pg_adapter_initialize_without_dsn_stays_unavailable(self):
+        from kawkab.services import postgres_storage
+
+        adapter = postgres_storage.PostgresStorageAdapter(dsn=None)
+        # Ensure no ambient KAWKAB_DB_URL leaks into the unit test
+        import os
+
+        orig = os.environ.pop("KAWKAB_DB_URL", None)
+        try:
+            await adapter.initialize()
+        finally:
+            if orig is not None:
+                os.environ["KAWKAB_DB_URL"] = orig
+        assert adapter._pool is None
+        assert adapter._available is False
+
+    def test_sqlite_mode_dsn_omitted_uses_sqlite_path(self):
+        from kawkab.services.storage_service import StorageService
+
+        svc = StorageService()
+        assert svc._use_postgres is False
+        assert svc._db_path is not None
+
+
+# ── Contract-storage parity (migration 017) ─────────────────────────────────
+
+
+class TestContractStorageParity:
+    """Contracts storage exists on BOTH backends (migration 017 table +
+    the Settings contracts panel read path)."""
+
+    def test_contract_methods_on_both_backends(self, sqlite_storage, pg_adapter):
+        for method in ("save_contract", "get_contracts", "get_contracts_expiring_soon"):
+            assert hasattr(sqlite_storage, method), f"SQLite missing {method}"
+            assert hasattr(pg_adapter, method), f"Postgres missing {method}"
+
+    @pytest.mark.asyncio
+    async def test_contract_round_trip_on_real_migrated_sqlite(self, sqlite_storage):
+        from datetime import date, timedelta
+
+        cid = await sqlite_storage.save_contract(
+            {
+                "player_profile_id": 1,
+                "player_name": "Parity Pro",
+                "contract_type": "loan",
+                "start_date": "2025-07-01",
+                "end_date": (date.today() + timedelta(days=45)).isoformat(),
+                "wage_weekly_pounds": 40.0,
+            }
+        )
+        assert cid > 0
+        contracts = await sqlite_storage.get_contracts()
+        assert any(
+            c["player_name"] == "Parity Pro" and c["contract_type"] == "loan" for c in contracts
+        )
+        expiring = await sqlite_storage.get_contracts_expiring_soon(90)
+        assert any(c["player_name"] == "Parity Pro" for c in expiring)
+
+    def test_pg_contract_methods_fail_soft_without_pool(self, pg_adapter):
+        """No live Postgres in unit CI: delegated calls must fail soft."""
+        assert asyncio.iscoroutinefunction(pg_adapter.get_contracts)
+        assert asyncio.iscoroutinefunction(pg_adapter.save_contract)
+        assert asyncio.iscoroutinefunction(pg_adapter.get_contracts_expiring_soon)
