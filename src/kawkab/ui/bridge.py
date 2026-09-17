@@ -21,7 +21,9 @@ from kawkab.ui.bridge_handlers import (
     LifecycleHandler,
     ProAnalyticsHandler,
     ProviderHandler,
+    RecruitmentHandler,
     SeasonAnalyticsHandler,
+    SettingsHandler,
     StorageHandler,
     VideoHandler,
 )
@@ -152,6 +154,8 @@ class Bridge(QObject):
         self._rate_limiter.configure("coding", 20)
 
         self._analysis = AnalysisHandler(self, services, rate_limiter=self._rate_limiter)
+        self._recruitment = RecruitmentHandler(self, services, rate_limiter=self._rate_limiter)
+        self._settings = SettingsHandler(self, services, rate_limiter=self._rate_limiter)
         self._coding = CodingHandler(self, services, rate_limiter=self._rate_limiter)
         self._export = ExportHandler(self, services, rate_limiter=self._rate_limiter)
         self._video = VideoHandler(self, services, rate_limiter=self._rate_limiter)
@@ -1267,39 +1271,39 @@ class Bridge(QObject):
 
     @Slot(str, str, result=str)
     async def scout_search_players(self, query: str, position: str = "") -> str:
-        return await self._analysis.scout_search_players(query, position)
+        return await self._recruitment.scout_search_players(query, position)
 
     @Slot(str, str, result=str)
     async def search_external_player(self, query: str, position: str = "") -> str:
-        return await self._analysis.search_external_player(query, position)
+        return await self._recruitment.search_external_player(query, position)
 
     @Slot(result=str)
     async def get_shortlist(self) -> str:
-        return await self._analysis.get_shortlist()
+        return await self._recruitment.get_shortlist()
 
     @Slot(str, str, result=str)
     async def add_shortlist_entry(self, entry_json: str, _unused: str = "") -> str:
-        return await self._analysis.add_shortlist_entry(entry_json)
+        return await self._recruitment.add_shortlist_entry(entry_json)
 
     @Slot(int, str, result=str)
     async def update_shortlist_entry(self, entry_id: int, updates_json: str) -> str:
-        return await self._analysis.update_shortlist_entry(entry_id, updates_json)
+        return await self._recruitment.update_shortlist_entry(entry_id, updates_json)
 
     @Slot(int, result=str)
     async def delete_shortlist_entry(self, entry_id: int) -> str:
-        return await self._analysis.delete_shortlist_entry(entry_id)
+        return await self._recruitment.delete_shortlist_entry(entry_id)
 
     @Slot(result=str)
     async def get_contracts(self) -> str:
-        return await self._analysis.get_contracts()
+        return await self._recruitment.get_contracts()
 
     @Slot(str, result=str)
     async def add_contract(self, contract_json: str) -> str:
-        return await self._analysis.add_contract(contract_json)
+        return await self._recruitment.add_contract(contract_json)
 
     @Slot(result=str)
     async def get_contract_alerts(self) -> str:
-        return await self._analysis.get_contract_alerts()
+        return await self._recruitment.get_contract_alerts()
 
     # ================================================================
     # Recruitment hub — external scouting sources
@@ -1307,11 +1311,11 @@ class Bridge(QObject):
 
     @Slot(str, result=str)
     async def transfermarkt_search_players(self, name: str) -> str:
-        return await self._analysis.transfermarkt_search(name)
+        return await self._recruitment.transfermarkt_search(name)
 
     @Slot(str, str, str, result=str)
     async def recruit_from_search(self, player_id: str, source: str, player_json: str) -> str:
-        return await self._analysis.recruit_from_search(player_id, source, player_json)
+        return await self._recruitment.recruit_from_search(player_id, source, player_json)
 
     # ================================================================
     # Settings — model cache manager + updates
@@ -1319,23 +1323,23 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def get_model_cache_info(self) -> str:
-        return await self._analysis.get_model_cache_info()
+        return await self._settings.get_model_cache_info()
 
     @Slot(str, result=str)
     async def download_model(self, model_name: str) -> str:
-        return await self._analysis.download_model_slot(model_name)
+        return await self._settings.download_model_slot(model_name)
 
     @Slot(str, result=str)
     async def delete_cached_model(self, model_name: str) -> str:
-        return await self._analysis.delete_cached_model(model_name)
+        return await self._settings.delete_cached_model(model_name)
 
     @Slot(result=str)
     async def get_settings_overview(self) -> str:
-        return await self._analysis.get_settings_overview()
+        return await self._settings.get_settings_overview()
 
     @Slot(int, int, result=str)
     async def generate_scout_report(self, track_id: int, match_id: int = 0) -> str:
-        return await self._analysis.generate_scout_report_pdf(track_id, match_id)
+        return await self._settings.generate_scout_report_pdf(track_id, match_id)
 
     @Slot(int, int, result=str)
     async def get_player_rating(self, match_id: int, track_id: int) -> str:
@@ -1516,7 +1520,7 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def get_app_info(self) -> str:
-        return await self._analysis.get_app_info()
+        return await self._settings.get_app_info()
 
     # ================================================================
     # Phase 10 — Telestration v2
@@ -1636,23 +1640,23 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def opponent_list(self) -> str:
-        return await self._analysis.opponent_list()
+        return await self._recruitment.opponent_list()
 
     @Slot(str, result=str)
     async def opponent_get(self, profile_id: str) -> str:
-        return await self._analysis.opponent_get(profile_id)
+        return await self._recruitment.opponent_get(profile_id)
 
     @Slot(str, str, str, result=str)
     async def opponent_create(self, team_name: str, league: str = "", country: str = "") -> str:
-        return await self._analysis.opponent_create(team_name, league, country)
+        return await self._recruitment.opponent_create(team_name, league, country)
 
     @Slot(str, str, result=str)
     async def opponent_update(self, profile_id: str, updates_json: str) -> str:
-        return await self._analysis.opponent_update(profile_id, updates_json)
+        return await self._recruitment.opponent_update(profile_id, updates_json)
 
     @Slot(str, result=str)
     async def opponent_delete(self, profile_id: str) -> str:
-        return await self._analysis.opponent_delete(profile_id)
+        return await self._recruitment.opponent_delete(profile_id)
 
     @Slot(str, str, str, str, str, str, str, str, str, result=str)
     async def opponent_add_matchup(
@@ -1668,7 +1672,7 @@ class Bridge(QObject):
         their_xg: str = "0.0",
         notes: str = "",
     ) -> str:
-        return await self._analysis.opponent_add_matchup(
+        return await self._recruitment.opponent_add_matchup(
             profile_id,
             our_team,
             date,
@@ -1683,7 +1687,7 @@ class Bridge(QObject):
 
     @Slot(str, result=str)
     async def opponent_scouting_report(self, profile_id: str) -> str:
-        return await self._analysis.opponent_scouting_report(profile_id)
+        return await self._recruitment.opponent_scouting_report(profile_id)
 
     @Slot(str, str, str, str, str, str, result=str)
     async def scout_network_search(
@@ -1695,7 +1699,7 @@ class Bridge(QObject):
         league: str = "",
         min_rating: str = "0.0",
     ) -> str:
-        return await self._analysis.scout_network_search(
+        return await self._recruitment.scout_network_search(
             query, position, min_age, max_age, league, min_rating
         )
 
@@ -1713,7 +1717,7 @@ class Bridge(QObject):
         submitted_by: str = "",
         tags_json: str = "[]",
     ) -> str:
-        return await self._analysis.scout_network_add(
+        return await self._recruitment.scout_network_add(
             name,
             position,
             club,
@@ -1728,27 +1732,27 @@ class Bridge(QObject):
 
     @Slot(str, result=str)
     async def scout_network_get(self, player_id: str) -> str:
-        return await self._analysis.scout_network_get(player_id)
+        return await self._recruitment.scout_network_get(player_id)
 
     @Slot(str, result=str)
     async def scout_network_delete(self, player_id: str) -> str:
-        return await self._analysis.scout_network_delete(player_id)
+        return await self._recruitment.scout_network_delete(player_id)
 
     @Slot(result=str)
     async def scout_network_stats(self) -> str:
-        return await self._analysis.scout_network_stats()
+        return await self._recruitment.scout_network_stats()
 
     @Slot(str, result=str)
     async def transfermarkt_search(self, name: str) -> str:
-        return await self._analysis.transfermarkt_search(name)
+        return await self._recruitment.transfermarkt_search(name)
 
     @Slot(str, result=str)
     async def transfermarkt_get(self, player_id: str) -> str:
-        return await self._analysis.transfermarkt_get(player_id)
+        return await self._recruitment.transfermarkt_get(player_id)
 
     @Slot(str, result=str)
     async def transfermarkt_squad(self, club_name: str) -> str:
-        return await self._analysis.transfermarkt_squad(club_name)
+        return await self._recruitment.transfermarkt_squad(club_name)
 
     # ================================================================
     # Phase 15 — Community Marketplace
@@ -1907,19 +1911,19 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def get_recommended_yolo_variant(self) -> str:
-        return await self._analysis.get_recommended_yolo_variant()
+        return await self._settings.get_recommended_yolo_variant()
 
     @Slot(result=str)
     async def get_current_yolo_variant(self) -> str:
-        return await self._analysis.get_current_yolo_variant()
+        return await self._settings.get_current_yolo_variant()
 
     @Slot(str, result=str)
     async def set_yolo_variant(self, variant: str) -> str:
-        return await self._analysis.set_yolo_variant(variant)
+        return await self._settings.set_yolo_variant(variant)
 
     @Slot(result=str)
     async def get_gpu_tier(self) -> str:
-        return await self._analysis.get_gpu_tier()
+        return await self._settings.get_gpu_tier()
 
     # ================================================================
     # Sprint 2 — Advanced Visualizations

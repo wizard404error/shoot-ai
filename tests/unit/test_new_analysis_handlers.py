@@ -22,6 +22,7 @@ from conftest import install_kawkab_stubs
 install_kawkab_stubs()
 
 from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+from kawkab.ui.bridge_handlers.bridge_recruitment import RecruitmentHandler
 
 
 class MockStorageService:
@@ -304,7 +305,9 @@ class TestSearchExternalPlayer:
         # No configured provider supports player-name search (see
         # docstring on the handler) -- confirms it degrades to an empty,
         # well-formed result rather than raising.
-        handler = _handler()
+        # search_external_player moved to RecruitmentHandler in the Phase 6
+        # handler split (it is part of the recruitment/scouting surface).
+        handler = RecruitmentHandler(bridge=None, services={}, rate_limiter=None)
         result = json.loads(await handler.search_external_player("Messi"))
         assert result["players"] == []
 

@@ -29,10 +29,10 @@
 
     var _templates = [];
 
-    // Resolve the QWebChannel bridge at call time. app.js assigns both
-    // window.__kawkab.bridge and window.bridge once the channel connects.
+    // Resolve the QWebChannel bridge at call time via the shared helper
+    // in utils.js (KawkabUtils.getBridge).
     function resolveBridge() {
-        return (window.__kawkab && window.__kawkab.bridge) || window.bridge || null;
+        return (window.KawkabUtils && KawkabUtils.getBridge) ? KawkabUtils.getBridge() : null;
     }
 
     function escapeHtml(s) {

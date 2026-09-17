@@ -75,20 +75,66 @@ class TestSettingsWorkspaceWiring:
             "index.html no longer loads the app bundle"
         )
 
+    def test_shared_get_bridge_helper_exists(self):
+        """utils.js owns the single bridge resolver; the split modules use it.
+
+        Three modules used to carry byte-identical resolveBridge() copies;
+        they must keep delegating to KawkabUtils.getBridge instead of
+        re-implementing the probe chain.
+        """
+        utils = (WEB / "js" / "utils.js").read_text(encoding="utf-8")
+        assert "KU.getBridge = function()" in utils, (
+            "utils.js lost the shared KawkabUtils.getBridge helper"
+        )
+        assert "window.kawkabBridge" in utils, (
+            "getBridge must keep probing the legacy kawkabBridge alias"
+        )
+        for mod in ("app-onboarding.js", "app-settings.js", "app-whiteboard.js"):
+            js = (WEB / "js" / mod).read_text(encoding="utf-8")
+            assert "KawkabUtils.getBridge" in js, (
+                f"{mod} no longer resolves the bridge through the shared helper"
+            )
+
+    def test_shipped_bundle_contains_get_bridge_helper(self):
+        bundle = WEB / "dist" / "app.bundle.min.js"
+        if not bundle.exists():
+            return  # bundle is a build artifact; sources checked above
+        js = bundle.read_text(encoding="utf-8")
+        assert "getBridge" in js, "shipped bundle lost the getBridge helper"
+
     def test_bridge_chain_for_settings_slots(self):
-        """bridge.py slot -> bridge_analysis handler, both sides present."""
+        """bridge.py slot -> handler method, both sides present.
+
+        Handlers live in their split homes since the Phase 6 handler split:
+        settings overview -> bridge_settings.py, contracts ->
+        bridge_recruitment.py (recruitment hub owns shortlist + contracts).
+        """
         bridge = (SRC / "ui" / "bridge.py").read_text(encoding="utf-8")
-        handlers = (SRC / "ui" / "bridge_handlers" / "bridge_analysis.py").read_text(
+        settings_handler = (SRC / "ui" / "bridge_handlers" / "bridge_settings.py").read_text(
             encoding="utf-8"
         )
-        for slot in ("get_settings_overview", "get_contract_alerts", "get_contracts"):
+        recruitment_handler = (
+            SRC / "ui" / "bridge_handlers" / "bridge_recruitment.py"
+        ).read_text(encoding="utf-8")
+        for slot, home in (
+            ("get_settings_overview", settings_handler),
+            ("get_contract_alerts", recruitment_handler),
+            ("get_contracts", recruitment_handler),
+        ):
             assert f"def {slot}" in bridge, f"bridge.py lost slot {slot}"
-            assert f"def {slot}" in handlers, f"bridge_analysis lost handler {slot}"
+            assert f"def {slot}" in home, f"{slot} handler lost from its split home"
+
+    def test_split_handlers_are_wired_in_bridge(self):
+        """The split handlers must be instantiated and used by bridge.py."""
+        bridge = (SRC / "ui" / "bridge.py").read_text(encoding="utf-8")
+        for cls, attr in (("RecruitmentHandler", "self._recruitment"), ("SettingsHandler", "self._settings")):
+            assert cls in bridge, f"bridge.py no longer imports/instantiates {cls}"
+            assert f"{attr}." in bridge, f"bridge.py no longer delegates through {attr}"
 
     def test_handler_reads_storage_contract_methods(self):
         """get_contract_alerts must keep consuming get_contracts_expiring_soon
         and derive the critical/warning split the panel renders."""
-        handlers = (SRC / "ui" / "bridge_handlers" / "bridge_analysis.py").read_text(
+        handlers = (SRC / "ui" / "bridge_handlers" / "bridge_recruitment.py").read_text(
             encoding="utf-8"
         )
         assert "get_contracts_expiring_soon(180)" in handlers, (

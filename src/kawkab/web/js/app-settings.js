@@ -9,7 +9,8 @@
     var _models = [];
 
     function resolveBridge() {
-        return (window.__kawkab && window.__kawkab.bridge) || window.bridge || null;
+        // Shared helper lives in utils.js (KawkabUtils.getBridge).
+        return (window.KawkabUtils && KawkabUtils.getBridge) ? KawkabUtils.getBridge() : null;
     }
 
     function escapeHtml(s) {

@@ -9,7 +9,9 @@ from .bridge_import import ImportHandler
 from .bridge_lifecycle import LifecycleHandler
 from .bridge_pro_analytics import ProAnalyticsHandler
 from .bridge_provider import ProviderHandler
+from .bridge_recruitment import RecruitmentHandler
 from .bridge_season_analytics import SeasonAnalyticsHandler
+from .bridge_settings import SettingsHandler
 from .bridge_storage import StorageHandler
 from .bridge_video import VideoHandler
 
@@ -24,6 +26,8 @@ __all__ = [
     "ExternalHandler",
     "LifecycleHandler",
     "ProviderHandler",
+    "RecruitmentHandler",
     "ProAnalyticsHandler",
     "SeasonAnalyticsHandler",
+    "SettingsHandler",
 ]
