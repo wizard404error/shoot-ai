@@ -31,14 +31,14 @@ def _lateral_direction(seq: list[dict[str, Any]]) -> str:
 
 
 def _net_forward_progress(seq: list[dict[str, Any]]) -> float:
-    start_x = seq[0].get("start_x", PITCH_LENGTH / 2)
-    end_x = seq[-1].get("end_x", PITCH_LENGTH / 2)
+    start_x: float = seq[0].get("start_x", PITCH_LENGTH / 2)
+    end_x: float = seq[-1].get("end_x", PITCH_LENGTH / 2)
     return end_x - start_x
 
 
 @dataclass
 class PassPatternReport:
-    team_patterns: dict[str, dict[str, float]] = field(default_factory=dict)
+    team_patterns: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
     build_up: dict[str, Any] = field(default_factory=dict)
     combination_zones: list[dict[str, Any]] = field(default_factory=list)
 
@@ -134,7 +134,7 @@ class PassPatternAnalyzer:
     def cluster_sequences_by_pattern(
         self,
         events: list[dict[str, Any]],
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[str, dict[str, float]]]:
         sequences = self.extract_pass_sequences(events)
         team_counts: dict[str, defaultdict[str, int]] = {}
         for seq in sequences:
@@ -144,11 +144,11 @@ class PassPatternAnalyzer:
             pattern = self.classify_sequence_pattern(seq)
             team_counts[team][pattern] += 1
 
-        result: dict[str, dict[str, float]] = {}
+        result: dict[str, dict[str, dict[str, float]]] = {}
         for team, counts in team_counts.items():
             total = sum(counts.values())
             result[team] = {
-                k: {"count": v, "pct_of_total": round(v / total * 100, 1) if total else 0}
+                k: {"count": float(v), "pct_of_total": round(v / total * 100, 1) if total else 0.0}
                 for k, v in counts.items()
             }
         return result
@@ -186,7 +186,7 @@ class PassPatternAnalyzer:
 
         total = sum(side_counts.values()) or 1
         pct_per_side = {k: round(v / total * 100, 1) for k, v in side_counts.items()}
-        primary_side = max(side_counts, key=side_counts.get)
+        primary_side = max(side_counts, key=lambda k: side_counts[k])
 
         # Count how many build-up sequences ended with a shot within 5 events
         sorted_ev = sorted(team_events, key=lambda e: e.get("timestamp", 0))

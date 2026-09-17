@@ -170,23 +170,25 @@ class EPVModel:
             return EPVResult()
 
         team = possession[0].get("team", "home")
+
         # Coordinates may be present-but-NULL for events without spatial
         # data — fall back to the previous event's position / pitch
         # center instead of propagating None into the progress math
         # (end_x - start_x raised TypeError on real imported matches).
-        start_x = possession[0].get("x") if possession[0].get("x") is not None else 52.5
-        start_y = possession[0].get("y") if possession[0].get("y") is not None else 34.0
+        def _coord(value: Any, fallback: float) -> float:
+            return float(value) if value is not None else fallback
+
+        start_x = _coord(possession[0].get("x"), 52.5)
+        start_y = _coord(possession[0].get("y"), 34.0)
         last_ev = possession[-1]
-        end_x = (
-            last_ev.get("end_x")
-            if last_ev.get("end_x") is not None
-            else (last_ev.get("x") if last_ev.get("x") is not None else start_x)
-        )
-        end_y = (
-            last_ev.get("end_y")
-            if last_ev.get("end_y") is not None
-            else (last_ev.get("y") if last_ev.get("y") is not None else start_y)
-        )
+        raw_end_x = last_ev.get("end_x")
+        if raw_end_x is None:
+            raw_end_x = last_ev.get("x")
+        end_x = _coord(raw_end_x, start_x)
+        raw_end_y = last_ev.get("end_y")
+        if raw_end_y is None:
+            raw_end_y = last_ev.get("y")
+        end_y = _coord(raw_end_y, start_y)
 
         start_val = self._zone_value(start_x, start_y)
 

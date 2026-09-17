@@ -12,7 +12,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 
 @dataclass
@@ -284,7 +284,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="drill",
                     source="community",
-                    **dict(sample.items()),
+                    **dict(sample.items()),  # type: ignore[arg-type]
                 )
                 self._items[item.id] = item
 
@@ -298,7 +298,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="template",
                     source="community",
-                    **dict(sample.items()),
+                    **dict(sample.items()),  # type: ignore[arg-type]
                 )
                 self._items[item.id] = item
 
@@ -312,7 +312,7 @@ class MarketplaceService:
                     id=str(uuid.uuid4())[:8],
                     item_type="plugin",
                     source="community",
-                    **dict(sample.items()),
+                    **dict(sample.items()),  # type: ignore[arg-type]
                 )
                 self._items[item.id] = item
 
@@ -322,7 +322,7 @@ class MarketplaceService:
         self, item_type: str = "", category: str = "", query: str = "", source: str = ""
     ) -> list[dict]:
         query = query.lower().strip()
-        results = []
+        results: list[dict[str, Any]] = []
         for item in self._items.values():
             if item_type and item.item_type != item_type:
                 continue

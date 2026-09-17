@@ -180,7 +180,7 @@ class AdvancedEventDetectionService:
 
     def _detect_dribbles(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect dribbles: ball stays with same player for 3+ frames while moving."""
-        events = []
+        events: list[dict] = []
         dribble_min_frames = 3
         dribble_min_distance = 1.0  # meters
 
@@ -288,7 +288,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect tackles: ball changes from attacker to defender with close proximity."""
-        events = []
+        events: list[dict] = []
         tackle_events = set()
 
         for i, event in enumerate(base_events):
@@ -327,7 +327,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect interceptions: ball changes team without a pass event (pass was cut off)."""
-        events = []
+        events: list[dict] = []
         pass_timestamps = {e["timestamp"] for e in base_events if e.get("type") == "pass"}
 
         prev_possession = None
@@ -385,7 +385,7 @@ class AdvancedEventDetectionService:
 
     def _detect_clearances(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect clearances: ball kicked from defensive third to safety with high speed."""
-        events = []
+        events: list[dict] = []
         ball_history = []
 
         for frame in track_data.frames:
@@ -464,7 +464,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect goals: shot events where ball crosses goal line and slows."""
-        events = []
+        events: list[dict] = []
         _ = 300
 
         ball_positions: list[tuple[float, float, float, float, int]] = []
@@ -544,11 +544,11 @@ class AdvancedEventDetectionService:
 
     def _detect_corners(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect corners: ball near corner arc after out of play."""
-        events = []
+        events: list[dict] = []
         corner_radius = 5.0
         _ = 200
 
-        ball_trail: list[tuple[float, float, float, float]] = []
+        ball_trail: list[tuple[float, float, float, float, float]] = []
         ball_lost_frames = 0
         for frame in track_data.frames:
             ball_det = None
@@ -619,7 +619,7 @@ class AdvancedEventDetectionService:
 
     def _detect_free_kicks(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect free kicks: ball stationary 2+ seconds then kicked hard."""
-        events = []
+        events: list[dict] = []
         stationary_frames = 0
         stationary_start_time = 0.0
         stationary_pitch_pos: tuple[float, float] | None = None
@@ -714,11 +714,11 @@ class AdvancedEventDetectionService:
 
     def _detect_throw_ins(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect throw-ins: ball near sideline after going out of play."""
-        events = []
+        events: list[dict] = []
         sideline_threshold = 8.0 if homography_matrix else 50
         ball_lost_frames = 0
 
-        ball_trail: list[tuple[float, float, float, float]] = []
+        ball_trail: list[tuple[float, float, float, float, float]] = []
         for frame in track_data.frames:
             ball_det = None
             for det in frame.detections:
@@ -796,7 +796,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect crosses: pass from wide area into penalty area."""
-        events = []
+        events: list[dict] = []
 
         for event in base_events:
             if event.get("type") != "pass":
@@ -841,7 +841,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect ball recoveries: team wins possession back."""
-        events = []
+        events: list[dict] = []
         prev_team = None
         recovery_cooldown = 0
 
@@ -874,7 +874,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect blocks: defender near ball when shot/pass is taken."""
-        events = []
+        events: list[dict] = []
 
         for event in base_events:
             if event.get("type") not in ("shot", "pass"):
@@ -904,7 +904,7 @@ class AdvancedEventDetectionService:
 
     def _detect_duels(self, track_data: MatchTrackData, homography_matrix=None) -> list[dict]:
         """Detect duels: two players from opposite teams within 2m of each other near ball."""
-        events = []
+        events: list[dict] = []
         duel_cooldown: dict[int, int] = defaultdict(int)
 
         for frame in track_data.frames:
@@ -970,7 +970,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect carries: ball moves with player without being a pass or dribble."""
-        events = []
+        events: list[dict] = []
         # Carries are essentially short dribbles that don't meet dribble criteria
         # Or ball movement between pass and dribble
         # For now, this is a placeholder - carries are hard to distinguish from dribbles
@@ -998,7 +998,7 @@ class AdvancedEventDetectionService:
         """
         from kawkab.core.progressive_actions import _is_progressive_carry, _is_progressive_pass
 
-        events = []
+        events: list[dict] = []
 
         for event in base_events:
             ev_type = event.get("type")
@@ -1053,7 +1053,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect passes and carries that enter the final third (last 35m)."""
-        events = []
+        events: list[dict] = []
         final_third_start = self.pitch_length * 0.67
 
         for event in base_events:
@@ -1086,7 +1086,7 @@ class AdvancedEventDetectionService:
         self, track_data: MatchTrackData, base_events: list[dict], homography_matrix=None
     ) -> list[dict]:
         """Detect high turnovers: ball lost in final 40m of pitch."""
-        events = []
+        events: list[dict] = []
         high_turnover_line = self.pitch_length * 0.6
 
         for event in base_events:

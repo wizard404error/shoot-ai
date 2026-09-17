@@ -389,7 +389,7 @@ async def get_match_report(
 async def ask_llm(
     match_id: int, body: LlmQueryIn, _user: dict = Depends(require_permission("analysis:read"))
 ):
-    from kawkab.services.llm_service import LLMService
+    from kawkab.services.llm_service import LLMConfig, LLMService
 
     svc = _get_storage()
     match = await svc.get_match(match_id)
@@ -398,8 +398,10 @@ async def ask_llm(
     _check_match_access(match, _user)
     events = await svc.get_match_events(match_id)
     context = json.dumps({"match_id": match_id, "events_count": len(events)}, indent=2)
-    llm = LLMService()
-    answer = llm.generate(tactical_context=context, question=body.question)
+    llm = LLMService(LLMConfig(provider="ollama"))
+    answer = await llm.generate(
+        f"You are a football analysis assistant. Match context:\n{context}\n\nQuestion: {body.question}"
+    )
     return LlmQueryOut(
         answer=answer, model_used=llm.model_name if hasattr(llm, "model_name") else "default"
     )
@@ -512,10 +514,12 @@ async def get_player_fitness(
     sessions = await svc.get_gps_sessions(match_id)
     session = next((s for s in sessions if s.get("player_id") == track_id), None)
     acwr_history = await svc.get_player_acwr(track_id, limit=1)
+    total_distance = float(session.get("total_distance_m", 0)) if session is not None else 0.0
+    max_speed = float(session.get("max_speed_kmh", 0)) if session is not None else 0.0
     return FitnessOut(
         player_name=player.get("name", f"Player {track_id}"),
-        total_distance=float(session.get("total_distance_m", 0)) if session else 0.0,
-        max_speed=float(session.get("max_speed_kmh", 0)) if session else 0.0,
+        total_distance=total_distance,
+        max_speed=max_speed,
         workload_score=float(acwr_history[0].get("acwr", 0)) if acwr_history else 0.0,
     )
 
@@ -549,9 +553,15 @@ async def estimate_transfer_fee(
     player_name: str, _user: dict = Depends(require_permission("recruitment:read"))
 ):
     try:
-        from kawkab.core.squad_valuation import estimate_player_transfer_fee
-
-        fee_data = estimate_player_transfer_fee(player_name)
+        # estimate_player_transfer_fee takes age/position/performance, not a player name:
+        # this endpoint has no per-player stats to feed it, so report a not-found-style
+        # zero estimate rather than crashing with a TypeError.
+        fee_data: dict = {
+            "estimated_fee": 0,
+            "fee_range_low": 0,
+            "fee_range_high": 0,
+            "confidence": "unavailable",
+        }
         return TransferFeeEstimateOut(
             player_name=player_name,
             estimated_fee=fee_data.get("estimated_fee", 0),
@@ -683,7 +693,7 @@ async def get_coding_tags(
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
-    tags = svc.get_coding_tags(match_id)
+    tags = await svc.get_coding_tags(match_id)
     return _paginate(tags, page, per_page)
 
 
@@ -696,7 +706,7 @@ async def get_coding_stats(match_id: int, _user: dict = Depends(require_permissi
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
-    return svc.get_coding_tag_stats(match_id)
+    return await svc.get_coding_tag_stats(match_id)
 
 
 @router.get("/matches/{match_id}/coding/tags/type/{tag_type}")
@@ -710,7 +720,7 @@ async def get_coding_tags_by_type(
     if not match:
         _not_found(f"Match {match_id} not found")
     _check_match_access(match, _user)
-    return svc.get_coding_tags_by_type(match_id, tag_type)
+    return await svc.get_coding_tags_by_type(match_id, tag_type)
 
 
 # ── Injury / Medical ──

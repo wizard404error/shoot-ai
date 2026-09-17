@@ -56,10 +56,10 @@ class WeatherImageClassifier:
     """
 
     def __init__(self, model_path: str | None = None) -> None:
-        self._cnn_model = None
+        self._cnn_model: Any = None
         self._cnn_available = False
         self._model_path = model_path
-        self._torch = None
+        self._torch: Any = None
         self._try_load_cnn()
 
     def _try_load_cnn(self) -> None:
@@ -145,7 +145,7 @@ class WeatherImageClassifier:
             votes[r.predicted_class] = votes.get(r.predicted_class, 0) + 1
             for c, p in r.class_probabilities.items():
                 avg_probs[c] += p / len(results)
-        winner = max(votes, key=votes.get)
+        winner = max(votes, key=votes.get)  # type: ignore[arg-type]
         return WeatherClassification(
             predicted_class=winner,
             confidence=avg_probs[winner],
@@ -205,7 +205,7 @@ class WeatherImageClassifier:
         if total > 0:
             for c in scores:
                 scores[c] /= total
-        predicted = max(scores, key=scores.get)
+        predicted = max(scores, key=scores.get)  # type: ignore[arg-type]
         return WeatherClassification(
             predicted_class=predicted,
             confidence=scores[predicted],

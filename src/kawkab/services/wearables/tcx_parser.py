@@ -76,8 +76,6 @@ class TcxParser(BaseWearableParser):
 
         # Iterate all Trackpoints across all Laps
         for tp in root.iter():
-            if ET.TAG in (tp.tag, ""):
-                continue
             # Match any element whose local name is "Trackpoint"
             local = self._local_tag(tp.tag)
             if local == "Trackpoint":

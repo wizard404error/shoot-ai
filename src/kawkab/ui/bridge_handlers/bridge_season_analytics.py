@@ -87,7 +87,7 @@ class SeasonAnalyticsHandler:
                     except (json.JSONDecodeError, TypeError):
                         e["metadata"] = {}
                 e["type"] = e.get("event_type") or e.get("type") or "unknown"
-                meta = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
+                meta: dict = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
                 for key in ("x", "y", "is_goal", "card_type"):
                     if key in meta and e.get(key) is None:
                         e[key] = meta[key]

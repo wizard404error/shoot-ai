@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # StatsBomb event type -> Kawkab event_type (subset that maps cleanly;
 # unmapped types are preserved with their original name lowercased so
 # nothing is silently dropped).
-_SB_TYPE_MAP: dict[str, str] = {
+_SB_TYPE_MAP: dict[str, str | None] = {
     "Pass": "pass",
     "Shot": "shot",
     "Carry": "carry",

@@ -130,7 +130,7 @@ class ReasoningService:
 
     def _precompute_event_stats(self, events: list[dict]) -> dict:
         """Single-pass event analysis for all check methods."""
-        stats = {
+        stats: dict[str, Any] = {
             "goals": [],
             "turnovers": [],
             "shots": [],

@@ -3,36 +3,8 @@
 from __future__ import annotations
 
 from kawkab.core.logging import get_logger
+from kawkab.core.security import SecurityValidator
 from kawkab.services.storage.base import BaseStorage
-
-try:
-    from kawkab.core.security import SecurityValidator as _SecVal
-
-    SecurityValidator = _SecVal
-except ImportError:
-
-    class _SecurityValidator:
-        @staticmethod
-        def validate_match_id(mid):
-            return int(mid)
-
-        @staticmethod
-        def validate_track_id(t):
-            return int(t)
-
-        @staticmethod
-        def validate_jersey_number(j):
-            return int(j)
-
-        @staticmethod
-        def sanitize_string(s, max_length=255):
-            return str(s)[:max_length]
-
-        @staticmethod
-        def validate_positive_float(v, n="v"):
-            return max(0.0, float(v))
-
-    SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
 
@@ -44,8 +16,9 @@ class PlayerStorage(BaseStorage):
         if not self._ensure_initialized("save_player"):
             return 0
         try:
+            conn = self._require_conn("save_player")
             SecurityValidator.validate_match_id(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO players (
@@ -82,7 +55,7 @@ class PlayerStorage(BaseStorage):
                     max(0, int(player_data.get("tackles", 0))),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_player", e)
@@ -92,8 +65,9 @@ class PlayerStorage(BaseStorage):
         if not self._ensure_initialized("save_players_bulk"):
             return 0
         try:
+            conn = self._require_conn("save_players_bulk")
             SecurityValidator.validate_match_id(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             rows = []
             for p in players:
                 rows.append(
@@ -145,7 +119,7 @@ class PlayerStorage(BaseStorage):
                 """,
                 rows,
             )
-            self._conn.commit()
+            conn.commit()
             return len(rows)
         except Exception as e:
             self._log_error("save_players_bulk", e)
@@ -155,7 +129,8 @@ class PlayerStorage(BaseStorage):
         if not self._ensure_initialized("get_match_players"):
             return []
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_match_players")
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, match_id, track_id, jersey_number, name, team, position, distance_covered_m, max_speed_kmh, avg_speed_kmh, passes_attempted, passes_completed, shots, tackles FROM players WHERE match_id = ? ORDER BY track_id",
                 (match_id,),

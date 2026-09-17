@@ -71,16 +71,20 @@ def compute_acwr(
     chronic_ewma: float | None = None
 
     for i, entry in enumerate(daily_loads):
-        load = entry.get(load_field, 0) or 0
+        load = float(entry.get(load_field, 0) or 0)
 
-        if acute_ewma is None:
-            acute_ewma = float(load)
-            chronic_ewma = float(load)
+        if acute_ewma is None or chronic_ewma is None:
+            acute_val = load
+            chronic_val = load
         else:
-            acute_ewma += (load - acute_ewma) / acute_decay
-            chronic_ewma += (load - chronic_ewma) / chronic_decay
+            acute_val = acute_ewma + (load - acute_ewma) / acute_decay
+            chronic_val = chronic_ewma + (load - chronic_ewma) / chronic_decay
+        acute_ewma = acute_val
+        chronic_ewma = chronic_val
+        acute = acute_val
+        chronic = chronic_val
 
-        ratio = acute_ewma / max(chronic_ewma, 0.001)
+        ratio = acute / max(chronic, 0.001)
 
         if ratio > 1.5:
             category = "very_high"

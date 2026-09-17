@@ -361,7 +361,9 @@ class RealtimeService:
                     frames_dropped += 1
                     continue
                 last_frame_t = t_now
-                detection = await self.cv_service.detect_frame(bgr)
+                detection = await self.cv_service.detect_frame(
+                    bgr, frames_processed, time.monotonic() - start_t
+                )
                 if detection is None:
                     continue
                 buffer.append(detection)

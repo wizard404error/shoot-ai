@@ -212,8 +212,8 @@ class ValidationService:
             gt_by_type.setdefault(e.event_type, []).append(e)
 
         comp_by_type: dict[str, list[dict]] = {}
-        for e in computed_events:
-            comp_by_type.setdefault(e.get("type", "unknown"), []).append(e)
+        for computed in computed_events:
+            comp_by_type.setdefault(computed.get("type", "unknown"), []).append(computed)
 
         # Validate each event type we have ground truth for
         all_types = set(gt_by_type.keys()) | set(comp_by_type.keys())

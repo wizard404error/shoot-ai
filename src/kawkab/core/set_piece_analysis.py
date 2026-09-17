@@ -399,7 +399,7 @@ def analyze_set_pieces(
     overall_quality = sum(all_qualities) / len(all_qualities) if all_qualities else 0.0
 
     return SetPieceReport(
-        total_set_pieces=sum(td["count"] for td in type_data.values()),
+        total_set_pieces=sum(int(td["count"]) for td in type_data.values()),
         home_set_pieces=home_sp_count,
         away_set_pieces=away_sp_count,
         summaries=[s.to_dict() for s in summaries],

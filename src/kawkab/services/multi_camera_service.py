@@ -194,6 +194,8 @@ class MultiCameraFusion:
                 pt["camera_id"] = cid
                 all_pitch_tracks.append(pt)
 
+        track_groups: list[list[tuple[str, int]]] = []
+
         if len(all_pitch_tracks) < 2:
             track_groups = [[(pt["camera_id"], pt["local_track_id"])] for pt in all_pitch_tracks]
             self._merge_tracks(track_groups)
@@ -219,7 +221,6 @@ class MultiCameraFusion:
 
         used_rows: set[int] = set()
         used_cols: set[int] = set()
-        track_groups: list[list[tuple[str, int]]] = []
 
         for r, c in zip(row_ind, col_ind, strict=False):
             if cost_matrix[r, c] > self.max_distance:

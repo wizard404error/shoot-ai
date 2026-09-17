@@ -9,7 +9,7 @@ try:
     import torch as _torch
 
     _cuda_lib = _os.path.join(_os.path.dirname(_torch.__file__), "lib")
-    if _os.path.exists(_cuda_lib):
+    if _os.path.exists(_cuda_lib) and hasattr(_os, "add_dll_directory"):  # Windows-only API
         _os.add_dll_directory(_cuda_lib)
 except Exception:
     pass
@@ -264,8 +264,10 @@ class MainWindow(QMainWindow):
 
         page = self.web_view.page()
         if hasattr(page, "settings"):
-            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+            # PySide6 ships these enum values at runtime but its stubs
+            # predate them (mypy can't see them on the type).
+            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)  # type: ignore[attr-defined]
+            page.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)  # type: ignore[attr-defined]
 
         possible_paths = [
             Path(__file__).parent / "web" / "index.html",
@@ -394,7 +396,7 @@ class MainWindow(QMainWindow):
             self.tray_icon.showMessage(
                 self.settings.app_name,
                 "Still running in system tray. Right-click to quit.",
-                QSystemTrayIcon.Information,
+                QSystemTrayIcon.MessageIcon.Information,
                 2000,
             )
             self.hide()

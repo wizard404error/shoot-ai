@@ -6,6 +6,7 @@ Optional audio analysis from match videos for richer context.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -28,7 +29,7 @@ class AudioService:
         self.enable_crowd_analysis = enable_crowd_analysis
         self.whisper_model = whisper_model
         self.gpu_enabled = gpu_enabled
-        self._model: object | None = None
+        self._model: Any = None
 
         logger.info(
             f"AudioService: transcribe={enable_transcription}, "

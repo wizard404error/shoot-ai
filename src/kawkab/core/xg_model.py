@@ -337,7 +337,7 @@ def batch_compute_xg(
         coef = XG_COEFFICIENTS
         d = distances[non_penalty]
         a = angles[non_penalty]
-        logit = np.full(np.sum(non_penalty), coef["intercept"], dtype=np.float64)
+        logit = np.full(int(np.sum(non_penalty)), coef["intercept"], dtype=np.float64)
         logit += coef["distance_m"] * d
         logit += coef["distance_m_sq"] * (d * d)
         angle_rad = np.radians(np.maximum(a, 0.0))
@@ -615,7 +615,7 @@ class EnhancedXgModel:
         if np.any(non_penalty):
             d = distances[non_penalty]
             a = angles[non_penalty]
-            logit = np.full(np.sum(non_penalty), c["intercept"], dtype=np.float64)
+            logit = np.full(int(np.sum(non_penalty)), c["intercept"], dtype=np.float64)
             logit += c["distance_m"] * d
             logit += c["distance_m_sq"] * (d * d)
             angle_rad = np.radians(np.maximum(a, 0.0))

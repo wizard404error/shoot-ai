@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Any
 
 from kawkab.core.logging import get_logger
+from kawkab.core.security import SecurityValidator
 from kawkab.services.storage.base import BaseStorage
 
 
@@ -14,27 +16,6 @@ def _sanitize_column_name(name: str) -> str | None:
         return name
     return None
 
-
-try:
-    from kawkab.core.security import SecurityValidator as _SecVal
-
-    SecurityValidator = _SecVal
-except ImportError:
-
-    class _SecurityValidator:
-        @staticmethod
-        def validate_match_id(mid):
-            return int(mid)
-
-        @staticmethod
-        def validate_team_name(n):
-            return str(n)
-
-        @staticmethod
-        def sanitize_string(s, max_length=255):
-            return str(s)[:max_length]
-
-    SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
 
@@ -52,12 +33,13 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("save_match"):
             return 0
         try:
+            conn = self._require_conn("save_match")
             name = SecurityValidator.sanitize_string(name, max_length=255)
             if home_team:
                 home_team = SecurityValidator.validate_team_name(home_team)
             if away_team:
                 away_team = SecurityValidator.validate_team_name(away_team)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO matches (name, video_path, home_team, away_team)
@@ -65,7 +47,7 @@ class MatchStorage(BaseStorage):
                 """,
                 (name, video_path, home_team, away_team),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_match", e)
@@ -75,7 +57,8 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("get_all_matches"):
             return []
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_all_matches")
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 SELECT id, name, video_path, home_team, away_team, match_date,
@@ -96,7 +79,8 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("get_match"):
             return None
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_match")
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, name, video_path, home_team, away_team, match_date, duration_seconds, fps, total_frames, season_id, competition, round, score_home, score_away, match_type, home_team_id, away_team_id, created_at, analyzed_at, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data FROM matches WHERE id = ?",
                 (match_id,),
@@ -117,7 +101,8 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("update_match_analysis"):
             return
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("update_match_analysis")
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 UPDATE matches
@@ -127,7 +112,7 @@ class MatchStorage(BaseStorage):
                 """,
                 (duration, fps, total_frames, datetime.now(), match_id),
             )
-            self._conn.commit()
+            conn.commit()
         except Exception as e:
             self._log_error("update_match_analysis", e)
 
@@ -135,12 +120,13 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("update_match_teams"):
             return
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("update_match_teams")
+            cursor = conn.cursor()
             cursor.execute(
                 "UPDATE matches SET home_team = ?, away_team = ? WHERE id = ?",
                 (home_team, away_team, match_id),
             )
-            self._conn.commit()
+            conn.commit()
         except Exception as e:
             self._log_error("update_match_teams", e)
 
@@ -155,8 +141,9 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("update_match_football_data"):
             return
         try:
-            sets = []
-            vals = []
+            conn = self._require_conn("update_match_football_data")
+            sets: list[str] = []
+            vals: list[Any] = []
             if api_match_id is not None:
                 sets.append("api_match_id = ?")
                 vals.append(api_match_id)
@@ -172,9 +159,9 @@ class MatchStorage(BaseStorage):
             if not sets:
                 return
             vals.append(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
-            self._conn.commit()
+            conn.commit()
         except Exception as e:
             self._log_error("update_match_football_data", e)
 
@@ -190,8 +177,9 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("update_match_apifootball"):
             return
         try:
-            sets = []
-            vals = []
+            conn = self._require_conn("update_match_apifootball")
+            sets: list[str] = []
+            vals: list[Any] = []
             if apifb_home_team_id is not None:
                 sets.append("apifb_home_team_id = ?")
                 vals.append(apifb_home_team_id)
@@ -210,9 +198,9 @@ class MatchStorage(BaseStorage):
             if not sets:
                 return
             vals.append(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
-            self._conn.commit()
+            conn.commit()
         except Exception as e:
             self._log_error("update_match_apifootball", e)
 
@@ -229,8 +217,9 @@ class MatchStorage(BaseStorage):
         if not self._ensure_initialized("update_match_bzzoiro"):
             return
         try:
-            sets = []
-            vals = []
+            conn = self._require_conn("update_match_bzzoiro")
+            sets: list[str] = []
+            vals: list[Any] = []
             if bzzoiro_home_team_id is not None:
                 sets.append("bzzoiro_home_team_id = ?")
                 vals.append(bzzoiro_home_team_id)
@@ -252,8 +241,8 @@ class MatchStorage(BaseStorage):
             if not sets:
                 return
             vals.append(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ?", vals)
-            self._conn.commit()
+            conn.commit()
         except Exception as e:
             self._log_error("update_match_bzzoiro", e)

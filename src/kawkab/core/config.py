@@ -242,7 +242,7 @@ class TrackingConfigRoot:
     @classmethod
     def _from_dict(cls, data: dict) -> TrackingConfigRoot:
         root = cls()
-        for section_name, section_cls in [
+        sections: list[tuple[str, type[Any]]] = [
             ("detection", DetectionConfig),
             ("tracking", TrackingConfig),
             ("filter", FilterConfig),
@@ -252,11 +252,13 @@ class TrackingConfigRoot:
             ("color", ColorConfig),
             ("event", EventDetectionConfig),
             ("performance", PerformanceConfig),
-        ]:
+        ]
+        for section_name, section_cls in sections:
             if section_name in data:
                 section_data = data[section_name]
                 current = getattr(root, section_name)
-                for field_name in section_cls.__dataclass_fields__:
+                fields = section_cls.__dataclass_fields__
+                for field_name in fields:
                     if field_name in section_data:
                         setattr(current, field_name, section_data[field_name])
         return root

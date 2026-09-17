@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -115,7 +116,7 @@ class SleepRecoveryService:
                         # `row` bound as a default: consumed within this
                         # iteration, but default-arg binding removes the
                         # late-binding trap (B023).
-                        def _val(key: str, cast: callable = str, row=row) -> Any:
+                        def _val(key: str, cast: Callable[..., Any] = str, row=row) -> Any:
                             raw = row.get(col_map.get(key, ""), "").strip()
                             if not raw:
                                 return None
@@ -156,11 +157,11 @@ class SleepRecoveryService:
         if not records:
             return []
         cutoff = datetime.now() - timedelta(days=days)
-        filtered = [
-            r
-            for r in records
-            if r.date and _parse_date(r.date) is not None and _parse_date(r.date) >= cutoff.date()
-        ]
+        filtered = []
+        for r in records:
+            parsed_date = _parse_date(r.date) if r.date else None
+            if parsed_date is not None and parsed_date >= cutoff.date():
+                filtered.append(r)
         return sorted(filtered, key=lambda r: r.date, reverse=True)
 
     def get_recovery_score(self, player_id: str) -> int | None:

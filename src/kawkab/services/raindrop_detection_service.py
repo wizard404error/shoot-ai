@@ -75,12 +75,13 @@ class RaindropDetectionService:
             self._nn = nn
             if self._model_path and self._model_path != "":
                 try:
-                    self._cnn_model = self._build_alexnet_30_2()
+                    cnn_model: Any = self._build_alexnet_30_2()
+                    self._cnn_model = cnn_model
                     state = torch.load(self._model_path, map_location="cpu")
                     if isinstance(state, dict) and "state_dict" in state:
                         state = state["state_dict"]
-                    self._cnn_model.load_state_dict(state, strict=False)
-                    self._cnn_model.eval()
+                    cnn_model.load_state_dict(state, strict=False)
+                    cnn_model.eval()
                     self._cnn_available = True
                     logger.info(f"Loaded raindrop CNN from {self._model_path}")
                 except Exception as e:
@@ -187,9 +188,7 @@ class RaindropDetectionService:
             detections.append((x, y, min(0.9, circularity)))
         return detections
 
-    def _merge_overlapping(
-        self, detections: list[tuple[int, int, float]]
-    ) -> list[tuple[int, int, int, int]]:
+    def _merge_overlapping(self, detections: list[tuple[int, int, float]]) -> list[list[int]]:
         rectangles: list[list[int]] = []
         for x, y, _conf in detections:
             rect = [x, y, x + self.WINDOW_SIZE[0], y + self.WINDOW_SIZE[1]]
@@ -197,7 +196,7 @@ class RaindropDetectionService:
         if not rectangles:
             return []
         merged = self._group_rectangles(rectangles, self.GROUP_THRESHOLD, self.GROUP_EPS)
-        return [tuple(r) for r in merged]
+        return merged
 
     @staticmethod
     def _group_rectangles(

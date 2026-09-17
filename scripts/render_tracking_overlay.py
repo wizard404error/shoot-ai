@@ -311,7 +311,7 @@ def render(
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]  # cv2 runtime attr absent from stale stubs
     out = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
 
     if features is None:
@@ -410,9 +410,11 @@ def render(
                     if f in ball_by_frame
                 ]
                 for i in range(1, len(trail)):
-                    if trail[i - 1] and trail[i]:
-                        pt1 = (int(trail[i - 1][0]), int(trail[i - 1][1]))
-                        pt2 = (int(trail[i][0]), int(trail[i][1]))
+                    p0 = trail[i - 1]
+                    p1 = trail[i]
+                    if p0 and p1:
+                        pt1 = (int(p0[0]), int(p0[1]))
+                        pt2 = (int(p1[0]), int(p1[1]))
                         cv2.line(frame, pt1, pt2, (0, 255, 255), 1)
 
         # --- Feature: passes (tactical) ---

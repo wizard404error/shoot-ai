@@ -7,6 +7,7 @@ import math
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from kawkab.core.events import (
     BaseEvent,
@@ -26,6 +27,32 @@ from kawkab.core.xg_model import active_xg_model, compute_xg_trained_from_shot_e
 from kawkab.services.cv_service import MatchTrackData
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    # AnalysisService composes the tracking/xg_xt/passing mixins onto this
+    # class at runtime (services/analysis_service.py), but bare
+    # AnalysisServiceCore is constructed directly in tests -- so declare the
+    # mixin-supplied methods here for standalone type checking.
+    class _MixinProtocol:
+        pitch_width: float
+        use_kalman: bool
+
+        def _compute_player_stats(self, track_data, homography_matrix=None): ...
+        def _compute_player_stats_kalman(
+            self, track_data, homography_matrix, max_frame_delta_m
+        ): ...
+        def _compute_pass_network(self, events, player_teams=None): ...
+        def compute_ppda(self, track_data, team="home", homography_matrix=None): ...
+        def detect_formation(
+            self, track_data, team="home", n_players=11, homography_matrix=None
+        ): ...
+        def compute_xt_simple(self, events): ...
+        def _compute_player_ratings(
+            self, players, typed_events, pitch_control, track_data, homography_matrix
+        ): ...
+
+else:
+    _MixinProtocol = object
 
 PITCH_LENGTH = GAME.PITCH_LENGTH_M
 PITCH_WIDTH = GAME.PITCH_WIDTH_M
@@ -101,7 +128,7 @@ class MatchAnalysis:
     player_ratings: dict[int, PlayerRating] = field(default_factory=dict)
 
 
-class AnalysisServiceCore:
+class AnalysisServiceCore(_MixinProtocol):
     def __init__(
         self,
         pitch_length_m: float = 105.0,
@@ -207,6 +234,7 @@ class AnalysisServiceCore:
         for se in shot_events:
             gk_distance = None
             if se.gk_position_x is not None and se.x is not None and se.y is not None:
+                assert se.gk_position_y is not None  # invariant: y set alongside x
                 gk_distance = math.hypot(se.gk_position_x - se.x, se.gk_position_y - se.y)
             se.xg = compute_xg_trained_from_shot_event(se, gk_distance_m=gk_distance)
             se.xg = max(0.0, min(1.0, se.xg))
@@ -949,12 +977,22 @@ class AnalysisServiceCore:
                     is_shot = False
                     shot_conf = 0.0
 
-                    if homography_matrix is not None and p0[3] is not None and p1[3] is not None:
-                        dx_p = p1[3] - p0[3]
-                        dy_p = p1[4] - p0[4]
+                    p0_pitch_x: float | None = p0[3]
+                    p0_pitch_y: float | None = p0[4]
+                    p1_pitch_x: float | None = p1[3]
+                    p1_pitch_y: float | None = p1[4]
+                    if (
+                        homography_matrix is not None
+                        and p0_pitch_x is not None
+                        and p1_pitch_x is not None
+                        and p0_pitch_y is not None
+                        and p1_pitch_y is not None
+                    ):
+                        dx_p = p1_pitch_x - p0_pitch_x
+                        dy_p = p1_pitch_y - p0_pitch_y
                         speed_pitch = math.sqrt(dx_p * dx_p + dy_p * dy_p) / dt
                         if speed_pitch >= shot_speed_threshold_mps:
-                            cx = p1[3]
+                            cx = p1_pitch_x
                             near_left = cx <= goal_proximity_m
                             near_right = cx >= (self.pitch_length - goal_proximity_m)
                             moving_left = dx_p < 0
@@ -987,9 +1025,13 @@ class AnalysisServiceCore:
                         shot_metadata = {}
                         on_target = False
                         goal_width_m = 7.32
-                        if homography_matrix is not None and p1[3] is not None:
-                            bx_pitch = p1[3]
-                            by_pitch = p1[4]
+                        if (
+                            homography_matrix is not None
+                            and p1_pitch_x is not None
+                            and p1_pitch_y is not None
+                        ):
+                            bx_pitch = p1_pitch_x
+                            by_pitch = p1_pitch_y
                             pitch_len = self.pitch_length
                             pitch_wid = self.pitch_width
                             near_goal_x = 0 if bx_pitch <= pitch_len / 2 else pitch_len

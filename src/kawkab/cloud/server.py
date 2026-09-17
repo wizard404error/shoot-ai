@@ -174,6 +174,7 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user)
     row = db.execute(
         "SELECT password_hash, token_version FROM users WHERE id = ?", (user["id"],)
     ).fetchone()
+    assert row is not None  # user id comes from the verified access token
     if not verify_password(body.old_password, row["password_hash"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     # Bumping token_version invalidates every token issued before this
@@ -330,10 +331,13 @@ def unlink_oauth_account(provider: str, user: dict = Depends(get_current_user)):
     password_row = db.execute(
         "SELECT password_hash FROM users WHERE id = ?", (user["id"],)
     ).fetchone()
-    if password_row and password_row["password_hash"] == "oauth":
-        pw_count = db.execute(
+    assert password_row is not None  # same-token guarantee
+    if password_row["password_hash"] == "oauth":
+        count_row = db.execute(
             "SELECT COUNT(*) as c FROM oauth_accounts WHERE user_id = ?", (user["id"],)
-        ).fetchone()["c"]
+        ).fetchone()
+        assert count_row is not None  # COUNT(*) always returns a row
+        pw_count = count_row["c"]
         if pw_count <= 1:
             raise HTTPException(
                 status_code=400, detail="Cannot unlink last login method. Set a password first."

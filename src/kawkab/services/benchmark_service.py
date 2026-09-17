@@ -204,7 +204,7 @@ class BenchmarkService:
     def get_baseline_summary(self, storage_service) -> dict[str, Any]:
         """Get average performance from recent benchmarks."""
         try:
-            rows = storage_service._conn.execute(
+            rows = storage_service._conn.execute(  # type: ignore[union-attr]
                 """
                 SELECT
                     AVG(total_time_seconds) as avg_time,

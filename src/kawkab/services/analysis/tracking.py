@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter, defaultdict
+from typing import TYPE_CHECKING, Any
 
 from kawkab.core.game_constants import GAME
 from kawkab.core.logging import get_logger
@@ -13,6 +14,21 @@ logger = get_logger(__name__)
 
 
 class TrackingMixin:
+    # Provided by the composing AnalysisService (AnalysisServiceCore.__init__);
+    # declared here so mypy sees the assembled surface per mixin.
+    pitch_width: float
+    use_kalman: bool
+
+    if TYPE_CHECKING:
+        # Kalman variant lives on the composing AnalysisServiceCore; declared
+        # so the mixin's surface is visible to mypy (no runtime effect).
+        def _compute_player_stats_kalman(
+            self,
+            track_data: Any,
+            homography_matrix: Any,
+            max_frame_delta_m: float,
+        ) -> dict[int, dict[str, Any]]: ...
+
     def _compute_player_stats(
         self, track_data, homography_matrix=None, track_merge_map: dict[int, int] | None = None
     ):

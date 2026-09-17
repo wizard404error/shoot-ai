@@ -14,6 +14,9 @@ Conventions:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 __all__ = [
@@ -230,7 +233,7 @@ def bootstrap_ci(
     if not np.all(np.isfinite(arr)):
         raise ValueError("non-finite input")
 
-    fns = {
+    fns: dict[str, Callable[[Any], Any]] = {
         "mean": np.mean,
         "sum": np.sum,
         "median": np.median,

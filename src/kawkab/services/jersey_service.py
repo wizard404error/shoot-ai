@@ -150,7 +150,7 @@ class JerseyNumberService:
         estimated = int(1 + (ratio * 100) % 99)
         return {
             "jersey_number": estimated,
-            "confidence": round(min(ratio * 2, 0.5), 3),
+            "confidence": round(float(min(ratio * 2, 0.5)), 3),
             "candidates": [(estimated, 1)],
             "source": "pixel",
         }
@@ -259,31 +259,18 @@ class JerseyNumberService:
             digit = img[y : y + h, x : x + w]
             digits.append(digit)
 
-        # Sort left-to-right
-        digits.sort(
-            key=lambda d: (
-                cv2.boundingRect(
-                    cv2.findContours(
-                        cv2.threshold(
-                            cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY
-                        )[1],
-                        cv2.RETR_EXTERNAL,
-                        cv2.CHAIN_APPROX_SIMPLE,
-                    )[0]
-                )[0][0][0]
-                if len(
-                    cv2.findContours(
-                        cv2.threshold(
-                            cv2.cvtColor(d, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY
-                        )[1],
-                        cv2.RETR_EXTERNAL,
-                        cv2.CHAIN_APPROX_SIMPLE,
-                    )[0]
-                )
-                > 0
-                else 0
-            )
-        )
+        # Sort left-to-right (key = leftmost contour x; the previous
+        # implementation re-ran threshold+findContours twice per element).
+        def _leftmost_x(patch: np.ndarray) -> float:
+            thresh = cv2.threshold(
+                cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY
+            )[1]
+            contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+            if not contours:
+                return 0.0
+            return float(cv2.boundingRect(contours[0])[0])
+
+        digits.sort(key=_leftmost_x)
 
         return digits[:3]  # max 3 digits
 

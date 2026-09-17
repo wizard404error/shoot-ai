@@ -5096,7 +5096,7 @@ class AnalysisHandler:
             pc = VoronoiPitchControl()
             frame = pc.compute_frame_control(home_positions, away_positions)
 
-            hot_zones = []
+            hot_zones: list = []
             import numpy as np
 
             hg = np.array(frame.home_grid)
@@ -5331,40 +5331,47 @@ class AnalysisHandler:
 
     def analyze_finishing(self, match_id: int) -> str:
         try:
-            from kawkab.core.finishing_analysis import analyze_finishing
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = analyze_finishing(events)
+            _ = (match_id,)
+            # analyze_finishing needs player-scoped shot events; this handler
+            # only has match-level events and no player context, so the slot
+            # is explicitly unwired instead of raising TypeError at runtime.
+            result: dict = {"available": False, "reason": "needs player-scoped shot events"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def simulate_league(self, match_id: int, iterations: int = 10000) -> str:
         try:
-            from kawkab.core.league_simulation import simulate_league
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = simulate_league(events, iterations=iterations)
+            _ = (match_id, iterations)
+            # simulate_league needs a full-season fixture list and the current
+            # table; a single match's events provide neither. Dead since the
+            # signature changed — return an explicit unavailable marker.
+            result: dict = {"available": False, "reason": "needs season fixtures + current table"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def estimate_transfer_fee(self, match_id: int, track_id: int) -> str:
         try:
-            from kawkab.core.squad_valuation import estimate_player_transfer_fee
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = estimate_player_transfer_fee(events, track_id)
+            _ = (match_id, track_id)
+            # estimate_player_transfer_fee takes age/position/performance
+            # stats, none of which this handler has. Dead since the valuation
+            # API changed — return an explicit unavailable marker.
+            result: dict = {
+                "available": False,
+                "reason": "needs player age/position/performance data",
+            }
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def generate_match_report(self, match_id: int) -> str:
         try:
-            from kawkab.core.match_report import generate_match_report as _gmr
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = _gmr(events)
+            _ = (match_id,)
+            # generate_match_report needs match metadata (teams, date, score)
+            # alongside events; metadata lookup is not wired in this handler.
+            # Dead since the report API gained required params.
+            result: dict = {"available": False, "reason": "match metadata lookup not wired"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -5374,37 +5381,43 @@ class AnalysisHandler:
             from kawkab.core.game_plan import generate_game_plan as _ggp
 
             events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = _ggp(events, opponent_id)
+            # generate_game_plan labels the plan with an opponent *name*; the
+            # bridge only receives a numeric id (the UI passes 0), so omit it
+            # and let the report fall back to "Unknown".
+            _ = opponent_id
+            result = _ggp(events)
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def compute_phase_xg(self, match_id: int) -> str:
         try:
-            from kawkab.core.phase_xg import compute_phase_xg as _cpx
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = _cpx(events)
+            _ = (match_id,)
+            # compute_phase_xg needs team_events/opponent_events/events with
+            # team separation; the raw single-list fetch here predates the
+            # current signature. Dead slot — explicit unavailable marker.
+            result: dict = {"available": False, "reason": "team-separated event inputs not wired"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def analyze_build_up(self, match_id: int) -> str:
         try:
-            from kawkab.core.build_up import analyze_build_up as _abu
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = _abu(events)
+            _ = (match_id,)
+            # analyze_build_up needs team_events plus a team_id; the raw
+            # single-list fetch here predates the current signature. Dead slot.
+            result: dict = {"available": False, "reason": "team-scoped inputs not wired"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def compute_territory_value(self, match_id: int) -> str:
         try:
-            from kawkab.core.territory_value import compute_territory_value as _ctv
-
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
-            result = _ctv(events)
+            _ = (match_id,)
+            # compute_territory_value needs team_events/opponent_events and a
+            # team_id; the raw single-list fetch predates the current
+            # signature. Dead slot — explicit unavailable marker.
+            result: dict = {"available": False, "reason": "team-scoped inputs not wired"}
             return json.dumps({"success": True, "result": result})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
@@ -5628,25 +5641,25 @@ class AnalysisHandler:
             match_date = match_data.get("match_date", "")
             kickoff = match_data.get("kickoff", "")
 
-            our_form_data = []
-            our_injuries_data = []
-            our_suspensions_data = []
+            our_form_data: list = []
+            our_injuries_data: list = []
+            our_suspensions_data: list = []
             our_top_scorer = ""
             our_formation = ""
-            our_predicted_lineup_data = []
+            our_predicted_lineup_data: list = []
             our_avg_possession = 50.0
 
-            opponent_form_data = []
-            opponent_key_players_data = []
-            opponent_vulnerabilities = []
-            opponent_strengths = []
+            opponent_form_data: list = []
+            opponent_key_players_data: list = []
+            opponent_vulnerabilities: list = []
+            opponent_strengths: list = []
             opponent_preferred_formation = ""
             opponent_pressing = ""
             opponent_build_up = ""
 
-            h2h_data = []
+            h2h_data: list = []
 
-            goal_counts = {}
+            goal_counts: dict[str, int] = {}
             for ev in events:
                 event_type = ev.get("event_type", "")
                 _ = ev.get("team", "")
@@ -5655,7 +5668,7 @@ class AnalysisHandler:
                     goal_counts[player_name] = goal_counts.get(player_name, 0) + 1
 
             if goal_counts:
-                our_top_scorer = max(goal_counts, key=goal_counts.get)
+                our_top_scorer = max(goal_counts, key=goal_counts.get)  # type: ignore[arg-type]
 
             service = self.prematch_briefing_service
 

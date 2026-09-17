@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from kawkab.core.logging import get_logger
 
@@ -52,8 +53,8 @@ class MuJoCoBallService:
     def __init__(self) -> None:
         self._available = False
         self._mujoco = None
-        self._model = None
-        self._data = None
+        self._model: Any = None
+        self._data: Any = None
         self._try_load()
 
     def _try_load(self) -> None:
@@ -149,7 +150,7 @@ class MuJoCoBallService:
         magnus_coeff,
     ) -> TrajectoryResult:
         mujoco = self._mujoco
-        mujoco.mj_resetData(self._model, self._data)
+        assert mujoco is not None  # _simulate_mujoco only runs when self._available
         v_rad = math.radians(launch_angle_deg)
         h_rad = math.radians(direction_deg)
         vx = initial_speed * math.cos(v_rad) * math.cos(h_rad)

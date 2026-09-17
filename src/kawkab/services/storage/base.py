@@ -40,8 +40,10 @@ class BaseStorage:
     @property
     def _conn(self) -> sqlite3.Connection | None:
         if self._storage is not None:
-            return self._storage._conn
-        return getattr(self, "_conn_local", None)
+            conn: sqlite3.Connection | None = self._storage._conn
+            return conn
+        conn_local: sqlite3.Connection | None = getattr(self, "_conn_local", None)
+        return conn_local
 
     @_conn.setter
     def _conn(self, value: sqlite3.Connection | None) -> None:
@@ -50,8 +52,10 @@ class BaseStorage:
     @property
     def _db_path(self) -> Path | None:
         if self._storage is not None:
-            return self._storage._db_path
-        return getattr(self, "_db_path_local", None)
+            db_path: Path | None = self._storage._db_path
+            return db_path
+        db_path_local: Path | None = getattr(self, "_db_path_local", None)
+        return db_path_local
 
     @_db_path.setter
     def _db_path(self, value: Path | None) -> None:
@@ -62,6 +66,20 @@ class BaseStorage:
             logger.error(f"{method_name}: database not initialized")
             return False
         return True
+
+    def _require_conn(self, method_name: str) -> sqlite3.Connection:
+        """Assert the connection exists, mirroring the _ensure_initialized gate.
+
+        Every caller runs ``_ensure_initialized`` (which returns False on a
+        missing connection) before touching ``self._conn``, so this only
+        fires if a method skips that gate.  Raising here keeps the types
+        honest instead of silently spraying Optional-connection attribute
+        access through the subclass CRUD methods.
+        """
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError(f"{method_name}: database connection not initialized")
+        return conn
 
     def _log_error(self, method_name: str, error: Exception) -> None:
         logger.error(f"{method_name}: {error}")

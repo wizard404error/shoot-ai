@@ -134,7 +134,9 @@ class PoseAnalysisService:
         if not self._ensure_model():
             return []
         try:
-            results = self._model.predict(
+            model = self._model
+            assert model is not None  # _ensure_model() returned True
+            results = model.predict(
                 frame, conf=conf_threshold, verbose=False, device=self.device or None
             )
             if not results:

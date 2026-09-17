@@ -116,7 +116,7 @@ class ProAnalyticsHandler:
         builder receives the same shape (the services/-must-delegate-to-
         core/ invariant applied to the read path too).
         """
-        meta = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
+        meta: dict = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
         out = dict(e)
         out["type"] = e.get("event_type") or e.get("type") or "unknown"
         for key in (

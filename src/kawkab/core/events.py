@@ -640,7 +640,9 @@ def event_from_dict(d: dict[str, Any]) -> BaseEvent:
         logger = get_logger(__name__)
         logger.warning(f"Spatial coordinates clamped for event type={type_str}: {result.warnings}")
 
-    cls = _EVENT_CLASSES.get(etype, PassEvent)
+    # Every concrete event class defines from_dict; the shared base class
+    # deliberately does not (its from_dict helpers live per-subclass).
+    cls: type[PassEvent] = _EVENT_CLASSES.get(etype, PassEvent)  # type: ignore[assignment]
     return cls.from_dict(d)
 
 

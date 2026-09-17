@@ -141,8 +141,11 @@ def _find_hsv_candidates(frame: np.ndarray) -> list[dict]:
         (DARK_LOWER, DARK_UPPER, "dark"),
     ]:
         mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
-        mask = cv2.erode(mask, None, iterations=1)
-        mask = cv2.dilate(mask, None, iterations=2)
+        # None-kernel works at runtime but is mistyped in cv2 stubs; an
+        # explicit empty kernel is equivalent (no erosion/dilation) and typed.
+        empty_kernel = np.zeros((1, 1), dtype=np.uint8)
+        mask = cv2.erode(mask, empty_kernel, iterations=1)
+        mask = cv2.dilate(mask, empty_kernel, iterations=2)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             ((x, y), radius) = cv2.minEnclosingCircle(cnt)

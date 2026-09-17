@@ -1357,6 +1357,10 @@ class StorageService:
             return False
 
         try:
+            if self._db_path is None:
+                logger.error("restore: no database path configured")
+                return False
+
             self._conn.close()
             self._conn = None
 

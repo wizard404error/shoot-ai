@@ -139,10 +139,12 @@ class PlayerPositionSmoother:
             self._median_buffer.append((x, y))
             return
 
+        state = self._state
+        assert state is not None  # _init_state ran above (early return otherwise)
         mx, my = self._median_filter(x, y)
-        diff = np.sqrt((mx - self._state[0]) ** 2 + (my - self._state[1]) ** 2)
+        diff = np.sqrt((mx - state[0]) ** 2 + (my - state[1]) ** 2)
         if diff > 2.0:
-            mx, my = self._state[0], self._state[1]
+            mx, my = state[0], state[1]
 
         self._predict(dt)
         self._update(mx, my)

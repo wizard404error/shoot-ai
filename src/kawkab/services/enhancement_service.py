@@ -131,7 +131,7 @@ class EnhancementService:
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]  # cv2 runtime attr absent from stale stubs
         out = cv2.VideoWriter(str(output_path), fourcc, fps, (w * scale, h * scale))
 
         frame_num = 0
@@ -196,7 +196,7 @@ class EnhancementService:
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         ratio = target_fps / fps
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]  # cv2 runtime attr absent from stale stubs
         out = cv2.VideoWriter(str(output_path), fourcc, target_fps, (w, h))
 
         ret, prev_frame = cap.read()

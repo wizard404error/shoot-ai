@@ -206,7 +206,7 @@ class SetPieceService:
             if event.delivery_style == "short":
                 return "short_corner_recycle"
         elif event.set_piece_type == "free_kick":
-            if event.first_contact_x is None:
+            if event.first_contact_x is None or event.first_contact_y is None:
                 return "unknown"
             if event.first_contact_x > 95 and event.first_contact_y < 10:
                 return "near_post_fk"

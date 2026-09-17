@@ -456,7 +456,7 @@ def compare_xg_models(
         fold_size = len(shuffled) // n_folds
         cv_folds = []
         all_model_names = ["heuristic", "logistic", "dl_xg"]
-        cv_metrics: dict[str, list[float]] = {
+        cv_metrics: dict[str, dict[str, list[float]]] = {
             m: {"log_loss": [], "brier_score": [], "auc_roc": []} for m in all_model_names
         }
 

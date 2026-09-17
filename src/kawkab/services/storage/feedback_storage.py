@@ -5,28 +5,8 @@ from __future__ import annotations
 import json
 
 from kawkab.core.logging import get_logger
+from kawkab.core.security import SecurityValidator
 from kawkab.services.storage.base import BaseStorage
-
-try:
-    from kawkab.core.security import SecurityValidator as _SecVal
-
-    SecurityValidator = _SecVal
-except ImportError:
-
-    class _SecurityValidator:
-        @staticmethod
-        def validate_match_id(mid):
-            return int(mid)
-
-        @staticmethod
-        def validate_float_range(v, lo, hi, n="v"):
-            return max(float(lo), min(float(hi), float(v)))
-
-        @staticmethod
-        def sanitize_string(s, max_length=255):
-            return str(s)[:max_length]
-
-    SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
 
@@ -38,6 +18,7 @@ class FeedbackStorage(BaseStorage):
         if not self._ensure_initialized("save_feedback"):
             return 0
         try:
+            conn = self._require_conn("save_feedback")
             coach_id = SecurityValidator.sanitize_string(str(feedback["coach_id"]), max_length=100)
             overall_rating = SecurityValidator.validate_float_range(
                 feedback["overall_rating"], 1, 5, "overall_rating"
@@ -71,7 +52,7 @@ class FeedbackStorage(BaseStorage):
             comments = SecurityValidator.sanitize_string(
                 str(feedback.get("comments", "")), max_length=2000
             )
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO coach_feedback (
@@ -92,7 +73,7 @@ class FeedbackStorage(BaseStorage):
                     feedback.get("created_at", ""),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_feedback", e)
@@ -102,7 +83,8 @@ class FeedbackStorage(BaseStorage):
         if not self._ensure_initialized("get_all_feedback"):
             return []
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_all_feedback")
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC"
             )
@@ -115,6 +97,7 @@ class FeedbackStorage(BaseStorage):
         if not self._ensure_initialized("save_issue"):
             return 0
         try:
+            conn = self._require_conn("save_issue")
             match_id = (
                 SecurityValidator.validate_match_id(issue["match_id"])
                 if issue.get("match_id") is not None
@@ -132,7 +115,7 @@ class FeedbackStorage(BaseStorage):
                 if issue.get("screenshot_path")
                 else None
             )
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO issue_reports (
@@ -149,7 +132,7 @@ class FeedbackStorage(BaseStorage):
                     issue.get("created_at", ""),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_issue", e)
@@ -159,7 +142,8 @@ class FeedbackStorage(BaseStorage):
         if not self._ensure_initialized("get_all_issues"):
             return []
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_all_issues")
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC"
             )

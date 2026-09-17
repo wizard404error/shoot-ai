@@ -62,11 +62,14 @@ class LiveStreamCaptureService:
                 str(output_path),
             ]
 
+            popen_kwargs = {}
+            if hasattr(subprocess, "CREATE_NO_WINDOW"):  # Windows-only flag
+                popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                **popen_kwargs,
             )
             self._processes[sid] = proc
             self._recording[sid] = True

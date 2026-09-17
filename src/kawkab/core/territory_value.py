@@ -9,9 +9,18 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from kawkab.core.xt_model import ExpectedThreatModel
+
+if TYPE_CHECKING:
+
+    class _XtModelProtocol(Protocol):
+        """Structural subset of ExpectedThreatModel used below."""
+
+        def compute_action_xt(self, sx: float, sy: float, ex: float, ey: float) -> float: ...
+
+        def _zone_from_position(self, x: float, y: float) -> tuple[int, int]: ...
 
 
 @dataclass
@@ -127,7 +136,7 @@ def compute_territory_value(
     opponent_events: list[dict],
     match_events: list[dict],
     team_id: str,
-    xt_model: object | None = None,
+    xt_model: _XtModelProtocol | None = None,
     possession_chains: list[list[int]] | None = None,
     grid_rows: int = 20,
     grid_cols: int = 32,
@@ -164,20 +173,18 @@ def compute_territory_value(
 
     if xt_model is None:
         xt_model = _make_default_xt_model(match_events, grid_rows, grid_cols)
+    assert xt_model is not None  # narrowed for mypy (optional-arg default built above)
 
     if possession_chains is None:
         possession_chains = _detect_possession_chains_full(match_events)
 
     # Map team id to a boolean flag
     team_team = team_events[0].get("team", "") if team_events else ""
-    _ = opponent_events[0].get("team", "") if opponent_events else ""
 
     # Zone accumulation
     gained: dict[tuple[int, int], float] = defaultdict(float)
     conceded: dict[tuple[int, int], float] = defaultdict(float)
     zone_event_count: dict[tuple[int, int], int] = defaultdict(int)
-    _: dict[tuple[int, int], float] = defaultdict(float)
-    _ = 0.0
 
     # Timeline
     minute_buckets: dict[int, dict[str, float]] = defaultdict(

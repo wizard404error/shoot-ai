@@ -90,18 +90,9 @@ def compare_xg_models(events: list[dict]) -> list[ModelComparisonReport]:
             pass
 
     predictions: dict[str, list[float]] = {}
-    for name, pred_fn, model_obj in [
-        ("heuristic", _predict_heuristic, None),
-        ("enhanced", _predict_enhanced, enhanced_model),
-        ("dl_xg", _predict_dl, dl_model),
-    ]:
-        if name == "heuristic":
-            preds = [pred_fn(e) for e in test_events]
-        elif name == "enhanced":
-            preds = [pred_fn(e, model_obj) for e in test_events]
-        else:
-            preds = [pred_fn(e, model_obj) for e in test_events]
-        predictions[name] = preds
+    predictions["heuristic"] = [_predict_heuristic(e) for e in test_events]
+    predictions["enhanced"] = [_predict_enhanced(e, enhanced_model) for e in test_events]
+    predictions["dl_xg"] = [_predict_dl(e, dl_model) for e in test_events]
 
     reports: list[ModelComparisonReport] = []
     for name, preds in predictions.items():

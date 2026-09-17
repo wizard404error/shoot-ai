@@ -94,9 +94,13 @@ class TheSportsDBService:
         self._cache: dict[str, tuple[float, Any]] = {}
         self._available = False
 
-    async def _ensure_client(self) -> None:
+    def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(base_url=f"{BASE_URL}/{self.api_key}", timeout=15.0)
+        assert (
+            self._client is not None
+        )  # narrowed for mypy (https://github.com/python/mypy/issues/11011)
+        return self._client
 
     def _cache_get(self, key: str) -> Any | None:
         if key in self._cache:
@@ -109,17 +113,25 @@ class TheSportsDBService:
     def _cache_set(self, key: str, data: Any, ttl: int) -> None:
         self._cache[key] = (time.monotonic() + ttl, data)
 
-    async def _get(self, path: str, ttl: int = CACHE_TTL_SHORT) -> dict | list | None:
+    async def _get(self, path: str, ttl: int = CACHE_TTL_SHORT) -> dict[str, Any] | None:
+        """Fetch a TheSportsDB v1 endpoint (JSON object) with caching.
+
+        The v1 API always returns a JSON object keyed by result-set name
+        ("teams", "events", ...); a list return was never real, and the
+        ``| list`` union previously poisoned every ``data["teams"]`` site
+        with a spurious list-indexing error.
+        """
         cache_key = f"tsdb:{path}"
         cached = self._cache_get(cache_key)
         if cached is not None:
-            return cached
+            result: dict[str, Any] = cached
+            return result
 
-        await self._ensure_client()
+        client = self._ensure_client()
         try:
-            r = await self._client.get(path)
+            r = await client.get(path)
             if r.status_code == 200:
-                data = r.json()
+                data: dict[str, Any] = r.json()
                 self._cache_set(cache_key, data, ttl)
                 self._available = True
                 return data
@@ -208,7 +220,8 @@ class TheSportsDBService:
         """Get league info by ID."""
         data = await self._get(f"lookupleague.php?id={league_id}", ttl=CACHE_TTL_LONG)
         if data and "leagues" in data and data["leagues"]:
-            return data["leagues"][0]
+            league: dict = data["leagues"][0]
+            return league
         return None
 
     # ------------------------------------------------------------------
@@ -332,7 +345,8 @@ class TheSportsDBService:
         """Get venue info by ID."""
         data = await self._get(f"lookupvenue.php?id={venue_id}", ttl=CACHE_TTL_LONG)
         if data and "venues" in data and data["venues"]:
-            return data["venues"][0]
+            venue: dict = data["venues"][0]
+            return venue
         return None
 
     # ------------------------------------------------------------------
@@ -343,5 +357,6 @@ class TheSportsDBService:
         """Get all leagues (returns only id + name + sport)."""
         data = await self._get("all_leagues.php", ttl=CACHE_TTL_LONG)
         if data and "leagues" in data and data["leagues"]:
-            return data["leagues"]
+            leagues: list[dict] = data["leagues"]
+            return leagues
         return []
