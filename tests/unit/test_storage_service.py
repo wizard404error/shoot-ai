@@ -263,6 +263,21 @@ CREATE TABLE IF NOT EXISTS acwr_daily (
     load_category TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(player_id, date)
 );
+CREATE TABLE IF NOT EXISTS player_contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_profile_id INTEGER NOT NULL,
+    player_name TEXT NOT NULL,
+    contract_type TEXT NOT NULL DEFAULT 'permanent' CHECK(contract_type IN ('permanent','loan','youth','scholar','trial')),
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    club_option_years INTEGER DEFAULT 0,
+    player_option_years INTEGER DEFAULT 0,
+    release_clause_millions REAL DEFAULT NULL,
+    wage_weekly_pounds REAL DEFAULT NULL,
+    agent_name TEXT DEFAULT '',
+    notes TEXT DEFAULT '',
+    last_updated TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -1267,3 +1282,154 @@ async def test_squad_injury_report_uninitialized_conn():
     report = await svc.get_squad_injury_report(1)
     assert report["total_active"] == 0
     assert report["injuries"] == []
+
+
+# ── Player Contracts (migration 017) ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_save_and_get_contracts_roundtrip(storage):
+    cid = await storage.save_contract(
+        {
+            "player_profile_id": 1,
+            "player_name": "Alpha",
+            "start_date": "2025-07-01",
+            "end_date": "2026-06-30",
+            "wage_weekly_pounds": 55.0,
+            "release_clause_millions": 12.5,
+        }
+    )
+    assert cid > 0
+
+    contracts = await storage.get_contracts()
+    assert len(contracts) == 1
+    c = contracts[0]
+    assert c["player_name"] == "Alpha"
+    assert c["contract_type"] == "permanent"  # default applied
+    assert c["wage_weekly_pounds"] == 55.0
+    assert c["release_clause_millions"] == 12.5
+    assert c["last_updated"]  # DEFAULT (datetime('now')) filled in
+
+
+@pytest.mark.asyncio
+async def test_get_contracts_filters_by_profile_and_orders_by_end_date(storage):
+    await storage.save_contract(
+        {
+            "player_profile_id": 1,
+            "player_name": "Far",
+            "start_date": "2025-07-01",
+            "end_date": "2027-06-30",
+        }
+    )
+    await storage.save_contract(
+        {
+            "player_profile_id": 2,
+            "player_name": "Near",
+            "start_date": "2025-07-01",
+            "end_date": "2026-01-15",
+        }
+    )
+    await storage.save_contract(
+        {
+            "player_profile_id": 1,
+            "player_name": "Mid",
+            "start_date": "2025-07-01",
+            "end_date": "2026-09-01",
+        }
+    )
+
+    # Soonest-expiring first
+    names = [c["player_name"] for c in await storage.get_contracts()]
+    assert names == ["Near", "Mid", "Far"]
+
+    # Profile filter
+    own = [c["player_name"] for c in await storage.get_contracts(profile_id=1)]
+    assert own == ["Mid", "Far"]
+
+    # Unmatched profile -> empty
+    assert await storage.get_contracts(profile_id=99) == []
+
+
+@pytest.mark.asyncio
+async def test_get_contracts_expiring_soon_window(storage):
+    from datetime import date, timedelta
+
+    soon = (date.today() + timedelta(days=20)).isoformat()
+    mid = (date.today() + timedelta(days=80)).isoformat()
+    far = (date.today() + timedelta(days=400)).isoformat()
+    past = (date.today() - timedelta(days=5)).isoformat()
+
+    for name, end in [("Soon", soon), ("Mid", mid), ("Far", far), ("Past", past)]:
+        await storage.save_contract(
+            {
+                "player_profile_id": 1,
+                "player_name": name,
+                "start_date": "2025-07-01",
+                "end_date": end,
+            }
+        )
+
+    # 90-day window: soon+mid inside, far outside, past excluded (already ended)
+    names = [c["player_name"] for c in await storage.get_contracts_expiring_soon(90)]
+    assert set(names) == {"Soon", "Mid"}
+
+    # Wider window still excludes already-expired contracts
+    names180 = [c["player_name"] for c in await storage.get_contracts_expiring_soon(180)]
+    assert set(names180) == {"Soon", "Mid"}
+
+
+@pytest.mark.asyncio
+async def test_contract_methods_safe_without_connection():
+    svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
+    assert await svc.get_contracts() == []
+    assert await svc.get_contracts_expiring_soon(90) == []
+    assert (
+        await svc.save_contract(
+            {
+                "player_profile_id": 1,
+                "player_name": "X",
+                "start_date": "2025-01-01",
+                "end_date": "2026-01-01",
+            }
+        )
+        == 0
+    )
+
+
+@pytest.mark.asyncio
+async def test_contract_alerts_levels_from_handler(storage):
+    """The Settings contract-alerts panel derives critical/warning from end_date."""
+    from datetime import date, timedelta
+
+    weeks = (date.today() + timedelta(days=20)).isoformat()  # critical (<=30d)
+    months = (date.today() + timedelta(days=150)).isoformat()  # warning (31-180d)
+
+    await storage.save_contract(
+        {
+            "player_profile_id": 1,
+            "player_name": "Star",
+            "start_date": "2025-07-01",
+            "end_date": weeks,
+        }
+    )
+    await storage.save_contract(
+        {
+            "player_profile_id": 2,
+            "player_name": "Solid",
+            "start_date": "2025-07-01",
+            "end_date": months,
+        }
+    )
+
+    expiring = await storage.get_contracts_expiring_soon(180)
+    levels = {
+        c["player_name"]: (
+            "critical"
+            if (date.fromisoformat(c["end_date"]) - date.today()).days <= 30
+            else "warning"
+        )
+        for c in expiring
+    }
+    assert levels == {"Star": "critical", "Solid": "warning"}

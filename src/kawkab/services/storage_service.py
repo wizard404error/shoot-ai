@@ -2311,6 +2311,14 @@ class StorageService:
 
     # ── Player Contracts (migration 017) ─────────────────────────────────
 
+    # Single source of truth for the contract row shape, shared by the
+    # list/filter/expiring queries below (was duplicated 3x).
+    _CONTRACT_COLUMNS = (
+        "id, player_profile_id, player_name, contract_type, start_date, "
+        "end_date, club_option_years, player_option_years, release_clause_millions, "
+        "wage_weekly_pounds, agent_name, notes, last_updated"
+    )
+
     async def save_contract(self, contract: dict) -> int:
         """Insert a player-contract row, returning its id (0 on failure)."""
         if self._conn is None:
@@ -2345,18 +2353,13 @@ class StorageService:
         cursor = self._conn.cursor()
         if profile_id:
             cursor.execute(
-                "SELECT id, player_profile_id, player_name, contract_type, start_date, "
-                "end_date, club_option_years, player_option_years, release_clause_millions, "
-                "wage_weekly_pounds, agent_name, notes, last_updated "
+                f"SELECT {self._CONTRACT_COLUMNS} "
                 "FROM player_contracts WHERE player_profile_id = ? ORDER BY end_date ASC",
                 (profile_id,),
             )
         else:
             cursor.execute(
-                "SELECT id, player_profile_id, player_name, contract_type, start_date, "
-                "end_date, club_option_years, player_option_years, release_clause_millions, "
-                "wage_weekly_pounds, agent_name, notes, last_updated "
-                "FROM player_contracts ORDER BY end_date ASC"
+                f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts ORDER BY end_date ASC"
             )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -2366,9 +2369,7 @@ class StorageService:
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, player_profile_id, player_name, contract_type, start_date, "
-            "end_date, club_option_years, player_option_years, release_clause_millions, "
-            "wage_weekly_pounds, agent_name, notes, last_updated "
+            f"SELECT {self._CONTRACT_COLUMNS} "
             "FROM player_contracts "
             "WHERE date(end_date) <= date('now', '+' || ? || ' days') "
             "AND date(end_date) >= date('now') ORDER BY end_date ASC",
