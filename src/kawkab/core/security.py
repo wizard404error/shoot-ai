@@ -29,6 +29,13 @@ class SecurityValidator:
     # Allowed data-file extensions for vendor imports (elite interop path):
     # event/tracking feeds arrive as JSON, XML (Opta/EPTS), or CSV (Metrica)
     ALLOWED_DATA_EXTENSIONS = {".json", ".xml", ".csv"}
+    # Wearable imports accept formats the generic data allowlist must not
+    # cover (GPX/FIT/TCX are device exports) -- dedicated allowlist so
+    # neither set is silently widened.
+    ALLOWED_WEARABLE_EXTENSIONS = {".gpx", ".fit", ".tcx", ".xml", ".csv", ".json"}
+    # Face-photo uploads are images cv2.imread can decode -- the data
+    # allowlist (.json/.xml/.csv) would reject every legitimate photo.
+    ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
     # Max file size (2 GB)
     MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024
@@ -177,6 +184,76 @@ class SecurityValidator:
 
         if not resolved.is_dir():
             raise ValueError(f"not a directory: {resolved}")
+
+        return resolved
+
+    @staticmethod
+    def validate_image_path(file_path: str | Path) -> Path:
+        """Validate a user-supplied image path (face photos) for safety.
+
+        Same structure as validate_data_file_path (documents-directory
+        allowlist, extension allowlist, traversal denial) but with the
+        image extension set cv2.imread actually decodes.
+        """
+        path = Path(file_path)
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid path: {file_path}") from e
+
+        if resolved.suffix.lower() not in SecurityValidator.ALLOWED_IMAGE_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported image file type: {resolved.suffix}. "
+                f"Allowed: {', '.join(sorted(SecurityValidator.ALLOWED_IMAGE_EXTENSIONS))}"
+            )
+
+        from kawkab.core.paths import get_paths
+
+        docs = get_paths().documents.resolve()
+        try:
+            resolved.relative_to(docs)
+        except ValueError:
+            logger.error(f"Image outside KawkabAI directory: {resolved}")
+            raise ValueError(
+                f"Path traversal denied: {resolved} is not within {docs}. "
+                f"Only files in the KawkabAI directory are allowed."
+            ) from None
+
+        return resolved
+
+    @staticmethod
+    def validate_wearable_path(file_path: str | Path) -> Path:
+        """Validate a wearable device-export path (GPX/FIT/TCX/...) for safety.
+
+        Same structure as validate_data_file_path (documents-directory
+        allowlist, extension allowlist, traversal denial) but with the
+        wearable extension set -- import_wearable used to be unvalidated,
+        and validating it against ALLOWED_DATA_EXTENSIONS would have
+        rejected every legitimate .gpx/.fit/.tcx import.
+        """
+        path = Path(file_path)
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid path: {file_path}") from e
+
+        if resolved.suffix.lower() not in SecurityValidator.ALLOWED_WEARABLE_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported wearable file type: {resolved.suffix}. "
+                f"Allowed: {', '.join(sorted(SecurityValidator.ALLOWED_WEARABLE_EXTENSIONS))}"
+            )
+
+        from kawkab.core.paths import get_paths
+
+        docs = get_paths().documents.resolve()
+        try:
+            resolved.relative_to(docs)
+        except ValueError:
+            logger.error(f"Wearable file outside KawkabAI directory: {resolved}")
+            raise ValueError(
+                f"Path traversal denied: {resolved} is not within {docs}. "
+                f"Only files in the KawkabAI directory are allowed."
+            ) from None
 
         return resolved
 

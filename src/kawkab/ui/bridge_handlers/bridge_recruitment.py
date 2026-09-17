@@ -75,120 +75,19 @@ class RecruitmentHandler:
                         }
                     )
                 return json.dumps({"results": player_list, "total": len(player_list)})
-            except Exception:
-                # Fallback: return mock results for common queries
-                mock_db = [
+            except Exception as exc:
+                # Honest failure: no fabricated players. A coaching tool that
+                # invents Haaland stats on an internal error is worse than an
+                # empty result -- the coach would brief a scout report on
+                # fiction. Surface the error; the UI renders zero results.
+                logger.error(f"scout_search_players failed: {exc}")
+                return json.dumps(
                     {
-                        "name": "Erling Haaland",
-                        "position": "FW",
-                        "team": "Manchester City",
-                        "age": 22,
-                        "goals": 32,
-                        "assists": 5,
-                        "xg": 28.5,
-                        "passes": 412,
-                        "tackles": 12,
-                        "matches": 28,
-                    },
-                    {
-                        "name": "Kevin De Bruyne",
-                        "position": "MF",
-                        "team": "Manchester City",
-                        "age": 30,
-                        "goals": 8,
-                        "assists": 16,
-                        "xg": 7.2,
-                        "passes": 1250,
-                        "tackles": 34,
-                        "matches": 25,
-                    },
-                    {
-                        "name": "Virgil van Dijk",
-                        "position": "DF",
-                        "team": "Liverpool",
-                        "age": 31,
-                        "goals": 3,
-                        "assists": 2,
-                        "xg": 2.8,
-                        "passes": 1800,
-                        "tackles": 45,
-                        "matches": 30,
-                    },
-                    {
-                        "name": "Kylian Mbappé",
-                        "position": "FW",
-                        "team": "PSG",
-                        "age": 24,
-                        "goals": 28,
-                        "assists": 8,
-                        "xg": 24.1,
-                        "passes": 380,
-                        "tackles": 8,
-                        "matches": 26,
-                    },
-                    {
-                        "name": "Jude Bellingham",
-                        "position": "MF",
-                        "team": "Real Madrid",
-                        "age": 20,
-                        "goals": 15,
-                        "assists": 7,
-                        "xg": 12.8,
-                        "passes": 890,
-                        "tackles": 42,
-                        "matches": 27,
-                    },
-                    {
-                        "name": "Mohamed Salah",
-                        "position": "FW",
-                        "team": "Liverpool",
-                        "age": 30,
-                        "goals": 25,
-                        "assists": 10,
-                        "xg": 22.1,
-                        "passes": 560,
-                        "tackles": 18,
-                        "matches": 29,
-                    },
-                    {
-                        "name": "Lionel Messi",
-                        "position": "FW",
-                        "team": "Inter Miami",
-                        "age": 36,
-                        "goals": 22,
-                        "assists": 14,
-                        "xg": 19.5,
-                        "passes": 980,
-                        "tackles": 14,
-                        "matches": 22,
-                    },
-                    {
-                        "name": "Cristiano Ronaldo",
-                        "position": "FW",
-                        "team": "Al Nassr",
-                        "age": 38,
-                        "goals": 30,
-                        "assists": 6,
-                        "xg": 27.8,
-                        "passes": 350,
-                        "tackles": 6,
-                        "matches": 30,
-                    },
-                ]
-                query_lower = query.lower().strip()
-                results = mock_db
-                if query_lower:
-                    results = [
-                        p
-                        for p in mock_db
-                        if query_lower in (p["name"] or "").lower()
-                        or query_lower in (p["position"] or "").lower()
-                    ]
-                if position:
-                    pos_upper = position.upper()
-                    results = [p for p in results if pos_upper in (p["position"] or "").upper()]
-                player_list = [{"track_id": i + 1, **p} for i, p in enumerate(results)]
-                return json.dumps({"results": player_list, "total": len(player_list)})
+                        "results": [],
+                        "total": 0,
+                        "error": ErrorSanitizer.sanitize_error(exc),
+                    }
+                )
         except Exception as e:
             logger.error(f"scout_search_players failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})

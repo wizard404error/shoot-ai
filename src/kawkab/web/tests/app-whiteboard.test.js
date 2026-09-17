@@ -16,6 +16,12 @@ const path = require('path');
 const WB_JS_PATH = path.resolve(__dirname, '../js/app-whiteboard.js');
 const wbCode = fs.readFileSync(WB_JS_PATH, 'utf-8');
 
+// The shipped bundle always loads utils.js before the module IIFEs
+// (frontend-manifest.json order); app-whiteboard.js resolves the bridge
+// through KawkabUtils.getBridge, so the harness must load it too.
+const UTILS_JS_PATH = path.resolve(__dirname, '../js/utils.js');
+const utilsCode = fs.readFileSync(UTILS_JS_PATH, 'utf-8');
+
 // A minimal but faithful WhiteboardState shape (mirrors
 // kawkab/analysis/tactical_whiteboard.py to_dict()).
 function makeState(overrides = {}) {
@@ -57,6 +63,8 @@ function makeMockBridge() {
 }
 
 function loadIIFE() {
+    // eslint-disable-next-line no-eval
+    (function () { eval(utilsCode); }).call(window);
     // eslint-disable-next-line no-eval
     (function () { eval(wbCode); }).call(window);
 }
@@ -121,6 +129,7 @@ beforeEach(() => {
     window.__kawkab = { bridge };
     window.bridge = bridge;
     delete window.KawkabWhiteboard;
+    delete window.KawkabUtils;
     delete window.initWhiteboardWorkspace;
     // jsdom returns zero rects; give every element a 100x100 box. Element
     // (not HTMLElement) covers SVGElement too.

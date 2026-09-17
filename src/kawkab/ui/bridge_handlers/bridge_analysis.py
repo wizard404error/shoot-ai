@@ -1225,6 +1225,9 @@ class AnalysisHandler:
 
     async def upload_face_photo(self, photo_path, display_name, jersey_number):
         try:
+            # Image-specific allowlist: the generic data one (.json/.xml/.csv)
+            # would reject every legitimate photo.
+            SecurityValidator.validate_image_path(photo_path)
             if self.face_recognition_service is None:
                 return json.dumps(
                     {
@@ -3760,6 +3763,11 @@ class AnalysisHandler:
 
     async def import_wearable(self, file_path):
         try:
+            # Validate before handing an arbitrary user path to a parser
+            # (GPX/FIT/TCX are XML/zip formats the parsers open and read).
+            # Wearable-specific allowlist: the generic data one would reject
+            # every legitimate .gpx/.fit/.tcx import.
+            SecurityValidator.validate_wearable_path(file_path)
             from kawkab.services.wearable_import_service import WearableImportService
 
             svc = WearableImportService()
@@ -3928,6 +3936,21 @@ class AnalysisHandler:
 
     async def stream_start_capture(self, url, stream_id="", output_filename=""):
         try:
+            # ffmpeg -i <url>: block file:// URLs (arbitrary local file reads),
+            # and validate any output_filename the caller supplies.
+            u = str(url or "").strip()
+            if not u or u.lower().startswith("file:"):
+                return json.dumps({"error": "invalid or unsupported stream URL"})
+            if output_filename:
+                safe = SecurityValidator.sanitize_string(str(output_filename), max_length=200)
+                if safe != str(output_filename):
+                    return json.dumps({"error": "invalid output filename"})
+                # sanitize_string's default allowlist keeps "/", "\\" and ".",
+                # so traversal sequences survive it -- reject them explicitly:
+                # the filename is joined onto the capture output dir.
+                fn = str(output_filename)
+                if "/" in fn or "\\" in fn or ".." in fn:
+                    return json.dumps({"error": "invalid output filename"})
             svc = self._services.get("live_stream_service")
             if svc is None:
                 from kawkab.services.live_stream_service import LiveStreamCaptureService
