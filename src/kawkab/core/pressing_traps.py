@@ -250,7 +250,7 @@ def _find_trigger_events(
     if not trigger_counts:
         return ("unknown", 0)
 
-    best_trigger = max(trigger_counts, key=trigger_counts.get)
+    best_trigger = max(trigger_counts, key=trigger_counts.get)  # type: ignore[arg-type,return-value]
     return (best_trigger, trigger_counts[best_trigger])
 
 
@@ -435,7 +435,7 @@ def detect_pressing_traps(
     trigger_counts: dict[str, int] = defaultdict(int)
     for t in traps:
         trigger_counts[t.trigger_event_type] += 1
-    most_common = max(trigger_counts, key=trigger_counts.get) if trigger_counts else ""
+    most_common = max(trigger_counts, key=trigger_counts.get) if trigger_counts else ""  # type: ignore[arg-type,return-value]
 
     # Dangerous zones: traps where success rate is below 30 %
     dangerous = [t.zone_name for t in traps if t.success_rate < 0.30]

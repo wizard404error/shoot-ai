@@ -64,7 +64,7 @@ class ArabicGlossary:
         for key, entry in terms.items():
             if isinstance(entry, dict):
                 self._entries[key] = GlossaryEntry(
-                    en=entry.get("en", key),
+                    en=entry.get("en") or key,
                     ar=entry.get("ar", ""),
                     transliteration=entry.get("transliteration", ""),
                     definition=entry.get("definition", ""),

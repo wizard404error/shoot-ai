@@ -150,7 +150,7 @@ class JerseyNumberService:
         estimated = int(1 + (ratio * 100) % 99)
         return {
             "jersey_number": estimated,
-            "confidence": round(float(min(ratio * 2, 0.5)), 3),
+            "confidence": round(float(min(float(ratio) * 2, 0.5)), 3),
             "candidates": [(estimated, 1)],
             "source": "pixel",
         }

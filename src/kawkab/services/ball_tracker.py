@@ -409,7 +409,7 @@ class BallTracker:
 
         if best is not None:
             self._current_mode = "yolo" if self._use_yolo and best.get("raw_conf", 0) > 0 else "hsv"
-            det = self._measurement_update(best, frame_number, timestamp)
+            det: BallDetection | None = self._measurement_update(best, frame_number, timestamp)
         else:
             # Mode 3: prediction only
             det = self._prediction_update(frame_number, timestamp)

@@ -37,7 +37,7 @@ class MultiAngleSyncService:
             if not path or not os.path.isfile(path):
                 return json.dumps({"error": f"Video not found: {v.get('path')}"})
             label = v.get("label", os.path.basename(path))
-            validated.append(VideoSource(path=path, label=label))
+            validated.append(VideoSource(path=str(path), label=label))
         if not validated:
             return json.dumps({"error": "No valid video paths"})
         import cv2

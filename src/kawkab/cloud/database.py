@@ -195,9 +195,9 @@ def _get_cloud_db_impl() -> _SqliteConnection | _PostgresConnection:
         return conn
     path = CLOUD_DB_PATH
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = _SqliteConnection(path)
-    _sqlite_migrate(conn)
-    return conn
+    conn_sqlite = _SqliteConnection(path)
+    _sqlite_migrate(conn_sqlite)
+    return conn_sqlite
 
 
 _local = threading.local()

@@ -384,9 +384,9 @@ def analyze_set_pieces(
         summaries.append(
             SetPieceSummary(
                 type=sp_type,
-                count=c,
-                shots=s,
-                goals=g,
+                count=int(c),
+                shots=int(s),
+                goals=int(g),
                 total_xg=txg,
                 avg_xg_per_set_piece=avg_xg,
                 conversion_rate=conv,

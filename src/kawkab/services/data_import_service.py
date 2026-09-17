@@ -69,7 +69,7 @@ class DataImportService:
                 except Exception as e:
                     errors.append(f"Item {i + 1}: {e}")
         elif isinstance(data, dict):
-            raw_events = data.get("events", data.get("data", []))
+            raw_events = data.get("events", data.get("data", [])) or []
             for i, item in enumerate(raw_events):
                 try:
                     event = self._statsbomb_to_event(item, match_id)

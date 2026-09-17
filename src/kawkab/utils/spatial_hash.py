@@ -134,10 +134,10 @@ def bulk_insert_2d(
     sh: SpatialHash2D, positions: Iterable[Sequence[float]], objs: Iterable[Hashable] | None = None
 ) -> list[Hashable]:
     """Insert many points at once. Returns list of inserted objects."""
-    inserted = []
+    inserted: list[Hashable] = []
     if objs is None:
         positions_list = list(positions)
-        objs_iter = range(len(positions_list))
+        objs_iter: Iterable[int] | list[Hashable] = range(len(positions_list))
     else:
         positions_list = list(positions)
         objs_iter = list(objs)

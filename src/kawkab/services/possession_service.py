@@ -139,7 +139,8 @@ class PossessionService:
                     stats[player_id].successful_passes += 1
                     current_chain.n_passes += 1
                 continue
-            _ = t - current_chain.start_time_s
+            assert current_chain is not None
+            _chain_elapsed = float(t - current_chain.start_time_s)
             if et == "pass" and event.get("team") == current_chain.team:
                 current_chain.n_passes += 1
                 current_chain.end_time_s = t
@@ -228,8 +229,8 @@ class PossessionService:
                     away_possession_time += chain_dur
                 chains.append(current_chain)
                 current_chain = None
-                _ = team
-                _ = t
+                assert current_chain is None
+                _t_marker = float(t)
             if player_id is not None and et in {"pass", "tackle", "interception", "shot"}:
                 stats = home_player_stats if team == home_team else away_player_stats
                 if player_id not in stats:

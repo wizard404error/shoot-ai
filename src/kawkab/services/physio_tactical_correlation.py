@@ -129,7 +129,7 @@ class PhysioTacticalCorrelationService:
                 ]
             hi_bursts = []
             in_burst = False
-            burst_start = 0
+            burst_start = 0.0
             for i in range(len(speeds)):
                 if speeds[i] > 5.5:
                     if not in_burst:

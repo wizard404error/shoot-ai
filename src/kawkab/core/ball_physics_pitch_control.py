@@ -279,7 +279,7 @@ class BallPhysicsPitchControl:
             magnus = S * np.cross(omega, v) if speed > 0 else np.zeros(3)
             return np.concatenate([v, drag + magnus + np.array([0.0, 0.0, -g])])
 
-        rk_times = [0.0]
+        rk_times: list[float] = [0.0]
         rk_xs = [0.0]
         rk_zs = [z_init]
         t = 0.0
@@ -298,12 +298,12 @@ class BallPhysicsPitchControl:
                 rk_xs.append(float(pos[0]))
                 rk_zs.append(float(pos[2]))
 
-        rk_times = np.asarray(rk_times, dtype=np.float64)
+        rk_arr = np.asarray(rk_times if rk_times else [np.inf], dtype=np.float64)
         horiz_dists = np.abs(np.asarray(rk_xs, dtype=np.float64))
 
         sort_idx = np.argsort(horiz_dists)
         sd = horiz_dists[sort_idx]
-        st = rk_times[sort_idx]
+        st = rk_arr[sort_idx]
 
         if sd.size == 0:
             # Simulation never crossed the sampling threshold (e.g. an

@@ -169,11 +169,11 @@ def render_heatmap_overlay(
     if "home" in heatmaps:
         hm = cv2.cvtColor(heatmaps["home"], cv2.COLOR_GRAY2BGR)
         hm = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-        overlay = cv2.addWeighted(overlay, 1.0, hm, alpha, 0)
+        overlay = cv2.addWeighted(overlay, 1.0, hm, alpha, 0)  # type: ignore[assignment]
     if "away" in heatmaps:
         hm = cv2.cvtColor(heatmaps["away"], cv2.COLOR_GRAY2BGR)
         hm = cv2.applyColorMap(hm, cv2.COLORMAP_HOT)
-        overlay = cv2.addWeighted(overlay, 1.0, hm, alpha, 0)
+        overlay = cv2.addWeighted(overlay, 1.0, hm, alpha, 0)  # type: ignore[assignment]
     return cv2.addWeighted(frame, 1.0, overlay, alpha, 0)
 
 

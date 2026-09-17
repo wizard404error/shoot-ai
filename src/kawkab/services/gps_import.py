@@ -362,7 +362,7 @@ def compute_session_summary(
     )
 
     # Distance by speed zone
-    dist_by_zone = {}
+    dist_by_zone: dict[str, float] = {}
     for s in samples:
         zone = s["speed_zone"]
         d = s["distance"] or 0.0

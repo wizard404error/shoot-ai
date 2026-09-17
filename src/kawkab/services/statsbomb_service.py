@@ -124,6 +124,7 @@ class StatsBombService:
         if cached is not None:
             return cached
         await self._ensure_client()
+        assert self._client is not None
         try:
             r = await self._client.get(url)
             if r.status_code == 200:

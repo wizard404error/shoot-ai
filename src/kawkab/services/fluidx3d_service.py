@@ -127,7 +127,7 @@ class FluidX3DService:
         out = output_dir or tempfile.mkdtemp(prefix="fluidx3d_")
         os.makedirs(out, exist_ok=True)
         cmd = [
-            self._binary_path,
+            str(self._binary_path),
             f"--radius={ball_radius}",
             f"--velocity={wind_speed}",
             f"--spin={spin_rps}",

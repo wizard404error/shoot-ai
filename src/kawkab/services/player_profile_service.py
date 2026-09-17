@@ -347,7 +347,7 @@ class PlayerProfileService:
 
         # Get match players
         team_filter = "AND team = ?" if team else ""
-        params = [match_id]
+        params: list[Any] = [match_id]
         if team:
             params.append(team)
 

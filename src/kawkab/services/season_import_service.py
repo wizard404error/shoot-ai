@@ -233,7 +233,7 @@ class SeasonImportService:
             match_date=meta.get("match_date") or match_date,
             competition=meta.get("competition") or competition,
             season_id=(
-                int(meta.get("season_id", season_id))
+                int(str(meta.get("season_id", season_id)))
                 if meta.get("season_id", season_id) is not None
                 else None
             ),

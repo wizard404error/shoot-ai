@@ -33,7 +33,9 @@ __all__ = [
 ]
 
 
-def _check_pair(y_true: np.ndarray, y_proba: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _check_pair(
+    y_true: np.ndarray | list[Any], y_proba: np.ndarray | list[Any]
+) -> tuple[np.ndarray, np.ndarray]:
     y_true = np.asarray(y_true, dtype=np.float64)
     y_proba = np.asarray(y_proba, dtype=np.float64)
     if y_true.shape != y_proba.shape:
@@ -49,15 +51,15 @@ def _check_pair(y_true: np.ndarray, y_proba: np.ndarray) -> tuple[np.ndarray, np
     return y_true, y_proba
 
 
-def brier_score(y_true: np.ndarray | list, y_proba: np.ndarray | list) -> float:
+def brier_score(y_true: np.ndarray | list[Any], y_proba: np.ndarray | list[Any]) -> float:
     """Mean Brier score (lower is better; 0.25 = constant 0.5 guess)."""
     yt, yp = _check_pair(y_true, y_proba)
     return float(np.mean((yp - yt) ** 2))
 
 
 def brier_skill_score(
-    y_true: np.ndarray | list,
-    y_proba: np.ndarray | list,
+    y_true: np.ndarray | list[Any],
+    y_proba: np.ndarray | list[Any],
     *,
     reference: str = "climatology",
 ) -> float:
@@ -168,7 +170,7 @@ def roc_auc(y_true: np.ndarray | list, y_proba: np.ndarray | list) -> float:
     return float((sum_pos - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg))
 
 
-def log_loss(y_true: np.ndarray | list, y_proba: np.ndarray | list) -> float:
+def log_loss(y_true: np.ndarray | list[Any], y_proba: np.ndarray | list[Any]) -> float:
     """Mean binary log loss (lower is better). Clips p to avoid inf."""
     yt, yp = _check_pair(y_true, y_proba)
     p = np.clip(yp, 1e-15, 1.0 - 1e-15)
@@ -176,8 +178,8 @@ def log_loss(y_true: np.ndarray | list, y_proba: np.ndarray | list) -> float:
 
 
 def calibration_error(
-    y_true: np.ndarray | list,
-    y_proba: np.ndarray | list,
+    y_true: np.ndarray | list[Any],
+    y_proba: np.ndarray | list[Any],
     *,
     n_bins: int = 10,
 ) -> float:

@@ -224,8 +224,11 @@ class PassEvent(BaseEvent):
 @dataclass
 class ShotEvent(BaseEvent):
     on_target: bool = False
-    distance_m: float = 0.0
-    angle_deg: float = 0.0
+    # Honest-absent: None means the position was never known (no
+    # homography / no metadata). Consumers fall back via `or` — a
+    # fabricated 0.0 would silently poison xG feature vectors.
+    distance_m: float | None = None
+    angle_deg: float | None = None
     body_part: BodyPart = BodyPart.RIGHT_FOOT
     shot_type: ShotType = ShotType.OPEN_PLAY
     is_one_on_one: bool = False
@@ -245,8 +248,8 @@ class ShotEvent(BaseEvent):
         base.update(
             {
                 "on_target": self.on_target,
-                "distance_m": round(self.distance_m, 1),
-                "angle_deg": round(self.angle_deg, 1),
+                "distance_m": round(self.distance_m, 1) if self.distance_m is not None else None,
+                "angle_deg": round(self.angle_deg, 1) if self.angle_deg is not None else None,
                 "body_part": self.body_part.value,
                 "shot_type": self.shot_type.value,
                 "is_one_on_one": self.is_one_on_one,
@@ -267,8 +270,8 @@ class ShotEvent(BaseEvent):
         kwargs["body_part"] = _parse_enum(d, "body_part", BodyPart, BodyPart.RIGHT_FOOT)
         kwargs["shot_type"] = _parse_enum(d, "shot_type", ShotType, ShotType.OPEN_PLAY)
         kwargs["on_target"] = d.get("on_target", False)
-        kwargs["distance_m"] = float(d.get("distance_m", 0))
-        kwargs["angle_deg"] = float(d.get("angle_deg", 0))
+        kwargs["distance_m"] = float(d["distance_m"]) if d.get("distance_m") is not None else None
+        kwargs["angle_deg"] = float(d["angle_deg"]) if d.get("angle_deg") is not None else None
         kwargs["is_one_on_one"] = d.get("is_one_on_one", False)
         kwargs["is_volley"] = d.get("is_volley", False)
         kwargs["xg"] = float(d.get("xg", 0))

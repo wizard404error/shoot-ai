@@ -373,13 +373,13 @@ def _evaluate_on_split(
     try:
         dl_model = DLXgModel(seed=random_seed)
         dl_model.train(
-            enhanced_model.extract_features(train_shots),
+            dl_model.extract_features(train_shots),
             np.array([float(s.get("is_goal", 0.0)) for s in train_shots], dtype=np.float64),
             epochs=50,
             batch_size=min(32, len(train_shots)),
             verbose=False,
         )
-        dl_test_preds = dl_model.predict(enhanced_model.extract_features(test_shots))
+        dl_test_preds = dl_model.predict(dl_model.extract_features(test_shots))
     except Exception:
         pass
 

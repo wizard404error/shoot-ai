@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -103,7 +104,7 @@ class PoseAnalysisService:
     def __init__(self, model_size: str = "n", device: str = "") -> None:
         self.model_size = model_size
         self.device = device
-        self._model = None
+        self._model: Any = None
         self._available = False
         self._activity_history: dict[int, deque[tuple[float, str]]] = defaultdict(
             lambda: deque(maxlen=300)

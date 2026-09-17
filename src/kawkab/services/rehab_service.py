@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -58,7 +58,7 @@ class RehabPlan:
     injury_id: int
     phase: str = "initial"
     start_date: str = ""
-    milestones: list[str] = None
+    milestones: list[str] = field(default_factory=list)
     status: str = "active"
     notes: str = ""
     id: int = 0

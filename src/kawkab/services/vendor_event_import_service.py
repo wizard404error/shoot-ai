@@ -273,6 +273,7 @@ class VendorEventImportService:
         parser_type = (ev.type or "").lower()
         type_id = str(ev.extra.get("type_id", "") or "")
 
+        ktype: str | None
         if parser_type in _OPTA_SHOT_NAMES:
             ktype = "shot"
         elif parser_type:

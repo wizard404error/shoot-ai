@@ -359,14 +359,14 @@ class MarketplaceService:
 
     def add_item(
         self,
-        item_type: str,
+        item_type: Literal["drill", "template", "plugin"],
         name: str,
         description: str = "",
         author: str = "",
         category: str = "",
         tags: list[str] | None = None,
         data: str = "",
-        source: str = "local",
+        source: Literal["local", "community"] = "local",
     ) -> dict:
         import uuid
 

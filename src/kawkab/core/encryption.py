@@ -77,6 +77,7 @@ def get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
         init_fernet()
+    assert _fernet is not None
     return _fernet
 
 

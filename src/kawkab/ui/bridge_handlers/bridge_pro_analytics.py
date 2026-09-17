@@ -116,8 +116,10 @@ class ProAnalyticsHandler:
         builder receives the same shape (the services/-must-delegate-to-
         core/ invariant applied to the read path too).
         """
-        meta: dict = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
+        meta_raw = e.get("metadata")
+        meta_val: dict[str, Any] = meta_raw if isinstance(meta_raw, dict) else {}
         out = dict(e)
+        out["metadata"] = meta_val
         out["type"] = e.get("event_type") or e.get("type") or "unknown"
         for key in (
             "x",
@@ -132,8 +134,8 @@ class ProAnalyticsHandler:
             "angle_deg",
             "assist_type",
         ):
-            if key in meta and out.get(key) is None:
-                out[key] = meta[key]
+            if key in meta_val and out.get(key) is None:
+                out[key] = meta_val[key]
         # Storage's SELECT also extracts x/y/xg/xa/xt via json_extract —
         # those arrive as top-level columns; keep them when present.
         return out

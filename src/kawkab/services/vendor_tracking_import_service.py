@@ -235,7 +235,7 @@ def parse_skillcorner(
         if not isinstance(p, dict):
             continue
         try:
-            tid = int(p.get("track_id", p.get("id", -1)))
+            tid = int(str(p.get("track_id", p.get("id", -1))))
         except (TypeError, ValueError):
             continue
         player_meta[tid] = {
@@ -251,7 +251,7 @@ def parse_skillcorner(
         if not isinstance(item, dict):
             continue
         try:
-            frame_number = int(item.get("frame_id", item.get("id", item.get("frame", i))))
+            frame_number = int(str(item.get("frame_id", item.get("id", item.get("frame", i)))))
             timestamp = _raw_time(item)
             if is_ms:
                 timestamp = timestamp / 1000.0
@@ -264,7 +264,7 @@ def parse_skillcorner(
             if not isinstance(pd, dict):
                 continue
             try:
-                tid = int(pd.get("track_id", pd.get("id", -1)))
+                tid = int(str(pd.get("track_id", pd.get("id", -1))))
                 x, y = to_kawkab_meters(
                     float(pd.get("x", 0.0)),
                     float(pd.get("y", 0.0)),

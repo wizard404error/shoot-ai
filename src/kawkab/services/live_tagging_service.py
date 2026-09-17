@@ -133,8 +133,8 @@ class LiveTaggingService:
         team: str = "",
         player_id: int = 0,
         notes: str = "",
-        x: float = None,
-        y: float = None,
+        x: float | None = None,
+        y: float | None = None,
     ) -> str:
         try:
             if not self._session_active:

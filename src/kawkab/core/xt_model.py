@@ -33,7 +33,7 @@ PITCH_LENGTH = GAME.PITCH_LENGTH_M
 #   PYTHONPATH=src python -m kawkab.core.validation.train_xt --force
 _REFERENCE_GRID_PATH = Path(__file__).parent / "trained_xt_grid.json"
 _REFERENCE_GRID: np.ndarray | None = None
-_REFERENCE_GRID_SHAPE: tuple[int, int] | None = None
+_REFERENCE_GRID_SHAPE: tuple[int, ...] | None = None
 
 
 def reference_grid_available() -> bool:
@@ -56,6 +56,7 @@ def _load_reference_grid() -> np.ndarray | None:
         if grid.ndim != 2 or grid.size == 0:
             return None
         _REFERENCE_GRID = grid
+        assert grid.shape is not None  # ndarray.shape is never None at runtime
         _REFERENCE_GRID_SHAPE = grid.shape
         return _REFERENCE_GRID
     except Exception:
@@ -111,10 +112,12 @@ class ExpectedThreatModel:
         self,
         events: list[dict[str, Any]],
     ) -> None:
-        transitions = defaultdict(lambda: defaultdict(int))
-        possession_from_zone = defaultdict(int)
-        shots_from_zone = defaultdict(int)
-        goals_from_zone = defaultdict(int)
+        transitions: defaultdict[tuple[int, int], defaultdict[tuple[int, int], int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+        possession_from_zone: defaultdict[tuple[int, int], int] = defaultdict(int)
+        shots_from_zone: defaultdict[tuple[int, int], int] = defaultdict(int)
+        goals_from_zone: defaultdict[tuple[int, int], int] = defaultdict(int)
 
         n_actions = 0
         for ev in events:
@@ -157,7 +160,7 @@ class ExpectedThreatModel:
             if ev.get("is_goal", False):
                 goals_from_zone[zone] += 1
 
-        self._transition = dict(transitions)
+        self._transition = dict(transitions)  # type: ignore[assignment]
 
         # Cold-start rule: a match with too few actions produces a
         # near-degenerate learned grid (a handful of zones with data,

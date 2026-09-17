@@ -92,7 +92,7 @@ def classify_player_role(
     crosses = [e for e in player_events if e.get("type") == "cross"]
 
     def_actions = len(tackles) + len(interceptions) + len(clearances)
-    total_actions = len(player_events)
+    total_actions = float(len(player_events))
 
     # pass direction bias
     forward_passes = 0
@@ -117,11 +117,13 @@ def classify_player_role(
     shot_volume = len(shots) / max(total_actions, 1)
 
     # wide vs central
-    wide_pct = sum(
-        1
-        for e in player_events
-        if e.get("start_y", PITCH_WIDTH / 2) < PITCH_WIDTH * 0.25
-        or e.get("start_y", PITCH_WIDTH / 2) > PITCH_WIDTH * 0.75
+    wide_pct = float(
+        sum(
+            1
+            for e in player_events
+            if e.get("start_y", PITCH_WIDTH / 2) < PITCH_WIDTH * 0.25
+            or e.get("start_y", PITCH_WIDTH / 2) > PITCH_WIDTH * 0.75
+        )
     )
     wide_pct /= max(total_actions, 1)
 
@@ -158,7 +160,7 @@ def classify_player_role(
     bbm_score += forward_pct * 4
     scores["box_to_box_midfielder"] = bbm_score
 
-    wm_score = wide_pct * 7
+    wm_score = float(wide_pct * 7)
     wm_score += len(crosses) / max(total_actions, 1) * 5
     wm_score += max(0, 0.5 - avg_x_rel) * 3
     scores["wide_midfielder"] = wm_score
@@ -170,19 +172,19 @@ def classify_player_role(
     am_score += (1.0 - def_actions / max(total_actions, 1)) * 3
     scores["attacking_midfielder"] = am_score
 
-    winger_score = wide_pct * 8
+    winger_score = float(wide_pct * 8)
     winger_score += len(crosses) / max(total_actions, 1) * 6
     winger_score += max(0, avg_x_rel - 0.5) * 4
     winger_score += (1.0 - def_actions / max(total_actions, 1)) * 3
     scores["winger"] = winger_score
 
-    iff_score = wide_pct * 4
+    iff_score = float(wide_pct * 4)
     iff_score += max(0, avg_x_rel - 0.6) * 6
     iff_score += shot_volume * 6
     iff_score += (1.0 - def_actions / max(total_actions, 1)) * 2
     scores["inside_forward"] = iff_score
 
-    tf_score = max(0, avg_x_rel - 0.6) * 8
+    tf_score = float(max(0, avg_x_rel - 0.6) * 8)
     tf_score += shot_volume * 7
     tf_score += backward_pct * 2
     tf_score += (1.0 - wide_pct) * 4

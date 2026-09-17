@@ -57,7 +57,7 @@ class SeasonAnalyticsHandler:
 
             all_events: dict[int, list[dict]] = {}
             for m in matches:
-                mid = m.get("id")
+                mid = int(m.get("id", 0))
                 if mid:
                     all_events[mid] = await self._fetch_all_events(mid)
 
@@ -87,10 +87,12 @@ class SeasonAnalyticsHandler:
                     except (json.JSONDecodeError, TypeError):
                         e["metadata"] = {}
                 e["type"] = e.get("event_type") or e.get("type") or "unknown"
-                meta: dict = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
+                meta_raw = e.get("metadata")
+                meta_val: dict[str, Any] = meta_raw if isinstance(meta_raw, dict) else {}
+                e["metadata"] = meta_val
                 for key in ("x", "y", "is_goal", "card_type"):
-                    if key in meta and e.get(key) is None:
-                        e[key] = meta[key]
+                    if key in meta_val and e.get(key) is None:
+                        e[key] = meta_val[key]
                 out.append(e)
             if len(page) < 500:
                 break
@@ -116,7 +118,7 @@ class SeasonAnalyticsHandler:
         try:
             history: list[dict[str, Any]] = []
             for m in matches:
-                mid = m.get("id")
+                mid = int(m.get("id", 0))
                 events = all_events.get(mid, [])
                 if not events:
                     continue
@@ -220,7 +222,7 @@ class SeasonAnalyticsHandler:
             fixtures: list[dict] = []
             results_by_opp: dict[str, list[float]] = {}
             for m in matches:
-                mid = m.get("id")
+                mid = int(m.get("id", 0))
                 events = all_events.get(mid, [])
                 if not events:
                     continue

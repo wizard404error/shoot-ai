@@ -204,7 +204,7 @@ class ModelManager:
             progress_callback(0.0, f"Downloading {name}...")
 
         try:
-            req = Request(url, headers={"User-Agent": "KawkabAI/1.0"})
+            req = Request(str(url), headers={"User-Agent": "KawkabAI/1.0"})
             with urlopen(req, timeout=300) as response:
                 total_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0

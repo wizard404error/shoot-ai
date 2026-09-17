@@ -62,6 +62,7 @@ class BzzoiroService:
             return None
 
         await self._ensure_client()
+        assert self._client is not None
         try:
             r = await self._client.get(path)
             if r.status_code == 200:
@@ -252,12 +253,16 @@ class BzzoiroService:
     async def get_predictions(self, event_id: int) -> dict | None:
         """Get AI predictions for a match (CatBoost)."""
         data = await self._get(f"predictions/{event_id}/", ttl=CACHE_TTL_MEDIUM)
-        return data
+        if isinstance(data, dict):
+            return data
+        return None
 
     async def get_match_stats(self, event_id: int) -> list[dict] | None:
         """Get per-shot xG stats for a match."""
         data = await self._get(f"events/{event_id}/stats/", ttl=CACHE_TTL_SHORT)
-        return data
+        if isinstance(data, list):
+            return data
+        return None
 
     async def shutdown(self) -> None:
         if self._client:

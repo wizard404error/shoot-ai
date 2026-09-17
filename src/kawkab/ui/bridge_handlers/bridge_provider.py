@@ -55,7 +55,7 @@ class ProviderHandler:
             try:
                 import asyncio
 
-                _ = asyncio.run_coroutine_threadsafe(svc.get_competitions(), None)
+                _ = asyncio.run_coroutine_threadsafe(svc.get_competitions(), None)  # type: ignore[arg-type]
                 return {"available": True}
             except Exception:
                 pass

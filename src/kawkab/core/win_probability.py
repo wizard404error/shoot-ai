@@ -98,7 +98,11 @@ def _simulate_remaining(
     draws = np.sum(home_final == away_final)
     away_wins = n_sims - home_wins - draws
 
-    return (home_wins / n_sims, draws / n_sims, away_wins / n_sims)
+    return (
+        float(home_wins) / n_sims,
+        float(draws) / n_sims,
+        float(away_wins) / n_sims,
+    )
 
 
 def compute_win_probability(

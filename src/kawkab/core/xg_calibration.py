@@ -141,10 +141,10 @@ def compute_auc_roc(predictions: list[float], outcomes: list[int]) -> float:
 
     pos_preds = preds[outc == 1]
     neg_preds = preds[outc == 0]
-    concordant = 0
+    concordant = 0.0
     for p in pos_preds:
-        concordant += int(np.sum(neg_preds < p))
-        concordant += 0.5 * int(np.sum(neg_preds == p))
+        concordant += float(np.sum(neg_preds < p))
+        concordant += 0.5 * float(np.sum(neg_preds == p))
 
     total_pairs = n_pos * max(n_neg, 1)
     if total_pairs == 0:

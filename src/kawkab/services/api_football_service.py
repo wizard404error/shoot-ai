@@ -71,6 +71,7 @@ class ApiFootballService:
         await self._rate_limit()
         try:
             await self._ensure_client()
+            assert self._client is not None
             headers = {"x-apisports-key": self.api_key}
             resp = await self._client.get(path, headers=headers)
             if resp.status_code == 429:

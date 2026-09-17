@@ -44,20 +44,18 @@ class BallRecoveryAnalyzer:
         previous_events: list[dict[str, Any]],
     ) -> tuple[str, float, float]:
         ev_type = recovery_event.get("type", "")
+        # x/y may be absent or present-but-NULL (no coordinates). Guard with
+        # an isinstance check (isfinite(None) raises TypeError, which is what
+        # killed real-match reports) and bind to float so every return site
+        # satisfies the (str, float, float) contract.
         x = recovery_event.get("x")
         y = recovery_event.get("y")
-        # x/y may be present-but-NULL (no coordinates) — isfinite(None)
-        # raises TypeError, which is what killed real-match reports.
-        try:
-            if not math.isfinite(x):
-                x = PITCH_LENGTH / 2
-        except TypeError:
-            x = PITCH_LENGTH / 2
-        try:
-            if not math.isfinite(y):
-                y = PITCH_WIDTH / 2
-        except TypeError:
-            y = PITCH_WIDTH / 2
+        x = (
+            PITCH_LENGTH / 2
+            if not isinstance(x, (int, float)) or not math.isfinite(x)
+            else float(x)
+        )
+        y = PITCH_WIDTH / 2 if not isinstance(y, (int, float)) or not math.isfinite(y) else float(y)
         _ = recovery_event.get("team", "home")
 
         if ev_type == "interception":

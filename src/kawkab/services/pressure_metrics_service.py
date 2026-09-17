@@ -255,7 +255,7 @@ class PressureMetricsService:
             if carrier is None:
                 continue
 
-            carrier_team = self._get_player_team(track_data, carrier.track_id)
+            carrier_team = self._get_player_team(track_data, carrier.track_id)  # type: ignore[arg-type]
             if carrier_team == "unknown":
                 continue
 

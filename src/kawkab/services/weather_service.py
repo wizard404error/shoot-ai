@@ -23,12 +23,16 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import numpy as np
 
 from kawkab.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from kawkab.services.raindrop_detection_service import RaindropDetectionService
+    from kawkab.services.weather_image_classifier import WeatherImageClassifier
 
 logger = get_logger(__name__)
 
@@ -110,8 +114,8 @@ class WeatherService:
         self._cache: dict[str, tuple[float, WeatherConditions]] = {}
         self._video_classifier_available = False
         self._try_init_video_classifier()
-        self._raindrop_service = None
-        self._weather_classifier = None
+        self._raindrop_service: RaindropDetectionService | None = None
+        self._weather_classifier: WeatherImageClassifier | None = None
         self._try_init_advanced_classifiers()
 
     def _try_init_video_classifier(self) -> None:
@@ -216,7 +220,7 @@ class WeatherService:
             return self._cache[key][1]
 
         base = OPEN_METEO_FORECAST if is_forecast else OPEN_METEO_ARCHIVE
-        params = {
+        params: dict[str, float | str] = {
             "latitude": latitude,
             "longitude": longitude,
             "start_date": date,

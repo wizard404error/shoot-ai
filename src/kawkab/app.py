@@ -17,6 +17,7 @@ except Exception:
 import asyncio
 import sys
 from pathlib import Path
+from typing import Literal, cast
 
 from PySide6.QtCore import QSize, QUrl
 from PySide6.QtGui import QIcon
@@ -207,8 +208,11 @@ class MainWindow(QMainWindow):
         if self.settings.auto_detect_gpu_tier:
             self._apply_gpu_tier_settings()
 
+        _provider = cast(
+            Literal["ollama", "groq", "google", "openrouter"], self.settings.llm_provider
+        )
         llm_config = LLMConfig(
-            provider=self.settings.llm_provider,
+            provider=_provider,
             ollama_model=self.settings.ollama_model,
             ollama_base_url=self.settings.ollama_base_url,
         )

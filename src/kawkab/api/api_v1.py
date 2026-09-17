@@ -9,6 +9,7 @@ import contextlib
 import json
 import math
 from pathlib import Path
+from typing import NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -69,7 +70,7 @@ def _get_audit():
     return AuditService(_get_storage())
 
 
-def _not_found(msg: str):
+def _not_found(msg: str) -> NoReturn:
     raise HTTPException(status_code=404, detail=msg)
 
 

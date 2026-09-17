@@ -25,7 +25,7 @@ class OpponentProfile:
     set_piece_routines: list[str] = field(default_factory=list)
     key_players: list[dict] = field(default_factory=list)
     notes: str = ""
-    match_ids: list[int] = field(default_factory=list)
+    match_ids: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
@@ -106,7 +106,7 @@ class OpponentDatabaseService:
                     "updated_at": p.updated_at,
                 }
             )
-        results.sort(key=lambda x: x["team_name"])
+        results.sort(key=lambda x: str(x["team_name"]))  # type: ignore[arg-type,return-value]
         return results
 
     def get_profile(self, profile_id: str) -> dict | None:
@@ -191,7 +191,7 @@ class OpponentDatabaseService:
 
         if opponent_id in self._profiles:
             p = self._profiles[opponent_id]
-            p.match_ids.append(mid)
+            p.match_ids.append(str(mid))
             p.updated_at = datetime.utcnow().isoformat()
             self._save_profiles()
 
@@ -213,7 +213,7 @@ class OpponentDatabaseService:
                         "notes": m.notes,
                     }
                 )
-        results.sort(key=lambda x: x["date"], reverse=True)
+        results.sort(key=lambda x: str(x["date"]), reverse=True)  # type: ignore[arg-type,return-value]
         return results
 
     def generate_scouting_report(self, opponent_id: str) -> str:

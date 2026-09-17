@@ -219,7 +219,7 @@ class DLXgModel:
             x_train, y_train = features, labels
             x_val, y_val = None, None
 
-        history = {"loss": [], "val_loss": []}
+        history: dict[str, list[float]] = {"loss": [], "val_loss": []}
 
         for epoch in range(epochs):
             # Shuffle at start of each epoch

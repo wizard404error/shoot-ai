@@ -46,11 +46,10 @@ class ModelMonitor:
     def __init__(self, storage_dir: str | None = None):
         self._snapshots: list[ModelSnapshot] = []
         self._baseline: dict[str, ModelSnapshot] = {}
+        self._storage_dir: Path | None = None
         if storage_dir:
             self._storage_dir = Path(storage_dir)
             self._storage_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            self._storage_dir = None
 
     def record_snapshot(
         self,

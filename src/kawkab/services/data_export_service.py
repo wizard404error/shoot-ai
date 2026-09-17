@@ -19,6 +19,7 @@ import math
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
@@ -271,7 +272,7 @@ class DataExportService:
         )
         events = cursor.fetchall()
 
-        statsbomb_events = []
+        statsbomb_events: list[dict[str, Any]] = []
         for e in events:
             event_type = e["event_type"]
 

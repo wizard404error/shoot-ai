@@ -65,7 +65,7 @@ class CardDetectionService:
 
     def __init__(self) -> None:
         self._available = True
-        self._cv2 = None
+        self._cv2: Any = None
         self._try_import_cv2()
 
     def _try_import_cv2(self) -> None:

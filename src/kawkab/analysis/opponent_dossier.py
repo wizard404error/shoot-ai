@@ -203,7 +203,7 @@ def _predict_lineup(matches: list[dict[str, Any]]) -> list[str]:
     selected: dict[str, str] = {}
     for pos in lineup_order:
         best = ""
-        best_mins = 0
+        best_mins = 0.0
         for name, mins in player_minutes.items():
             if name in selected.values():
                 continue

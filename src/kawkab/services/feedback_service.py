@@ -12,7 +12,7 @@ All data is stored locally in SQLite for privacy.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -33,7 +33,7 @@ class CoachFeedback:
     report_rating: int | None = None  # 1-5
     ui_rating: int | None = None  # 1-5
     comments: str = ""
-    issues: list[dict] = None
+    issues: list[dict] = field(default_factory=list)
     created_at: str = ""
 
     def __post_init__(self):

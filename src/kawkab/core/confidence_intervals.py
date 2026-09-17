@@ -65,9 +65,9 @@ def xg_credible_interval(
     for i in range(n_simulations):
         total = 0.0
         for data in buckets.values():
-            a = alpha_prior + data["goals"]
-            b = beta_prior + data["shots"] - data["goals"]
-            p = float(np.random.beta(a, b))
+            alpha_i = alpha_prior + data["goals"]
+            beta_i = beta_prior + data["shots"] - data["goals"]
+            p = float(np.random.beta(alpha_i, beta_i))
             total += p * data["shots"]
         sim_goals[i] = total
 

@@ -198,7 +198,7 @@ def compute_fragmentation(track_summary: dict) -> dict:
         else:
             quality_buckets["low (<2%)"] += 1
 
-    team_dist = {}
+    team_dist: dict[str, int] = {}
     for t in tracks.values():
         team = t.get("team", "?")
         team_dist[team] = team_dist.get(team, 0) + 1

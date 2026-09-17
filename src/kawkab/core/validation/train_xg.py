@@ -241,7 +241,9 @@ def main(argv: list[str] | None = None) -> int:
         "evaluation": evals,
     }
 
-    serializable_coeffs = {k: v for k, v in coeffs.items() if isinstance(v, (int, float))}
+    serializable_coeffs: dict[str, Any] = {
+        k: v for k, v in coeffs.items() if isinstance(v, (int, float))
+    }
     serializable_coeffs["_model_name"] = "kawkab_trained_statsbomb"
     serializable_coeffs["_n_train_shots"] = n_train
     serializable_coeffs["_trained_at"] = report["generated_at"]

@@ -6,6 +6,7 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,7 +51,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)  # type: ignore[arg-type]
 
 
 # ── Health ──
@@ -132,13 +133,13 @@ def register(body: UserRegister):
     )
     db.commit()
     user_id = cur.lastrowid
-    user = dict(
-        db.execute(
-            "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
-            (user_id,),
-        ).fetchone()
-    )
-    token = create_access_token(user_id, role=role)
+    user_row = db.execute(
+        "SELECT id, username, email, display_name, role, is_active, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    user = cast(dict[str, Any], dict(user_row or {}))
+    assert user_id is not None
+    token = create_access_token(int(user_id), role=role)
     return TokenResponse(access_token=token, user=UserOut(**user))
 
 
@@ -251,12 +252,11 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
             (access_token, tokens.get("refresh_token"), row["user_id"]),
         )
         db.commit()
-        user = dict(
-            db.execute(
-                "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
-                (row["user_id"],),
-            ).fetchone()
-        )
+        _rows: Any = db.execute(
+            "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+            (row["user_id"],),
+        ).fetchone()
+        user = cast(dict[str, Any], dict(_rows))
         # token_version must come from the DB, not default to 0: a
         # returning OAuth user may have had it bumped since (e.g. a
         # password change on a linked local-auth account), and minting a
@@ -286,12 +286,11 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
         (user_id, provider, provider_user_id, access_token, tokens.get("refresh_token")),
     )
     db.commit()
-    user = dict(
-        db.execute(
-            "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
-            (user_id,),
-        ).fetchone()
-    )
+    _rows = db.execute(
+        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    user = cast(dict[str, Any], dict(_rows))
     jwt_token = create_access_token(user_id, token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
@@ -455,12 +454,11 @@ def saml_callback(body: SAMLCallbackRequest):
         (username, email, "saml", result.get("name") or username),
     )
     db.commit()
-    user = dict(
-        db.execute(
-            "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
-            (cur.lastrowid,),
-        ).fetchone()
-    )
+    _rows: Any = db.execute(
+        "SELECT id, username, email, display_name, is_active, token_version, created_at FROM users WHERE id = ?",
+        (cur.lastrowid,),
+    ).fetchone()
+    user = cast(dict[str, Any], dict(_rows))
     jwt_token = create_access_token(user["id"], token_version=user.get("token_version", 0))
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 

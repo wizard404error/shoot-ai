@@ -57,7 +57,7 @@ def _infer_team_for_trap(events: list[dict], trap: PressingTrap) -> str:
             counts[ev.get("team", "")] += 1
     if not counts:
         return "home"
-    return max(counts, key=counts.get)
+    return max(counts, key=counts.get)  # type: ignore[arg-type,return-value]
 
 
 def _find_trap_recovery_events(

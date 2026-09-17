@@ -36,7 +36,7 @@ class ModelCalibrator:
         }
 
     def compute_reliability_curve(self, events: list[dict], n_bins: int = 10) -> list[dict]:
-        bins = [[] for _ in range(n_bins)]
+        bins: list[list[tuple[float, bool]]] = [[] for _ in range(n_bins)]
 
         for event in events:
             if event.get("type") != "shot":
@@ -46,7 +46,7 @@ class ModelCalibrator:
             bin_idx = min(n_bins - 1, int(xg * n_bins))
             bins[bin_idx].append((xg, is_goal))
 
-        curve = []
+        curve: list[dict[str, Any]] = []
         for i, group in enumerate(bins):
             if not group:
                 bin_start = i / n_bins
@@ -61,7 +61,7 @@ class ModelCalibrator:
                 )
                 continue
             expected = sum(xg for xg, _ in group) / len(group)
-            observed = sum(1 for _, g in group if g) / len(group)
+            observed = sum(1 for _, g in group if bool(g)) / len(group)
             bin_start = i / n_bins
             bin_end = (i + 1) / n_bins
             curve.append(

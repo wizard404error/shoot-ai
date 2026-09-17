@@ -7,7 +7,7 @@ import math
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from kawkab.core.events import (
     BaseEvent,
@@ -282,7 +282,7 @@ class AnalysisServiceCore(_MixinProtocol):
             home_team=home,
             away_team=away,
             players=players,
-            events=backward_compat_events,
+            events=backward_compat_events,  # type: ignore[arg-type]
             pass_network=pass_network,
             confidence_overall=confidence,
             formations={
@@ -1022,7 +1022,7 @@ class AnalysisServiceCore(_MixinProtocol):
                             if shot_team == "unknown" and prev_possession is not None:
                                 shot_team = track_data.player_teams.get(prev_possession, "unknown")
 
-                        shot_metadata = {}
+                        shot_metadata: dict[str, Any] = {}
                         on_target = False
                         goal_width_m = 7.32
                         if (

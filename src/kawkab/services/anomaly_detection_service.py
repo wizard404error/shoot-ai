@@ -275,7 +275,7 @@ class AnomalyDetectionService:
 
     def _check_events(self, events: list[dict]) -> list[Anomaly]:
         """Check for suspicious event patterns."""
-        anomalies = []
+        anomalies: list[Anomaly] = []
         if not events:
             return anomalies
 

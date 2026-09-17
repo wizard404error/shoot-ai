@@ -221,7 +221,7 @@ class ReasoningService:
         pattern_type = sig.get("type", "")
 
         confidence = 0.0
-        evidence = {}
+        evidence: dict[str, Any] = {}
 
         if pattern_type == "zone_based_goal_concession":
             confidence, evidence = self._check_zone_concession(rule, analysis, event_stats)
@@ -497,11 +497,11 @@ class ReasoningService:
         for i, diag in enumerate(diagnoses[:5]):
             if diag.recommended_drills:
                 drills = [self.kb.get_drill(d_id) for d_id in diag.recommended_drills[:2]]
-                drills = [d for d in drills if d is not None]
-                if drills:
-                    drill_names_en = ", ".join(d.name for d in drills)
+                typed_drills = [d for d in drills if d is not None]
+                if typed_drills:
+                    drill_names_en = ", ".join(str(d.name) for d in typed_drills)
                     drill_names_ar = ", ".join(
-                        getattr(d, "name_ar", None) or d.name for d in drills
+                        str(getattr(d, "name_ar", None) or d.name) for d in typed_drills
                     )
                     actions_en.append(
                         f"Priority {i + 1}: {drill_names_en} "

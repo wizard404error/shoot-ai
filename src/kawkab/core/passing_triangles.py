@@ -155,7 +155,7 @@ class PassingTriangleAnalyzer:
             counts[key] += 1
             zone_counts[t["zone"]] += 1
             total_area += t["area_sqm"]
-        most_common_zone = max(zone_counts, key=zone_counts.get)
+        most_common_zone = max(zone_counts, key=zone_counts.get)  # type: ignore[arg-type,return-value]
         return {
             "team": team,
             "triangle_count": len(triangles),

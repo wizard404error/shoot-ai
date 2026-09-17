@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 
 def generate_sample_match() -> dict:
@@ -81,7 +82,7 @@ def generate_sample_match() -> dict:
         x = random.uniform(0, 105)
         y = random.uniform(0, 68)
 
-        metadata = {"speed_kmh": round(random.uniform(5, 32), 1)}
+        metadata = cast(dict[str, Any], {"speed_kmh": round(random.uniform(5, 32), 1)})
 
         if event_type == "goal":
             if team == "home":
@@ -124,7 +125,7 @@ def generate_sample_match() -> dict:
         x = random.uniform(0, 105)
         y = random.uniform(0, 68)
 
-        metadata = {"speed_kmh": round(random.uniform(5, 32), 1)}
+        metadata = cast(dict[str, Any], {"speed_kmh": round(random.uniform(5, 32), 1)})
 
         if event_type == "goal":
             if team == "home":

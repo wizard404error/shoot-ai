@@ -5,7 +5,7 @@ Manages the knowledge graph of 500+ rules and 500+ drills.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +30,7 @@ class TacticalRule:
     pattern_signature: dict[str, Any]
     hypotheses: list[dict[str, Any]]
     recommended_drills: list[str]
-    sources: list[str] = None
+    sources: list[str] = field(default_factory=list)
 
     @classmethod
     def from_yaml(cls, yaml_path: Path) -> TacticalRule:
@@ -68,12 +68,12 @@ class Drill:
     space: str
     setup: str
     rules: list[str]
-    progressions: list[str] = None
-    regressions: list[str] = None
-    coaching_points: list[str] = None
-    addresses_problems: list[str] = None
-    source: str = None
-    video_reference: str = None
+    progressions: list[str] = field(default_factory=list)
+    regressions: list[str] = field(default_factory=list)
+    coaching_points: list[str] = field(default_factory=list)
+    addresses_problems: list[str] = field(default_factory=list)
+    source: str = ""
+    video_reference: str = ""
 
     @classmethod
     def from_yaml(cls, yaml_path: Path) -> Drill:

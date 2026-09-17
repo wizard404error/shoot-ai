@@ -135,7 +135,7 @@ def segment_ball_data(ball_data: list[BallFrame]) -> list[BallSegment]:
 
     A segment ends when the ball disappears for >10 frames or teleports (>300px).
     """
-    segments = []
+    segments: list[BallSegment] = []
     if len(ball_data) < 3:
         return segments
 

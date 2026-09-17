@@ -243,7 +243,7 @@ class ValidationReportService:
             with open(ev_path, encoding="utf-8") as f:
                 for row in _csv.DictReader(f):
 
-                    def _num(v: str) -> float | None:
+                    def _num(v: Any) -> float | None:
                         try:
                             f = float(v)
                         except (TypeError, ValueError):

@@ -25,7 +25,7 @@ import logging
 import math
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from scipy.stats import beta
@@ -289,7 +289,7 @@ def batch_compute_xg(
         elif isinstance(ev, dict):
             if ev.get("type") == "shot":
                 try:
-                    shot_events.append(event_from_dict(ev))
+                    shot_events.append(cast(ShotEvent, event_from_dict(ev)))
                 except Exception:
                     results.append(0.0)
                     continue

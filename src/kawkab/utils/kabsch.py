@@ -116,4 +116,4 @@ def apply_rigid_transform(
         transformed: same shape as points
     """
     points = np.asarray(points, dtype=np.float64)
-    return (rotation @ points.T).T + translation
+    return np.asarray((rotation @ points.T).T + translation, dtype=np.float64)

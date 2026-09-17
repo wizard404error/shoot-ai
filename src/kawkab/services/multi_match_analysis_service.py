@@ -165,7 +165,7 @@ class MultiMatchAnalysisService:
             """,
             (season_id,),
         )
-        formations = defaultdict(int)
+        formations: defaultdict[str, int] = defaultdict(int)
         for r in cursor.fetchall():
             try:
                 data = json.loads(r["full_data"] or "{}")
@@ -176,7 +176,7 @@ class MultiMatchAnalysisService:
             except Exception:
                 pass
 
-        most_common = max(formations, key=formations.get) if formations else None
+        most_common = max(formations, key=formations.get) if formations else None  # type: ignore[arg-type,return-value]
 
         # Compute pass accuracy from available event data
         avg_pass_acc = 0.0
@@ -339,9 +339,9 @@ class MultiMatchAnalysisService:
         shots_diff = {}
         passes_diff = {}
         formation_diff = {}
-        line_height_diff = {}
-        ppda_diff = {}
-        xg_diff = {}
+        line_height_diff: dict[str, float] = {}
+        ppda_diff: dict[str, float] = {}
+        xg_diff: dict[str, float] = {}
 
         if m1 and m2:
             p1 = m1.get("possession_home", 0) or 0
@@ -441,7 +441,7 @@ class MultiMatchAnalysisService:
 
         rows = cursor.fetchall()
 
-        formation_counts = defaultdict(int)
+        formation_counts: defaultdict[str, int] = defaultdict(int)
         possession_trend = []
         ppda_trend = []
         line_height_trend = []

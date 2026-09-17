@@ -268,9 +268,9 @@ class TacticalShapeAnalyzer:
             if shape_history[i] != shape_history[i - 1]:
                 changes += 1
 
-        primary_att = max(shape_counts, key=shape_counts.get) if shape_counts else "unknown"
+        primary_att = max(shape_counts, key=shape_counts.get) if shape_counts else "unknown"  # type: ignore[arg-type,return-value]
         primary_def = (
-            max(def_shape_counts, key=def_shape_counts.get) if def_shape_counts else "unknown"
+            max(def_shape_counts, key=def_shape_counts.get) if def_shape_counts else "unknown"  # type: ignore[arg-type,return-value]
         )
 
         return ShapeReport(

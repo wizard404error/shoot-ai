@@ -155,7 +155,7 @@ class AIAssistantV2Service:
                     "updated_at": conv.updated_at,
                 }
             )
-        results.sort(key=lambda x: x["updated_at"], reverse=True)
+        results.sort(key=lambda x: str(x["updated_at"]), reverse=True)  # type: ignore[arg-type,return-value]
         return results
 
     def delete_conversation(self, conv_id: str) -> bool:

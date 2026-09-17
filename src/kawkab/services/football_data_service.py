@@ -97,6 +97,7 @@ class FootballDataService:
         await self._rate_limit()
         try:
             await self._ensure_client()
+            assert self._client is not None
             headers = {"X-Auth-Token": self.api_key} if self.api_key else {}
             resp = await self._client.get(
                 f"{self.BASE_URL}{endpoint}", params=params, headers=headers
@@ -232,6 +233,7 @@ class FootballDataService:
         await self._rate_limit()
         try:
             await self._ensure_client()
+            assert self._client is not None
             headers = {"X-Auth-Token": self.api_key} if self.api_key else {}
             headers.update(extra_headers)
             resp = await self._client.get(f"{self.BASE_URL}/matches/{match_id}", headers=headers)
@@ -277,7 +279,7 @@ class FootballDataService:
         self, competition_code: str, matchday: int | None = None, status: str | None = None
     ) -> list[dict]:
         """Get matches for a competition."""
-        params = {}
+        params: dict[str, int | str] = {}
         if matchday:
             params["matchday"] = matchday
         if status:

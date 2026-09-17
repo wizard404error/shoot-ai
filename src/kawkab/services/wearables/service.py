@@ -77,9 +77,9 @@ class WearableImportService:
                     "athlete_name": session.athlete_name,
                     "device_type": session.device_type,
                     "device_serial": session.device_serial,
-                    "start_time": session.start_time.isoformat()
-                    if hasattr(session.start_time, "isoformat")
-                    else str(session.start_time or ""),
+                    "start_time": (
+                        session.start_time.isoformat() if session.start_time is not None else ""
+                    ),
                     "duration_s": d["duration_s"],
                     "sample_rate_hz": d["sample_rate_hz"],
                     "avg_hr": d["avg_hr"],

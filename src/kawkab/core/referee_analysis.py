@@ -179,7 +179,7 @@ def analyze_referee(
             {"type": ft, "count": c, "pct": round(100 * c / max(total_fouls, 1), 1)}
             for ft, c in foul_type_counts.items()
         ],
-        key=lambda x: x["count"],
+        key=lambda x: int(str(x["count"])),
         reverse=True,
     )
 

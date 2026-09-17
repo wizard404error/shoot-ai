@@ -123,7 +123,7 @@ class VisualizationService:
             setup_plot({"runDir": str(self._exports_dir)})
 
             pass_graph = nx.DiGraph()
-            edge_weights = defaultdict(int)
+            edge_weights: defaultdict[tuple[Any, Any], int] = defaultdict(int)
 
             for event in pass_events:
                 if event.get("type") != "pass" or not event.get("completed"):
@@ -373,7 +373,7 @@ class VisualizationService:
         for idx, (player_id, passes) in enumerate(player_passes.items()):
             if idx >= len(axes):
                 break
-            ax = axes[idx] if hasattr(axes, "__getitem__") else axes
+            ax = axes[idx]
             angles = [p[0] for p in passes]
             distances = [p[1] for p in passes]
             n_bins = 8

@@ -152,7 +152,7 @@ def simulate_league(
         bin_counts: dict[int, int] = defaultdict(int)
         for p in pts_list:
             bin_counts[p] += 1
-        most_common_pts = max(bin_counts, key=bin_counts.get)
+        most_common_pts = max(bin_counts, key=bin_counts.get)  # type: ignore[arg-type,return-value]
         most_likely.append({"team_id": tid, "points": most_common_pts})
         point_distributions[tid] = pts_list
 

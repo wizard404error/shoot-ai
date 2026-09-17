@@ -14,7 +14,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
@@ -85,7 +85,7 @@ class StorageService:
 
         self.auto_backup()
 
-        mgr = MigrationManager(self._db_path, migrations_dir)
+        mgr = MigrationManager(cast(Path, self._db_path), migrations_dir)
         mgr.migrate()
 
         self._conn = sqlite3.connect(str(self._db_path))
@@ -354,8 +354,8 @@ class StorageService:
         """Update football-data.org reference fields for a match."""
         if self._conn is None:
             return
-        sets = []
-        vals = []
+        sets: list[str] = []
+        vals: list[Any] = []
         if api_match_id is not None and StorageService._sanitize_column_name("api_match_id"):
             sets.append("api_match_id = ?")
             vals.append(api_match_id)
@@ -393,8 +393,8 @@ class StorageService:
         """Update API-Football reference fields for a match."""
         if self._conn is None:
             return
-        sets = []
-        vals = []
+        sets: list[str] = []
+        vals: list[Any] = []
         if apifb_home_team_id is not None and StorageService._sanitize_column_name(
             "apifb_home_team_id"
         ):
@@ -436,8 +436,8 @@ class StorageService:
         """Update Bzzoiro reference fields for a match."""
         if self._conn is None:
             return
-        sets = []
-        vals = []
+        sets: list[str] = []
+        vals: list[Any] = []
         if bzzoiro_home_team_id is not None and StorageService._sanitize_column_name(
             "bzzoiro_home_team_id"
         ):
@@ -571,8 +571,8 @@ class StorageService:
             "metadata",
             "user_corrected",
         }
-        sets = []
-        vals = []
+        sets: list[str] = []
+        vals: list[Any] = []
         for key, val in updates.items():
             if key in allowed and StorageService._sanitize_column_name(key):
                 col = key
@@ -1227,8 +1227,8 @@ class StorageService:
             "lead_ms",
             "lag_ms",
         }
-        sets = []
-        vals = []
+        sets: list[str] = []
+        vals: list[Any] = []
         for key, val in updates.items():
             if key in allowed and StorageService._sanitize_column_name(key):
                 sets.append(f"{key} = ?")

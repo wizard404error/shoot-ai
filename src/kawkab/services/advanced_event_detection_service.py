@@ -99,7 +99,7 @@ class AdvancedEventDetectionService:
         all_events.sort(key=lambda e: e.get("timestamp", 0))
 
         # Count summary
-        counts = defaultdict(int)
+        counts: defaultdict[str, int] = defaultdict(int)
         for e in all_events:
             counts[e.get("type", "unknown")] += 1
         logger.info(f"Advanced events: {dict(counts)}")

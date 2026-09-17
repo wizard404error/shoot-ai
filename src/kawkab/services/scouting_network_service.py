@@ -97,7 +97,7 @@ class ScoutingNetworkService:
                     "scout_notes": p.scout_notes[:100] if p.scout_notes else "",
                 }
             )
-        results.sort(key=lambda x: x["rating"], reverse=True)
+        results.sort(key=lambda x: float(x["rating"]), reverse=True)  # type: ignore[arg-type,return-value]
         return results
 
     def get_player(self, player_id: str) -> dict | None:

@@ -286,8 +286,8 @@ def to_opta_csv(
 
         x = ev.x or 0
         y = ev.y or 0
-        end_x = 0
-        end_y = 0
+        end_x = 0.0
+        end_y = 0.0
         outcome = 1
         value = 0.0
 
@@ -306,8 +306,8 @@ def to_opta_csv(
             outcome = 1 if ev.on_target else 0
             value = ev.xg
         elif isinstance(ev, CarryEvent):
-            end_x = (ev.end_x or 0) if ev.end_x else 0
-            end_y = (ev.end_y or 0) if ev.end_y else 0
+            end_x = float(ev.end_x) if ev.end_x else 0.0
+            end_y = float(ev.end_y) if ev.end_y else 0.0
             value = ev.distance_m
 
         # Convert to 0-100 pitch coordinates (Opta style)
