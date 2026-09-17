@@ -434,7 +434,7 @@ class TestEventAlignment:
         assert result["links_written"] == 2
 
         links = asyncio_get(storage.get_event_frame_links(match_id))
-        by_event = {l["event_id"]: l["frame_number"] for l in links}
+        by_event = {link["event_id"]: link["frame_number"] for link in links}
         assert by_event[ev1] == 1
         assert by_event[ev2] == 2
         assert ev3 not in by_event  # unmatched events are reported, not linked

@@ -196,16 +196,15 @@ class AdvancedEventDetectionService:
             for det in frame.detections:
                 if det.class_name == "sports ball":
                     ball_det = det
-                elif det.class_name == "person":
-                    if ball_det is not None:
-                        bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2
-                        by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2
-                        px = (det.bbox[0] + det.bbox[2]) / 2
-                        py = (det.bbox[1] + det.bbox[3]) / 2
-                        d = math.sqrt((bx - px) ** 2 + (by - py) ** 2)
-                        if d < closest_dist:
-                            closest_dist = d
-                            closest_player = det
+                elif det.class_name == "person" and ball_det is not None:
+                    bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2
+                    by = (ball_det.bbox[1] + ball_det.bbox[3]) / 2
+                    px = (det.bbox[0] + det.bbox[2]) / 2
+                    py = (det.bbox[1] + det.bbox[3]) / 2
+                    d = math.sqrt((bx - px) ** 2 + (by - py) ** 2)
+                    if d < closest_dist:
+                        closest_dist = d
+                        closest_player = det
 
             if closest_player and closest_player.track_id is not None and closest_dist < 60:
                 bx = (ball_det.bbox[0] + ball_det.bbox[2]) / 2 if ball_det else 0
@@ -361,22 +360,20 @@ class AdvancedEventDetectionService:
                     and team != prev_team
                     and team != "unknown"
                     and prev_team != "unknown"
+                    and frame.timestamp not in pass_timestamps
                 ):
                     # Possession changed without a pass event
-                    if frame.timestamp not in pass_timestamps:
-                        events.append(
-                            {
-                                "type": "interception",
-                                "timestamp": frame.timestamp,
-                                "from_track_id": prev_possession,
-                                "to_track_id": tid,
-                                "team": team,
-                                "confidence": 0.5,
-                                "metadata": {
-                                    "no_pass_detected": True,
-                                },
-                            }
-                        )
+                    events.append(
+                        {
+                            "type": "interception",
+                            "timestamp": frame.timestamp,
+                            "from_track_id": prev_possession,
+                            "to_track_id": tid,
+                            "team": team,
+                            "confidence": 0.5,
+                            "metadata": {"no_pass_detected": True},
+                        }
+                    )
 
                 prev_possession = tid
                 prev_team = team
@@ -626,8 +623,8 @@ class AdvancedEventDetectionService:
         stationary_frames = 0
         stationary_start_time = 0.0
         stationary_pitch_pos: tuple[float, float] | None = None
-        MIN_STATIONARY_FRAMES = int(60 / 3)
-        MAX_STATIONARY_DIST = 5.0 if homography_matrix else 20.0
+        min_stationary_frames = int(60 / 3)
+        max_stationary_dist = 5.0 if homography_matrix else 20.0
         kick_speed_threshold = 15.0 if homography_matrix else 400.0
         _ = 300
 
@@ -663,13 +660,13 @@ class AdvancedEventDetectionService:
                 dist = 999
             prev_ball_center = (bx, by)
 
-            if dist < MAX_STATIONARY_DIST:
+            if dist < max_stationary_dist:
                 stationary_frames += 1
                 if stationary_start_time == 0.0:
                     stationary_start_time = frame.timestamp
                     stationary_pitch_pos = (pitch_x, pitch_y)
             else:
-                if stationary_frames >= MIN_STATIONARY_FRAMES:
+                if stationary_frames >= min_stationary_frames:
                     dt_prev = 1.0 / 30.0
                     speed = dist / max(dt_prev, 0.001)
                     if speed >= kick_speed_threshold:
@@ -853,21 +850,20 @@ class AdvancedEventDetectionService:
             if team == "unknown":
                 continue
 
-            if prev_team is not None and team != prev_team:
-                if recovery_cooldown <= 0:
-                    events.append(
-                        {
-                            "type": "ball_recovery",
-                            "timestamp": event["timestamp"],
-                            "team": team,
-                            "from_team": prev_team,
-                            "confidence": 0.5,
-                            "metadata": {
-                                "recovery_after_loss": True,
-                            },
-                        }
-                    )
-                    recovery_cooldown = 3  # 3-second cooldown
+            if prev_team is not None and team != prev_team and recovery_cooldown <= 0:
+                events.append(
+                    {
+                        "type": "ball_recovery",
+                        "timestamp": event["timestamp"],
+                        "team": team,
+                        "from_team": prev_team,
+                        "confidence": 0.5,
+                        "metadata": {
+                            "recovery_after_loss": True,
+                        },
+                    }
+                )
+                recovery_cooldown = 3  # 3-second cooldown
 
             prev_team = team
             recovery_cooldown -= 1
@@ -947,25 +943,22 @@ class AdvancedEventDetectionService:
                         continue
 
                     d = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-                    if d < 50:  # within 50 pixels
-                        if duel_cooldown[tid1] <= 0 and duel_cooldown[tid2] <= 0:
-                            events.append(
-                                {
-                                    "type": "duel",
-                                    "timestamp": frame.timestamp,
-                                    "track_id_1": tid1,
-                                    "team_1": team1,
-                                    "track_id_2": tid2,
-                                    "team_2": team2,
-                                    "confidence": min(1.0, 1.0 - d / 50),
-                                    "metadata": {
-                                        "distance_px": round(d, 1),
-                                        "near_ball": True,
-                                    },
-                                }
-                            )
-                            duel_cooldown[tid1] = 15
-                            duel_cooldown[tid2] = 15
+                    # within 50 pixels
+                    if d < 50 and duel_cooldown[tid1] <= 0 and duel_cooldown[tid2] <= 0:
+                        events.append(
+                            {
+                                "type": "duel",
+                                "timestamp": frame.timestamp,
+                                "track_id_1": tid1,
+                                "team_1": team1,
+                                "track_id_2": tid2,
+                                "team_2": team2,
+                                "confidence": min(1.0, 1.0 - d / 50),
+                                "metadata": {"distance_px": round(d, 1), "near_ball": True},
+                            }
+                        )
+                        duel_cooldown[tid1] = 15
+                        duel_cooldown[tid2] = 15
 
             # Decrement cooldowns
             for tid in list(duel_cooldown.keys()):

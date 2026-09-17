@@ -82,10 +82,7 @@ class LightGlueHomographyService:
 
     def _preprocess(self, img: np.ndarray) -> tuple[np.ndarray, float, float]:
         """Resize + pad to square, return (tensor, scale_x, scale_y)."""
-        if img.ndim == 3:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = img
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
 
         h, w = gray.shape[:2]
         scale = self._input_size / max(h, w)

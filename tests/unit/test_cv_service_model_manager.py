@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import tempfile
 from pathlib import Path
 
@@ -51,10 +52,9 @@ class TestCVServiceModelManager:
 
             # Should not raise - uses model path from ModelManager
             # Note: YOLO will fail to load fake bytes, but we verify the path was used
-            try:
+            # Expected - fake model bytes
+            with contextlib.suppress(Exception):
                 await cv.initialize()
-            except Exception:
-                pass  # Expected - fake model bytes
 
             assert cv._model_manager is mm
             assert mm.is_model_available("yolo11n")

@@ -17,13 +17,13 @@ import logging
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class CyclePhase(str, Enum):
+class CyclePhase(StrEnum):
     """Where a week sits in a training cycle."""
 
     PREPARATION = "preparation"
@@ -35,7 +35,7 @@ class CyclePhase(str, Enum):
     UNKNOWN = "unknown"
 
 
-class CongestionLevel(str, Enum):
+class CongestionLevel(StrEnum):
     """How packed the match schedule is."""
 
     LIGHT = "light"

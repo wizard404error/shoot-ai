@@ -272,8 +272,13 @@ class TestWorkloadService:
 
     def test_high_acwr_flag(self) -> None:
         svc = WorkloadService()
-        high_rpe = lambda d: WorkloadRecord(f"2024-01-{d:02}", WorkloadSource.MATCH, 90, rpe=8.5)
-        low_rpe = lambda d: WorkloadRecord(f"2024-01-{d:02}", WorkloadSource.MATCH, 90, rpe=4.0)
+
+        def high_rpe(d):
+            return WorkloadRecord(f"2024-01-{d:02}", WorkloadSource.MATCH, 90, rpe=8.5)
+
+        def low_rpe(d):
+            return WorkloadRecord(f"2024-01-{d:02}", WorkloadSource.MATCH, 90, rpe=4.0)
+
         chronic_records = [low_rpe(d) for d in range(1, 22)]
         acute_records = [high_rpe(d) for d in range(22, 29)]
         records = chronic_records + acute_records

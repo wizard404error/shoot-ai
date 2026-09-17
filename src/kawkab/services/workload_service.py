@@ -16,12 +16,12 @@ from __future__ import annotations
 import logging
 import statistics
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Categorical injury-risk band."""
 
     LOW = "low"
@@ -31,7 +31,7 @@ class RiskLevel(str, Enum):
     INSUFFICIENT_DATA = "insufficient_data"
 
 
-class WorkloadSource(str, Enum):
+class WorkloadSource(StrEnum):
     """Type of workload record."""
 
     MATCH = "match"

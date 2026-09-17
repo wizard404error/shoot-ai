@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -16,7 +16,7 @@ from kawkab.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-class BatchStatus(str, Enum):
+class BatchStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"

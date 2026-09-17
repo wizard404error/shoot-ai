@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from kawkab.core.encryption import decrypt_dict, encrypt_dict
 
 
-class ConcussionClearance(str, Enum):
+class ConcussionClearance(StrEnum):
     NOT_CLEARED = "not_cleared"
     STAGE_1 = "stage_1"
     STAGE_2 = "stage_2"

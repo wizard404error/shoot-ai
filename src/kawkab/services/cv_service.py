@@ -605,10 +605,8 @@ class CVService:
 
         gpu_ok = torch.cuda.is_available()
         sportsmot_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
-        if sportsmot_path.exists():
-            weights = str(sportsmot_path)
-        else:
-            weights = "osnet_x1_0_msmt17.pt"  # BoxMOT auto-downloads this
+        # BoxMOT auto-downloads the default osnet weights when sportsmot is absent
+        weights = str(sportsmot_path) if sportsmot_path.exists() else "osnet_x1_0_msmt17.pt"
         try:
             reid = ReID(
                 weights=weights,
@@ -1269,9 +1267,8 @@ class CVService:
                                 if torso is None:
                                     continue
                                 color = self._get_dominant_color(torso)
-                                if color is not None:
-                                    if len(track_color_samples[tid]) < 200:
-                                        track_color_samples[tid].append(color)
+                                if color is not None and len(track_color_samples[tid]) < 200:
+                                    track_color_samples[tid].append(color)
                     if _FACE_REC_AVAILABLE and det_idx % max(1, int(fps / frame_skip * 2)) == 0:
                         for det in frame_det.detections:
                             if det.class_name != "person" or det.track_id is None:
@@ -1626,8 +1623,8 @@ class CVService:
                 for label in set(clusters.values()):
                     members = [
                         color_data[tid]["primary_color"]
-                        for tid, l in clusters.items()
-                        if l == label and tid in color_data
+                        for tid, lab in clusters.items()
+                        if lab == label and tid in color_data
                     ]
                     if members:
                         cluster_avg_bgr[label] = (
@@ -1647,9 +1644,9 @@ class CVService:
                         logger.debug(f"Track {tid} classified as referee")
                 team_detection_info["assigned"] = len(player_teams)
                 team_detection_info["n_clusters"] = len(set(clusters.values()))
-                home_members = [tid for tid, l in clusters.items() if l == "home"]
-                away_members = [tid for tid, l in clusters.items() if l == "away"]
-                ref_members = [tid for tid, l in clusters.items() if l == "referee"]
+                home_members = [tid for tid, lab in clusters.items() if lab == "home"]
+                away_members = [tid for tid, lab in clusters.items() if lab == "away"]
+                ref_members = [tid for tid, lab in clusters.items() if lab == "referee"]
                 team_detection_info["home_size"] = len(home_members)
                 team_detection_info["away_size"] = len(away_members)
                 team_detection_info["ref_size"] = len(ref_members)
@@ -2134,11 +2131,15 @@ class CVService:
                     # Adaptive threshold: tracks with few embeddings need higher confidence
                     reid_thresh = 0.70 if (len(ra_pure) <= 2 or len(rb_pure) <= 2) else 0.65
                     color_thresh = 70 if (len(sa) <= 3 or len(sb) <= 3) else 55
-                    if reid_sim > reid_thresh and color_dist < color_thresh:
-                        if tid_a not in raw_map and tid_b not in raw_map:
-                            survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
-                            discarded = tid_b if survivor == tid_a else tid_a
-                            raw_map[discarded] = survivor
+                    if (
+                        reid_sim > reid_thresh
+                        and color_dist < color_thresh
+                        and tid_a not in raw_map
+                        and tid_b not in raw_map
+                    ):
+                        survivor = tid_a if len(frames_a) >= len(frames_b) else tid_b
+                        discarded = tid_b if survivor == tid_a else tid_a
+                        raw_map[discarded] = survivor
 
         # Resolve transitive entries (e.g. 2→1, 3→2 ⇒ 3→1)
         resolved: dict[int, int] = {}

@@ -307,7 +307,10 @@ class BenchmarkRunner:
             mean = result.mean_ms
             status = "PASS" if mean < threshold else "WARN"
             if mean >= threshold:
-                warnings.warn(f"{module}: mean {mean:.1f}ms >= threshold {threshold}ms")
+                warnings.warn(
+                    f"{module}: mean {mean:.1f}ms >= threshold {threshold}ms",
+                    stacklevel=2,
+                )
             checks.append((module, mean, threshold, status))
         return checks
 

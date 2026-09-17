@@ -141,10 +141,7 @@ async def run_regression(video_path: str, baseline_path: str | None = None, upda
         if base_val is None:
             print(f"  {k}: {v} (no baseline)")
             continue
-        if base_val == 0:
-            rel_diff = abs(v - base_val)
-        else:
-            rel_diff = abs(v - base_val) / base_val
+        rel_diff = abs(v - base_val) if base_val == 0 else abs(v - base_val) / base_val
         status = "PASS" if rel_diff <= tol else "FAIL"
         if status == "FAIL":
             failures += 1

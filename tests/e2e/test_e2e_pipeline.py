@@ -172,7 +172,7 @@ class TestBridgeSlots:
             tree = ast.parse(f.read())
         methods: set[str] = set()
         for node in ast.walk(tree):
-            if isinstance(node, ast.AsyncFunctionDef) or isinstance(node, ast.FunctionDef):
+            if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
                 methods.add(node.name)
         return methods
 

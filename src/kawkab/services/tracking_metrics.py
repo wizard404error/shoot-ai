@@ -166,9 +166,9 @@ def _estimate_id_switches(
                 positions = frame_positions.get(fn, [])
                 pos_a = next((p for t, p in positions if t == tid_a), None)
                 pos_b = next((p for t, p in positions if t == tid_b), None)
-                if pos_a is not None and pos_b is not None:
-                    if abs(pos_a - pos_b) < 30:  # within 30 pixels
-                        close_frames += 1
+                if pos_a is not None and pos_b is not None and abs(pos_a - pos_b) < 30:
+                    # within 30 pixels
+                    close_frames += 1
 
             # If positions are close in >50% of overlap, likely an ID switch
             if len(overlap) > 0 and close_frames / len(overlap) > 0.5:

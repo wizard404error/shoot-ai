@@ -905,11 +905,11 @@ class ExternalHandler:
                 {
                     "lineups": [
                         {
-                            "team": l.team_name,
-                            "team_id": l.team_id,
-                            "players": l.players,
+                            "team": lineup.team_name,
+                            "team_id": lineup.team_id,
+                            "players": lineup.players,
                         }
-                        for l in lineups
+                        for lineup in lineups
                     ]
                 }
             )

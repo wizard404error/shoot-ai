@@ -555,9 +555,8 @@ class LineupOptimizer:
                 for alias in aliases:
                     if alias.lower() in player_role or player_role in alias.lower():
                         return 0.7
-            if canonical := _canonical_role(player_role):
-                if canonical == canon:
-                    return 0.85
+            if (canonical := _canonical_role(player_role)) and canonical == canon:
+                return 0.85
 
         # Partial fuzzy
         slot_lower = slot_pos.lower()

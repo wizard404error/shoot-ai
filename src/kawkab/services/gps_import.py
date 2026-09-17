@@ -275,10 +275,7 @@ def parse_kinexon_json(content: str | bytes) -> list[dict[str, Any]]:
 
         for raw in session.get("samples", []):
             ts = raw.get("timestamp", 0)
-            if isinstance(ts, str):
-                ts_s = _parse_timestamp_seconds(ts, start_time)
-            else:
-                ts_s = float(ts)
+            ts_s = _parse_timestamp_seconds(ts, start_time) if isinstance(ts, str) else float(ts)
 
             pos = raw.get("position") or {}
             speed = _safe_float(raw.get("speed"))

@@ -194,9 +194,12 @@ class SubstitutionService:
             notes.append(f"xG improved by {xg_delta:.2f}")
         if xg_delta < -0.2:
             notes.append(f"xG dropped by {abs(xg_delta):.2f}")
-        if sub.formation_before and sub.formation_after:
-            if sub.formation_before != sub.formation_after:
-                notes.append(f"Formation change: {sub.formation_before} → {sub.formation_after}")
+        if (
+            sub.formation_before
+            and sub.formation_after
+            and sub.formation_before != sub.formation_after
+        ):
+            notes.append(f"Formation change: {sub.formation_before} → {sub.formation_after}")
         if not notes:
             notes.append("No significant impact")
         return SubstitutionImpact(

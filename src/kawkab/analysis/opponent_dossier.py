@@ -208,10 +208,9 @@ def _predict_lineup(matches: list[dict[str, Any]]) -> list[str]:
             if name in selected.values():
                 continue
             ppos = player_position.get(name, "")
-            if ppos == pos or not ppos:
-                if mins > best_mins:
-                    best = name
-                    best_mins = mins
+            if (ppos == pos or not ppos) and mins > best_mins:
+                best = name
+                best_mins = mins
         if best:
             selected[pos] = best
     result = [f"{pos}: {selected.get(pos, 'TBD')}" for pos in lineup_order if pos in selected]

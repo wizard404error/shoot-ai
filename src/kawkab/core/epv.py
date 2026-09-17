@@ -6,7 +6,6 @@ field location, progression, and eventual outcome. All numpy-only.
 
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -146,16 +145,22 @@ class EPVModel:
 
     def __init__(self):
         self._epv_grid = np.array(_ZONE_EPV_GRID, dtype=np.float64)
+        self._zone_value_cache: dict[tuple[float, float], float] = {}
 
-    @functools.lru_cache(maxsize=32)
     def _zone_value(self, x: float, y: float) -> float:
+        cache_key = (x, y)
+        cached = self._zone_value_cache.get(cache_key)
+        if cached is not None:
+            return cached
         zx, zy = _to_zone(x, y)
         # Reverse x: high x (near attacking goal) -> row 0 (highest EPV)
         # x=105 -> row 0, x=0 -> row 4
         reversed_x = X_ZONES - 1 - zx
         r = min(4, int(reversed_x / X_ZONES * 5))
         c = min(5, int(zy / Y_ZONES * 6))
-        return float(self._epv_grid[r, c])
+        value = float(self._epv_grid[r, c])
+        self._zone_value_cache[cache_key] = value
+        return value
 
     def compute_possession_epv(
         self,

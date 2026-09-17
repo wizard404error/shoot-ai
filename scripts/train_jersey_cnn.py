@@ -83,8 +83,8 @@ def download_soccernet_jersey(data_dir: Path) -> bool:
     try:
         from SoccerNet.Downloader import SoccerNetDownloader as SNdl
 
-        mySNdl = SNdl(LocalDirectory=str(data_dir))
-        mySNdl.downloadDataTask(task="jersey-2023", split=["train", "test"])
+        sn_dl = SNdl(LocalDirectory=str(data_dir))
+        sn_dl.downloadDataTask(task="jersey-2023", split=["train", "test"])
         logger.info(f"SoccerNet jersey dataset downloaded to {data_dir}")
         return True
     except ImportError:
@@ -289,9 +289,8 @@ def main():
 
     data_dir = Path(args.data_dir)
 
-    if args.download:
-        if not download_soccernet_jersey(data_dir):
-            return
+    if args.download and not download_soccernet_jersey(data_dir):
+        return
 
     if args.train:
         train_imgs, train_labels = load_dataset(data_dir, "train")

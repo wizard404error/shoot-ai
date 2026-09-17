@@ -223,10 +223,7 @@ def compute_features(frame: np.ndarray) -> tuple[float, float, float]:
     Returns (brightness 0-255, edge_density 0-1, blue_dominance).
     """
     try:
-        if frame.ndim == 3:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = frame
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
         brightness = float(gray.mean())
         edges = cv2.Canny(gray, 80, 200)
         edge_density = float(edges.mean()) / 255.0

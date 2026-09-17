@@ -90,7 +90,7 @@ class TestHomographyService:
 
     def test_homography_matrix_min_corners(self):
         hs = HomographyService()
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             hs.compute_homography_from_corners(
                 pixel_corners=[(0, 0)],
                 pitch_length_m=105.0,
@@ -108,7 +108,7 @@ class TestHomographyService:
 
     def test_compute_homography_empty_corners(self):
         hs = HomographyService()
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             hs.compute_homography_from_corners(
                 pixel_corners=[],
                 pitch_length_m=105.0,
@@ -117,7 +117,7 @@ class TestHomographyService:
 
     def test_bad_corner_format_three_points(self):
         hs = HomographyService()
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             hs.compute_homography_from_corners(
                 pixel_corners=[(0, 0), (1, 1), (2, 2)],
                 pitch_length_m=105.0,

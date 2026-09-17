@@ -141,7 +141,7 @@ class TestTelestrationLayers:
         tel_service.add_layer("l2", "Defense")
         result = json.loads(tel_service.get_layers())
         assert len(result["layers"]) == 2
-        names = [l["name"] for l in result["layers"]]
+        names = [layer["name"] for layer in result["layers"]]
         assert "Attack" in names
         assert "Defense" in names
 

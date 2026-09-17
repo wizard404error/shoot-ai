@@ -22,7 +22,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     """Alert severity levels for real-time events."""
 
     INFO = "info"
@@ -42,7 +42,7 @@ class AlertSeverity(str, Enum):
     CRITICAL = "critical"
 
 
-class AlertKind(str, Enum):
+class AlertKind(StrEnum):
     """Types of real-time alerts.
 
     Extend this enum when adding new alert sources. Custom alert kinds
@@ -302,10 +302,7 @@ class RealtimeService:
             raise ValueError(f"Cannot open video: {video_path}")
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if self.target_fps > 0 and fps > 0:
-            frame_skip = max(1, int(fps / self.target_fps))
-        else:
-            frame_skip = 1
+        frame_skip = max(1, int(fps / self.target_fps)) if self.target_fps > 0 and fps > 0 else 1
         return await self._run_capture(
             cap=cap,
             source=str(video_path),

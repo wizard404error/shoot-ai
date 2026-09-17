@@ -1079,10 +1079,9 @@ class AnalysisHandler:
         try:
             ollama_available = False
             for provider in self.llm_service.providers:
-                if hasattr(provider, "is_available"):
-                    if await provider.is_available():
-                        ollama_available = True
-                        break
+                if hasattr(provider, "is_available") and await provider.is_available():
+                    ollama_available = True
+                    break
             return json.dumps(
                 {
                     "ollama": ollama_available,

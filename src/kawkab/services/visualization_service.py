@@ -122,7 +122,7 @@ class VisualizationService:
         try:
             setup_plot({"runDir": str(self._exports_dir)})
 
-            G = nx.DiGraph()
+            pass_graph = nx.DiGraph()
             edge_weights = defaultdict(int)
 
             for event in pass_events:
@@ -136,27 +136,25 @@ class VisualizationService:
                 edge_weights[edge] += 1
 
             for (src, dst), weight in edge_weights.items():
-                G.add_edge(src, dst, weight=weight)
-                if src not in G.nodes:
-                    G.add_node(src)
-                if dst not in G.nodes:
-                    G.add_node(dst)
+                pass_graph.add_edge(src, dst, weight=weight)
+                if src not in pass_graph.nodes:
+                    pass_graph.add_node(src)
+                if dst not in pass_graph.nodes:
+                    pass_graph.add_node(dst)
 
-            if len(G.nodes) == 0:
+            if len(pass_graph.nodes) == 0:
                 return None
 
             # Use actual pitch positions if available, else spring layout
-            pos = {}
-            for node in G.nodes:
-                if node in player_positions:
-                    pos[node] = player_positions[node]
-                else:
-                    pos[node] = (50, 34)  # default center
+            pos = {
+                node: player_positions.get(node, (50, 34))  # default center
+                for node in pass_graph.nodes
+            }
 
             # Fallback for missing positions
-            if len(pos) < len(G.nodes):
-                spring_pos = nx.spring_layout(G, seed=42)
-                for node in G.nodes:
+            if len(pos) < len(pass_graph.nodes):
+                spring_pos = nx.spring_layout(pass_graph, seed=42)
+                for node in pass_graph.nodes:
                     if node not in pos:
                         pos[node] = (spring_pos[node][0] * 50 + 25, spring_pos[node][1] * 30 + 17)
 
@@ -175,7 +173,7 @@ class VisualizationService:
                 width = 1 + (weight / max_weight) * 5
                 alpha = min(0.3 + (weight / max_weight) * 0.7, 0.9)
                 nx.draw_networkx_edges(
-                    G,
+                    pass_graph,
                     pos,
                     edgelist=[(src, dst)],
                     width=width,
@@ -188,11 +186,11 @@ class VisualizationService:
                 )
 
             # Draw nodes
-            node_sizes = [300 + edge_weights.get((n, n), 0) * 100 for n in G.nodes]
+            node_sizes = [300 + edge_weights.get((n, n), 0) * 100 for n in pass_graph.nodes]
             nx.draw_networkx_nodes(
-                G, pos, node_size=node_sizes, node_color="gold", alpha=0.8, ax=ax
+                pass_graph, pos, node_size=node_sizes, node_color="gold", alpha=0.8, ax=ax
             )
-            nx.draw_networkx_labels(G, pos, font_size=10, font_color="black", ax=ax)
+            nx.draw_networkx_labels(pass_graph, pos, font_size=10, font_color="black", ax=ax)
 
             ax.set_title(title, color="white", fontsize=14)
             ax.set_xlabel("Pitch Length (m)", color="white")
@@ -230,11 +228,11 @@ class VisualizationService:
             return None
 
         # Try soccerplots for enhanced rendering
-        _HAS_SOCCERPLOTS = False
+        has_soccerplots = False
         try:
             from soccerplots.radar_chart import Radar  # noqa: F401  (availability probe)
 
-            _HAS_SOCCERPLOTS = True
+            has_soccerplots = True
         except ImportError:
             pass
 
@@ -266,7 +264,7 @@ class VisualizationService:
             if not player_passes:
                 return None
 
-            if _HAS_SOCCERPLOTS and len(player_passes) <= 6:
+            if has_soccerplots and len(player_passes) <= 6:
                 return self._render_pass_sonar_soccerplots(player_passes, title, output_name)
             return self._render_pass_sonar_matplotlib(player_passes, title, output_name)
         except Exception as e:
@@ -370,10 +368,7 @@ class VisualizationService:
         fig, axes = plt.subplots(
             rows, cols, figsize=(4 * cols, 4 * rows), subplot_kw={"polar": True}
         )
-        if n_players == 1:
-            axes = [axes]
-        else:
-            axes = axes.flatten() if rows > 1 else axes
+        axes = [axes] if n_players == 1 else axes.flatten() if rows > 1 else axes
 
         for idx, (player_id, passes) in enumerate(player_passes.items()):
             if idx >= len(axes):
@@ -429,10 +424,7 @@ class VisualizationService:
         rows = math.ceil(n_players / cols)
 
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
-        if n_players == 1:
-            axes = [axes]
-        else:
-            axes = axes.flatten() if rows > 1 else axes
+        axes = [axes] if n_players == 1 else axes.flatten() if rows > 1 else axes
 
         for idx, (player_id, passes) in enumerate(player_passes.items()):
             if idx >= len(axes):

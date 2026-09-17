@@ -380,24 +380,21 @@ def render(
                 frame = render_heatmap_overlay(frame, heatmaps, alpha)
 
         # --- Feature: bbox and id ---
-        if "bbox" in features or "id" in features:
-            if current_sample:
-                for det in current_sample.get("detections", []):
-                    bbox = det[0]
-                    _ = det[1]
-                    cls_name = det[2]
-                    tid = det[3]
-                    if cls_name == "sports ball":
-                        continue
-                    x1, y1, x2, y2 = [int(v) for v in bbox]
-                    color = team_colors.get(tid, (128, 128, 128))
-                    if "bbox" in features:
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    if "id" in features and tid is not None:
-                        label = f"#{tid}"
-                        cv2.putText(
-                            frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
-                        )
+        if ("bbox" in features or "id" in features) and current_sample:
+            for det in current_sample.get("detections", []):
+                bbox = det[0]
+                _ = det[1]
+                cls_name = det[2]
+                tid = det[3]
+                if cls_name == "sports ball":
+                    continue
+                x1, y1, x2, y2 = [int(v) for v in bbox]
+                color = team_colors.get(tid, (128, 128, 128))
+                if "bbox" in features:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                if "id" in features and tid is not None:
+                    label = f"#{tid}"
+                    cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         # --- Feature: ball ---
         if "ball" in features:

@@ -17,7 +17,7 @@ import logging
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from kawkab.core.game_constants import GAME
@@ -25,7 +25,7 @@ from kawkab.core.game_constants import GAME
 logger = logging.getLogger(__name__)
 
 
-class RunType(str, Enum):
+class RunType(StrEnum):
     """Classification of an off-ball run."""
 
     BEHIND_DEFENSE = "behind_defense"

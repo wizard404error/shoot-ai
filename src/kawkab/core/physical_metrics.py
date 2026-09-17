@@ -187,10 +187,7 @@ class PhysicalMetricsAnalyzer:
 
         # Sprint distance
         sprint_mask = speeds_smooth >= self.SPRINT_THRESHOLD_MS
-        if np.any(sprint_mask):
-            sprint_dist = float(np.sum(dist[sprint_mask[: len(dist)]]))
-        else:
-            sprint_dist = 0.0
+        sprint_dist = float(np.sum(dist[sprint_mask[: len(dist)]])) if np.any(sprint_mask) else 0.0
 
         # High intensity runs
         hi_mask = speeds_smooth >= self.HIGH_INTENSITY_THRESHOLD_MS

@@ -103,7 +103,7 @@ class SecurityValidator:
             raise ValueError(
                 f"Path traversal denied: {resolved} is not within {docs}. "
                 f"Only files in the KawkabAI videos directory are allowed."
-            )
+            ) from None
 
         return resolved
 
@@ -143,7 +143,7 @@ class SecurityValidator:
             raise ValueError(
                 f"Path traversal denied: {resolved} is not within {docs}. "
                 f"Only files in the KawkabAI directory are allowed."
-            )
+            ) from None
 
         return resolved
 
@@ -173,7 +173,7 @@ class SecurityValidator:
             raise ValueError(
                 f"Path traversal denied: {resolved} is not within {docs}. "
                 f"Only directories in the KawkabAI directory are allowed."
-            )
+            ) from None
 
         if not resolved.is_dir():
             raise ValueError(f"not a directory: {resolved}")
@@ -488,10 +488,7 @@ class ErrorSanitizer:
         - Stack traces
         - Sensitive information
         """
-        if isinstance(error, Exception):
-            message = str(error)
-        else:
-            message = str(error)
+        message = str(error) if isinstance(error, Exception) else str(error)
 
         # Remove Windows paths
         message = re.sub(r"[A-Za-z]:\\[^\s]+", "[path]", message)

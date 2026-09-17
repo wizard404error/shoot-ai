@@ -20,12 +20,12 @@ from __future__ import annotations
 import logging
 import statistics
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class TrendDirection(str, Enum):
+class TrendDirection(StrEnum):
     """Direction of a player's trend over a rolling window."""
 
     IMPROVING = "improving"
@@ -249,11 +249,13 @@ class PlayerDevelopmentService:
     ) -> list[str]:
         strengths: list[str] = []
         for t in trends:
-            if t.direction in (TrendDirection.IMPROVING, TrendDirection.STABLE):
-                if t.rolling_avg > 0:
-                    strengths.append(
-                        f"{t.metric}: avg {t.rolling_avg:.2f} (last {t.n_matches} matches)"
-                    )
+            if (
+                t.direction in (TrendDirection.IMPROVING, TrendDirection.STABLE)
+                and t.rolling_avg > 0
+            ):
+                strengths.append(
+                    f"{t.metric}: avg {t.rolling_avg:.2f} (last {t.n_matches} matches)"
+                )
         return strengths[:5]
 
     def _identify_improvements(

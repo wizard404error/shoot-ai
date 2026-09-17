@@ -255,23 +255,22 @@ class PostgresStorageAdapter:
             sets = []
             args = []
             if api_match_id is not None:
-                sets.append("api_match_id = $%d" % (len(args) + 1))
+                sets.append(f"api_match_id = ${len(args) + 1}")
                 args.append(api_match_id)
             if competition_code is not None:
-                sets.append("competition_code = $%d" % (len(args) + 1))
+                sets.append(f"competition_code = ${len(args) + 1}")
                 args.append(competition_code)
             if football_data_home_team_id is not None:
-                sets.append("football_data_home_team_id = $%d" % (len(args) + 1))
+                sets.append(f"football_data_home_team_id = ${len(args) + 1}")
                 args.append(football_data_home_team_id)
             if football_data_away_team_id is not None:
-                sets.append("football_data_away_team_id = $%d" % (len(args) + 1))
+                sets.append(f"football_data_away_team_id = ${len(args) + 1}")
                 args.append(football_data_away_team_id)
             if not sets:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
-                % (", ".join(sets), len(args)),
+                f"UPDATE matches SET {', '.join(sets)}, updated_at = NOW() WHERE id = ${len(args)}",
                 *args,
             )
             return r != "UPDATE 0"
@@ -312,8 +311,7 @@ class PostgresStorageAdapter:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
-                % (", ".join(sets), len(args)),
+                f"UPDATE matches SET {', '.join(sets)}, updated_at = NOW() WHERE id = ${len(args)}",
                 *args,
             )
             return r != "UPDATE 0"
@@ -356,8 +354,7 @@ class PostgresStorageAdapter:
                 return False
             args.append(match_id)
             r = await conn.execute(
-                "UPDATE matches SET %s, updated_at = NOW() WHERE id = $%d"
-                % (", ".join(sets), len(args)),
+                f"UPDATE matches SET {', '.join(sets)}, updated_at = NOW() WHERE id = ${len(args)}",
                 *args,
             )
             return r != "UPDATE 0"
@@ -1498,9 +1495,14 @@ class PostgresStorageAdapter:
         if not self._pool or not links:
             return 0
         params = [
-            (match_id, l.get("event_id"), l.get("frame_number", 0), l.get("frame_offset", 0))
-            for l in links
-            if l.get("event_id") is not None
+            (
+                match_id,
+                link.get("event_id"),
+                link.get("frame_number", 0),
+                link.get("frame_offset", 0),
+            )
+            for link in links
+            if link.get("event_id") is not None
         ]
         if not params:
             return 0

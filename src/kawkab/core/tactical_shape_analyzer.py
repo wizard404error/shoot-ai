@@ -110,7 +110,7 @@ def _classify_attacking_shape(positions: list[tuple[float, float]]) -> str:
             current_line.append(sorted_pos[i])
     if current_line:
         lines.append(current_line)
-    line_counts = [len(l) for l in lines]
+    line_counts = [len(ln) for ln in lines]
     # Classify
     shape = _classify_line_count(line_counts)
     return shape

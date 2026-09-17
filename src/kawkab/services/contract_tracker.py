@@ -132,10 +132,7 @@ class ContractTracker:
             return []
         now = datetime.now()
         year = now.year
-        if now.month >= 7:
-            season_end = f"{year + 1}-06-30"
-        else:
-            season_end = f"{year}-06-30"
+        season_end = f"{year + 1}-06-30" if now.month >= 7 else f"{year}-06-30"
         cursor = self.conn.cursor()
         cursor.execute(
             f"""

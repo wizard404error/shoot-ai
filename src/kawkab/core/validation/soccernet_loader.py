@@ -71,10 +71,7 @@ def parse_gt_line(line: str, line_no: int) -> tuple[int, int, float, float, floa
     robustness, and extra trailing columns are ignored either way.
     Fewer than 6 usable columns is a hard format error.
     """
-    if "," in line:
-        parts = line.split(",")
-    else:
-        parts = line.split()
+    parts = line.split(",") if "," in line else line.split()
     if len(parts) < 6:
         raise SoccerNetGtFormatError(
             f"gt line {line_no}: expected >= 6 columns, got {len(parts)}: {line!r}"

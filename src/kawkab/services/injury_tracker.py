@@ -3,26 +3,26 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from kawkab.core.encryption import decrypt_dict, encrypt_dict
 
 
-class InjurySeverity(str, Enum):
+class InjurySeverity(StrEnum):
     MINOR = "minor"
     MODERATE = "moderate"
     SEVERE = "severe"
     CRITICAL = "critical"
 
 
-class InjuryStatus(str, Enum):
+class InjuryStatus(StrEnum):
     ACTIVE = "active"
     RECOVERED = "recovered"
     CHRONIC = "chronic"
 
 
-class BodyPart(str, Enum):
+class BodyPart(StrEnum):
     HEAD = "head"
     NECK = "neck"
     SHOULDER = "shoulder"

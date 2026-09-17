@@ -56,7 +56,9 @@ def test_encrypt_decrypt_roundtrip():
 def test_decrypt_invalid_ciphertext_raises():
     """decrypt raises on garbage ciphertext."""
     init_fernet("deadbeef" * 16)
-    with pytest.raises(Exception):
+    from cryptography.fernet import InvalidToken
+
+    with pytest.raises(InvalidToken):
         decrypt("not-valid-ciphertext!!")
 
 
@@ -151,7 +153,9 @@ def test_encrypt_decrypt_different_keys():
     init_fernet("aaaa" * 16)
     cipher = encrypt("secret data")
     init_fernet("bbbb" * 16)
-    with pytest.raises(Exception):
+    from cryptography.fernet import InvalidToken
+
+    with pytest.raises(InvalidToken):
         decrypt(cipher)
 
 

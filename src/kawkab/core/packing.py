@@ -130,10 +130,7 @@ def compute_packing(
     pass_length = math.hypot(ex - sx, ey - sy)
 
     # Territory penetration: how far forward the pass goes
-    if attacking_direction > 0:
-        territory = max(0.0, ex - sx)
-    else:
-        territory = max(0.0, sx - ex)
+    territory = max(0.0, ex - sx) if attacking_direction > 0 else max(0.0, sx - ex)
     territory_pct = (territory / PITCH_LENGTH) * 100.0
 
     # Count packed opponents
@@ -144,10 +141,7 @@ def compute_packing(
 
     is_progressive = territory_pct > 5.0
 
-    if attacking_direction > 0:
-        direction = "right"
-    else:
-        direction = "left"
+    direction = "right" if attacking_direction > 0 else "left"
 
     return PackingResult(
         packing_count=packing_count,
@@ -218,11 +212,8 @@ def compute_match_packing(
             continue
 
         # Attacking direction depends on the team
-        if team == "home":
-            team_att_dir = att_dir
-        else:
-            # Away team attacks in opposite direction
-            team_att_dir = -att_dir
+        # Away team attacks in the opposite direction
+        team_att_dir = att_dir if team == "home" else -att_dir
 
         result = compute_packing(ev, opp_positions, team_att_dir)
 

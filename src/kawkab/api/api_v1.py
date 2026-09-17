@@ -105,13 +105,14 @@ def _check_match_access(match: dict, user: dict) -> None:
     who can't see it.
     """
     owner_id = match.get("owner_id")
-    if owner_id is None:
+    if owner_id is None or owner_id == user.get("id"):
         return
-    if owner_id == user.get("id"):
+    if (
+        match.get("is_shared")
+        and match.get("team_id") is not None
+        and match["team_id"] in _get_user_team_ids(user["id"])
+    ):
         return
-    if match.get("is_shared") and match.get("team_id") is not None:
-        if match["team_id"] in _get_user_team_ids(user["id"]):
-            return
     _not_found(f"Match {match.get('id')} not found")
 
 
@@ -1231,13 +1232,13 @@ async def import_statsbomb_season(
     validated against the same documents-dir allowlist as every other
     local-file API.
     """
-    from kawkab.core.security import SecurityValidator as _SV
+    from kawkab.core.security import SecurityValidator
     from kawkab.services.season_import_service import SeasonImportService
 
     storage = _get_storage()
     try:
         try:
-            _SV.validate_directory_path(body.directory)
+            SecurityValidator.validate_directory_path(body.directory)
         except Exception as exc:
             raise HTTPException(400, f"directory rejected: {exc}") from exc
 

@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from kawkab.core.encryption import decrypt_dict, encrypt_dict
 
 
-class RehabPhase(str, Enum):
+class RehabPhase(StrEnum):
     INITIAL = "initial"
     PROTECTIVE = "protective"
     RESTORATIVE = "restorative"

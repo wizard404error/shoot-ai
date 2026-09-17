@@ -551,11 +551,10 @@ class AnalysisServiceCore:
             if y_gain > 0.5:
                 event.pass_type = PassType.SWITCH
                 continue
-            if ey < 0.2 or ey > 0.8:
-                if ex > 0.7:
-                    event.pass_type = PassType.CROSS
-                    event.is_cross = True
-                    continue
+            if (ey < 0.2 or ey > 0.8) and ex > 0.7:
+                event.pass_type = PassType.CROSS
+                event.is_cross = True
+                continue
             if x_gain > 0.15 and event.length_m > 15.0:
                 event.pass_type = PassType.THROUGH_BALL
                 event.is_through_ball = True

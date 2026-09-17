@@ -398,10 +398,7 @@ class ValidationService:
         results: list[ValidationResult],
     ) -> ValidationReport:
         """Build a complete validation report from individual results."""
-        if results:
-            overall = sum(r.accuracy_score for r in results) / len(results)
-        else:
-            overall = 0.0
+        overall = sum(r.accuracy_score for r in results) / len(results) if results else 0.0
 
         # Group by category for summary
         by_category: dict[str, list[float]] = {}

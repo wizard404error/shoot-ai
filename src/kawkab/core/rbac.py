@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     ADMIN = "admin"
     COACH = "coach"
     ANALYST = "analyst"
@@ -72,10 +72,12 @@ class RBACMiddleware:
         if required_role is None:
             return False
         if user["role_level"] >= ROLE_HIERARCHY.get(required_role, 0):
-            if resource_team and user["team"] and user["team"] != resource_team:
-                if user["role_level"] < ROLE_HIERARCHY[Role.ADMIN]:
-                    return False
-            return True
+            return not (
+                resource_team
+                and user["team"]
+                and user["team"] != resource_team
+                and user["role_level"] < ROLE_HIERARCHY[Role.ADMIN]
+            )
         return False
 
     def require_permission(self, user_id: int, permission: str, resource_team: str = ""):

@@ -112,8 +112,10 @@ class SleepRecoveryService:
                 col_map = {h.strip().lower(): h for h in reader.fieldnames}
                 for row in reader:
                     try:
-
-                        def _val(key: str, cast: callable = str) -> Any:
+                        # `row` bound as a default: consumed within this
+                        # iteration, but default-arg binding removes the
+                        # late-binding trap (B023).
+                        def _val(key: str, cast: callable = str, row=row) -> Any:
                             raw = row.get(col_map.get(key, ""), "").strip()
                             if not raw:
                                 return None

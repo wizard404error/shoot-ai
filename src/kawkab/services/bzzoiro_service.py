@@ -215,13 +215,13 @@ class BzzoiroService:
             return []
         results = data.get("results", data) if isinstance(data, dict) else data
         leagues = []
-        for l in results or []:
+        for result in results or []:
             leagues.append(
                 {
-                    "id": l.get("id"),
-                    "name": l.get("name", ""),
-                    "country": l.get("country", ""),
-                    "is_active": l.get("is_active", False),
+                    "id": result.get("id"),
+                    "name": result.get("name", ""),
+                    "country": result.get("country", ""),
+                    "is_active": result.get("is_active", False),
                 }
             )
         return leagues

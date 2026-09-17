@@ -472,7 +472,7 @@ class TestThroughBall:
     def test_detect_through_balls_filters_standard_passes(self, sample_through_ball_events):
         result = detect_through_balls(sample_through_ball_events)
         for tb in result:
-            assert not tb.pass_event["pass_type"] == "standard"
+            assert tb.pass_event["pass_type"] != "standard"
 
     def test_through_ball_dataclass(self):
         tb = ThroughBall(

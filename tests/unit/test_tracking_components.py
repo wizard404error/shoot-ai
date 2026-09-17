@@ -448,9 +448,11 @@ class TestCameraCutDetector:
 
         with patch("cv2.VideoCapture", return_value=cap):
             detector = CameraCutDetector(threshold=0.5)
-            with patch.object(detector, "_compute_hsv_hist", return_value=np.array([0.5, 0.5])):
-                with patch("cv2.compareHist", return_value=0.0):
-                    cuts = detector.detect_cuts(Path("dummy.mp4"), sample_every_n=1, max_frames=2)
+            with (
+                patch.object(detector, "_compute_hsv_hist", return_value=np.array([0.5, 0.5])),
+                patch("cv2.compareHist", return_value=0.0),
+            ):
+                cuts = detector.detect_cuts(Path("dummy.mp4"), sample_every_n=1, max_frames=2)
 
         assert len(cuts) == 0
 
@@ -502,9 +504,11 @@ class TestCameraCutDetector:
         cuts_result = [{"frame": 30, "timestamp": 1.0, "diff_score": 0.5}]
 
         cap = _make_cap_mock(fps=30.0, total_frames=200)
-        with patch("cv2.VideoCapture", return_value=cap):
-            with patch.object(detector, "detect_cuts", return_value=cuts_result):
-                segments = detector.get_camera_segments(Path("dummy.mp4"), sample_every_n=1)
+        with (
+            patch("cv2.VideoCapture", return_value=cap),
+            patch.object(detector, "detect_cuts", return_value=cuts_result),
+        ):
+            segments = detector.get_camera_segments(Path("dummy.mp4"), sample_every_n=1)
 
         assert len(segments) == 2
         assert segments[0]["start_frame"] == 0

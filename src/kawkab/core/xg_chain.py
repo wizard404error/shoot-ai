@@ -71,15 +71,15 @@ def compute_xg_chain(
         key=lambda e: e.get("timestamp", 0),
     )
 
-    SHOT_TYPES = {"shot", "goal"}
-    POSSESSION_END = {"tackle", "interception", "clearance", "foul", "ball_out"}
+    shot_types = {"shot", "goal"}
+    possession_end = {"tackle", "interception", "clearance", "foul", "ball_out"}
 
     chain_start = 0
     for i, ev in enumerate(sorted_ev):
-        if ev.get("type") in POSSESSION_END and i > chain_start:
+        if ev.get("type") in possession_end and i > chain_start:
             chain_start = i + 1
             continue
-        if ev.get("type") not in SHOT_TYPES:
+        if ev.get("type") not in shot_types:
             continue
 
         shot_xg = compute_xg_from_dict(ev)
@@ -92,7 +92,7 @@ def compute_xg_chain(
         for j, cev in enumerate(chain_events):
             position_weight = (j + 1) / n
             contribution = shot_xg * position_weight * 0.5
-            role = "shot" if cev.get("type") in SHOT_TYPES else "buildup"
+            role = "shot" if cev.get("type") in shot_types else "buildup"
             results.append(
                 XgChain(
                     event_idx=chain_events.index(cev),
@@ -130,10 +130,10 @@ def compute_xg_buildup(
         key=lambda e: e.get("timestamp", 0),
     )
 
-    SHOT_TYPES = {"shot", "goal"}
+    shot_types = {"shot", "goal"}
 
     for i, ev in enumerate(sorted_ev):
-        if ev.get("type") not in SHOT_TYPES:
+        if ev.get("type") not in shot_types:
             continue
 
         shot_xg = compute_xg_from_dict(ev)
@@ -144,7 +144,7 @@ def compute_xg_buildup(
         for j in range(i - 1, max(i - 6, -1), -1):
             if sorted_ev[j].get("type") == "pass":
                 preceding.append(j)
-            elif sorted_ev[j].get("type") in SHOT_TYPES:
+            elif sorted_ev[j].get("type") in shot_types:
                 break
             if len(preceding) == 2:
                 break

@@ -120,10 +120,13 @@ class PassingTriangleAnalyzer:
             is_progressive = (end_x - start_x) > 20
             leads_to_shot = False
             for ev in events:
-                if ev.get("type") == "shot" and ev.get("team") == p1.get("team"):
-                    if 0 < ev.get("timestamp", 0) - p3.get("timestamp", 0) <= 10:
-                        leads_to_shot = True
-                        break
+                if (
+                    ev.get("type") == "shot"
+                    and ev.get("team") == p1.get("team")
+                    and 0 < ev.get("timestamp", 0) - p3.get("timestamp", 0) <= 10
+                ):
+                    leads_to_shot = True
+                    break
             results.append(
                 {
                     "three_players": [p1_from, p1_to, p3_to],

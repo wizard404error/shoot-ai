@@ -256,6 +256,6 @@ def test_import_gps_file_unsupported(tmp_path):
     f.write_text("unknown")
     try:
         import_gps_file(str(f))
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except ValueError:
         pass

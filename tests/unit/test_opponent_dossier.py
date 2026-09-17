@@ -117,7 +117,7 @@ def test_predict_lineup():
     ]
     lineup = _predict_lineup(matches)
     assert len(lineup) > 0
-    assert any("Keeper" in l for l in lineup)
+    assert any("Keeper" in ln for ln in lineup)
 
 
 def test_predict_lineup_empty():

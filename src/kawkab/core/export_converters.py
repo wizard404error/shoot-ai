@@ -60,10 +60,7 @@ def to_statsbomb_json(
             ev = event_from_dict(raw)
         except Exception:
             ev_type = raw.get("type", "pass")
-            if ev_type == "shot":
-                ev = ShotEvent.from_dict(raw)
-            else:
-                ev = PassEvent.from_dict(raw)
+            ev = ShotEvent.from_dict(raw) if ev_type == "shot" else PassEvent.from_dict(raw)
 
         team_info = team_map.get(ev.team, {"id": 0, "name": ev.team})
         period = 1 if ev.timestamp < (45 * 60) else 2
@@ -177,7 +174,7 @@ def to_spadl_csv(
         ]
     )
 
-    SPADL_ACTIONS = {
+    spadl_actions = {
         "pass": 1,
         "shot": 2,
         "carry": 3,
@@ -196,7 +193,7 @@ def to_spadl_csv(
 
         period = 1 if ev.timestamp < (45 * 60) else 2
         team_id = team_ids.get(ev.team, 0)
-        action_id = SPADL_ACTIONS.get(ev.type.value, 0)
+        action_id = spadl_actions.get(ev.type.value, 0)
 
         start_x = 0.0
         start_y = 0.0

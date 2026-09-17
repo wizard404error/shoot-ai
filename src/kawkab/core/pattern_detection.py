@@ -84,11 +84,14 @@ class TacticalPatternDetector:
             goals = 0
             last_ts = rep[-1].get("timestamp", 0)
             for ev in events:
-                if ev.get("team") == team and ev.get("type") == "shot":
-                    if 0 < ev.get("timestamp", 0) - last_ts <= 15:
-                        shots += 1
-                        if ev.get("is_goal"):
-                            goals += 1
+                if (
+                    ev.get("team") == team
+                    and ev.get("type") == "shot"
+                    and 0 < ev.get("timestamp", 0) - last_ts <= 15
+                ):
+                    shots += 1
+                    if ev.get("is_goal"):
+                        goals += 1
             result.append(
                 {
                     "count": len(cluster),

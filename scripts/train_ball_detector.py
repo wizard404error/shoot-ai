@@ -97,10 +97,7 @@ def generate_synthetic(
         cy = random.randint(margin, h - margin)
 
         # Ball color: white (match ball) or dark (shadow ball)
-        if random.random() < 0.7:
-            ball_color = (240, 240, 240)
-        else:
-            ball_color = (30, 30, 30)
+        ball_color = (240, 240, 240) if random.random() < 0.7 else (30, 30, 30)
 
         _draw_ball(bg, cx, cy, radius, color=ball_color)
 

@@ -6,7 +6,6 @@ shot-quality-weighted xA using EnhancedXgModel.
 
 from __future__ import annotations
 
-import functools
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -124,6 +123,7 @@ class ExpectedAssistModel:
         self.pitch_width = pitch_width
         self.xg_model = xg_model or EnhancedXgModel()
         self.attacking_direction = attacking_direction
+        self._xa_cache: dict[tuple, XAResult] = {}
 
         # Shot arrival probability grid
         self._arrival_grid = np.array(_SHOT_ARRIVAL_RATES[:rows], dtype=np.float64)
@@ -149,7 +149,6 @@ class ExpectedAssistModel:
         row = min(self.rows - 1, max(0, int((self.pitch_width - y) / self.pitch_width * self.rows)))
         return (row, col)
 
-    @functools.lru_cache(maxsize=128)
     def compute_xa(
         self,
         end_x: float,
@@ -176,6 +175,19 @@ class ExpectedAssistModel:
         Returns:
             XAResult with xA value and breakdown.
         """
+        cache_key = (
+            end_x,
+            end_y,
+            pass_type,
+            distance_m,
+            is_progressive,
+            under_pressure,
+            use_sequence_model,
+            cross_subtype,
+        )
+        cached_result = self._xa_cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
         row, col = self._zone_from_position(end_x, end_y)
         base_prob = float(self._arrival_grid[row, col])
 
@@ -213,7 +225,7 @@ class ExpectedAssistModel:
 
         xa = sequence_xa if use_sequence_model else legacy_xa
 
-        return XAResult(
+        result = XAResult(
             xa=xa,
             base_prob=base_prob,
             pass_type_mult=pass_mult,
@@ -223,6 +235,8 @@ class ExpectedAssistModel:
             expected_shot_xg=expected_shot_xg,
             sequence_xa=sequence_xa,
         )
+        self._xa_cache[cache_key] = result
+        return result
 
     def compute_pass_xa(self, event: dict[str, Any], use_sequence_model: bool = True) -> XAResult:
         end_x = event.get("end_x", self.pitch_length / 2)

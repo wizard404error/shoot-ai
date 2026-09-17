@@ -24,7 +24,7 @@ class TestJerseyNumberService:
         monkeypatch.setattr("kawkab.services.jersey_service.cv2.resize", lambda img, *a, **kw: img)
         # Mock createCLAHE
         fake_clahe = MagicMock()
-        fake_clahe.apply = lambda l: l
+        fake_clahe.apply = lambda img: img
         monkeypatch.setattr(
             "kawkab.services.jersey_service.cv2.createCLAHE", lambda **kw: fake_clahe
         )

@@ -242,7 +242,7 @@ class ApiFootballService:
             return []
         leagues = []
         for item in data.get("response", []):
-            l = item.get("league", {})
+            league = item.get("league", {})
             c = item.get("country", {})
             seasons = item.get("seasons", [])
             current_season = None
@@ -252,10 +252,10 @@ class ApiFootballService:
                     break
             leagues.append(
                 {
-                    "id": l.get("id"),
-                    "name": l.get("name", ""),
-                    "type": l.get("type", ""),
-                    "logo": l.get("logo"),
+                    "id": league.get("id"),
+                    "name": league.get("name", ""),
+                    "type": league.get("type", ""),
+                    "logo": league.get("logo"),
                     "country": c.get("name", ""),
                     "country_code": c.get("code"),
                     "country_flag": c.get("flag"),

@@ -103,7 +103,10 @@ async def run(
                             "title": f"Ball @ {fd.timestamp:.0f}s",
                         }
                     )
-        team_label = lambda tid: match_data.player_teams.get(tid, "unclassified")
+
+        def team_label(tid):
+            return match_data.player_teams.get(tid, "unclassified")
+
         summary = {
             "n_tracks": len(match_data.track_registry),
             "tracks": {

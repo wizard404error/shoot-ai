@@ -199,17 +199,20 @@ def _compute_player_relative_features(
         prev_y = prev.get("y", 34.0)
         dist = math.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2)
 
-        if prev_team != team and prev_type in defensive_types and dist <= 20.0:
-            if attack_dir * (prev_x - x) >= 0:
-                num_defenders_ahead += 1
+        if (
+            prev_team != team
+            and prev_type in defensive_types
+            and dist <= 20.0
+            and attack_dir * (prev_x - x) >= 0
+        ):
+            num_defenders_ahead += 1
 
         if prev_team == team and dist <= 15.0:
             num_teammates_nearby += 1
 
-        if prev_team != team and prev_type in defensive_types:
-            if attack_dir * (prev_x - x) <= 0:
-                behind_dist = math.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2)
-                min_defender_dist_behind = min(min_defender_dist_behind, behind_dist)
+        if prev_team != team and prev_type in defensive_types and attack_dir * (prev_x - x) <= 0:
+            behind_dist = math.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2)
+            min_defender_dist_behind = min(min_defender_dist_behind, behind_dist)
 
     speed_of_attack = 0.0
     possession_times = []

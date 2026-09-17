@@ -273,10 +273,7 @@ class PassNetwork:
             v = v_new
 
         v_min, v_max = v.min(), v.max()
-        if v_max > v_min:
-            v = (v - v_min) / (v_max - v_min)
-        else:
-            v = np.zeros_like(v)
+        v = (v - v_min) / (v_max - v_min) if v_max > v_min else np.zeros_like(v)
 
         return {str(pid): round(float(v[idx]), 4) for pid, idx in idx_map.items()}
 

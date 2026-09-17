@@ -80,10 +80,10 @@ class JerseyNumberService:
         if min(h, w) < 10:
             return torso
         lab = cv2.cvtColor(torso, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
+        lum, a_ch, b_ch = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
-        l = clahe.apply(l)
-        enhanced = cv2.merge([l, a, b])
+        lum = clahe.apply(lum)
+        enhanced = cv2.merge([lum, a_ch, b_ch])
         enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
         enhanced = cv2.bilateralFilter(enhanced, 5, 50, 50)
         if max(h, w) < 60:

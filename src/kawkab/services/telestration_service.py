@@ -82,13 +82,13 @@ class TelestrationService:
                     "layers": [
                         {
                             "id": lid,
-                            "name": l.name,
-                            "visible": l.visible,
-                            "locked": l.locked,
-                            "opacity": l.opacity,
-                            "elements": len(l.elements),
+                            "name": layer.name,
+                            "visible": layer.visible,
+                            "locked": layer.locked,
+                            "opacity": layer.opacity,
+                            "elements": len(layer.elements),
                         }
-                        for lid, l in self._layers.items()
+                        for lid, layer in self._layers.items()
                     ]
                 }
             )
@@ -102,7 +102,7 @@ class TelestrationService:
             layers_data = json.loads(layers_json)
             preset = TelestrationPreset(
                 name=name,
-                layers=[TelestrationLayer(**l) for l in layers_data],
+                layers=[TelestrationLayer(**layer) for layer in layers_data],
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat(),
             )
@@ -121,7 +121,8 @@ class TelestrationService:
                     data = json.loads(f.read_text())
                     if data.get("name") == name:
                         self._layers = {
-                            l["id"]: TelestrationLayer(**l) for l in data.get("layers", [])
+                            layer["id"]: TelestrationLayer(**layer)
+                            for layer in data.get("layers", [])
                         }
                         self._current_preset = name
                         return json.dumps(
@@ -129,7 +130,9 @@ class TelestrationService:
                         )
                 return json.dumps({"error": f"Preset '{name}' not found"})
             data = json.loads(filepath.read_text())
-            self._layers = {l["id"]: TelestrationLayer(**l) for l in data.get("layers", [])}
+            self._layers = {
+                layer["id"]: TelestrationLayer(**layer) for layer in data.get("layers", [])
+            }
             self._current_preset = name
             return json.dumps({"ok": True, "preset": name, "layers": list(self._layers.keys())})
         except Exception as e:
@@ -222,14 +225,14 @@ class TelestrationService:
             "updated_at": preset.updated_at,
             "layers": [
                 {
-                    "id": l.id,
-                    "name": l.name,
-                    "visible": l.visible,
-                    "locked": l.locked,
-                    "opacity": l.opacity,
-                    "elements": l.elements,
+                    "id": layer.id,
+                    "name": layer.name,
+                    "visible": layer.visible,
+                    "locked": layer.locked,
+                    "opacity": layer.opacity,
+                    "elements": layer.elements,
                 }
-                for l in preset.layers
+                for layer in preset.layers
             ],
         }
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False))

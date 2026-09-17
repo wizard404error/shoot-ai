@@ -269,13 +269,12 @@ class ReasoningService:
             not recommended_drill_ids
             and rule.recommended_drills
             and isinstance(rule.recommended_drills, list)
-        ):
-            if isinstance(rule.recommended_drills[0], dict):
-                recommended_drill_ids = [
-                    d.get("drill_id")
-                    for d in rule.recommended_drills
-                    if isinstance(d, dict) and d.get("drill_id")
-                ]
+        ) and isinstance(rule.recommended_drills[0], dict):
+            recommended_drill_ids = [
+                d.get("drill_id")
+                for d in rule.recommended_drills
+                if isinstance(d, dict) and d.get("drill_id")
+            ]
 
         return Diagnosis(
             rule_id=rule.rule_id,

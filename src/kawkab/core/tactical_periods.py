@@ -88,10 +88,8 @@ def detect_tactical_periods(
         away_pos = fdata.get("away_positions", [])
 
         # Compute defensive line height (avg x of defensive half)
-        if possession:
-            def_team_pos = away_pos  # Away defending
-        else:
-            def_team_pos = home_pos  # Home defending
+        # When in possession, the AWAY team is defending (and vice versa)
+        def_team_pos = away_pos if possession else home_pos
 
         def_line_x = 0.0
         if def_team_pos:
@@ -119,10 +117,7 @@ def detect_tactical_periods(
             else:
                 phase = "settled_possession"
         else:
-            if ball_speed > 15.0:
-                phase = "transition"
-            else:
-                phase = "settled_possession"
+            phase = "transition" if ball_speed > 15.0 else "settled_possession"
 
         phases.append((ts, phase))
 

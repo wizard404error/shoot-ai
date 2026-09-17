@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -91,10 +92,9 @@ class AuthHandler:
                     "Delete this file once you've logged in.\n",
                     encoding="utf-8",
                 )
-                try:
+                # best-effort on platforms without POSIX permissions (Windows)
+                with contextlib.suppress(OSError):
                     os.chmod(creds_file, 0o600)
-                except OSError:
-                    pass  # best-effort on platforms without POSIX permissions (Windows)
                 logger.info(
                     "Created default admin user; one-time password written to "
                     f"{creds_file} (not logged; password reset required on first login)"

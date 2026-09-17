@@ -158,10 +158,7 @@ class PitchDetector:
         v_lines: list[Any] = []
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            if x2 == x1:
-                angle = 90.0
-            else:
-                angle = abs(math.degrees(math.atan2(y2 - y1, x2 - x1)))
+            angle = 90.0 if x2 == x1 else abs(math.degrees(math.atan2(y2 - y1, x2 - x1)))
             if angle < 20 or angle > 160:
                 h_lines.append((x1, y1, x2, y2))
             elif 70 < angle < 110:

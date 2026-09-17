@@ -75,8 +75,7 @@ def _detect_trigger_pressing_moments(
         is_trigger = etype in ("back_pass", "poor_control", "slow_pass")
         if not is_trigger:
             # Check if under high pressure (multiple defenders within threshold)
-            if ev.get("under_pressure"):
-                is_trigger = True
+            is_trigger = bool(ev.get("under_pressure"))
         if is_trigger:
             # Look for defensive action within window
             ts = ev.get("timestamp", 0.0)

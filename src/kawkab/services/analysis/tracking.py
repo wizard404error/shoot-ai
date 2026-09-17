@@ -49,17 +49,11 @@ class TrackingMixin:
         if track_merge_map is None:
             metrics = getattr(track_data, "tracking_metrics", {}) or {}
             raw_map = metrics.get("stitch_merge_map", {})
-            if raw_map:
-                track_merge_map = {int(k): v for k, v in raw_map.items()}
-            else:
-                track_merge_map = {}
+            track_merge_map = {int(k): v for k, v in raw_map.items()} if raw_map else {}
 
         frame_skip = max(1, track_data.tracking_metrics.get("frame_skip", 1))
 
-        if homography_matrix is not None:
-            max_frame_delta_m = 0.5
-        else:
-            max_frame_delta_m = 25.0
+        max_frame_delta_m = 0.5 if homography_matrix is not None else 25.0
 
         use_kalman = (
             self.use_kalman
@@ -73,7 +67,9 @@ class TrackingMixin:
             )
 
         prev_timestamps: dict[int, float] = {}
-        is_skip_frame = lambda fno: fno % frame_skip != 0
+
+        def is_skip_frame(fno: int) -> bool:
+            return fno % frame_skip != 0
 
         for frame in track_data.frames:
             current_positions: dict[int, tuple[float, float]] = {}
@@ -263,13 +259,16 @@ class TrackingMixin:
             for det in frame.detections:
                 if det.class_name == "sports ball" and ball_det is None:
                     ball_det = det
-                elif det.class_name == "person" and det.track_id is not None:
-                    if track_data.player_teams:
-                        assigned = track_data.player_teams.get(det.track_id)
-                        if assigned == "home":
-                            (team_players if team == "home" else opp_players).append(det)
-                        elif assigned == "away":
-                            (team_players if team == "away" else opp_players).append(det)
+                elif (
+                    det.class_name == "person"
+                    and det.track_id is not None
+                    and track_data.player_teams
+                ):
+                    assigned = track_data.player_teams.get(det.track_id)
+                    if assigned == "home":
+                        (team_players if team == "home" else opp_players).append(det)
+                    elif assigned == "away":
+                        (team_players if team == "away" else opp_players).append(det)
                     # No team assignment: skip this player rather than
                     # inventing one from track-ID parity (tid % 2 has no
                     # relation to team membership and silently corrupted
@@ -289,7 +288,10 @@ class TrackingMixin:
             else:
                 bx_m, by_m = bx, by
 
-            def _opp_dist_pitch(p):
+            # Bind loop values as defaults: this closure is only used within
+            # this iteration, but default-arg binding removes the late-binding
+            # trap entirely (B023).
+            def _opp_dist_pitch(p, bx_m=bx_m, by_m=by_m, bx=bx, by=by):
                 ox = (p.bbox[0] + p.bbox[2]) / 2
                 oy = (p.bbox[1] + p.bbox[3]) / 2
                 if homography_matrix is not None:
@@ -322,22 +324,21 @@ class TrackingMixin:
             if (
                 prev_possessor_track_id is not None
                 and current_possessor_track_id != prev_possessor_track_id
-            ):
-                if closest_opp_dist < press_threshold_m:
-                    n_defensive_actions += 1
-                    if prev_ball_pos is not None:
-                        pbx, pby = prev_ball_pos
-                        if homography_matrix is not None:
-                            try:
-                                bx_m, by_m = homography_matrix.pixel_to_pitch(bx, by)
-                                pbx_m, pby_m = homography_matrix.pixel_to_pitch(pbx, pby)
-                                ball_moved_m = math.sqrt((bx_m - pbx_m) ** 2 + (by_m - pby_m) ** 2)
-                            except Exception:
-                                ball_moved_m = math.sqrt((bx - pbx) ** 2 + (by - pby) ** 2)
-                        else:
+            ) and closest_opp_dist < press_threshold_m:
+                n_defensive_actions += 1
+                if prev_ball_pos is not None:
+                    pbx, pby = prev_ball_pos
+                    if homography_matrix is not None:
+                        try:
+                            bx_m, by_m = homography_matrix.pixel_to_pitch(bx, by)
+                            pbx_m, pby_m = homography_matrix.pixel_to_pitch(pbx, pby)
+                            ball_moved_m = math.sqrt((bx_m - pbx_m) ** 2 + (by_m - pby_m) ** 2)
+                        except Exception:
                             ball_moved_m = math.sqrt((bx - pbx) ** 2 + (by - pby) ** 2)
-                        if ball_moved_m > possession_change_threshold_m:
-                            n_passes += 1
+                    else:
+                        ball_moved_m = math.sqrt((bx - pbx) ** 2 + (by - pby) ** 2)
+                    if ball_moved_m > possession_change_threshold_m:
+                        n_passes += 1
 
             prev_possessor_track_id = current_possessor_track_id
             prev_ball_pos = (bx, by)
@@ -473,7 +474,7 @@ class TrackingMixin:
                 break
             prev_labels = labels
             for k in range(3):
-                members = [x_coords[i] for i, l in enumerate(labels) if l == k]
+                members = [x_coords[i] for i, lab in enumerate(labels) if lab == k]
                 if members:
                     centroids[k] = sum(members) / len(members)
             centroids.sort()
@@ -482,9 +483,9 @@ class TrackingMixin:
         n_mid = max(2, min(6, labels.count(1)))
         n_att = max(1, min(4, labels.count(2)))
 
-        defenders = [sorted_by_x[i][0] for i, l in enumerate(labels) if l == 0]
-        midfielders = [sorted_by_x[i][0] for i, l in enumerate(labels) if l == 1]
-        attackers = [sorted_by_x[i][0] for i, l in enumerate(labels) if l == 2]
+        defenders = [sorted_by_x[i][0] for i, lab in enumerate(labels) if lab == 0]
+        midfielders = [sorted_by_x[i][0] for i, lab in enumerate(labels) if lab == 1]
+        attackers = [sorted_by_x[i][0] for i, lab in enumerate(labels) if lab == 2]
 
         def_line_height = (
             sum(avg_positions[t][0] for t in defenders) / len(defenders) if defenders else 0
@@ -523,10 +524,7 @@ class TrackingMixin:
             "4-3-2-1",
             "4-1-2-3",
         }
-        if formation_str in valid_formations:
-            confidence = 0.7 if n >= 8 else 0.4
-        else:
-            confidence = 0.3
+        confidence = (0.7 if n >= 8 else 0.4) if formation_str in valid_formations else 0.3
 
         return {
             "formation": formation_str,

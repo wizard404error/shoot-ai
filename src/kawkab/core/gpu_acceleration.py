@@ -71,24 +71,23 @@ def detect_gpu() -> GPUBackend:
     return "cpu"
 
 
+_FFMPEG_GPU_ARGS: dict[str, list[str]] = {
+    "cuda": [
+        "-hwaccel",
+        "cuda",
+        "-hwaccel_output_format",
+        "cuda",
+        "-extra_hw_frames",
+        "8",
+    ],
+    "mps": ["-hwaccel", "videotoolbox"],
+    "opencl": ["-hwaccel", "opencl"],
+}
+
+
 def get_ffmpeg_gpu_args() -> list[str]:
     """Get FFmpeg GPU acceleration arguments for the detected backend."""
-    backend = detect_gpu()
-
-    if backend == "cuda":
-        return [
-            "-hwaccel",
-            "cuda",
-            "-hwaccel_output_format",
-            "cuda",
-            "-extra_hw_frames",
-            "8",
-        ]
-    elif backend == "mps":
-        return ["-hwaccel", "videotoolbox"]
-    elif backend == "opencl":
-        return ["-hwaccel", "opencl"]
-    return []
+    return _FFMPEG_GPU_ARGS.get(detect_gpu(), [])
 
 
 def get_opencv_gpu_backend() -> int | None:
@@ -102,9 +101,8 @@ def get_opencv_gpu_backend() -> int | None:
         elif backend == "mps":
             if hasattr(cv2, "CAP_AVFOUNDATION"):
                 return cv2.CAP_AVFOUNDATION
-        elif backend == "opencl":
-            if hasattr(cv2, "CAP_OPENCV_MJPEG"):
-                return cv2.CAP_OPENCV_MJPEG
+        elif backend == "opencl" and hasattr(cv2, "CAP_OPENCV_MJPEG"):
+            return cv2.CAP_OPENCV_MJPEG
     except ImportError:
         pass
     return None

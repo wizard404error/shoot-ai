@@ -177,10 +177,7 @@ def assess_injury_risk(acwr_data: list[dict[str, Any]]) -> dict[str, Any]:
     latest = acwr_data[-1] if acwr_data else {}
 
     if latest.get("load_category") in ("high", "very_high"):
-        if high_ratio > 0.3:
-            risk = "critical"
-        else:
-            risk = "elevated"
+        risk = "critical" if high_ratio > 0.3 else "elevated"
     elif low_days > total * 0.5:
         risk = "deconditioned"
     else:

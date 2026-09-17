@@ -206,7 +206,7 @@ class BenchmarkService:
         try:
             rows = storage_service._conn.execute(
                 """
-                SELECT 
+                SELECT
                     AVG(total_time_seconds) as avg_time,
                     AVG(realtime_ratio) as avg_ratio,
                     AVG(fps_effective) as avg_fps,

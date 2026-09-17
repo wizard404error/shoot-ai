@@ -95,12 +95,14 @@ class TestOAuthAPI:
     def test_callback_valid_state_userinfo_fails(self):
         resp = client.get("/auth/oauth/test_prov/authorize")
         state = resp.json()["state"]
-        with patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "tok1"}):
-            with patch.object(OAuthProvider, "get_userinfo", return_value=None):
-                resp2 = client.post(
-                    "/auth/oauth/test_prov/callback",
-                    json={"code": "abc", "state": state, "provider": "test_prov"},
-                )
+        with (
+            patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "tok1"}),
+            patch.object(OAuthProvider, "get_userinfo", return_value=None),
+        ):
+            resp2 = client.post(
+                "/auth/oauth/test_prov/callback",
+                json={"code": "abc", "state": state, "provider": "test_prov"},
+            )
         assert resp2.status_code == 400
 
     def test_callback_creates_new_user(self):
@@ -141,16 +143,18 @@ class TestOAuthAPI:
         db.commit()
         resp = client.get("/auth/oauth/test_prov/authorize")
         state = resp.json()["state"]
-        with patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "tok1"}):
-            with patch.object(
+        with (
+            patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "tok1"}),
+            patch.object(
                 OAuthProvider,
                 "get_userinfo",
                 return_value={"id": "ext456", "email": "existing@test.com", "name": "Existing"},
-            ):
-                resp2 = client.post(
-                    "/auth/oauth/test_prov/callback",
-                    json={"code": "abc", "state": state, "provider": "test_prov"},
-                )
+            ),
+        ):
+            resp2 = client.post(
+                "/auth/oauth/test_prov/callback",
+                json={"code": "abc", "state": state, "provider": "test_prov"},
+            )
         assert resp2.status_code == 200
         assert resp2.json()["user"]["email"] == "existing@test.com"
 
@@ -174,16 +178,18 @@ class TestOAuthAPI:
         db.commit()
         resp = client.get("/auth/oauth/test_prov/authorize")
         state = resp.json()["state"]
-        with patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "new_tok"}):
-            with patch.object(
+        with (
+            patch.object(OAuthProvider, "exchange_code", return_value={"access_token": "new_tok"}),
+            patch.object(
                 OAuthProvider,
                 "get_userinfo",
                 return_value={"id": "ext789", "email": "oauth@test.com", "name": "OAuth User"},
-            ):
-                resp2 = client.post(
-                    "/auth/oauth/test_prov/callback",
-                    json={"code": "abc", "state": state, "provider": "test_prov"},
-                )
+            ),
+        ):
+            resp2 = client.post(
+                "/auth/oauth/test_prov/callback",
+                json={"code": "abc", "state": state, "provider": "test_prov"},
+            )
         assert resp2.status_code == 200
         assert resp2.json()["user"]["email"] == "oauth@test.com"
 

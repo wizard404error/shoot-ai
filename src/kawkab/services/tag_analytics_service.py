@@ -126,7 +126,7 @@ def compute_tag_analytics(
                 break
             type_j = sorted_tags[j].get("type", "unknown")
             count = 0
-            for k in range(j + 1, min(j + 6, len(sorted_tags))):
+            for k, _ in enumerate(range(j + 1, min(j + 6, len(sorted_tags))), start=1):
                 ts_k = sorted_tags[k].get("timestamp", 0)
                 if ts_k - ts_j > window_size_seconds:
                     break
@@ -143,7 +143,6 @@ def compute_tag_analytics(
                             "tags": [type_i, type_j, type_k],
                         }
                     )
-                count += 1
                 if count >= min_pattern_support:
                     break
 

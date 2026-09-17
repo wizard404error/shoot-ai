@@ -353,9 +353,12 @@ def detect_pressing_traps(
             if prev.get("type") == "pass":
                 ex = prev.get("end_x")
                 ey = prev.get("end_y")
-                if ex is not None and ey is not None:
-                    if _classify_trap_zone(float(ex), float(ey), pitch_length, pitch_width) == z:
-                        opp_passes += 1
+                if (
+                    ex is not None
+                    and ey is not None
+                    and _classify_trap_zone(float(ex), float(ey), pitch_length, pitch_width) == z
+                ):
+                    opp_passes += 1
         zone_opp_passes[z] += opp_passes
 
         # ── 1c.  Check if team regained possession within 3 events ──

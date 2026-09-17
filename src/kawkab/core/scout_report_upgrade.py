@@ -138,7 +138,7 @@ def _estimate_percentile(
     Returns:
         Estimated percentile (0-100).
     """
-    BENCHMARKS: dict[str, dict[str, tuple[float, float]]] = {
+    benchmarks: dict[str, dict[str, tuple[float, float]]] = {
         "pass_accuracy": {
             "CB": (75, 92),
             "FB": (72, 90),
@@ -193,7 +193,7 @@ def _estimate_percentile(
         },
     }
 
-    if stat_name not in BENCHMARKS:
+    if stat_name not in benchmarks:
         return 50.0
 
     pos_map: dict[str, str] = {
@@ -213,7 +213,7 @@ def _estimate_percentile(
         "utility_player": "MF",
     }
     pos_key = pos_map.get(position, "MF")
-    pos_benchmarks = BENCHMARKS.get(stat_name, {})
+    pos_benchmarks = benchmarks.get(stat_name, {})
 
     if pos_key not in pos_benchmarks:
         avg_keys = [k for k in pos_benchmarks if k != "FW"]

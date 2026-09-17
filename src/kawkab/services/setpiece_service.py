@@ -152,12 +152,16 @@ class SetPieceService:
             style = "lofted"
         else:
             style = "driven"
-        if distance >= 12 and (delivery_y < 10 or delivery_y > 58):
-            if delivery_x > 50 and target_x > 90:
-                if delivery_y < 10 and target_y > 30 or delivery_y > 58 and target_y < 38:
-                    style = "inswinging"
-                else:
-                    style = "outswinging"
+        if (
+            distance >= 12
+            and (delivery_y < 10 or delivery_y > 58)
+            and delivery_x > 50
+            and target_x > 90
+        ):
+            if delivery_y < 10 and target_y > 30 or delivery_y > 58 and target_y < 38:
+                style = "inswinging"
+            else:
+                style = "outswinging"
         target_zone = self._classify_target_zone(target_x, target_y)
         return {"style": style, "height": height, "target_zone": target_zone}
 

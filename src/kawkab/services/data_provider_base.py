@@ -81,7 +81,7 @@ class BaseDataProvider(ABC):
     def _store_events(self, events: list[ProviderEvent], db: Any) -> int:
         return 0
 
-    def _store_lineups(self, lineups: list[ProviderLineup], db: Any) -> None:
+    def _store_lineups(self, lineups: list[ProviderLineup], db: Any) -> None:  # noqa: B027  (optional hook)
         pass
 
     @abstractmethod

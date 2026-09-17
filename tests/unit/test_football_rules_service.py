@@ -50,7 +50,7 @@ class TestLawsLoaded:
 
     def test_get_all_laws_sorted(self, rules: FootballRulesService) -> None:
         laws = rules.get_all_laws()
-        numbers = [l["number"] for l in laws]
+        numbers = [law["number"] for law in laws]
         assert numbers == sorted(numbers)
 
     def test_get_unknown_law_returns_empty(self, rules: FootballRulesService) -> None:

@@ -13,7 +13,6 @@ References:
 
 from __future__ import annotations
 
-import functools
 import json
 import random
 from collections import defaultdict
@@ -94,13 +93,18 @@ class ExpectedThreatModel:
         self.attacking_direction = attacking_direction
         self._transition = None
         self._ze_values: np.ndarray | None = None
+        self._zone_cache: dict[tuple[float, float], tuple[int, int]] = {}
 
-    @functools.lru_cache(maxsize=256)
     def _zone_from_position(self, x: float, y: float) -> tuple[int, int]:
+        cache_key = (x, y)
+        cached = self._zone_cache.get(cache_key)
+        if cached is not None:
+            return cached
         if self.attacking_direction == "left":
             x = PITCH_LENGTH - x
         col = min(self.cols - 1, max(0, int(x / self.pitch_length * self.cols)))
         row = min(self.rows - 1, max(0, int(y / self.pitch_width * self.rows)))
+        self._zone_cache[cache_key] = (row, col)
         return (row, col)
 
     def build_transition_matrix(
@@ -163,8 +167,8 @@ class ExpectedThreatModel:
         # match's own goals-per-zone still overlay onto the reference
         # when available (they're the model's ze term), so a data-rich
         # match keeps its own learned behavior; only sparse ones borrow.
-        MIN_ACTIONS_FOR_LEARNING = 200
-        if n_actions < MIN_ACTIONS_FOR_LEARNING:
+        min_actions_for_learning = 200
+        if n_actions < min_actions_for_learning:
             ref = _load_reference_grid()
             if ref is not None and ref.shape == (self.rows, self.cols):
                 ze = self._solve_xT(possession_from_zone, goals_from_zone)
@@ -283,7 +287,8 @@ class ExpectedThreatModel:
             "n_bootstrap": n_bootstrap,
         }
 
-    @functools.lru_cache(maxsize=128)
+    # Deliberately not lru_cache'd: _ze_values is mutated by fit(), and a
+    # method-level cache would keep serving pre-fit (stale) zone values.
     def _get_zone_value(self, row: int, col: int) -> float:
         if self._ze_values is None:
             return 0.0

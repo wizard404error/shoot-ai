@@ -23,11 +23,15 @@ class TestKawkabClient:
     def test_get_match_shots_no_server(self, client):
         import asyncio
 
-        with pytest.raises(Exception):
+        import httpx
+
+        with pytest.raises(httpx.HTTPError):
             asyncio.run(client.get_match_shots(1))
 
     def test_list_matches_no_server(self, client):
         import asyncio
 
-        with pytest.raises(Exception):
+        import httpx
+
+        with pytest.raises(httpx.HTTPError):
             asyncio.run(client.list_matches())

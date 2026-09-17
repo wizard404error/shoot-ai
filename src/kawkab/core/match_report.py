@@ -403,14 +403,13 @@ def _generate_areas_for_improvement(
         if (
             phase_xg_report.get("home_set_piece_xg", 0) > 0
             and phase_xg_report.get("away_set_piece_xg", 0) > 0
+        ) and (
+            phase_xg_report["home_set_piece_xg"] > phase_xg_report["away_set_piece_xg"] * 2
+            or phase_xg_report["away_set_piece_xg"] > phase_xg_report["home_set_piece_xg"] * 2
         ):
-            if (
-                phase_xg_report["home_set_piece_xg"] > phase_xg_report["away_set_piece_xg"] * 2
-                or phase_xg_report["away_set_piece_xg"] > phase_xg_report["home_set_piece_xg"] * 2
-            ):
-                areas.append(
-                    "Improve set piece defending — conceded significant xG from dead-ball situations."
-                )
+            areas.append(
+                "Improve set piece defending — conceded significant xG from dead-ball situations."
+            )
         if phase_xg_report.get("home_transition_xg", 0) > 0.3:
             areas.append("Tighten transition defense — opponent created from counter-attacks.")
 

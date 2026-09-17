@@ -1751,12 +1751,12 @@ class StorageService:
             rows = [
                 (
                     match_id,
-                    l.get("event_id"),
-                    l.get("frame_number", 0),
-                    l.get("frame_offset", 0),
+                    link.get("event_id"),
+                    link.get("frame_number", 0),
+                    link.get("frame_offset", 0),
                 )
-                for l in links
-                if l.get("event_id") is not None
+                for link in links
+                if link.get("event_id") is not None
             ]
             if not rows:
                 return 0

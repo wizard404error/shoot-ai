@@ -117,10 +117,13 @@ class TestI18nCoverage:
         sections = re.findall(r'<section\s+id="([^"]+)".*?<h2([^>]*)>', html, re.DOTALL)
         missing = []
         for sid, h2_attrs in sections:
-            if "data-i18n" not in h2_attrs:
-                # Some sections may not have h2 as direct child — be tolerant
-                if "review-section" not in sid and "coding-section" not in sid:
-                    missing.append(sid)
+            # Some sections may not have h2 as direct child — be tolerant
+            if (
+                "data-i18n" not in h2_attrs
+                and "review-section" not in sid
+                and "coding-section" not in sid
+            ):
+                missing.append(sid)
         # Only report truly missing
         strict_missing = []
         # Check opponent-section and marketplace-section specifically
@@ -174,7 +177,7 @@ class TestI18nCoverage:
                     # Check if the text is dynamically populated (by id attribute)
                     if "id=" in tag:
                         continue
-                    assert False, (
+                    raise AssertionError(
                         f"Hardcoded text '{pattern}' found without data-i18n in: {snippet[:100]}"
                     )
 

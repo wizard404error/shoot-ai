@@ -58,7 +58,7 @@ class SoccerNetReIDExtractor:
                 elif "state_dict" in state:
                     model.load_state_dict(state["state_dict"])
                 elif isinstance(state, dict) and any(
-                    k.startswith("layer") or k.startswith("conv") for k in state.keys()
+                    k.startswith("layer") or k.startswith("conv") for k in state
                 ):
                     model.load_state_dict(state)
                 else:
@@ -98,18 +98,15 @@ class SoccerNetReIDExtractor:
         try:
             import cv2
             import torch
-            import torchvision.transforms as T
+            import torchvision.transforms as transforms
 
-            if crop.shape[2] == 3:
-                rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-            else:
-                rgb = crop
-            transform = T.Compose(
+            rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB) if crop.shape[2] == 3 else crop
+            transform = transforms.Compose(
                 [
-                    T.ToPILImage(),
-                    T.Resize(self._input_size),
-                    T.ToTensor(),
-                    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                    transforms.ToPILImage(),
+                    transforms.Resize(self._input_size),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                 ]
             )
             tensor = transform(rgb).unsqueeze(0).to(self.device)

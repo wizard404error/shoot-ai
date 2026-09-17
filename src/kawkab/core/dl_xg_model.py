@@ -443,10 +443,8 @@ class DLXgModel:
 
         for i in range(n_samples):
             # Most shots from distance (20-25m), fewer close in
-            if rng.random() < 0.15:
-                d = rng.exponential(5.0) + 1.0  # Close range
-            else:
-                d = rng.exponential(10.0) + 8.0  # Long range
+            # Close range 15% of the time, long range otherwise
+            d = rng.exponential(5.0) + 1.0 if rng.random() < 0.15 else rng.exponential(10.0) + 8.0
 
             d = min(d, 45.0)
             angle = rng.exponential(20.0)
