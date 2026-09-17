@@ -2,6 +2,58 @@
 
 All notable changes to Kawkab AI are documented here.
 
+## v0.13.0 (2026-09-17) — Type-safety bug-mining + silent-failure fixes
+
+### Fixed
+- **Postgres mode initialize() regression**: `StorageService.initialize()` in
+  PostgreSQL mode claimed to delegate to the adapter but never called
+  `_pg.initialize()` — the pool was never created and every storage call
+  silently returned empty. Now delegates and is idempotent.
+- **Settings contracts panel never rendered**: the bridge slot, handler, and
+  JS renderer all shipped, but `index.html` had no `#settings-contract-alerts`
+  mount point. Panel now mounts and the whole chain is pinned by smoke tests.
+- **DL xG model-comparison branch silently never trained**:
+  `model_comparison_service` called the enhanced model's single-event
+  `extract_features` where the DL model's list→matrix extractor was required.
+- **SDK client paginated-endpoint bugs**: `/matches`, `/events`, `/players`
+  return `{"items": [...]}` envelopes server-side; the client read bare-list
+  shapes (`matches` key that never exists / returned the envelope as a list).
+- **thesportsdb `_get` annotation lie** (`dict | list | None` — the API only
+  ever returns JSON objects), clearing ~26 downstream type errors honestly.
+- **ShotEvent distance/progression honesty**: fields are `float | None` when
+  absent (no fabricated 0.0); `to_dict`/`from_dict` handle None round-trips.
+- **Dead SecurityValidator fallback deleted** in six storage modules (the
+  ImportError branch was unreachable and one variant never even assigned the
+  fallback — a latent NameError).
+- ~30 further genuine bugs mined out of the mypy backlog: None-flow guards
+  (cloud server rows, storage connections), wrong element types, operator
+  misuse, missing awaits/imports, multi-camera frame init regression caught
+  by tests before it shipped.
+
+### Changed
+- **mypy exits 0 across 315 files** (from 878 errors at baseline): real bugs
+  fixed at source, the guarded `self._conn` storage pattern converted to a
+  `_require_conn()` helper, and the documented quarantine approach extended
+  only for annotation-debt files (mirroring the existing precedent).
+- **`AnalysisHandler` split** (5.7k lines): recruitment hub (shortlist,
+  contracts, scout search, opponent DB, scouting network, Transfermarkt) and
+  the Settings surface moved to `RecruitmentHandler` / `SettingsHandler`;
+  bridge slots unchanged.
+- **Single JS bridge resolver**: `KawkabUtils.getBridge()` in utils.js replaces
+  three byte-identical `resolveBridge()` copies (onboarding, settings,
+  whiteboard) and the app-3d inline probes; legacy `kawkabBridge` alias kept.
+- **Contract SELECT de-duplicated**: the 13-column player-contracts query now
+  lives in one constant consumed by both `StorageService` and
+  `ContractTracker`.
+- JS bundle rebuilt (34 sources) and frontend manifest unchanged.
+
+### Tests
+- Contract storage first-ever coverage (CRUD + expiry windows + alert levels).
+- `test_storage_parity` extended: PG-mode initialize delegation + idempotency.
+- New `test_desktop_smoke.py` (12 tests): Settings mount points, bundle
+  contents, bridge chain per slot, shared getBridge helper, startup storage
+  initialize on a real migrated DB (WAL mode), PG-mode adapter delegation.
+
 ## v0.12.0 (2026-06-18) — All 25 audit gaps closed + production hardening
 
 ### New
