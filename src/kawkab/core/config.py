@@ -75,6 +75,7 @@ class Settings(BaseSettings):
 
     # LLM provider (local Ollama by default — mirrors LLMConfig's defaults)
     llm_provider: str = Field(default="ollama", validation_alias="LLM_PROVIDER")
+    llm_api_key: str = Field(default="", validation_alias="LLM_API_KEY")
     ollama_model: str = Field(default="ministral-3:14b", validation_alias="OLLAMA_MODEL")
     ollama_base_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_URL")
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")

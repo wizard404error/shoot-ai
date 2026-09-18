@@ -203,7 +203,10 @@ class GoogleProvider(LLMProvider):
     def __init__(self, config: LLMConfig) -> None:
         self.config = config
         self.api_key = config.api_key
-        self.model = "gemini-1.5-flash"
+        # "gemini-flash-latest" is Google's stable alias that tracks the
+        # newest GA Flash model; pinned names (1.5/2.5-flash) 404 for new
+        # API projects ("no longer available to new users").
+        self.model = "gemini-flash-latest"
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     async def is_available(self) -> bool:
@@ -213,8 +216,9 @@ class GoogleProvider(LLMProvider):
         import httpx
 
         url = f"{self.base_url}/models/{self.model}:generateContent"
-        params = {"key": self.api_key}
-        headers = {"Content-Type": "application/json"}
+        # Header auth (x-goog-api-key): AQ.-prefix AI Studio keys are
+        # rejected when passed as the ?key= query parameter.
+        headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key or ""}
 
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
 
@@ -227,7 +231,7 @@ class GoogleProvider(LLMProvider):
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, params=params, headers=headers, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
             return data["candidates"][0]["content"]["parts"][0]["text"]

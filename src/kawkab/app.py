@@ -215,6 +215,10 @@ class MainWindow(QMainWindow):
             provider=_provider,
             ollama_model=self.settings.ollama_model,
             ollama_base_url=self.settings.ollama_base_url,
+            # Cloud providers (groq/google/openrouter) are unreachable
+            # without this — it was silently dropped before, so a user who
+            # selected "google" with a valid key got offline-only behavior.
+            api_key=self.settings.llm_api_key or None,
         )
         self.llm = LLMService(llm_config)
 
