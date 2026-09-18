@@ -4,11 +4,14 @@ from .bridge_analysis import AnalysisHandler
 from .bridge_auth import AuthHandler
 from .bridge_cloud import CloudCollabHandler
 from .bridge_coding import CodingHandler
+from .bridge_domain import DomainHandler
 from .bridge_export import ExportHandler
 from .bridge_external import ExternalHandler
 from .bridge_import import ImportHandler
 from .bridge_lifecycle import LifecycleHandler
 from .bridge_live import LiveHandler
+from .bridge_match_intel import MatchIntelHandler
+from .bridge_physical import PhysicalHandler
 from .bridge_pro_analytics import ProAnalyticsHandler
 from .bridge_provider import ProviderHandler
 from .bridge_recruitment import RecruitmentHandler
@@ -20,6 +23,9 @@ from .bridge_whiteboard import WhiteboardHandler
 
 __all__ = [
     "AnalysisHandler",
+    "DomainHandler",
+    "MatchIntelHandler",
+    "PhysicalHandler",
     "CloudCollabHandler",
     "LiveHandler",
     "WhiteboardHandler",

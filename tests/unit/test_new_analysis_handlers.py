@@ -23,6 +23,9 @@ install_kawkab_stubs()
 
 from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
 from kawkab.ui.bridge_handlers.bridge_cloud import CloudCollabHandler
+from kawkab.ui.bridge_handlers.bridge_domain import DomainHandler
+from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
+from kawkab.ui.bridge_handlers.bridge_physical import PhysicalHandler
 from kawkab.ui.bridge_handlers.bridge_recruitment import RecruitmentHandler
 
 
@@ -65,6 +68,33 @@ def _handler(storage=None, player_profiles=None):
     }
     return AnalysisHandler(bridge=None, services=services, rate_limiter=None)
 
+
+_MOVED = {
+    "get_xa_report": MatchIntelHandler, "get_pressing_report": MatchIntelHandler,
+    "get_match_quality_score": MatchIntelHandler, "compute_goals_added": MatchIntelHandler,
+    "get_gps_sessions": PhysicalHandler, "get_gps_samples": PhysicalHandler,
+    "get_player_gps_summary": PhysicalHandler, "get_player_acwr": PhysicalHandler,
+    "import_gps_file": PhysicalHandler, "generate_briefing": PhysicalHandler,
+    "check_setpiece_status": DomainHandler, "analyze_setpieces": DomainHandler,
+    "analyze_goalkeeper": DomainHandler, "analyze_goalkeeper_advanced": DomainHandler,
+    "compute_xgot": DomainHandler, "analyze_substitutions": DomainHandler,
+    "analyze_possession": DomainHandler, "analyze_match_psychology": DomainHandler,
+    "get_law_summary": DomainHandler, "classify_event_rule": DomainHandler,
+    "check_offside": DomainHandler, "infer_cards_tactically": DomainHandler,
+    "fetch_external_cards": DomainHandler,
+}
+
+
+def _handler_for(method, storage=None, player_profiles=None, extra=None):
+    """Build the handler that now owns `method` (post Phase-C1 split)."""
+    services = {
+        "storage_service": storage or MockStorageService(),
+        "player_profile_service": player_profiles,
+    }
+    if extra:
+        services.update(extra)
+    cls = _MOVED.get(method, AnalysisHandler)
+    return cls(bridge=None, services=services, rate_limiter=None)
 
 class TestGetDashboardStats:
     @pytest.mark.asyncio
@@ -112,7 +142,7 @@ class TestGetDashboardStats:
 class TestGetXaReport:
     @pytest.mark.asyncio
     async def test_no_events(self):
-        handler = _handler()
+        handler = _handler_for("get_xa_report")
         result = json.loads(await handler.get_xa_report(1))
         assert result["home"] == 0.0
         assert result["away"] == 0.0
@@ -145,7 +175,7 @@ class TestGetXaReport:
                 {"type": "shot", "team": "home", "timestamp": 12.0},
             ],
         }
-        handler = _handler(MockStorageService(events_by_match=events_by_match))
+        handler = _handler_for("get_xa_report", MockStorageService(events_by_match=events_by_match))
         result = json.loads(await handler.get_xa_report(1))
         assert result["home"] > 0.0
         assert result["away"] >= 0.0
@@ -160,7 +190,7 @@ class TestGetXaReport:
 class TestGetPressingReport:
     @pytest.mark.asyncio
     async def test_no_events(self):
-        handler = _handler()
+        handler = _handler_for("get_pressing_report")
         result = json.loads(await handler.get_pressing_report(1))
         assert result["home"]["traps"] == 0.0
         assert result["home"]["conversion_rate"] == 0.0
@@ -174,7 +204,7 @@ class TestGetPressingReport:
                 {"type": "shot", "team": "home", "timestamp": 2.0, "is_goal": False},
             ],
         }
-        handler = _handler(MockStorageService(events_by_match=events_by_match))
+        handler = _handler_for("get_pressing_report", MockStorageService(events_by_match=events_by_match))
         result = json.loads(await handler.get_pressing_report(1))
         assert result["home"]["traps"] == 1.0
         assert result["home"]["shots_from_traps"] == 1.0
@@ -322,19 +352,19 @@ class TestGpsAcwrHandlers:
     generic {"error": ...} response."""
 
     def test_get_gps_sessions_no_longer_errors_on_validate_int(self):
-        handler = _handler(MockStorageService())
+        handler = _handler_for("get_gps_sessions", MockStorageService())
         handler.storage_service.get_gps_sessions = lambda mid: []
         result = json.loads(handler.get_gps_sessions("5"))
         assert result == {"success": True, "sessions": []}
 
     def test_get_player_acwr_no_longer_errors_on_validate_int(self):
-        handler = _handler(MockStorageService())
+        handler = _handler_for("get_gps_sessions", MockStorageService())
         handler.storage_service.get_player_acwr = lambda pid: []
         result = json.loads(handler.get_player_acwr("3"))
         assert result == {"success": True, "acwr": []}
 
     def test_get_gps_samples_no_longer_errors_on_validate_int(self):
-        handler = _handler(MockStorageService())
+        handler = _handler_for("get_gps_sessions", MockStorageService())
         handler.storage_service.get_gps_samples = lambda sid: []
         result = json.loads(handler.get_gps_samples("9"))
         assert result == {"success": True, "samples": []}
@@ -423,7 +453,7 @@ class TestComputeGoalsAdded:
         ]
         players = [{"track_id": 7, "position": "FWD"}]
         storage = MockStorageService(events_by_match={1: events}, players_by_match={1: players})
-        handler = _handler(storage)
+        handler = _handler_for("compute_goals_added", storage)
         result = json.loads(await handler.compute_goals_added(1))
         assert result["success"] is True
         assert result["count"] == 1
@@ -434,7 +464,7 @@ class TestComputeGoalsAdded:
 
     @pytest.mark.asyncio
     async def test_no_players_returns_empty_not_error(self):
-        handler = _handler(MockStorageService())
+        handler = _handler_for("compute_goals_added", MockStorageService())
         result = json.loads(await handler.compute_goals_added(1))
         assert result == {"success": True, "result": {}, "count": 0}
 
