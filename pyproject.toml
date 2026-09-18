@@ -1,6 +1,6 @@
 [project]
 name = "kawkab-ai"
-version = "0.13.1"
+version = "0.13.2"
 description = "AI Football Coach for Amateur Teams - Local, Private, Free"
 authors = [{ name = "Kawkab AI" }]
 license = { text = "MIT" }

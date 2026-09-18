@@ -2,6 +2,52 @@
 
 All notable changes to Kawkab AI are documented here.
 
+## v0.13.2 (2026-09-18) — Bridge handlers actually work against the real app, GUI e2e, security hardening
+
+### Fixed
+- **GPS/ACWR surface was dead in the real app**: PhysicalHandler called the
+  async StorageService without awaiting — all five read slots
+  (get_gps_sessions/samples, get_player_gps_summary, get_player_acwr) and all
+  three import_gps_file writes returned
+  `{"error": "Object of type coroutine is not JSON serializable"}` on every
+  use. Handler methods are now async, every call awaited, bridge delegation
+  sites updated. Unit tests that hid this behind sync stubs were rewritten to
+  exercise the real async contract, plus a regression pin with AsyncMock
+  storage that fails on the pre-fix shape.
+- **xA and pressing reports were silent zeros on real matches**: both handlers
+  fed raw storage rows (`event_type` key) into models that filter on `"type"`.
+  MatchIntelHandler now normalizes event_type -> type at the storage boundary
+  (its single consumer of both models).
+- **Every legitimate GPS import was rejected**: import_gps_file validated
+  vendor CSV/JSON through validate_video_path (video-only extension
+  allowlist). Now uses validate_wearable_path (documents-dir confinement,
+  .gpx/.fit/.tcx/.csv/.json allowlist).
+- **analyze_setpieces could never parse an event**: the handler omitted the
+  required `delivery_height` field when building SetPieceEvent from UI JSON —
+  every dispatch failed with a TypeError. Default "medium" now supplied.
+- **pressing high-press index crashed on real rows**: same NULL-spatial-value
+  trap compute_trap_to_shot_rate had already fixed (storage json_extract emits
+  x=None); explicit None-check added.
+
+### Added
+- **GUI e2e over the split handlers** (`tests/e2e/test_gui_handler_dispatch.py`):
+  real MainWindow boot -> real bridge -> real WAL sqlite -> one dispatch per
+  new handler (MatchIntel xA, pressing, Physical GPS import + ACWR round trip
+  with FK-correct player creation, Domain setpieces). Seeded and asserted
+  through the production StorageService API; all five v0.13.2 fixes above fail
+  loudly against these tests.
+
+### Security
+- **reel_compose output filename validated** (path traversal, separators,
+  extension allowlist) before joining onto the service output directory —
+  same injection class previously hardened in stream_start_capture.
+- **Vendor-import bridges validate user paths before parsing**: documents-
+  directory confinement plus data-extension allowlist on every path handed
+  to the Opta/Metrica/SkillCorner parsers. 9 regression tests in
+  tests/unit/test_c2_security_fixes.py; 7 of them fail against pre-fix
+  behavior (verified by stash).
+
+
 ## v0.13.1 (2026-09-17) — Handler split completion, cloud-server audit, hot-path benchmarks
 
 ### Changed
