@@ -131,8 +131,8 @@ class SettingsHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_scout_report_pdf(self, track_id, match_id=0):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             from kawkab.core.scout_reports import generate_scout_report
 
             report = generate_scout_report(track_id, match_id)

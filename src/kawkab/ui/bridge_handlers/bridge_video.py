@@ -38,8 +38,8 @@ class VideoHandler:
     # --- Multi-Angle Sync ---
 
     def sync_load(self, videos_json: str) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             paths = json.loads(videos_json)
             return self._sync_service.load_videos(paths)
         except Exception as e:
@@ -47,32 +47,32 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_set_offset(self, source_index: int, offset_seconds: float) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             return self._sync_service.set_offset(source_index, offset_seconds)
         except Exception as e:
             logger.error(f"sync_set_offset failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_positions(self, master_time: float) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             return self._sync_service.get_sync_positions(master_time)
         except Exception as e:
             logger.error(f"sync_positions failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_state(self) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             return self._sync_service.get_state()
         except Exception as e:
             logger.error(f"sync_state failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def sync_clear(self) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             return self._sync_service.clear()
         except Exception as e:
             logger.error(f"sync_clear failed: {e}")
@@ -83,8 +83,8 @@ class VideoHandler:
     def trim_video(
         self, video_path: str, start_seconds: float, end_seconds: float, output_name: str = ""
     ) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             path = SecurityValidator.validate_video_path(video_path)
             if not path:
                 return json.dumps({"error": "Invalid video path"})
@@ -105,8 +105,8 @@ class VideoHandler:
     # --- Highlight Reel ---
 
     def reel_compose(self, clips_json: str, output_filename: str) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             import asyncio
 
             from kawkab.services.highlight_reel_service import ReelClip
@@ -134,8 +134,8 @@ class VideoHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     def reel_from_events(self, match_id: int, events_json: str, video_path: str) -> str:
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             events = json.loads(events_json)
             reel_id = str(uuid.uuid4())[:8]
             with self._reel_lock:

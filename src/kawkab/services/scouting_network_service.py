@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -36,11 +37,14 @@ class NetworkPlayer:
 class ScoutingNetworkService:
     """Community-driven scouting network — share and discover player profiles."""
 
-    def __init__(self) -> None:
+    def __init__(self, data_file: str | None = None) -> None:
         self._players: dict[str, NetworkPlayer] = {}
-        self._data_file = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "scouting_network.json"
-        )
+        # Per-user app-data file, NOT the source tree (same reason as
+        # OpponentDatabaseService: runtime user data used to land inside
+        # the repo under src/data/).
+        if data_file is None:
+            data_file = str(kawkab_paths.get_paths().appdata / "data" / "scouting_network.json")
+        self._data_file = data_file
         self._load_data()
 
     def _load_data(self) -> None:

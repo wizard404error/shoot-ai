@@ -859,9 +859,7 @@ class Bridge(QObject):
     async def check_offside(
         self, attacker_x: float, defender_x: float, ball_x: float, attacking_direction: str
     ) -> str:
-        return await self._domain.check_offside(
-            attacker_x, defender_x, ball_x, attacking_direction
-        )
+        return await self._domain.check_offside(attacker_x, defender_x, ball_x, attacking_direction)
 
     # ================================================================
     # Card Detection
@@ -1048,7 +1046,9 @@ class Bridge(QObject):
     async def whiteboard_generate_pass(
         self, start_x: float, start_y: float, end_x: float, end_y: float, color: str
     ) -> str:
-        return await self._whiteboard.whiteboard_generate_pass(start_x, start_y, end_x, end_y, color)
+        return await self._whiteboard.whiteboard_generate_pass(
+            start_x, start_y, end_x, end_y, color
+        )
 
     # ================================================================
     # Realtime video
@@ -1942,24 +1942,24 @@ class Bridge(QObject):
     # ================================================================
 
     @Slot(str, result=str)
-    def get_pitch_control_overlay(self, match_id: str) -> str:
-        return self._match_intel.get_pitch_control_overlay(match_id)
+    async def get_pitch_control_overlay(self, match_id: str) -> str:
+        return await self._match_intel.get_pitch_control_overlay(match_id)
 
     @Slot(str, str, result=str)
-    def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
-        return self._match_intel.get_player_pass_sonar(match_id, track_id)
+    async def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
+        return await self._match_intel.get_player_pass_sonar(match_id, track_id)
 
     @Slot(str, result=str)
-    def get_space_control_heatmap(self, match_id: str) -> str:
-        return self._match_intel.get_space_control_heatmap(match_id)
+    async def get_space_control_heatmap(self, match_id: str) -> str:
+        return await self._match_intel.get_space_control_heatmap(match_id)
 
     @Slot(str, str, result=str)
-    def get_player_role(self, match_id: str, track_id: str) -> str:
-        return self._match_intel.get_player_role(match_id, track_id)
+    async def get_player_role(self, match_id: str, track_id: str) -> str:
+        return await self._match_intel.get_player_role(match_id, track_id)
 
     @Slot(str, result=str)
-    def get_dominance_index(self, match_id: str) -> str:
-        return self._match_intel.get_dominance_index(match_id)
+    async def get_dominance_index(self, match_id: str) -> str:
+        return await self._match_intel.get_dominance_index(match_id)
 
     # ================================================================
     # Sprint 12+ — Advanced Analysis Bridge Methods
@@ -1987,7 +1987,7 @@ class Bridge(QObject):
 
     @Slot(int, int, result=str)
     async def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
-        return self._match_intel.generate_game_plan(match_id, opponent_id)
+        return await self._match_intel.generate_game_plan(match_id, opponent_id)
 
     @Slot(int, result=str)
     async def compute_phase_xg(self, match_id: int) -> str:
@@ -2014,7 +2014,9 @@ class Bridge(QObject):
         session_type: str = "match",
         vendor: str = "catapult",
     ) -> str:
-        return await self._physical.import_gps_file(match_id, player_id, file_path, session_type, vendor)
+        return await self._physical.import_gps_file(
+            match_id, player_id, file_path, session_type, vendor
+        )
 
     @Slot(str, result=str)
     async def get_gps_sessions(self, match_id: str) -> str:

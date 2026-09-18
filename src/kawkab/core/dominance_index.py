@@ -76,17 +76,27 @@ def compute_dominance_index(
 
     # territory
     final_third_x = PITCH_LENGTH * FINAL_THIRD_PCT
+
+    def _in_final_third(e: dict[str, Any]) -> bool:
+        # json_extract emits None (not a missing key) for rows whose
+        # metadata lacks the coordinate, so .get(key, 0) returned None and
+        # None > final_third_x raised TypeError through every dominance
+        # computation on real storage rows.
+        end_x = e.get("end_x")
+        start_x = e.get("start_x")
+        return (end_x is not None and end_x > final_third_x) or (
+            start_x is not None and start_x > final_third_x
+        )
+
     team_att_third = sum(
         1
         for e in team_events
-        if e.get("type") in ("pass", "carry", "shot", "cross")
-        and (e.get("end_x", 0) > final_third_x or e.get("start_x", 0) > final_third_x)
+        if e.get("type") in ("pass", "carry", "shot", "cross") and _in_final_third(e)
     )
     opp_att_third = sum(
         1
         for e in opp_events
-        if e.get("type") in ("pass", "carry", "shot", "cross")
-        and (e.get("end_x", 0) > final_third_x or e.get("start_x", 0) > final_third_x)
+        if e.get("type") in ("pass", "carry", "shot", "cross") and _in_final_third(e)
     )
     total_att = team_att_third + opp_att_third
     territory = (team_att_third / max(total_att, 1)) * 100.0

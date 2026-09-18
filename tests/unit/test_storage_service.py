@@ -893,9 +893,13 @@ async def test_save_coding_tag_missing_fields(storage):
     tag_id = await storage.save_coding_tag(match_id, {})
     assert tag_id == 0
 
+    # v0.13.2: a type key alone now saves with the Postgres-adapter
+    # video_time default (0.0) instead of silently returning 0 -- the
+    # sqlite/Postgres adapters must agree on which fields are required.
     tag_id = await storage.save_coding_tag(match_id, {"event_type": "pass"})
-    assert tag_id == 0
+    assert tag_id > 0
 
+    # A video_time with no type key is still rejected (type is required).
     tag_id = await storage.save_coding_tag(match_id, {"video_time": 10.0})
     assert tag_id == 0
 

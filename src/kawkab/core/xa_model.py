@@ -239,11 +239,23 @@ class ExpectedAssistModel:
         return result
 
     def compute_pass_xa(self, event: dict[str, Any], use_sequence_model: bool = True) -> XAResult:
-        end_x = event.get("end_x", self.pitch_length / 2)
-        end_y = event.get("end_y", self.pitch_width / 2)
+        # json_extract emits None (not a missing key) for storage rows whose
+        # metadata lacks coordinates, so .get(key, default) returned None and
+        # the distance arithmetic raised TypeError. None falls back to the
+        # same pitch-center default a missing key always used.
+        end_x = event.get("end_x")
+        if end_x is None:
+            end_x = self.pitch_length / 2
+        end_y = event.get("end_y")
+        if end_y is None:
+            end_y = self.pitch_width / 2
         pass_type = event.get("pass_type", "standard")
-        sx = event.get("start_x", self.pitch_length / 2)
-        sy = event.get("start_y", self.pitch_width / 2)
+        sx = event.get("start_x")
+        if sx is None:
+            sx = self.pitch_length / 2
+        sy = event.get("start_y")
+        if sy is None:
+            sy = self.pitch_width / 2
         distance_m = math.sqrt((end_x - sx) ** 2 + (end_y - sy) ** 2)
         is_progressive = event.get("is_progressive", False)
         under_pressure = event.get("under_pressure", False)
@@ -321,8 +333,12 @@ class ExpectedAssistModel:
             if ev.get("type") != "pass":
                 continue
             n_passes += 1
-            end_x = ev.get("end_x", self.pitch_length / 2)
-            end_y = ev.get("end_y", self.pitch_width / 2)
+            end_x = ev.get("end_x")
+            if end_x is None:
+                end_x = self.pitch_length / 2
+            end_y = ev.get("end_y")
+            if end_y is None:
+                end_y = self.pitch_width / 2
             team = ev.get("team", "home")
 
             row, col = self._zone_from_position(end_x, end_y)

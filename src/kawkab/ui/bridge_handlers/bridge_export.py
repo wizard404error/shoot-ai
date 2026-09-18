@@ -37,8 +37,8 @@ class ExportHandler:
             raise RuntimeError(f"Rate limit exceeded for {category}")
 
     async def export_match_csv(self, match_id_str):
-        self._check_rate_limit("export")
         try:
+            self._check_rate_limit("export")
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.data_export_service is None:
                 return json.dumps({"error": "DataExportService not available"})
@@ -49,8 +49,8 @@ class ExportHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def export_match_json(self, match_id_str):
-        self._check_rate_limit("export")
         try:
+            self._check_rate_limit("export")
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.data_export_service is None:
                 return json.dumps({"error": "DataExportService not available"})
@@ -158,8 +158,8 @@ h3 {{ font-size: 1rem; color: #475569; margin: 1rem 0 0.5rem; }}
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def export_match_statsbomb(self, match_id_str, file_path):
-        self._check_rate_limit("export")
         try:
+            self._check_rate_limit("export")
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.data_export_service is None:
                 return json.dumps({"error": "DataExportService not available"})
@@ -173,8 +173,8 @@ h3 {{ font-size: 1rem; color: #475569; margin: 1rem 0 0.5rem; }}
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def extract_event_clips(self, match_id):
-        self._check_rate_limit("export")
         try:
+            self._check_rate_limit("export")
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.clip_service is None:
                 return json.dumps({"error": "ClipExtractionService not available"})

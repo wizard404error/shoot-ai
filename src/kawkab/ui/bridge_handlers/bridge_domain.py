@@ -26,8 +26,11 @@ class DomainHandler:
         self._rate_limiter = rate_limiter
 
     def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None:
-            self._rate_limiter.check("analysis")
+        # acquire() (not .check()): RateLimiter has no check() method, so
+        # analyze_match_psychology crashed with the real bridge limiter
+        # wired in (caught by the GUI e2e audit).
+        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
+            raise RuntimeError("Rate limit exceeded for analysis")
 
     @property
     def storage_service(self):
@@ -132,7 +135,10 @@ class DomainHandler:
 
     @property
     def goalkeeper_analytics(self):
-        svc = self._goalkeeper_analytics
+        # getattr (not bare attribute access): this lazily-built cache is
+        # created here, and reading it before first construction raised
+        # AttributeError out of every compute_goalkeeper_* slot.
+        svc = getattr(self, "_goalkeeper_analytics", None)
         if svc is not None:
             return svc
         svc = self._services.get("goalkeeper_analytics")
@@ -140,9 +146,8 @@ class DomainHandler:
             from kawkab.analysis.goalkeeper_analytics import GoalkeeperAnalytics
 
             svc = GoalkeeperAnalytics()
-            self._goalkeeper_analytics = svc
+        self._goalkeeper_analytics = svc
         return svc
-
 
     @property
     def substitution_service(self):

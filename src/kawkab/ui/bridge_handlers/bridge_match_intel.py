@@ -26,8 +26,11 @@ class MatchIntelHandler:
         self._rate_limiter = rate_limiter
 
     def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None:
-            self._rate_limiter.check("analysis")
+        # acquire() (not .check()): RateLimiter has no check() method, so
+        # with the real bridge limiter wired in this raised AttributeError
+        # out of every slot that rate-checked (caught by the GUI e2e audit).
+        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
+            raise RuntimeError("Rate limit exceeded for analysis")
 
     @property
     def storage_service(self):
@@ -49,7 +52,7 @@ class MatchIntelHandler:
                 ev["type"] = ev["event_type"]
         return events
 
-    def get_pitch_control_overlay(self, match_id: str) -> str:
+    async def get_pitch_control_overlay(self, match_id: str) -> str:
         """Compute pitch control grid overlay for a match.
 
         Returns JSON with home_grid, away_grid, ball_control_pct, hot_zones.
@@ -57,7 +60,12 @@ class MatchIntelHandler:
         try:
             from kawkab.core.pitch_control import VoronoiPitchControl
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             if not events:
                 return json.dumps(
                     {"home_grid": [], "away_grid": [], "ball_control_pct": 50.0, "hot_zones": []}
@@ -100,7 +108,7 @@ class MatchIntelHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
+    async def get_player_pass_sonar(self, match_id: str, track_id: str) -> str:
         """Compute pass direction sonar for a single player.
 
         Returns JSON with directions (8 compass points), pass_counts, accuracy_pct.
@@ -108,7 +116,12 @@ class MatchIntelHandler:
         try:
             from kawkab.core.pass_sonars import compute_pass_sonars
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             sonars = compute_pass_sonars(events, sectors=8)
             target = [s for s in sonars if s.get("track_id") == str(track_id)]
             if not target:
@@ -140,7 +153,7 @@ class MatchIntelHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_space_control_heatmap(self, match_id: str) -> str:
+    async def get_space_control_heatmap(self, match_id: str) -> str:
         """Compute Voronoi-based space control heatmap for a match.
 
         Returns JSON with grid, team_control_pcts, hot_zones, space_gained.
@@ -148,7 +161,12 @@ class MatchIntelHandler:
         try:
             from kawkab.core.space_control import compute_pitch_control_grid, identify_hot_zones
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             if not events:
                 return json.dumps(
                     {"grid": [], "team_control_pcts": {}, "hot_zones": [], "space_gained": 0.0}
@@ -157,9 +175,11 @@ class MatchIntelHandler:
             all_positions = []
             team_ids = []
             for e in events:
-                if e.get("start_x") is not None and e.get("team") in ("home", "away"):
+                sx = e.get("start_x")
+                sy = e.get("start_y")
+                if sx is not None and sy is not None and e.get("team") in ("home", "away"):
                     tid = 0 if e.get("team") == "home" else 1
-                    all_positions.append((e.get("start_x"), e.get("start_y"), e.get("id", 0)))
+                    all_positions.append((float(sx), float(sy), e.get("id", 0) or 0))
                     team_ids.append(tid)
 
             if not all_positions:
@@ -192,7 +212,7 @@ class MatchIntelHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_player_role(self, match_id: str, track_id: str) -> str:
+    async def get_player_role(self, match_id: str, track_id: str) -> str:
         """Classify a player's role from their event data.
 
         Returns JSON with primary_role, confidence, secondary_role, role_breakdown.
@@ -200,7 +220,12 @@ class MatchIntelHandler:
         try:
             from kawkab.core.role_classifier import classify_player_role
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             player_events = [
                 e
                 for e in events
@@ -229,7 +254,7 @@ class MatchIntelHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_dominance_index(self, match_id: str) -> str:
+    async def get_dominance_index(self, match_id: str) -> str:
         """Compute composite dominance index (0-100) for a match.
 
         Returns JSON with index, sub_scores, per_phase.
@@ -237,7 +262,12 @@ class MatchIntelHandler:
         try:
             from kawkab.core.dominance_index import compute_dominance_index
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             if not events:
                 return json.dumps(
                     {
@@ -274,6 +304,7 @@ class MatchIntelHandler:
                 if self.storage_service
                 else []
             )
+            events = self._normalize_event_types(events)
             players = (
                 await self.storage_service.get_match_players(match_id)
                 if self.storage_service
@@ -359,11 +390,16 @@ class MatchIntelHandler:
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
+    async def generate_game_plan(self, match_id: int, opponent_id: int) -> str:
         try:
             from kawkab.core.game_plan import generate_game_plan as _ggp
 
-            events = self.storage_service.get_match_events(match_id) if self.storage_service else []
+            events = (
+                await self.storage_service.get_match_events(match_id)
+                if self.storage_service
+                else []
+            )
+            events = self._normalize_event_types(events)
             # generate_game_plan labels the plan with an opponent *name*; the
             # bridge only receives a numeric id (the UI passes 0), so omit it
             # and let the report fall back to "Unknown".
@@ -419,6 +455,7 @@ class MatchIntelHandler:
             events = (
                 await self.storage_service.get_match_events(mid) if self.storage_service else []
             )
+            events = self._normalize_event_types(events)
 
             from kawkab.core.match_anomaly_detection import (
                 compute_data_quality_score,
@@ -465,7 +502,6 @@ class MatchIntelHandler:
                 await self.storage_service.get_match_events(mid) if self.storage_service else []
             )
             events = self._normalize_event_types(events)
-
             from kawkab.core.xa_model import ExpectedAssistModel
 
             report = ExpectedAssistModel().compute_match_xa(events)
@@ -498,7 +534,6 @@ class MatchIntelHandler:
                 await self.storage_service.get_match_events(mid) if self.storage_service else []
             )
             events = self._normalize_event_types(events)
-
             from kawkab.core.pressing_efficiency import PressingEfficiencyAnalyzer
 
             analyzer = PressingEfficiencyAnalyzer()
@@ -524,4 +559,3 @@ class MatchIntelHandler:
     # ================================================================
     # Sprint 16: GPS / Physical Data Pipeline
     # ================================================================
-

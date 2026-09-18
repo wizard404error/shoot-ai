@@ -15,7 +15,6 @@ from kawkab.core.security import ErrorSanitizer, SecurityValidator
 logger = get_logger(__name__)
 
 
-
 class AnalysisHandler:
     """Handles match analysis and specialized service operations for Bridge."""
 
@@ -143,7 +142,6 @@ class AnalysisHandler:
             self._goalkeeper_analytics = svc
         return svc
 
-
     @property
     def substitution_service(self):
         return self._services.get("substitution_service")
@@ -227,8 +225,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_first_frame(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
             if not match or not match.get("video_path"):
@@ -241,8 +239,8 @@ class AnalysisHandler:
     async def save_homography(
         self, match_id, corners_json, pitch_length_m=105.0, pitch_width_m=68.0
     ):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.homography_service is None:
                 return json.dumps({"success": False, "error": "HomographyService not initialized"})
@@ -349,8 +347,8 @@ class AnalysisHandler:
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_homography(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.homography_service is None:
                 return json.dumps({"error": "Service not initialized"})
@@ -371,8 +369,8 @@ class AnalysisHandler:
     async def save_segment_homography(
         self, match_id, segment_index, corners_json, pitch_length_m=105.0, pitch_width_m=68.0
     ):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             segment_index = int(segment_index)
             if self.homography_service is None:
@@ -437,8 +435,8 @@ class AnalysisHandler:
             return json.dumps({"success": False, "error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_segment_homographies(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.homography_service is None:
                 return json.dumps({"error": "Service not initialized"})
@@ -457,8 +455,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def save_match(self, name, video_path):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             name = SecurityValidator.validate_team_name(name)
             video_path = str(SecurityValidator.validate_video_path(video_path))
             match_id = await self.storage_service.save_match(name=name, video_path=video_path)
@@ -822,8 +820,8 @@ class AnalysisHandler:
         return json.dumps(data[lo])
 
     async def get_all_matches(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             matches = await self.storage_service.get_all_matches()
             return json.dumps(matches)
         except Exception as e:
@@ -831,8 +829,8 @@ class AnalysisHandler:
             return json.dumps([])
 
     async def get_match_events(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             return json.dumps(events)
@@ -843,8 +841,8 @@ class AnalysisHandler:
     async def get_match_players(self, match_id):
         """Player roster for one match (track_id/name/team/jersey) -- used
         by the 3D pitch view to label players (see app-3d.js loadPlayerNameMap)."""
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             players = await self.storage_service.get_match_players(match_id)
             return json.dumps({"players": players})
@@ -1001,8 +999,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_video_path(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
             if not match or not match.get("video_path"):
@@ -1013,8 +1011,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_report(self, match_id, language, summary):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             language = SecurityValidator.sanitize_string(language, max_length=10)
             if language not in ("en", "ar"):
@@ -1034,12 +1032,20 @@ class AnalysisHandler:
             return f"Error generating report: {ErrorSanitizer.sanitize_error(e)}"
 
     async def get_knowledge_base_stats(self):
-        await self.knowledge_service.initialize()
-        return json.dumps(self.knowledge_service.stats)
+        """Knowledge-base stats; the only slot in this handler that let an
+        exception escape un-JSON'd (the Qt slot would return undefined to
+        the UI instead of an error payload)."""
+        try:
+            if self.knowledge_service is None:
+                return json.dumps({"error": "Knowledge service not available"})
+            await self.knowledge_service.initialize()
+            return json.dumps(self.knowledge_service.stats)
+        except Exception as e:
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def check_llm_availability(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             ollama_available = False
             for provider in self.llm_service.providers:
                 if hasattr(provider, "is_available") and await provider.is_available():
@@ -1065,8 +1071,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def create_player_profile(self, name, jersey, number, position):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             name = SecurityValidator.sanitize_string(name, max_length=100)
             number = SecurityValidator.validate_jersey_number(number)
             position = SecurityValidator.sanitize_string(position, max_length=50)
@@ -1085,8 +1091,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_all_player_profiles(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             if self.player_profile_service is None:
                 return json.dumps({"profiles": []})
             profiles = await self.player_profile_service.get_all_profiles()
@@ -1117,8 +1123,8 @@ class AnalysisHandler:
         isn't aggregated at the profile level anywhere yet. Both players
         show 0 on that radar axis rather than a fabricated number.
         """
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             if self.player_profile_service is None:
                 return json.dumps({"error": "PlayerProfileService not available"})
             player_id = SecurityValidator.validate_match_id(player_id)
@@ -1151,8 +1157,8 @@ class AnalysisHandler:
         once (the fast path app.js's handlePlayerCompare prefers when
         available, falling back to two sequential get_player_stats calls
         otherwise)."""
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             a_json = await self.get_player_stats(player_a_id)
             b_json = await self.get_player_stats(player_b_id)
             return json.dumps(
@@ -1258,8 +1264,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def compare_matches(self, match_id_1, match_id_2, focus):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             m1 = SecurityValidator.validate_match_id(match_id_1)
             m2 = SecurityValidator.validate_match_id(match_id_2)
             focus = SecurityValidator.sanitize_string(focus, max_length=50)
@@ -1282,8 +1288,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_match_quality_report(self, match_id_str):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id_str)
             if self.quality_scoring_service is None:
                 return json.dumps({"error": "QualityScoringService not available"})
@@ -1308,8 +1314,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def swap_teams(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             match = await self.storage_service.get_match(match_id)
             if not match:
@@ -1326,8 +1332,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def generate_visualizations(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             if self.visualization_service is None:
                 return json.dumps({"error": "VisualizationService not available"})
@@ -1378,7 +1384,6 @@ class AnalysisHandler:
     # ================================================================
     # Set-piece analysis
     # ================================================================
-
 
     async def check_pose_status(self):
         if self.pose_analysis_service is None:
@@ -1898,8 +1903,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def ask_llm(self, match_id, question):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             question = SecurityValidator.sanitize_string(question, max_length=500)
             events = await self.storage_service.get_match_events(match_id)
@@ -1935,8 +1940,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_player_rating(self, match_id, track_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             track_id = SecurityValidator.validate_match_id(track_id)
             events = await self.storage_service.get_match_events(match_id)
@@ -2000,8 +2005,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_squad_summary(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             players = await self.storage_service.get_match_players(match_id)
@@ -2048,8 +2053,8 @@ class AnalysisHandler:
     # get_squad_injury_report) with an honest insufficient-data category.
 
     async def get_injury_risk(self, match_id, track_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             track_id = (
                 SecurityValidator.validate_match_id(track_id)
@@ -2115,8 +2120,8 @@ class AnalysisHandler:
         # populated anywhere in the codebase, and always evaluated to a
         # constant. A player with no GPS import gets an honest
         # "insufficient_data" category instead of a fabricated ACWR.
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             players = await self.storage_service.get_match_players(match_id)
             predictor = self.injury_risk_predictor
@@ -2260,8 +2265,8 @@ class AnalysisHandler:
         }
 
     async def get_season_summary(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             agg = await self._aggregate_season_stats()
             if agg["total_matches"] == 0:
                 return json.dumps({"total_matches": 0})
@@ -2286,8 +2291,8 @@ class AnalysisHandler:
         the frontend divides by its own match_count to compute the
         average-per-match KPI shown on the dashboard card.
         """
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             agg = await self._aggregate_season_stats()
             return json.dumps(
                 {
@@ -2325,8 +2330,8 @@ class AnalysisHandler:
         FormAnalyzer expects oldest-first (it reads matches[-1] as most
         recent), so the list is reversed before being passed in.
         """
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             from kawkab.core.form_analysis import FormAnalyzer
 
             agg = await self._aggregate_season_stats()
@@ -2364,8 +2369,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def get_all_drills(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             await self.knowledge_service.initialize()
             drills = self.knowledge_service.drills
             drill_list = []
@@ -2399,8 +2404,8 @@ class AnalysisHandler:
     # ================================================================
 
     async def generate_training_plan(self, match_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
             events = await self.storage_service.get_match_events(match_id)
             players = await self.storage_service.get_match_players(match_id)
@@ -2538,8 +2543,8 @@ class AnalysisHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_event_timestamp(self, match_id, event_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             events = await self.storage_service.get_match_events(match_id)
             for ev in events:
                 eid = ev.get("id") or ev.get("event_id") or 0

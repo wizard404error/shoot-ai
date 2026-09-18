@@ -26,8 +26,10 @@ class PhysicalHandler:
         self._rate_limiter = rate_limiter
 
     def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None:
-            self._rate_limiter.check("analysis")
+        # acquire() (not .check()): RateLimiter has no check() method, so
+        # generate_briefing crashed with the real bridge limiter wired in.
+        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
+            raise RuntimeError("Rate limit exceeded for analysis")
 
     @property
     def storage_service(self):
@@ -88,7 +90,9 @@ class PhysicalHandler:
         """Get all GPS sessions for a match."""
         try:
             mid = SecurityValidator.validate_match_id(match_id)
-            sessions = await self.storage_service.get_gps_sessions(mid) if self.storage_service else []
+            sessions = (
+                await self.storage_service.get_gps_sessions(mid) if self.storage_service else []
+            )
             return json.dumps({"success": True, "sessions": sessions})
         except Exception as e:
             logger.error(f"get_gps_sessions failed: {e}")
@@ -98,7 +102,9 @@ class PhysicalHandler:
         """Get GPS samples for a session."""
         try:
             sid = SecurityValidator.validate_int(session_id)
-            samples = await self.storage_service.get_gps_samples(sid) if self.storage_service else []
+            samples = (
+                await self.storage_service.get_gps_samples(sid) if self.storage_service else []
+            )
             return json.dumps({"success": True, "samples": samples})
         except Exception as e:
             logger.error(f"get_gps_samples failed: {e}")
@@ -108,7 +114,11 @@ class PhysicalHandler:
         """Get GPS summary for a player across sessions."""
         try:
             pid = SecurityValidator.validate_int(player_id)
-            data = await self.storage_service.get_player_gps_summary(pid) if self.storage_service else []
+            data = (
+                await self.storage_service.get_player_gps_summary(pid)
+                if self.storage_service
+                else []
+            )
             return json.dumps({"success": True, "sessions": data})
         except Exception as e:
             logger.error(f"get_player_gps_summary failed: {e}")
@@ -124,7 +134,6 @@ class PhysicalHandler:
             logger.error(f"get_player_acwr failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-
     @property
     def prematch_briefing_service(self):
         if not hasattr(self, "_prematch_briefing_service"):
@@ -135,8 +144,8 @@ class PhysicalHandler:
 
     def generate_briefing(self, match_id: str) -> str:
         """Generate a pre-match briefing for a given match."""
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             match_id_val = SecurityValidator.validate_match_id(match_id)
             if self.storage_service is None:
                 return json.dumps({"error": "Storage service not available"})

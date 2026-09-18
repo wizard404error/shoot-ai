@@ -38,7 +38,10 @@ def compute_pass_sonars(
     by the angle from player position to pass destination.
 
     Args:
-        events: List of event dicts with type, start_x/y, end_x/y, team, completed.
+        events: List of event dicts. Accepts both the producer shapes:
+            typed in-memory dicts (type, track_id, start_x/y, end_x/y) and
+            storage rows (event_type is normalized by the caller,
+            from_track_id, metadata-extracted x/y, end_x/y, completed).
         sectors: Number of directional sectors (default 12 = 30° each).
 
     Returns:
@@ -46,16 +49,28 @@ def compute_pass_sonars(
     """
     from collections import defaultdict
 
+    def _num(event: dict[str, Any], *keys: str, default: float) -> float:
+        """First non-None numeric value among `keys` (json_extract emits
+        None for absent metadata keys -- don't coerce that to 0.0)."""
+        for k in keys:
+            v = event.get(k)
+            if v is not None:
+                return float(v)
+        return default
+
     player_passes: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for ev in events:
         if ev.get("type") != "pass":
             continue
-        tid = str(ev.get("player_id") or ev.get("track_id") or "?")
-        sx = ev.get("start_x", 0)
-        sy = ev.get("start_y", 34)
-        ex = ev.get("end_x", sx + 1)
-        ey = ev.get("end_y", sy)
+        # Storage rows attribute passes via from_track_id (and use
+        # event_type for the type key); accept those shapes too, plus the
+        # metadata-extracted x/y the real rows carry instead of start_x.
+        tid = str(ev.get("player_id") or ev.get("track_id") or ev.get("from_track_id") or "?")
+        sx = _num(ev, "start_x", "x", default=0.0)
+        sy = _num(ev, "start_y", "y", default=34.0)
+        ex = _num(ev, "end_x", default=sx + 1.0)
+        ey = _num(ev, "end_y", default=sy)
         dx = ex - sx
         dy = ey - sy
         angle = math.degrees(math.atan2(dy, dx)) % 360

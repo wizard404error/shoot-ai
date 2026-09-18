@@ -26,6 +26,33 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Coordinate keys callers pass at the top level of an event dict (the CV
+# pipeline, vendor imports, tests, and the UI all use x/y/start_x/start_y/
+# end_x/end_y) that the events table has no columns for. They are folded
+# into the persisted metadata JSON so get_match_events' json_extract
+# columns can surface them again; metadata carries the authoritative copy
+# when both are present (mirrors typed event dicts where metadata is the
+# storage location for spatial data).
+_COORD_KEYS = ("x", "y", "start_x", "start_y", "end_x", "end_y")
+
+
+def _merge_event_coords(event: dict) -> str:
+    """Serialize an event's metadata, folding top-level coordinate keys in.
+
+    Without this, save_event/save_events_bulk silently dropped the top-level
+    x/y (and end_x/end_y) that most producers attach to event dicts, and
+    every consumer reading them back through get_match_events' extracted
+    x/y columns saw None -- the v0.13.2 pass-sonar empty-sonar class of
+    failure, at the storage layer instead of the model layer.
+    """
+    meta = event.get("metadata")
+    merged = dict(meta) if isinstance(meta, dict) else {}
+    for key in _COORD_KEYS:
+        value = event.get(key)
+        if value is not None:
+            merged.setdefault(key, value)
+    return json.dumps(merged)
+
 
 class StorageService:
     """SQLite-based storage for Kawkab AI data (or PostgreSQL via KAWKAB_DB_URL)."""
@@ -237,7 +264,7 @@ class StorageService:
                     event.get("team"),
                     event.get("completed", False),
                     event.get("confidence", 0.0),
-                    json.dumps(event.get("metadata", {})),
+                    _merge_event_coords(event),
                 ),
             )
             self._conn.commit()
@@ -554,6 +581,8 @@ class StorageService:
                      completed, confidence, metadata, user_corrected,
                      json_extract(metadata, '$.x') AS x,
                      json_extract(metadata, '$.y') AS y,
+                     json_extract(metadata, '$.end_x') AS end_x,
+                     json_extract(metadata, '$.end_y') AS end_y,
                      json_extract(metadata, '$.xg') AS xg,
                      json_extract(metadata, '$.xa') AS xa,
                      json_extract(metadata, '$.xt') AS xt,
@@ -562,7 +591,23 @@ class StorageService:
               ORDER BY timestamp LIMIT ? OFFSET ?""",
             (match_id, limit, offset),
         )
-        return [dict(row) for row in cursor.fetchall()]
+        rows = [dict(row) for row in cursor.fetchall()]
+        # json_extract yields NULL for metadata keys a row doesn't carry, so
+        # the extracted x/y/end_x/end_y/xg/... columns arrived as explicit
+        # Nones. Consumers (dominance_index, xa_model, pass_sonars, and two
+        # dozen other modules) are written against .get(key, default), which
+        # only kicks in when the key is ABSENT -- a present-but-None value
+        # defeats the default and leaks TypeError/None into every analysis.
+        # (The Postgres adapter can't produce this: real columns have
+        # defaults and its metadata-merge only copies present keys.) Dropping
+        # absent columns here restores the key-absence semantics every
+        # consumer was written against.
+        extracted = ("x", "y", "end_x", "end_y", "xg", "xa", "xt", "vaep")
+        for row in rows:
+            for key in extracted:
+                if row.get(key) is None:
+                    row.pop(key, None)
+        return rows
 
     async def update_event(self, event_id: int, updates: dict) -> bool:
         """Update an event's fields. Returns True if row updated."""
@@ -981,7 +1026,7 @@ class StorageService:
                     ev.get("team"),
                     ev.get("completed", False),
                     ev.get("confidence", 0.0),
-                    json.dumps(ev.get("metadata", {})),
+                    _merge_event_coords(ev),
                 )
                 for ev in events
             ]
@@ -1141,8 +1186,16 @@ class StorageService:
         """Save a manual coding tag and return its ID."""
         if self._conn is None:
             return 0
-        if tag.get("event_type") is None or tag.get("video_time") is None:
+        # The Postgres adapter accepts tag_type or a "timestamp" alias;
+        # sqlite diverged and silently dropped every UI tag that used the
+        # timestamp key while the handler reported success. Accept the
+        # same aliases and video_time default here.
+        if tag.get("event_type") is None and tag.get("tag_type") is None:
             return 0
+        if "video_time" not in tag and tag.get("timestamp") is not None:
+            tag = {**tag, "video_time": tag["timestamp"]}
+        elif tag.get("video_time") is None:
+            tag = {**tag, "video_time": 0.0}
         try:
             cursor = self._conn.cursor()
             cursor.execute(

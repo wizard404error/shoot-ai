@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -53,10 +54,16 @@ class MatchUpRecord:
 class OpponentDatabaseService:
     """Store and analyze opponent profiles with tactical tendencies and head-to-head history."""
 
-    def __init__(self) -> None:
+    def __init__(self, data_dir: str | None = None) -> None:
         self._profiles: dict[str, OpponentProfile] = {}
         self._matchups: dict[str, MatchUpRecord] = {}
-        self._data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "opponents")
+        # Per-user app-data directory, NOT the source tree: profiles are
+        # runtime user data and used to be written into src/kawkab/../data
+        # (untracked artifacts inside the repo, lost on reinstall for
+        # packaged apps where that tree is read-only).
+        if data_dir is None:
+            data_dir = str(kawkab_paths.get_paths().appdata / "data" / "opponents")
+        self._data_dir = data_dir
         self._load_data()
 
     def _data_path(self, *parts: str) -> str:

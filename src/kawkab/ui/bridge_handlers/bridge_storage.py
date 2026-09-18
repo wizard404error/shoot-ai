@@ -33,8 +33,8 @@ class StorageHandler:
     # ── Event CRUD ───────────────────────────────────────────────
 
     async def update_event(self, event_id, updates_json):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             updates = json.loads(updates_json)
             ok = await self.storage_service.update_event(event_id, updates)
             return json.dumps({"success": ok})
@@ -43,8 +43,8 @@ class StorageHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def delete_event(self, event_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             ok = await self.storage_service.delete_event(event_id)
             return json.dumps({"success": ok})
         except Exception as e:

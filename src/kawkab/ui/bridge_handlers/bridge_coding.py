@@ -35,10 +35,12 @@ class CodingHandler:
 
     async def save_tag(self, match_id: int, tag_json: str) -> str:
         """Save a manual coding tag from the workspace."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tag = json.loads(tag_json)
             tag_id = await self.storage_service.save_coding_tag(match_id, tag)
+            if not tag_id:
+                return json.dumps({"error": "Tag rejected: event_type/tag_type required"})
             return json.dumps({"success": True, "tag_id": tag_id})
         except Exception as e:
             logger.error(f"save_tag failed: {e}")
@@ -46,8 +48,8 @@ class CodingHandler:
 
     async def get_tags(self, match_id: int) -> str:
         """Get all coding tags for a match."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tags = await self.storage_service.get_coding_tags(match_id)
             return json.dumps({"success": True, "tags": tags})
         except Exception as e:
@@ -56,8 +58,8 @@ class CodingHandler:
 
     async def update_tag(self, tag_id: int, updates_json: str) -> str:
         """Update a coding tag's fields."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             updates = json.loads(updates_json)
             ok = await self.storage_service.update_coding_tag(tag_id, updates)
             return json.dumps({"success": ok})
@@ -67,8 +69,8 @@ class CodingHandler:
 
     async def delete_tag(self, tag_id: int) -> str:
         """Delete a coding tag."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             ok = await self.storage_service.delete_coding_tag(tag_id)
             return json.dumps({"success": ok})
         except Exception as e:
@@ -77,8 +79,8 @@ class CodingHandler:
 
     async def get_tag_stats(self, match_id: int) -> str:
         """Get aggregate coding tag stats for a match."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             stats = await self.storage_service.get_coding_tag_stats(match_id)
             return json.dumps({"success": True, "stats": stats})
         except Exception as e:
@@ -87,8 +89,8 @@ class CodingHandler:
 
     async def get_tags_by_type(self, match_id: int, event_type: str) -> str:
         """Get coding tags filtered by event type."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tags = await self.storage_service.get_coding_tags_by_type(match_id, event_type)
             return json.dumps({"success": True, "tags": tags})
         except Exception as e:
@@ -97,8 +99,8 @@ class CodingHandler:
 
     async def get_tags_by_player(self, match_id: int, player_track_id: int) -> str:
         """Get coding tags filtered by player track ID."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tags = await self.storage_service.get_coding_tags_by_player(match_id, player_track_id)
             return json.dumps({"success": True, "tags": tags})
         except Exception as e:
@@ -107,8 +109,8 @@ class CodingHandler:
 
     async def get_match_players_simple(self, match_id: int) -> str:
         """Get simplified player list for coding workspace."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             players = await self.storage_service.get_match_players(match_id)
             simple = [
                 {
@@ -128,8 +130,8 @@ class CodingHandler:
 
     async def extract_tag_clip(self, match_id: int, tag_id: int) -> str:
         """Generate a video clip from a coding tag using lead/lag times."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tags = await self.storage_service.get_coding_tags(match_id)
             tag = next((t for t in tags if t.get("id") == tag_id), None)
             if not tag:
@@ -173,8 +175,8 @@ class CodingHandler:
 
     async def extract_tag_clips_batch(self, match_id: int, tag_ids_json: str) -> str:
         """Generate video clips for multiple coding tags."""
-        self._check_rate_limit("coding")
         try:
+            self._check_rate_limit("coding")
             tag_ids = json.loads(tag_ids_json)
             if not tag_ids:
                 return json.dumps({"error": "No tag IDs provided"})

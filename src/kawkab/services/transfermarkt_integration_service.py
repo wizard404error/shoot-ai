@@ -7,6 +7,7 @@ import json
 import os
 from typing import Any
 
+from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -15,10 +16,12 @@ logger = get_logger(__name__)
 class TransfermarktIntegrationService:
     """Import and cache market values, squad data, and player profiles from Transfermarkt."""
 
-    def __init__(self) -> None:
-        self._cache_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "transfermarkt"
-        )
+    def __init__(self, cache_dir: str | None = None) -> None:
+        # Per-user app-data cache, NOT the source tree (same reason as
+        # OpponentDatabaseService: runtime writes used to land in src/data/).
+        if cache_dir is None:
+            cache_dir = str(kawkab_paths.get_paths().appdata / "data" / "transfermarkt")
+        self._cache_dir = cache_dir
         self._cache: dict[str, Any] = {}
         self._load_cache()
 

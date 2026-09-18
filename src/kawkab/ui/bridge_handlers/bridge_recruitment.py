@@ -32,8 +32,8 @@ class RecruitmentHandler:
     # ================================================================
 
     async def scout_search_players(self, query, position=""):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             # Try real player search database first
             try:
                 import os
@@ -107,8 +107,8 @@ class RecruitmentHandler:
         (see app-scout.js) is a genuine no-op instead of a broken bridge
         call. Revisit if a provider adds player-name search.
         """
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             query = SecurityValidator.sanitize_string(query, max_length=200) if query else ""
             return json.dumps({"players": [], "query": query, "position": position})
         except Exception as e:
@@ -116,8 +116,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_shortlist(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             storage = self.storage_service
             players = await storage.get_shortlist() if storage else []
             return json.dumps({"players": players, "total": len(players)})
@@ -126,8 +126,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def add_shortlist_entry(self, entry_json):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             entry = json.loads(entry_json or "{}")
             if not entry.get("player_id") or not entry.get("player_name"):
                 return json.dumps(
@@ -144,8 +144,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def update_shortlist_entry(self, entry_id, updates_json):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             updates = json.loads(updates_json or "{}")
             storage = self.storage_service
             if not storage:
@@ -157,8 +157,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def delete_shortlist_entry(self, entry_id):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             storage = self.storage_service
             if not storage:
                 return json.dumps({"success": False, "error": "Storage not initialized"})
@@ -169,8 +169,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_contracts(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             storage = self.storage_service
             if not storage:
                 return json.dumps({"contracts": [], "expiring_soon": []})
@@ -182,8 +182,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def add_contract(self, contract_json):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             contract = json.loads(contract_json or "{}")
             required = ("player_profile_id", "player_name", "start_date", "end_date")
             missing = [k for k in required if not contract.get(k)]
@@ -201,8 +201,8 @@ class RecruitmentHandler:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_contract_alerts(self):
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             storage = self.storage_service
             if not storage:
                 return json.dumps({"alerts": []})
@@ -238,8 +238,8 @@ class RecruitmentHandler:
         into the local shortlist so a coach can act on what they find without
         retyping it.
         """
-        self._check_rate_limit()
         try:
+            self._check_rate_limit()
             data = json.loads(player_json or "{}")
             entry = {
                 "player_id": f"{source}:{player_id}",
