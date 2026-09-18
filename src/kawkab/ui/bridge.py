@@ -2014,23 +2014,23 @@ class Bridge(QObject):
         session_type: str = "match",
         vendor: str = "catapult",
     ) -> str:
-        return self._physical.import_gps_file(match_id, player_id, file_path, session_type, vendor)
+        return await self._physical.import_gps_file(match_id, player_id, file_path, session_type, vendor)
 
     @Slot(str, result=str)
     async def get_gps_sessions(self, match_id: str) -> str:
-        return self._physical.get_gps_sessions(match_id)
+        return await self._physical.get_gps_sessions(match_id)
 
     @Slot(str, result=str)
     async def get_gps_samples(self, session_id: str) -> str:
-        return self._physical.get_gps_samples(session_id)
+        return await self._physical.get_gps_samples(session_id)
 
     @Slot(str, result=str)
     async def get_player_gps_summary(self, player_id: str) -> str:
-        return self._physical.get_player_gps_summary(player_id)
+        return await self._physical.get_player_gps_summary(player_id)
 
     @Slot(str, result=str)
     async def get_player_acwr(self, player_id: str) -> str:
-        return self._physical.get_player_acwr(player_id)
+        return await self._physical.get_player_acwr(player_id)
 
     # ================================================================
     # Sprint 17: Authentication + RBAC

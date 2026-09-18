@@ -33,6 +33,22 @@ class MatchIntelHandler:
     def storage_service(self):
         return self._services.get("storage_service")
 
+    @staticmethod
+    def _normalize_event_types(events: list[dict]) -> list[dict]:
+        """Map storage rows to the analytics models' event convention.
+
+        StorageService.get_match_events returns rows keyed by event_type
+        (the DB column), while ExpectedAssistModel and
+        PressingEfficiencyAnalyzer filter on a plain "type" key. Without
+        this mapping both reports silently computed zeros against every
+        real match -- visible only with data shaped like the real rows,
+        never with the earlier {"type": ...} test fixtures.
+        """
+        for ev in events:
+            if "type" not in ev and ev.get("event_type") is not None:
+                ev["type"] = ev["event_type"]
+        return events
+
     def get_pitch_control_overlay(self, match_id: str) -> str:
         """Compute pitch control grid overlay for a match.
 
@@ -448,6 +464,7 @@ class MatchIntelHandler:
             events = (
                 await self.storage_service.get_match_events(mid) if self.storage_service else []
             )
+            events = self._normalize_event_types(events)
 
             from kawkab.core.xa_model import ExpectedAssistModel
 
@@ -480,6 +497,7 @@ class MatchIntelHandler:
             events = (
                 await self.storage_service.get_match_events(mid) if self.storage_service else []
             )
+            events = self._normalize_event_types(events)
 
             from kawkab.core.pressing_efficiency import PressingEfficiencyAnalyzer
 

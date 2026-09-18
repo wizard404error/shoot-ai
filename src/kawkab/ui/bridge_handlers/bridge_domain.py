@@ -217,6 +217,7 @@ class DomainHandler:
                     delivery_x=e.get("delivery_x", 50),
                     delivery_y=e.get("delivery_y", 34),
                     delivery_style=e.get("delivery_style", "lofted"),
+                    delivery_height=e.get("delivery_height", "medium"),
                     first_contact_x=e.get("first_contact_x"),
                     first_contact_y=e.get("first_contact_y"),
                     outcome=e.get("outcome", "unknown"),

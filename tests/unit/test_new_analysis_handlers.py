@@ -351,23 +351,62 @@ class TestGpsAcwrHandlers:
     feature, caught by each method's own broad except and returned as a
     generic {"error": ...} response."""
 
-    def test_get_gps_sessions_no_longer_errors_on_validate_int(self):
+    async def test_get_gps_sessions_no_longer_errors_on_validate_int(self):
         handler = _handler_for("get_gps_sessions", MockStorageService())
-        handler.storage_service.get_gps_sessions = lambda mid: []
-        result = json.loads(handler.get_gps_sessions("5"))
+
+        async def _empty(mid):
+            return []
+
+        handler.storage_service.get_gps_sessions = _empty
+        result = json.loads(await handler.get_gps_sessions("5"))
         assert result == {"success": True, "sessions": []}
 
-    def test_get_player_acwr_no_longer_errors_on_validate_int(self):
+    async def test_get_player_acwr_no_longer_errors_on_validate_int(self):
         handler = _handler_for("get_gps_sessions", MockStorageService())
-        handler.storage_service.get_player_acwr = lambda pid: []
-        result = json.loads(handler.get_player_acwr("3"))
+
+        async def _empty(pid):
+            return []
+
+        handler.storage_service.get_player_acwr = _empty
+        result = json.loads(await handler.get_player_acwr("3"))
         assert result == {"success": True, "acwr": []}
 
-    def test_get_gps_samples_no_longer_errors_on_validate_int(self):
+    async def test_get_gps_samples_no_longer_errors_on_validate_int(self):
         handler = _handler_for("get_gps_sessions", MockStorageService())
-        handler.storage_service.get_gps_samples = lambda sid: []
-        result = json.loads(handler.get_gps_samples("9"))
+
+        async def _empty(sid):
+            return []
+
+        handler.storage_service.get_gps_samples = _empty
+        result = json.loads(await handler.get_gps_samples("9"))
         assert result == {"success": True, "samples": []}
+
+    async def test_gps_read_slots_await_the_real_async_storage(self):
+        """v0.13.2 regression pin: PhysicalHandler called the (async) real
+        StorageService without await, so every GPS/ACWR read slot returned
+        {"error": "Object of type coroutine is not JSON serializable"} in
+        the actual app -- invisible to the sync stubs used above, which is
+        why they were rewritten to exercise the async contract too."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        handler = PhysicalHandler(
+            bridge=None,
+            services={"storage_service": MagicMock(
+                get_player_acwr=AsyncMock(return_value=[{"date": "2026-01-01", "acwr": 1.1}]),
+                get_gps_sessions=AsyncMock(return_value=[{"id": 3}]),
+                get_gps_samples=AsyncMock(return_value=[{"speed": 7.2}]),
+                get_player_gps_summary=AsyncMock(return_value=[{"total_distance": 10400.0}]),
+            )},
+            rate_limiter=None,
+        )
+        acwr = json.loads(await handler.get_player_acwr("7"))
+        assert acwr == {"success": True, "acwr": [{"date": "2026-01-01", "acwr": 1.1}]}
+        sessions = json.loads(await handler.get_gps_sessions("5"))
+        assert sessions == {"success": True, "sessions": [{"id": 3}]}
+        samples = json.loads(await handler.get_gps_samples("9"))
+        assert samples == {"success": True, "samples": [{"speed": 7.2}]}
+        summary = json.loads(await handler.get_player_gps_summary("3"))
+        assert summary == {"success": True, "sessions": [{"total_distance": 10400.0}]}
 
 
 class MockAIAssistantV2Service:

@@ -33,7 +33,7 @@ class PhysicalHandler:
     def storage_service(self):
         return self._services.get("storage_service")
 
-    def import_gps_file(
+    async def import_gps_file(
         self,
         match_id: str,
         player_id: str,
@@ -45,7 +45,12 @@ class PhysicalHandler:
         try:
             mid = SecurityValidator.validate_match_id(match_id)
             pid = SecurityValidator.validate_int(player_id)
-            path = SecurityValidator.validate_video_path(file_path)
+            # GPS vendor exports are CSV/JSON data files, not videos:
+            # validate_video_path (video-only extensions) rejected every
+            # legitimate Catapult/Kinexon import. The wearable validator
+            # carries exactly the right allowlist (.gpx/.fit/.tcx/...)
+            # plus the documents-directory confinement.
+            path = SecurityValidator.validate_wearable_path(file_path)
 
             from kawkab.services.gps_import import compute_session_summary
             from kawkab.services.gps_import import import_gps_file as _import
@@ -55,13 +60,17 @@ class PhysicalHandler:
                 return json.dumps({"error": "No samples found in GPS file"})
 
             svc = self.storage_service
-            session_id = svc.save_gps_session(mid, pid, session_type, vendor)
+            # Storage methods are async (sqlite via aiosqlite-style loop);
+            # every call below MUST be awaited or the coroutine object is
+            # returned unexecuted and the slot replies with a JSON
+            # serialization error instead of touching the database.
+            session_id = await svc.save_gps_session(mid, pid, session_type, vendor)
             if not session_id:
                 return json.dumps({"error": "Failed to create GPS session"})
 
-            count = svc.save_gps_samples_bulk(session_id, samples)
+            count = await svc.save_gps_samples_bulk(session_id, samples)
             summary = compute_session_summary(samples)
-            svc.update_gps_session_stats(session_id, summary)
+            await svc.update_gps_session_stats(session_id, summary)
 
             return json.dumps(
                 {
@@ -75,41 +84,41 @@ class PhysicalHandler:
             logger.error(f"import_gps_file failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_gps_sessions(self, match_id: str) -> str:
+    async def get_gps_sessions(self, match_id: str) -> str:
         """Get all GPS sessions for a match."""
         try:
             mid = SecurityValidator.validate_match_id(match_id)
-            sessions = self.storage_service.get_gps_sessions(mid) if self.storage_service else []
+            sessions = await self.storage_service.get_gps_sessions(mid) if self.storage_service else []
             return json.dumps({"success": True, "sessions": sessions})
         except Exception as e:
             logger.error(f"get_gps_sessions failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_gps_samples(self, session_id: str) -> str:
+    async def get_gps_samples(self, session_id: str) -> str:
         """Get GPS samples for a session."""
         try:
             sid = SecurityValidator.validate_int(session_id)
-            samples = self.storage_service.get_gps_samples(sid) if self.storage_service else []
+            samples = await self.storage_service.get_gps_samples(sid) if self.storage_service else []
             return json.dumps({"success": True, "samples": samples})
         except Exception as e:
             logger.error(f"get_gps_samples failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_player_gps_summary(self, player_id: str) -> str:
+    async def get_player_gps_summary(self, player_id: str) -> str:
         """Get GPS summary for a player across sessions."""
         try:
             pid = SecurityValidator.validate_int(player_id)
-            data = self.storage_service.get_player_gps_summary(pid) if self.storage_service else []
+            data = await self.storage_service.get_player_gps_summary(pid) if self.storage_service else []
             return json.dumps({"success": True, "sessions": data})
         except Exception as e:
             logger.error(f"get_player_gps_summary failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_player_acwr(self, player_id: str) -> str:
+    async def get_player_acwr(self, player_id: str) -> str:
         """Get ACWR data for a player."""
         try:
             pid = SecurityValidator.validate_int(player_id)
-            data = self.storage_service.get_player_acwr(pid) if self.storage_service else []
+            data = await self.storage_service.get_player_acwr(pid) if self.storage_service else []
             return json.dumps({"success": True, "acwr": data})
         except Exception as e:
             logger.error(f"get_player_acwr failed: {e}")

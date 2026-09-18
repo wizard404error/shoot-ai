@@ -148,7 +148,11 @@ class PressingEfficiencyAnalyzer:
                     continue
                 if not self._is_trap_event(ev):
                     continue
-                x = float(ev.get("x", ev.get("start_x", 0)))
+                # dict.get(k, default) returns None when the key exists
+                # with a NULL value (storage's json_extract emits x=None
+                # for events without spatial data) -- explicit None-check,
+                # same fix as compute_trap_to_shot_rate above.
+                x = float(ev["x"] if ev.get("x") is not None else ev.get("start_x", 0))
                 if x < attacking_third_x:
                     continue
                 traps_in_attacking += 1
