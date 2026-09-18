@@ -110,7 +110,7 @@ class TestImportSeasonDirectory:
 
 
 class TestImportTrackingFile:
-    def test_skillcorner_roundtrip(self, store, handler, tmp_path):
+    def test_skillcorner_roundtrip(self, store, handler, tmp_path, monkeypatch):
         data = {
             "fps": 10,
             "players": [
@@ -134,7 +134,16 @@ class TestImportTrackingFile:
         f = tmp_path / "sc.json"
         f.write_text(json.dumps(data), encoding="utf-8")
 
-        out = asyncio.run(handler.import_tracking_file(str(f)))
+        # The handler now validates vendor paths (allowlist dir). The
+        # stubbed paths singleton points at /tmp/kawkab_test; copy the
+        # feed there so validation passes.
+        from kawkab.core.paths import get_paths
+
+        allowed = get_paths().documents / "vendor_test"
+        allowed.mkdir(parents=True, exist_ok=True)
+        f_allowed = allowed / "sc.json"
+        f_allowed.write_text(json.dumps(data), encoding="utf-8")
+        out = asyncio.run(handler.import_tracking_file(str(f_allowed)))
         r = json.loads(out)
         assert r["success"] is True
         assert r["frames_imported"] == 3

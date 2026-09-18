@@ -90,6 +90,13 @@ class ImportHandler:
     ) -> str:
         self._check_rate_limit()
         try:
+            from kawkab.core.security import SecurityValidator
+
+            # Extension allowlist + allowlist-directory check before the
+            # file is handed to any parser.
+            SecurityValidator.validate_data_file_path(path)
+            if away_csv:
+                SecurityValidator.validate_data_file_path(away_csv)
             from kawkab.services.vendor_tracking_import_service import (
                 VendorTrackingImportService,
             )
@@ -121,6 +128,11 @@ class ImportHandler:
         """Import an Opta F24 (with optional F7) or Wyscout event file."""
         self._check_rate_limit()
         try:
+            from kawkab.core.security import SecurityValidator
+
+            SecurityValidator.validate_data_file_path(path)
+            if f7_path:
+                SecurityValidator.validate_data_file_path(f7_path)
             from kawkab.services.vendor_event_import_service import (
                 VendorEventImportService,
             )

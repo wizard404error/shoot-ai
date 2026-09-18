@@ -17,7 +17,7 @@ from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
-from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
 
 # ========================================================================
 # Fixtures
@@ -141,19 +141,19 @@ def error_storage():
 @pytest.fixture
 def analysis_handler(mock_bridge, mock_storage):
     services = {"storage_service": mock_storage}
-    return AnalysisHandler(mock_bridge, services)
+    return MatchIntelHandler(mock_bridge, services)
 
 
 @pytest.fixture
 def empty_handler(mock_bridge, empty_storage):
     services = {"storage_service": empty_storage}
-    return AnalysisHandler(mock_bridge, services)
+    return MatchIntelHandler(mock_bridge, services)
 
 
 @pytest.fixture
 def error_handler(mock_bridge, error_storage):
     services = {"storage_service": error_storage}
-    return AnalysisHandler(mock_bridge, services)
+    return MatchIntelHandler(mock_bridge, services)
 
 
 # ========================================================================

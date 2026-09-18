@@ -111,6 +111,12 @@ class VideoHandler:
 
             from kawkab.services.highlight_reel_service import ReelClip
 
+            # The filename is joined onto the service output dir -- reject
+            # separators/traversal before it reaches os.path.join (same
+            # hardening as stream_start_capture).
+            fn = str(output_filename or "")
+            if not fn or "/" in fn or "\\" in fn or ".." in fn or not fn.endswith(".mp4"):
+                return json.dumps({"error": "invalid output filename"})
             clips_data = json.loads(clips_json)
             clips = [
                 ReelClip(

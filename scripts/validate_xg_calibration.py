@@ -87,7 +87,7 @@ def main() -> int:
     curve = compute_calibration_curve(trained, outcomes, n_bins=10)
     print(f"\ntrained reliability: ECE={curve.ece:.4f}")
     print("bin_mid  mean_pred  observed")
-    for mid, pred, obs in zip(curve.bins, curve.predicted, curve.observed):
+    for mid, pred, obs in zip(curve.bins, curve.predicted, curve.observed, strict=True):
         print(f"  {mid:.2f}     {pred:.4f}    {obs:.4f}")
 
     failures: list[str] = []

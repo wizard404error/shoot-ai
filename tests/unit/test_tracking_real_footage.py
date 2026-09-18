@@ -312,9 +312,9 @@ class TestPooledTeamClustering:
     def test_without_samples_list_legacy_path_intact(self, cv_mod):
         """Entries without raw samples use the per-track-mean path (old
         behavior and existing tests keep working)."""
-        from unittest.mock import MagicMock as _M
+        from unittest.mock import MagicMock
 
-        mock_km = _M()
+        mock_km = MagicMock()
         mock_km.fit_predict.return_value = np.array([0, 1])
         mock_km.cluster_centers_ = np.array(
             [[200, 100, 50], [50, 100, 200]], dtype=np.float64

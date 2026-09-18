@@ -598,7 +598,7 @@ class TestBridgeQualitySlot:
 
     @pytest.mark.asyncio
     async def test_get_match_quality_score_returns_json(self):
-        from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+        from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
 
         storage = MockStorage(
             [
@@ -615,7 +615,7 @@ class TestBridgeQualitySlot:
                 },
             ]
         )
-        handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
+        handler = MatchIntelHandler(MockBridge(), {"storage_service": storage})
         result_json = await handler.get_match_quality_score("1")
         result = json.loads(result_json)
         assert "error" not in result, f"Unexpected error: {result.get('error')}"
@@ -625,7 +625,7 @@ class TestBridgeQualitySlot:
 
     @pytest.mark.asyncio
     async def test_quality_score_good_level(self):
-        from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+        from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
 
         events = [
             {
@@ -650,13 +650,13 @@ class TestBridgeQualitySlot:
             },
         ]
         storage = MockStorage(events)
-        handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
+        handler = MatchIntelHandler(MockBridge(), {"storage_service": storage})
         result = json.loads(await handler.get_match_quality_score("1"))
         assert result.get("level") in ("good", "fair", "poor")
 
     @pytest.mark.asyncio
     async def test_quality_score_poor_with_anomalies(self):
-        from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+        from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
 
         storage = MockStorage(
             [
@@ -671,7 +671,7 @@ class TestBridgeQualitySlot:
                 },
             ]
         )
-        handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
+        handler = MatchIntelHandler(MockBridge(), {"storage_service": storage})
         result = json.loads(await handler.get_match_quality_score("1"))
         assert "error" not in result, f"Unexpected error: {result.get('error')}"
         assert "score" in result
@@ -679,10 +679,10 @@ class TestBridgeQualitySlot:
 
     @pytest.mark.asyncio
     async def test_quality_score_empty_match(self):
-        from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+        from kawkab.ui.bridge_handlers.bridge_match_intel import MatchIntelHandler
 
         storage = MockStorage([])
-        handler = AnalysisHandler(MockBridge(), {"storage_service": storage})
+        handler = MatchIntelHandler(MockBridge(), {"storage_service": storage})
         result = json.loads(await handler.get_match_quality_score("1"))
         assert result["score"] == 0.0
         assert result["level"] == "poor"
