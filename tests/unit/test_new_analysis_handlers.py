@@ -22,6 +22,7 @@ from conftest import install_kawkab_stubs
 install_kawkab_stubs()
 
 from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+from kawkab.ui.bridge_handlers.bridge_cloud import CloudCollabHandler
 from kawkab.ui.bridge_handlers.bridge_recruitment import RecruitmentHandler
 
 
@@ -369,7 +370,7 @@ class TestAiV2Conversations:
 
     @pytest.mark.asyncio
     async def test_list_convs_is_a_real_method_not_orphaned_dead_code(self):
-        handler = AnalysisHandler(
+        handler = CloudCollabHandler(
             bridge=None,
             services={"ai_assistant_v2_service": MockAIAssistantV2Service()},
             rate_limiter=None,
@@ -379,7 +380,7 @@ class TestAiV2Conversations:
 
     @pytest.mark.asyncio
     async def test_create_then_list_round_trip(self):
-        handler = AnalysisHandler(
+        handler = CloudCollabHandler(
             bridge=None,
             services={"ai_assistant_v2_service": MockAIAssistantV2Service()},
             rate_limiter=None,
@@ -393,7 +394,7 @@ class TestAiV2Conversations:
 
     @pytest.mark.asyncio
     async def test_list_convs_filters_by_match_id(self):
-        handler = AnalysisHandler(
+        handler = CloudCollabHandler(
             bridge=None,
             services={"ai_assistant_v2_service": MockAIAssistantV2Service()},
             rate_limiter=None,

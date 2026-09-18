@@ -9,6 +9,7 @@ WEB_JS = BASE / "src" / "kawkab" / "web" / "js"
 WEB_CSS = BASE / "src" / "kawkab" / "web" / "css"
 INDEX = BASE / "src" / "kawkab" / "web" / "index.html"
 BRIDGE_ANALYSIS = BASE / "src" / "kawkab" / "ui" / "bridge_handlers" / "bridge_analysis.py"
+BRIDGE_LIVE = BASE / "src" / "kawkab" / "ui" / "bridge_handlers" / "bridge_live.py"
 BRIDGE = BASE / "src" / "kawkab" / "ui" / "bridge.py"
 SERVICE = BASE / "src" / "kawkab" / "services" / "live_tagging_service.py"
 
@@ -22,33 +23,33 @@ class TestBridgeAnalysisMethods:
     """Deliverable 1: verify get_live_kpis / get_live_pitch_map / get_live_xg_chart exist."""
 
     def test_get_live_kpis_exists(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert "async def get_live_kpis" in code
 
     def test_get_live_pitch_map_exists(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert "async def get_live_pitch_map" in code
 
     def test_get_live_xg_chart_exists(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert "async def get_live_xg_chart" in code
 
     def test_get_live_kpis_returns_json(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert (
             "return json.dumps({" in code.split("async def get_live_kpis")[1].split("async def")[0]
         )
 
     def test_get_live_pitch_map_returns_json(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert "home_events" in code.split("async def get_live_pitch_map")[1].split("async def")[0]
 
     def test_get_live_xg_chart_returns_json(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         assert "timeline" in code.split("async def get_live_xg_chart")[1].split("async def")[0]
 
     def test_get_live_kpis_has_possession_key(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         body = code.split("async def get_live_kpis")[1].split("async def")[0]
         assert '"possession_pct"' in body
         assert '"shots"' in body
@@ -60,13 +61,13 @@ class TestBridgeAnalysisMethods:
         assert '"team_stats"' in body
 
     def test_get_live_pitch_map_has_zones(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         body = code.split("async def get_live_pitch_map")[1].split("async def")[0]
         assert "home_hot_zones" in body
         assert "away_hot_zones" in body
 
     def test_get_live_xg_chart_has_cumulative(self):
-        code = _read(BRIDGE_ANALYSIS)
+        code = _read(BRIDGE_LIVE)
         body = code.split("async def get_live_xg_chart")[1].split("async def")[0]
         assert "cumulative_home" in body
         assert "cumulative_away" in body
@@ -89,15 +90,15 @@ class TestBridgeSlots:
 
     def test_get_live_kpis_slot_delegates(self):
         code = _read(BRIDGE)
-        assert "self._analysis.get_live_kpis(" in code
+        assert "self._live.get_live_kpis(" in code
 
     def test_get_live_pitch_map_slot_delegates(self):
         code = _read(BRIDGE)
-        assert "self._analysis.get_live_pitch_map(" in code
+        assert "self._live.get_live_pitch_map(" in code
 
     def test_get_live_xg_chart_slot_delegates(self):
         code = _read(BRIDGE)
-        assert "self._analysis.get_live_xg_chart(" in code
+        assert "self._live.get_live_xg_chart(" in code
 
     def test_slots_have_correct_signature(self):
         code = _read(BRIDGE)

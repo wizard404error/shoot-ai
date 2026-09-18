@@ -193,9 +193,12 @@ class TestOAuthAPI:
         assert resp2.status_code == 200
         assert resp2.json()["user"]["email"] == "oauth@test.com"
 
-    def test_link_oauth_requires_auth(self):
+    def test_link_oauth_endpoint_removed(self):
+        """Removed: it trusted a client-asserted provider_user_id (identity
+        injection into any account) and had no consumer. The route must
+        stay gone — 404, not 401, so a reintroduction fails loudly here."""
         resp = client.post("/auth/link-oauth?provider=test_prov&provider_user_id=ext111")
-        assert resp.status_code == 401
+        assert resp.status_code == 404
 
     def test_list_oauth_accounts_requires_auth(self):
         resp = client.get("/auth/oauth/accounts")

@@ -101,6 +101,9 @@ def test_unreachable_slots_inventory() -> None:
 # map to handler classes (self._analysis -> AnalysisHandler etc.).
 _HANDLER_MODULES = {
     "_analysis": "bridge_analysis.py",
+    "_cloud": "bridge_cloud.py",
+    "_live": "bridge_live.py",
+    "_whiteboard": "bridge_whiteboard.py",
     "_auth": "bridge_auth.py",
     "_coding": "bridge_coding.py",
     "_export": "bridge_export.py",

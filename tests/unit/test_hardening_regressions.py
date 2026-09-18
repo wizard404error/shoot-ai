@@ -19,6 +19,7 @@ import pytest
 
 from kawkab.core.security import SecurityValidator
 from kawkab.ui.bridge_handlers.bridge_analysis import AnalysisHandler
+from kawkab.ui.bridge_handlers.bridge_cloud import CloudCollabHandler
 from kawkab.ui.bridge_handlers.bridge_recruitment import RecruitmentHandler
 
 
@@ -28,6 +29,10 @@ def _recruitment_handler() -> RecruitmentHandler:
 
 def _analysis_handler() -> AnalysisHandler:
     return AnalysisHandler(bridge=None, services={}, rate_limiter=None)
+
+
+def _cloud_handler() -> CloudCollabHandler:
+    return CloudCollabHandler(bridge=None, services={}, rate_limiter=None)
 
 
 def _point_documents_at(monkeypatch, docs):
@@ -90,18 +95,18 @@ class TestStreamCaptureRejections:
 
     @pytest.mark.asyncio
     async def test_rejects_file_url(self):
-        result = json.loads(await _analysis_handler().stream_start_capture("file:///etc/passwd"))
+        result = json.loads(await _cloud_handler().stream_start_capture("file:///etc/passwd"))
         assert "error" in result
 
     @pytest.mark.asyncio
     async def test_rejects_empty_url(self):
-        result = json.loads(await _analysis_handler().stream_start_capture(""))
+        result = json.loads(await _cloud_handler().stream_start_capture(""))
         assert "error" in result
 
     @pytest.mark.asyncio
     async def test_rejects_filename_with_semicolon_injection(self):
         result = json.loads(
-            await _analysis_handler().stream_start_capture(
+            await _cloud_handler().stream_start_capture(
                 "rtmp://media/x", output_filename="a;rm -rf x.mp4"
             )
         )
@@ -112,7 +117,7 @@ class TestStreamCaptureRejections:
         # sanitize_string's default allowlist keeps '/' and '.', so the
         # explicit separator/.. guard is what rejects this one.
         result = json.loads(
-            await _analysis_handler().stream_start_capture(
+            await _cloud_handler().stream_start_capture(
                 "rtmp://media/x", output_filename="../../evil.mp4"
             )
         )
@@ -121,7 +126,7 @@ class TestStreamCaptureRejections:
     @pytest.mark.asyncio
     async def test_accepts_clean_filename(self):
         result = json.loads(
-            await _analysis_handler().stream_start_capture(
+            await _cloud_handler().stream_start_capture(
                 "rtmp://localhost/live", output_filename="capture-2026.mp4"
             )
         )

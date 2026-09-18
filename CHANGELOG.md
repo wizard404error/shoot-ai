@@ -2,6 +2,44 @@
 
 All notable changes to Kawkab AI are documented here.
 
+## v0.13.1 (2026-09-17) — Handler split completion, cloud-server audit, hot-path benchmarks
+
+### Changed
+- **bridge_analysis.py split finished** (4981 → ~3910 lines): whiteboard (14
+  methods), live-tagging (11), collaboration (12), telestration/stream capture
+  (19), and cloud/OAuth/AI-v2/marketplace (29) surfaces extracted into
+  `WhiteboardHandler`, `LiveHandler`, and `CloudCollabHandler`; 88 bridge.py
+  delegation sites rewired with public slots unchanged. The orphaned
+  `_compute_hot_zones` helper moved with its only consumers into
+  `bridge_live.py` (caught by ruff F821 before it could NameError at runtime).
+
+### Security
+- **Removed `/auth/link-oauth`**: the endpoint trusted a client-asserted
+  `provider_user_id`, letting any authenticated user inject an external
+  identity into any account (an account-takeover primitive); it had no
+  consumer anywhere. Regression test now asserts the route stays gone
+  (404, not 401 — a reintroduction fails loudly).
+- Cloud-server audit findings: OAuth `state` already one-time-pop and
+  provider-matched; every mutating route auth-gated; WebSocket handshake
+  checks token + origin + project membership before accept; SQL fully
+  parameterized (the single dynamic-identifier UPDATE uses hardcoded column
+  names with bound values).
+
+### Fixed
+- **Cross-file test pollution** (two independent leaks): e2e pipeline tests
+  reinstated each other's CV-service stub at module teardown (later files
+  imported a spec-less stub — `AttributeError: no _interpolate_skip_frames`),
+  and the visualization-service tests permanently shadowed the real
+  `networkx`, which made torch's dynamo importer crash with
+  `ValueError: networkx.__spec__ is None` in any later real-inference test.
+  Stub installs are now module-scoped fixtures that always pop.
+
+### Added
+- `scripts/bench_hot_path.py`: deterministic hot-path micro-benchmarks on
+  synthetic 25fps tracking data — overlay computation 21 µs/frame, bridge
+  JSON serialization 14 µs/frame, OBV schema conversion 9 µs/frame, live
+  hot zones 5.5 µs/frame — plus cProfile top-N for regression tracking.
+
 ## v0.13.0 (2026-09-17) — Type-safety bug-mining + silent-failure fixes
 
 ### Fixed

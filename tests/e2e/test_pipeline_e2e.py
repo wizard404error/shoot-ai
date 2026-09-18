@@ -302,26 +302,24 @@ def install_cv_stub() -> None:
     sys.modules["kawkab.services.cv_service"] = _mod
 
 
-# Captured before install_cv_stub() runs, so it reflects whatever was in
-# sys.modules prior to this file -- install_cv_stub() permanently replaces
-# it with a no-arg-constructor stub CVService (unless a compatible one is
-# already there), and with no restoration, that stub leaks into any
-# later-run file in the same pytest-xdist worker that needs the real
-# CVService's actual constructor. Same species of leak as the
-# test_norfair_tracker.py fix earlier in this audit.
-_ORIG_CV_SERVICE_MODULE = sys.modules.get("kawkab.services.cv_service")
+# The stub is installed at TEST TIME (module-scoped autouse fixture), not at
+# collection time, and the teardown always REMOVES it rather than reinstating
+# whatever was in sys.modules at collection. Collection happens for all files
+# before any test runs, so a later-collected file can snapshot an EARLIER
+# file's stub as its "original" and reinstate it at teardown -- permanently
+# poisoning sys.modules for every subsequent module (observed as
+# AttributeError: CVService has no _interpolate_skip_frames in
+# test_accuracy_audit_fixes). Popping forces any later importer to re-import
+# the real module.
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _restore_cv_service_module():
+def _cv_service_stub():
+    install_cv_stub()
     yield
-    if _ORIG_CV_SERVICE_MODULE is None:
-        sys.modules.pop("kawkab.services.cv_service", None)
-    else:
-        sys.modules["kawkab.services.cv_service"] = _ORIG_CV_SERVICE_MODULE
+    sys.modules.pop("kawkab.services.cv_service", None)
 
 
-install_cv_stub()
 _as_ref = load_service_module("as_e2e_pipeline_refresh", "analysis_service.py")
 AnalysisService = _as_ref.AnalysisService
 

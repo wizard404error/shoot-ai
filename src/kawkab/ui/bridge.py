@@ -14,11 +14,13 @@ from kawkab.core.security import RateLimiter
 from kawkab.ui.bridge_handlers import (
     AnalysisHandler,
     AuthHandler,
+    CloudCollabHandler,
     CodingHandler,
     ExportHandler,
     ExternalHandler,
     ImportHandler,
     LifecycleHandler,
+    LiveHandler,
     ProAnalyticsHandler,
     ProviderHandler,
     RecruitmentHandler,
@@ -26,6 +28,7 @@ from kawkab.ui.bridge_handlers import (
     SettingsHandler,
     StorageHandler,
     VideoHandler,
+    WhiteboardHandler,
 )
 from kawkab.utils.profiler import Profiler
 
@@ -156,6 +159,9 @@ class Bridge(QObject):
         self._analysis = AnalysisHandler(self, services, rate_limiter=self._rate_limiter)
         self._recruitment = RecruitmentHandler(self, services, rate_limiter=self._rate_limiter)
         self._settings = SettingsHandler(self, services, rate_limiter=self._rate_limiter)
+        self._whiteboard = WhiteboardHandler(self, services, rate_limiter=self._rate_limiter)
+        self._live = LiveHandler(self, services, rate_limiter=self._rate_limiter)
+        self._cloud = CloudCollabHandler(self, services, rate_limiter=self._rate_limiter)
         self._coding = CodingHandler(self, services, rate_limiter=self._rate_limiter)
         self._export = ExportHandler(self, services, rate_limiter=self._rate_limiter)
         self._video = VideoHandler(self, services, rate_limiter=self._rate_limiter)
@@ -690,7 +696,7 @@ class Bridge(QObject):
 
     @Slot(float, result=str)
     async def rf_draw_pitch(self, scale: float) -> str:
-        return await self._analysis.rf_draw_pitch(scale)
+        return await self._cloud.rf_draw_pitch(scale)
 
     # ================================================================
     # Pose analysis
@@ -966,69 +972,69 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def check_whiteboard_status(self) -> str:
-        return await self._analysis.check_whiteboard_status()
+        return await self._whiteboard.check_whiteboard_status()
 
     @Slot(str, str, result=str)
     async def whiteboard_create(self, name: str, formation_home: str) -> str:
-        return await self._analysis.whiteboard_create(name, formation_home)
+        return await self._whiteboard.whiteboard_create(name, formation_home)
 
     @Slot(str, result=str)
     async def whiteboard_get(self, state_id: str) -> str:
-        return await self._analysis.whiteboard_get(state_id)
+        return await self._whiteboard.whiteboard_get(state_id)
 
     @Slot(result=str)
     async def whiteboard_list(self) -> str:
-        return await self._analysis.whiteboard_list()
+        return await self._whiteboard.whiteboard_list()
 
     @Slot(str, result=str)
     async def whiteboard_delete(self, state_id: str) -> str:
-        return await self._analysis.whiteboard_delete(state_id)
+        return await self._whiteboard.whiteboard_delete(state_id)
 
     @Slot(str, str, result=str)
     async def whiteboard_update(self, state_id: str, data_json: str) -> str:
-        return await self._analysis.whiteboard_update(state_id, data_json)
+        return await self._whiteboard.whiteboard_update(state_id, data_json)
 
     @Slot(str, str, result=str)
     async def whiteboard_add_annotation(self, state_id: str, annotation_json: str) -> str:
-        return await self._analysis.whiteboard_add_annotation(state_id, annotation_json)
+        return await self._whiteboard.whiteboard_add_annotation(state_id, annotation_json)
 
     @Slot(str, str, result=str)
     async def whiteboard_remove_annotation(self, state_id: str, annotation_id: str) -> str:
-        return await self._analysis.whiteboard_remove_annotation(state_id, annotation_id)
+        return await self._whiteboard.whiteboard_remove_annotation(state_id, annotation_id)
 
     @Slot(str, result=str)
     async def whiteboard_clear_annotations(self, state_id: str) -> str:
-        return await self._analysis.whiteboard_clear_annotations(state_id)
+        return await self._whiteboard.whiteboard_clear_annotations(state_id)
 
     @Slot(str, str, str, result=str)
     async def whiteboard_set_formation(self, state_id: str, formation_name: str, team: str) -> str:
-        return await self._analysis.whiteboard_set_formation(state_id, formation_name, team)
+        return await self._whiteboard.whiteboard_set_formation(state_id, formation_name, team)
 
     @Slot(str, int, float, float, str, result=str)
     async def whiteboard_move_player(
         self, state_id: str, player_index: int, x: float, y: float, team: str
     ) -> str:
-        return await self._analysis.whiteboard_move_player(state_id, player_index, x, y, team)
+        return await self._whiteboard.whiteboard_move_player(state_id, player_index, x, y, team)
 
     @Slot(result=str)
     async def whiteboard_list_templates(self) -> str:
-        return await self._analysis.whiteboard_list_templates()
+        return await self._whiteboard.whiteboard_list_templates()
 
     @Slot(str, result=str)
     async def whiteboard_get_template(self, name: str) -> str:
-        return await self._analysis.whiteboard_get_template(name)
+        return await self._whiteboard.whiteboard_get_template(name)
 
     @Slot(str, int, int, result=str)
     async def whiteboard_generate_svg(
         self, state_id: str, width: int = 600, height: int = 400
     ) -> str:
-        return await self._analysis.whiteboard_generate_svg(state_id, width, height)
+        return await self._whiteboard.whiteboard_generate_svg(state_id, width, height)
 
     @Slot(float, float, float, float, str, str, result=str)
     async def whiteboard_generate_player_run(
         self, start_x: float, start_y: float, end_x: float, end_y: float, color: str, label: str
     ) -> str:
-        return await self._analysis.whiteboard_generate_player_run(
+        return await self._whiteboard.whiteboard_generate_player_run(
             start_x, start_y, end_x, end_y, color, label
         )
 
@@ -1036,7 +1042,7 @@ class Bridge(QObject):
     async def whiteboard_generate_pass(
         self, start_x: float, start_y: float, end_x: float, end_y: float, color: str
     ) -> str:
-        return await self._analysis.whiteboard_generate_pass(start_x, start_y, end_x, end_y, color)
+        return await self._whiteboard.whiteboard_generate_pass(start_x, start_y, end_x, end_y, color)
 
     # ================================================================
     # Realtime video
@@ -1377,51 +1383,51 @@ class Bridge(QObject):
     async def create_collab_user(
         self, username: str, display_name: str, role: str = "analyst"
     ) -> str:
-        return await self._analysis.create_collab_user(username, display_name, role)
+        return await self._cloud.create_collab_user(username, display_name, role)
 
     @Slot(result=str)
     async def get_collab_users(self) -> str:
-        return await self._analysis.get_collab_users()
+        return await self._cloud.get_collab_users()
 
     @Slot(int, result=str)
     async def delete_collab_user(self, user_id: int) -> str:
-        return await self._analysis.delete_collab_user(user_id)
+        return await self._cloud.delete_collab_user(user_id)
 
     @Slot(int, int, int, str, result=str)
     async def add_comment(self, match_id: int, event_id: int, user_id: int, text: str) -> str:
-        return await self._analysis.add_comment(match_id, event_id, user_id, text)
+        return await self._cloud.add_comment(match_id, event_id, user_id, text)
 
     @Slot(int, int, result=str)
     async def get_comments(self, match_id: int, event_id: int = 0) -> str:
-        return await self._analysis.get_comments(match_id, event_id)
+        return await self._cloud.get_comments(match_id, event_id)
 
     @Slot(int, result=str)
     async def delete_comment(self, comment_id: int) -> str:
-        return await self._analysis.delete_comment(comment_id)
+        return await self._cloud.delete_comment(comment_id)
 
     @Slot(int, result=str)
     async def export_project(self, match_id: int) -> str:
-        return await self._analysis.export_project(match_id)
+        return await self._cloud.export_project(match_id)
 
     @Slot(str, result=str)
     async def import_project(self, project_json: str) -> str:
-        return await self._analysis.import_project(project_json)
+        return await self._cloud.import_project(project_json)
 
     @Slot(int, result=str)
     async def get_activity_feed(self, limit: int = 50) -> str:
-        return await self._analysis.get_activity_feed(limit)
+        return await self._cloud.get_activity_feed(limit)
 
     @Slot(int, int, result=str)
     async def get_event_comments(self, match_id: int, event_id: int) -> str:
-        return await self._analysis.get_event_comments(match_id, event_id)
+        return await self._cloud.get_event_comments(match_id, event_id)
 
     @Slot(str, result=str)
     async def get_mentions(self, username: str) -> str:
-        return await self._analysis.get_mentions(username)
+        return await self._cloud.get_mentions(username)
 
     @Slot(int, result=str)
     async def mark_mention_read(self, mention_id: int) -> str:
-        return await self._analysis.mark_mention_read(mention_id)
+        return await self._cloud.mark_mention_read(mention_id)
 
     # ================================================================
     # Sprint 4 — Live Tagging
@@ -1429,11 +1435,11 @@ class Bridge(QObject):
 
     @Slot(str, str, result=str)
     async def live_start_session(self, home_team: str = "Home", away_team: str = "Away") -> str:
-        return await self._analysis.live_start_session(home_team, away_team)
+        return await self._live.live_start_session(home_team, away_team)
 
     @Slot(result=str)
     async def live_stop_session(self) -> str:
-        return await self._analysis.live_stop_session()
+        return await self._live.live_stop_session()
 
     @Slot(str, str, int, str, float, float, result=str)
     async def live_tag_event(
@@ -1445,45 +1451,45 @@ class Bridge(QObject):
         x: float = None,
         y: float = None,
     ) -> str:
-        return await self._analysis.live_tag_event(event_type, team, player_id, notes, x, y)
+        return await self._live.live_tag_event(event_type, team, player_id, notes, x, y)
 
     @Slot(int, result=str)
     async def live_set_period(self, period: int) -> str:
-        return await self._analysis.live_set_period(period)
+        return await self._live.live_set_period(period)
 
     @Slot(result=str)
     async def live_get_stats(self) -> str:
-        return await self._analysis.live_get_stats()
+        return await self._live.live_get_stats()
 
     @Slot(result=str)
     async def live_get_tags(self) -> str:
-        return await self._analysis.live_get_tags()
+        return await self._live.live_get_tags()
 
     @Slot(result=str)
     async def live_clear_tags(self) -> str:
-        return await self._analysis.live_clear_tags()
+        return await self._live.live_clear_tags()
 
     @Slot(result=str)
     async def live_get_hotkeys(self) -> str:
-        return await self._analysis.live_get_hotkeys()
+        return await self._live.live_get_hotkeys()
 
     @Slot(result=str)
     async def live_export(self) -> str:
-        return await self._analysis.live_export()
+        return await self._live.live_export()
 
     # ── Phase 6 Sprint 2 — Live Tagging Dashboard ───────────────────
 
     @Slot(str, result=str)
     async def get_live_kpis(self, session_id: str) -> str:
-        return await self._analysis.get_live_kpis(session_id)
+        return await self._live.get_live_kpis(session_id)
 
     @Slot(str, result=str)
     async def get_live_pitch_map(self, session_id: str) -> str:
-        return await self._analysis.get_live_pitch_map(session_id)
+        return await self._live.get_live_pitch_map(session_id)
 
     @Slot(str, result=str)
     async def get_live_xg_chart(self, session_id: str) -> str:
-        return await self._analysis.get_live_xg_chart(session_id)
+        return await self._live.get_live_xg_chart(session_id)
 
     # ================================================================
     # Sprint 6 — Auto-Updater
@@ -1528,45 +1534,45 @@ class Bridge(QObject):
 
     @Slot(str, str, result=str)
     async def tel_layer_add(self, layer_id: str, name: str = "") -> str:
-        return await self._analysis.tel_layer_add(layer_id, name)
+        return await self._cloud.tel_layer_add(layer_id, name)
 
     @Slot(str, result=str)
     async def tel_layer_remove(self, layer_id: str) -> str:
-        return await self._analysis.tel_layer_remove(layer_id)
+        return await self._cloud.tel_layer_remove(layer_id)
 
     @Slot(str, result=str)
     async def tel_layer_toggle(self, layer_id: str) -> str:
-        return await self._analysis.tel_layer_toggle(layer_id)
+        return await self._cloud.tel_layer_toggle(layer_id)
 
     @Slot(str, float, result=str)
     async def tel_layer_opacity(self, layer_id: str, opacity: float) -> str:
-        return await self._analysis.tel_layer_opacity(layer_id, opacity)
+        return await self._cloud.tel_layer_opacity(layer_id, opacity)
 
     @Slot(result=str)
     async def tel_get_layers(self) -> str:
-        return await self._analysis.tel_get_layers()
+        return await self._cloud.tel_get_layers()
 
     @Slot(str, str, result=str)
     async def tel_save_preset(self, name: str, layers_json: str) -> str:
-        return await self._analysis.tel_save_preset(name, layers_json)
+        return await self._cloud.tel_save_preset(name, layers_json)
 
     @Slot(str, result=str)
     async def tel_load_preset(self, name: str) -> str:
-        return await self._analysis.tel_load_preset(name)
+        return await self._cloud.tel_load_preset(name)
 
     @Slot(result=str)
     async def tel_list_presets(self) -> str:
-        return await self._analysis.tel_list_presets()
+        return await self._cloud.tel_list_presets()
 
     @Slot(str, result=str)
     async def tel_delete_preset(self, name: str) -> str:
-        return await self._analysis.tel_delete_preset(name)
+        return await self._cloud.tel_delete_preset(name)
 
     @Slot(str, str, str, result=str)
     async def tel_export_video(
         self, video_path: str, layers_json: str, output_path: str = ""
     ) -> str:
-        return await self._analysis.tel_export_video(video_path, layers_json, output_path)
+        return await self._cloud.tel_export_video(video_path, layers_json, output_path)
 
     # ================================================================
     # Phase 9 — Live Stream Capture
@@ -1576,31 +1582,31 @@ class Bridge(QObject):
     async def stream_start_capture(
         self, url: str, stream_id: str = "", output_filename: str = ""
     ) -> str:
-        return await self._analysis.stream_start_capture(url, stream_id, output_filename)
+        return await self._cloud.stream_start_capture(url, stream_id, output_filename)
 
     @Slot(str, result=str)
     async def stream_stop_capture(self, stream_id: str) -> str:
-        return await self._analysis.stream_stop_capture(stream_id)
+        return await self._cloud.stream_stop_capture(stream_id)
 
     @Slot(str, result=str)
     async def stream_get_status(self, stream_id: str) -> str:
-        return await self._analysis.stream_get_status(stream_id)
+        return await self._cloud.stream_get_status(stream_id)
 
     @Slot(result=str)
     async def stream_list(self) -> str:
-        return await self._analysis.stream_list()
+        return await self._cloud.stream_list()
 
     @Slot(str, str, result=str)
     async def stream_add_marker(self, stream_id: str, label: str = "") -> str:
-        return await self._analysis.stream_add_marker(stream_id, label)
+        return await self._cloud.stream_add_marker(stream_id, label)
 
     @Slot(result=str)
     async def stream_list_recordings(self) -> str:
-        return await self._analysis.stream_list_recordings()
+        return await self._cloud.stream_list_recordings()
 
     @Slot(str, result=str)
     async def stream_detect_source(self, url: str) -> str:
-        return await self._analysis.stream_detect_source(url)
+        return await self._cloud.stream_detect_source(url)
 
     # ================================================================
     # Phase 12 — AI Coach Assistant v2
@@ -1608,31 +1614,31 @@ class Bridge(QObject):
 
     @Slot(str, str, result=str)
     async def ai_v2_create_conv(self, match_id: str = "", title: str = "New Chat") -> str:
-        return await self._analysis.ai_v2_create_conv(match_id, title)
+        return await self._cloud.ai_v2_create_conv(match_id, title)
 
     @Slot(str, result=str)
     async def ai_v2_list_convs(self, match_id: str = "") -> str:
-        return await self._analysis.ai_v2_list_convs(match_id)
+        return await self._cloud.ai_v2_list_convs(match_id)
 
     @Slot(str, result=str)
     async def ai_v2_delete_conv(self, conv_id: str) -> str:
-        return await self._analysis.ai_v2_delete_conv(conv_id)
+        return await self._cloud.ai_v2_delete_conv(conv_id)
 
     @Slot(str, str, str, str, result=str)
     async def ai_v2_ask(
         self, conv_id: str, question: str, match_context: str = "", language: str = "en"
     ) -> str:
-        return await self._analysis.ai_v2_ask(conv_id, question, match_context, language)
+        return await self._cloud.ai_v2_ask(conv_id, question, match_context, language)
 
     @Slot(str, str, str, result=str)
     async def ai_v2_tactical_suggestion(
         self, topic: str, match_context: str = "", language: str = "en"
     ) -> str:
-        return await self._analysis.ai_v2_tactical_suggestion(topic, match_context, language)
+        return await self._cloud.ai_v2_tactical_suggestion(topic, match_context, language)
 
     @Slot(str, str, result=str)
     async def ai_v2_auto_report(self, match_id: str, language: str = "en") -> str:
-        return await self._analysis.ai_v2_auto_report(match_id, language)
+        return await self._cloud.ai_v2_auto_report(match_id, language)
 
     # ================================================================
     # Phase 13 — Opponent Database + Scouting Network + Transfermarkt
@@ -1762,11 +1768,11 @@ class Bridge(QObject):
     async def marketplace_list(
         self, item_type: str = "", category: str = "", query: str = "", source: str = ""
     ) -> str:
-        return await self._analysis.marketplace_list(item_type, category, query, source)
+        return await self._cloud.marketplace_list(item_type, category, query, source)
 
     @Slot(str, result=str)
     async def marketplace_get(self, item_id: str) -> str:
-        return await self._analysis.marketplace_get(item_id)
+        return await self._cloud.marketplace_get(item_id)
 
     @Slot(str, str, str, str, str, str, str, str, result=str)
     async def marketplace_add(
@@ -1780,25 +1786,25 @@ class Bridge(QObject):
         data: str = "",
         source: str = "local",
     ) -> str:
-        return await self._analysis.marketplace_add(
+        return await self._cloud.marketplace_add(
             item_type, name, description, author, category, tags_json, data, source
         )
 
     @Slot(str, str, result=str)
     async def marketplace_rate(self, item_id: str, rating: str) -> str:
-        return await self._analysis.marketplace_rate(item_id, rating)
+        return await self._cloud.marketplace_rate(item_id, rating)
 
     @Slot(str, result=str)
     async def marketplace_delete(self, item_id: str) -> str:
-        return await self._analysis.marketplace_delete(item_id)
+        return await self._cloud.marketplace_delete(item_id)
 
     @Slot(result=str)
     async def marketplace_stats(self) -> str:
-        return await self._analysis.marketplace_stats()
+        return await self._cloud.marketplace_stats()
 
     @Slot(str, result=str)
     async def marketplace_categories(self, item_type: str = "") -> str:
-        return await self._analysis.marketplace_categories(item_type)
+        return await self._cloud.marketplace_categories(item_type)
 
     # ================================================================
     # Phase 8 — Cloud Sync
@@ -1806,73 +1812,73 @@ class Bridge(QObject):
 
     @Slot(result=str)
     async def cloud_check_health(self) -> str:
-        return await self._analysis.cloud_check_health()
+        return await self._cloud.cloud_check_health()
 
     @Slot(str, str, str, result=str)
     async def cloud_register(
         self, username: str, email: str, password: str, display_name: str = ""
     ) -> str:
-        return await self._analysis.cloud_register(username, email, password, display_name)
+        return await self._cloud.cloud_register(username, email, password, display_name)
 
     @Slot(str, str, result=str)
     async def cloud_login(self, email: str, password: str) -> str:
-        return await self._analysis.cloud_login(email, password)
+        return await self._cloud.cloud_login(email, password)
 
     @Slot(result=str)
     async def cloud_logout(self) -> str:
-        return await self._analysis.cloud_logout()
+        return await self._cloud.cloud_logout()
 
     @Slot(result=str)
     async def cloud_get_me(self) -> str:
-        return await self._analysis.cloud_get_me()
+        return await self._cloud.cloud_get_me()
 
     @Slot(result=str)
     async def cloud_is_logged_in(self) -> str:
-        return await self._analysis.cloud_is_logged_in()
+        return await self._cloud.cloud_is_logged_in()
 
     @Slot(str, str, result=str)
     async def cloud_create_team(self, name: str, description: str = "") -> str:
-        return await self._analysis.cloud_create_team(name, description)
+        return await self._cloud.cloud_create_team(name, description)
 
     @Slot(result=str)
     async def cloud_list_teams(self) -> str:
-        return await self._analysis.cloud_list_teams()
+        return await self._cloud.cloud_list_teams()
 
     @Slot(int, str, result=str)
     async def cloud_invite_member(self, team_id: int, email: str) -> str:
-        return await self._analysis.cloud_invite_member(team_id, email)
+        return await self._cloud.cloud_invite_member(team_id, email)
 
     @Slot(str, result=str)
     async def cloud_accept_invite(self, token: str) -> str:
-        return await self._analysis.cloud_accept_invite(token)
+        return await self._cloud.cloud_accept_invite(token)
 
     @Slot(str, str, result=str)
     async def cloud_sync_push(self, device_id: str, operations_json: str) -> str:
-        return await self._analysis.cloud_sync_push(device_id, operations_json)
+        return await self._cloud.cloud_sync_push(device_id, operations_json)
 
     @Slot(str, result=str)
     async def cloud_sync_pull(self, device_id: str) -> str:
-        return await self._analysis.cloud_sync_pull(device_id)
+        return await self._cloud.cloud_sync_pull(device_id)
 
     @Slot(str, result=str)
     async def cloud_oauth_authorize_url(self, provider: str, redirect_uri: str = "") -> str:
-        return await self._analysis.cloud_oauth_authorize_url(provider, redirect_uri)
+        return await self._cloud.cloud_oauth_authorize_url(provider, redirect_uri)
 
     @Slot(str, str, str, result=str)
     async def cloud_oauth_exchange(self, provider: str, code: str, state: str) -> str:
-        return await self._analysis.cloud_oauth_exchange(provider, code, state)
+        return await self._cloud.cloud_oauth_exchange(provider, code, state)
 
     @Slot(result=str)
     async def cloud_oauth_providers(self) -> str:
-        return await self._analysis.cloud_oauth_providers()
+        return await self._cloud.cloud_oauth_providers()
 
     @Slot(int, result=str)
     async def cloud_start_server(self, port: int = 8741) -> str:
-        return await self._analysis.cloud_start_server(port)
+        return await self._cloud.cloud_start_server(port)
 
     @Slot(result=str)
     async def cloud_server_status(self) -> str:
-        return await self._analysis.cloud_server_status()
+        return await self._cloud.cloud_server_status()
 
     # ================================================================
     # Sprint 2 — Wearable Import, Physiological Merge, Tactical Correlation

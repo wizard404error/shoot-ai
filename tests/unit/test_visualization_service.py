@@ -65,7 +65,24 @@ def _install_stubs():
         sys.modules["networkx"] = _nx
 
 
-_install_stubs()
+# Stubs are installed at TEST TIME via the module-scoped autouse fixture
+# below, not at collection time -- a permanent sys.modules stub leaks into
+# every later file in the process (observed: torch._dynamo's import machinery
+# raises `ValueError: networkx.__spec__ is None` when the stub shadows the
+# real package during a later real-inference test). The fixture removes only
+# the entries this file itself added, so a real or previously-installed
+# module is left untouched.
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _scoped_stubs():
+    pre = {k: (k in sys.modules) for k in ("matplotlib", "matplotlib.pyplot", "daimon_runtime", "networkx")}
+    _install_stubs()
+    yield
+    for key, existed in pre.items():
+        if not existed:
+            sys.modules.pop(key, None)
+
 
 _mod = load_service_module("viz_test", "visualization_service.py")
 VisualizationService = _mod.VisualizationService

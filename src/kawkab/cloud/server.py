@@ -295,25 +295,6 @@ def oauth_callback(provider: str, body: OAuthCallbackRequest):
     return TokenResponse(access_token=jwt_token, user=UserOut(**user))
 
 
-@app.post("/auth/link-oauth")
-def link_oauth_account(
-    provider: str, provider_user_id: str, user: dict = Depends(get_current_user)
-):
-    db = get_cloud_db()
-    existing = db.execute(
-        "SELECT id FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
-        (provider, provider_user_id),
-    ).fetchone()
-    if existing:
-        raise HTTPException(status_code=400, detail="OAuth account already linked")
-    db.execute(
-        "INSERT INTO oauth_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)",
-        (user["id"], provider, provider_user_id),
-    )
-    db.commit()
-    return {"ok": True}
-
-
 @app.get("/auth/oauth/accounts")
 def list_oauth_accounts(user: dict = Depends(get_current_user)):
     db = get_cloud_db()

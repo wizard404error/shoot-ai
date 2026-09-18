@@ -72,30 +72,26 @@ def _install_cv_stub() -> None:
     sys.modules["kawkab.services.cv_service"] = svc_mod
 
 
-# Save whatever was in sys.modules before stubbing (None if nothing yet)
-# so it can be restored once this module's own tests are done -- without
-# this, the stub's no-arg CVService (no __init__ override) permanently
-# replaces the real class for the rest of the pytest-xdist worker process,
-# breaking any later-run file (in the same worker) that needs the real
-# CVService's actual constructor. Same species of leak as the
-# test_norfair_tracker.py fix earlier in this audit, different file.
-_ORIG_CV_SERVICE_MODULE = sys.modules.get("kawkab.services.cv_service")
-
-_install_cv_stub()
-_as = load_service_module("as_e2e", "analysis_service.py")
-AnalysisService = _as.AnalysisService
-
-# Capture stub MatchTrackData after stub installation for pollution-safe use
-_MatchTrackData = sys.modules["kawkab.services.cv_service"].MatchTrackData
+# The stub is installed at TEST TIME (module-scoped autouse fixture), not at
+# collection time, and the teardown always REMOVES it rather than reinstating
+# whatever was in sys.modules at collection. Collection happens for all files
+# before any test runs, so a later-collected file can snapshot an EARLIER
+# file's stub as its "original" and reinstate it at teardown -- permanently
+# poisoning sys.modules for every subsequent module (observed as
+# AttributeError: CVService has no _interpolate_skip_frames in
+# test_accuracy_audit_fixes). Popping forces any later importer to re-import
+# the real module.
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _restore_cv_service_module():
+def _cv_service_stub():
+    _install_cv_stub()
     yield
-    if _ORIG_CV_SERVICE_MODULE is None:
-        sys.modules.pop("kawkab.services.cv_service", None)
-    else:
-        sys.modules["kawkab.services.cv_service"] = _ORIG_CV_SERVICE_MODULE
+    sys.modules.pop("kawkab.services.cv_service", None)
+
+
+_as = load_service_module("as_e2e", "analysis_service.py")
+AnalysisService = _as.AnalysisService
 
 
 # ── Sample events ──────────────────────────────────────────────────────────
@@ -598,7 +594,7 @@ class TestErrorHandling:
 
     def test_empty_match_track(self, svc):
         """Simulate empty match data (no frames)."""
-        MatchTrackData = _MatchTrackData
+        MatchTrackData = sys.modules["kawkab.services.cv_service"].MatchTrackData
         empty = MatchTrackData(match_id=1, fps=30, total_frames=0, duration_seconds=0, frames=[])
         result = svc.compute_ppda(empty, team="home")
         assert result["ppda"] is None
@@ -606,7 +602,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_empty_match_analyze(self, svc):
-        MatchTrackData = _MatchTrackData
+        MatchTrackData = sys.modules["kawkab.services.cv_service"].MatchTrackData
         empty = MatchTrackData(match_id=1, fps=30, total_frames=0, duration_seconds=0, frames=[])
         result = await svc.analyze_match(empty, match_id=0)
         assert result.match_id == 0
@@ -687,7 +683,7 @@ class TestErrorHandling:
         mock_storage.save_events_bulk.assert_called_once_with(1, ev)
 
     def test_track_formations_empty_data(self, svc):
-        MatchTrackData = _MatchTrackData
+        MatchTrackData = sys.modules["kawkab.services.cv_service"].MatchTrackData
         empty = MatchTrackData(match_id=1, fps=30, total_frames=0, duration_seconds=0, frames=[])
         result = svc.track_formations(empty, window_minutes=5)
         assert result["changes"] == 0

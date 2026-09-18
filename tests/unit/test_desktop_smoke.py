@@ -127,7 +127,13 @@ class TestSettingsWorkspaceWiring:
     def test_split_handlers_are_wired_in_bridge(self):
         """The split handlers must be instantiated and used by bridge.py."""
         bridge = (SRC / "ui" / "bridge.py").read_text(encoding="utf-8")
-        for cls, attr in (("RecruitmentHandler", "self._recruitment"), ("SettingsHandler", "self._settings")):
+        for cls, attr in (
+            ("RecruitmentHandler", "self._recruitment"),
+            ("SettingsHandler", "self._settings"),
+            ("WhiteboardHandler", "self._whiteboard"),
+            ("LiveHandler", "self._live"),
+            ("CloudCollabHandler", "self._cloud"),
+        ):
             assert cls in bridge, f"bridge.py no longer imports/instantiates {cls}"
             assert f"{attr}." in bridge, f"bridge.py no longer delegates through {attr}"
 
