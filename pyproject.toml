@@ -54,7 +54,6 @@ gpu = [
 ]
 reid = [
     "boxmot>=19.0.0,<22",
-    "soccernet-tracklab>=1.0.0",
 ]
 enhancement = []
 cloud = [

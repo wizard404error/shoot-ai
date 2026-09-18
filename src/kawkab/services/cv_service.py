@@ -494,16 +494,25 @@ class CVService:
         else:
             model_path = get_paths().cache / "models" / "osnet_sportsmot.pt"
 
-        weights = str(model_path) if model_path.exists() else None
+        # Prefer the sports-trained OSNet weights when cached; otherwise
+        # fall back to boxmot's auto-downloadable osnet_x0_25_msmt17.pt
+        # rather than silently running DeepOcSORT with embedding OFF but
+        # embedding association ON -- with reid_model=None the tracker
+        # crashed on every frame that needed features
+        # ('NoneType' object has no attribute 'get_features').
+        weights: str | None = str(model_path) if model_path.exists() else "osnet_x0_25_msmt17.pt"
         device = "cuda:0" if self.gpu_enabled else "cpu"
 
         reid_model = None
-        if weights:
+        try:
             reid_model = ReID(
                 weights=weights,
                 device=device,
                 half=self.gpu_enabled,
             )
+        except Exception as e:
+            logger.warning(f"ReID model unavailable ({e}); DeepOcSORT will run motion-only")
+            reid_model = None
 
         tracker_type = tracker_type.lower()
         logger.info(f"Initializing boxmot {tracker_type} with OSNet SportsMOT ReID")
@@ -744,7 +753,14 @@ class CVService:
         if not self._initialized:
             await self.initialize()
 
-        use_norfair = norfair_tracker is not None and _NORFAIR_AVAILABLE
+        # boxmot (DeepOcSORT + ReID) wins when it is available: on real
+        # broadcast footage the Norfair fallback fragmented 60 raw tracks
+        # down to 1 validated track (fast pans break IoU-only association),
+        # while DeepOcSORT's motion+appearance association held tracks
+        # together. Norfair remains the fallback when boxmot is absent.
+        use_norfair = (
+            norfair_tracker is not None and _NORFAIR_AVAILABLE and self._boxmot_tracker is None
+        )
         use_boxmot = self._boxmot_tracker is not None and not use_norfair
 
         # imgsz=1280: the preprocessing pipeline normalizes video to
@@ -778,43 +794,74 @@ class CVService:
         pitch_mask = self._compute_pitch_mask(frame)
 
         # Run boxmot BoT-SORT tracking when available (deep ReID via OSNet)
-        if use_boxmot and results and len(results) > 0:
-            boxes = results[0].boxes
+        assigned_ids: dict[int, int] = {}
+        if use_boxmot:
+            boxes = results[0].boxes if results and len(results) > 0 else None
             if boxes is not None and len(boxes) > 0:
-                import torch
-
-                dets_np = (
-                    torch.cat(
-                        [
-                            boxes.xyxy,
-                            boxes.conf.unsqueeze(1),
-                            boxes.cls.unsqueeze(1),
-                        ],
-                        dim=1,
-                    )
-                    .cpu()
-                    .numpy()
+                dets_np = np.hstack(
+                    [
+                        boxes.xyxy.cpu().numpy(),
+                        boxes.conf.cpu().numpy()[:, None],
+                        boxes.cls.cpu().numpy()[:, None],
+                    ]
                 )
-                tracked = self._boxmot_tracker.update(dets_np, frame)
-                # Initialize track IDs to -1 for all detections
-                boxes.id = torch.full((len(boxes),), -1, dtype=torch.int32)
-                if tracked is not None and len(tracked) > 0:
+            else:
+                dets_np = np.empty((0, 6), dtype=np.float32)
+            # boxmot expects exactly one update per frame -- including frames
+            # with no detections. Skipping empty frames stalls its internal
+            # frame clock and breaks association when detections resume.
+            tracked = self._boxmot_tracker.update(dets_np, frame)
+            # boxes.id is a READ-ONLY property on Ultralytics Boxes -- the
+            # original code assigned to it, so this branch crashed on every
+            # frame and silently fell back to no tracking at all.
+            #
+            # boxmot's output rows are (x1, y1, x2, y2, id, conf, cls,
+            # det_ind), where det_ind is the index into the detection array
+            # passed to update() -- so the ID mapping is direct. A geometric
+            # re-match here is actively harmful: the Kalman-smoothed track
+            # box drifts from the raw detection during fast pans, IoU drops
+            # below threshold, and the ID is dropped -- every pan fragments
+            # every track. det_ind can be stale for minority classes after
+            # per-class association passes (observed for the ball), so it is
+            # trusted only when the class matches; those rows fall back to
+            # the optimal IoU assignment within their class.
+            if tracked is not None and len(tracked) > 0:
+                det_cls = dets_np[:, 5].astype(int)
+                fallback_rows: list[int] = []
+                for r in range(len(tracked)):
+                    tid = int(tracked[r, 4])
+                    tcls = int(tracked[r, 6])
+                    di = int(tracked[r, 7]) if tracked.shape[1] > 7 else -1
+                    if (
+                        0 <= di < len(det_cls)
+                        and det_cls[di] == tcls
+                        and di not in assigned_ids
+                    ):
+                        assigned_ids[di] = tid
+                    else:
+                        fallback_rows.append(r)
+                if fallback_rows:
                     det_bboxes = [
-                        tuple(boxes.xyxy[i].cpu().numpy().tolist()) for i in range(len(boxes))
+                        tuple(float(v) for v in dets_np[i, :4]) for i in range(len(dets_np))
                     ]
-                    track_bboxes = [
-                        (float(t[0]), float(t[1]), float(t[2]), float(t[3])) for t in tracked
-                    ]
-                    track_ids = [int(t[4]) for t in tracked]
-                    # Global optimal assignment (Hungarian) instead of
-                    # greedy first-IoU-match -- greedy loses the correct
-                    # pairing in dense clusters (latent ID switches).
-                    assigned = self._assign_track_ids_optimal(
-                        det_bboxes, track_bboxes, track_ids, iou_threshold=0.3
-                    )
-                    for i, tid in enumerate(assigned):
-                        if tid is not None:
-                            boxes.id[i] = tid
+                    for tcls in sorted({int(tracked[r, 6]) for r in fallback_rows}):
+                        cls_rows = [r for r in fallback_rows if int(tracked[r, 6]) == tcls]
+                        cls_dets = [
+                            i
+                            for i in range(len(dets_np))
+                            if det_cls[i] == tcls and i not in assigned_ids
+                        ]
+                        if not cls_rows or not cls_dets:
+                            continue
+                        assigned = self._assign_track_ids_optimal(
+                            [det_bboxes[i] for i in cls_dets],
+                            [tuple(float(v) for v in tracked[r, :4]) for r in cls_rows],
+                            [int(tracked[r, 4]) for r in cls_rows],
+                            iou_threshold=0.3,
+                        )
+                        for di, tid in zip(cls_dets, assigned, strict=False):
+                            if tid is not None:
+                                assigned_ids[di] = int(tid)
 
         # Collect raw detections
         raw: list[dict[str, Any]] = []
@@ -826,11 +873,12 @@ class CVService:
                     conf = float(boxes.conf[i].cpu().numpy())
                     cls_id = int(boxes.cls[i].cpu().numpy())
                     cls_name = self._model.names.get(cls_id, f"class_{cls_id}")
-                    tid = (
-                        int(boxes.id[i].cpu().numpy())
-                        if not use_norfair and boxes.id is not None
-                        else None
-                    )
+                    if use_boxmot:
+                        tid = assigned_ids.get(i)
+                    elif boxes.id is not None:
+                        tid = int(boxes.id[i].cpu().numpy())
+                    else:
+                        tid = None
                     raw.append(
                         {
                             "bbox": bbox,
@@ -1565,12 +1613,25 @@ class CVService:
         fragmentation_rate = raw_tracks / max(1, len(valid_player_tracks))
 
         count_ratio = len(valid_player_tracks) / max(1, self.expected_player_count)
-        quality = self._assess_tracking_quality(fragmentation_rate, count_ratio)
+        n_det_frames = max(1, sum(1 for f in frames if f.detections))
+        players_per_frame = (
+            sum(
+                1
+                for f in frames
+                for d in f.detections
+                if d.class_name == "person" and d.track_id in valid_player_tracks
+            )
+            / n_det_frames
+        )
+        quality = self._assess_tracking_quality(
+            fragmentation_rate, count_ratio, players_per_frame
+        )
 
         logger.info(
             f"After filtering: {len(valid_player_tracks)} validated player tracks "
             f"(raw: {raw_tracks}, fragmentation: {fragmentation_rate:.2f}x, "
-            f"count ratio: {count_ratio:.2f}x, quality: {quality})"
+            f"count ratio: {count_ratio:.2f}x, players/frame: {players_per_frame:.1f}, "
+            f"quality: {quality})"
         )
 
         player_teams: dict[int, str] = {}
@@ -1611,6 +1672,7 @@ class CVService:
                             "primary_color": avg,
                             "color_hex": f"#{avg[2]:02x}{avg[1]:02x}{avg[0]:02x}",
                             "samples": len(samples),
+                            "samples_list": list(samples),
                         }
                     team_detection_info["color_samples"] = sum(
                         r["samples"] for r in color_data.values()
@@ -1838,6 +1900,7 @@ class CVService:
                 "fragmentation_rate": round(fragmentation_rate, 2),
                 "expected_player_count": self.expected_player_count,
                 "tracking_quality": quality,
+                "players_per_frame": round(players_per_frame, 2),
                 "frame_skip": frame_skip,
                 "effective_fps": round(effective_fps, 1),
                 "team_detection": team_detection_info,
@@ -2211,15 +2274,40 @@ class CVService:
     def _compute_pitch_mask(self, frame):
         """Compute binary mask of pitch area using adaptive HSV color detection.
 
-        Auto-calibrates pitch color range from the first frame using histogram
-        peak detection on the H channel. Falls back to hardcoded range if
-        auto-detection produces an empty mask.
+        Auto-calibrates pitch color range from the first frame that actually
+        contains a pitch (>=10% coverage). Every frame thereafter selects the
+        better of the calibrated range and a hardcoded green range by actual
+        coverage -- a one-time calibration on a blank/zoomed/intro frame used
+        to poison every later frame (a 7% garbage mask passed the 5% sanity
+        check, and the pitch gate then discarded 100% of player detections
+        on real footage). Falls back to None (gate disabled) rather than
+        returning a mask known to be unreliable.
         """
         try:
             import cv2
 
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            if not hasattr(self, "_pitch_hsv_range") or self._pitch_hsv_range is None:
+            frame_area = frame.shape[0] * frame.shape[1]
+            hardcoded = (np.array([25, 40, 40]), np.array([90, 255, 255]))
+
+            candidates: list[tuple[np.ndarray, str]] = []
+            cached_range = getattr(self, "_pitch_hsv_range", None)
+            if cached_range is not None:
+                candidates.append((cached_range, "calibrated"))
+            candidates.append((hardcoded, "hardcoded"))
+
+            best_mask: np.ndarray | None = None
+            best_coverage = 0.0
+            best_source = ""
+            for rng, source in candidates:
+                mask = cv2.inRange(hsv, rng[0], rng[1])
+                coverage = cv2.countNonZero(mask) / frame_area
+                if coverage > best_coverage:
+                    best_mask, best_coverage, best_source = mask, coverage, source
+
+            # One-time calibration -- only from a frame that plausibly shows
+            # a pitch, so an intro/blank frame can never poison the cache.
+            if getattr(self, "_pitch_hsv_range", None) is None and best_coverage >= 0.10:
                 h_channel = hsv[:, :, 0]
                 hist = cv2.calcHist([h_channel], [0], None, [180], [0, 180])
                 hist_smooth = cv2.GaussianBlur(hist, (5, 5), 0)
@@ -2227,34 +2315,64 @@ class CVService:
                 margin = 15
                 lower_h = max(0, peak_idx - margin)
                 upper_h = min(180, peak_idx + margin)
-                self._pitch_hsv_range = (
-                    np.array([lower_h, 30, 30]),
-                    np.array([upper_h, 255, 255]),
+                calib_mask = cv2.inRange(
+                    hsv, np.array([lower_h, 30, 30]), np.array([upper_h, 255, 255])
                 )
-                logger.info(f"Auto-detected pitch HSV range: H=[{lower_h}, {upper_h}]")
-            lower_green, upper_green = self._pitch_hsv_range
-            mask = cv2.inRange(hsv, lower_green, upper_green)
-            pitch_pixels = cv2.countNonZero(mask)
-            if pitch_pixels < frame.shape[0] * frame.shape[1] * 0.05:
-                lower_green = np.array([25, 40, 40])
-                upper_green = np.array([90, 255, 255])
-                mask = cv2.inRange(hsv, lower_green, upper_green)
-                logger.warning("Pitch mask too small, falling back to hardcoded range")
+                calib_coverage = cv2.countNonZero(calib_mask) / frame_area
+                if calib_coverage >= 0.10:
+                    self._pitch_hsv_range = (
+                        np.array([lower_h, 30, 30]),
+                        np.array([upper_h, 255, 255]),
+                    )
+                    logger.info(
+                        f"Auto-calibrated pitch HSV range: H=[{lower_h}, {upper_h}] "
+                        f"(coverage {calib_coverage:.0%})"
+                    )
+
+            if best_mask is None or best_coverage < 0.05:
+                # No trustworthy pitch on this frame -- disable the gate
+                # instead of discarding every detection against a garbage mask.
+                return None
+            if best_source == "hardcoded":
+                logger.debug("Pitch mask: using hardcoded green range this frame")
+
             kernel = np.ones((15, 15), np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(best_mask, cv2.MORPH_CLOSE, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 return None
             largest = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest) < frame_area * 0.05:
+                return None
             filled = np.zeros_like(mask)
             cv2.drawContours(filled, [largest], -1, 255, -1)
             return filled > 0
         except Exception:
             return None
 
-    def _assess_tracking_quality(self, fragmentation_rate: float, count_ratio: float = 1.0) -> str:
-        """Assess tracking quality based on count ratio (closer to 1.0 = better)."""
+    def _assess_tracking_quality(
+        self,
+        fragmentation_rate: float,
+        count_ratio: float = 1.0,
+        players_per_frame: float = 0.0,
+    ) -> str:
+        """Assess tracking quality from count ratio AND actual density.
+
+        The count ratio alone can report "excellent" for a pipeline that
+        detected almost nothing (few validated tracks ≈ expected count ->
+        ratio ≈ 1 while players/frame ≈ 0 -- observed on real footage
+        before the pitch-mask fix). Density is the honest gate: a match
+        tracking below 3 players/frame on average cannot be "excellent"
+        no matter how clean the ratio looks.
+
+        Args:
+            fragmentation_rate: raw tracks / validated tracks.
+            count_ratio: validated tracks / expected player count.
+            players_per_frame: mean tracked players per detection frame.
+        """
+        if players_per_frame < 3.0:
+            return "very_poor"
         if 0.8 <= count_ratio <= 1.3:
             return "excellent"
         elif count_ratio <= 1.5:
@@ -2521,7 +2639,14 @@ class CVService:
         return torso
 
     def _get_dominant_color(self, img_region):
-        """Get dominant non-white, non-black color from a region (BGR)."""
+        """Get dominant non-white, non-black, non-pitch color from a region (BGR).
+
+        The pitch-green exclusion matters: on far/small players the torso
+        crop is contaminated by grass showing around the body outline and
+        through motion blur. Without it every sample drifts toward the
+        pitch color and k-means finds a single cluster (all tracks ->
+        "referee", zero team assignments).
+        """
         if img_region.size == 0:
             return None
         h, w = img_region.shape[:2]
@@ -2534,6 +2659,27 @@ class CVService:
         pixels = pixels[mask2]
         if len(pixels) < 5:
             return None
+        # Exclude pitch-green: hue 25-90 with meaningful saturation covers
+        # natural and artificial grass. Using the calibrated range when
+        # available keeps this aligned with the pitch mask.
+        import cv2 as _cv2
+
+        hsv = _cv2.cvtColor(
+            pixels.reshape(1, -1, 3).astype(np.uint8), _cv2.COLOR_BGR2HSV
+        ).reshape(-1, 3)
+        rng = getattr(self, "_pitch_hsv_range", None) or (
+            np.array([25, 40, 40]),
+            np.array([90, 255, 255]),
+        )
+        on_pitch = (
+            (hsv[:, 0] >= rng[0][0])
+            & (hsv[:, 0] <= rng[1][0])
+            & (hsv[:, 1] >= rng[0][1])
+            & (hsv[:, 2] >= rng[0][2])
+        )
+        pixels = pixels[~on_pitch]
+        if len(pixels) < 5:
+            return None
         return (
             int(np.mean(pixels[:, 0])),
             int(np.mean(pixels[:, 1])),
@@ -2542,6 +2688,14 @@ class CVService:
 
     def _cluster_team_colors(self, color_data, n_clusters=2):
         """Cluster players into teams based on jersey color.
+
+        When entries carry a raw per-sample list (``samples_list``), all
+        samples are pooled and clustered together, and each track takes the
+        majority label of its own samples. Per-track means collapse under
+        contamination (occlusions put pitch/opponent pixels in some crops;
+        stitched tracks mix fragments), which made every track average to
+        the same muddy red and left zero team assignments on real footage.
+        Per-sample majority voting recovers the true kits.
 
         Supports auto-detection of referee (n_clusters=3):
         cluster with darkest/saturation-lowest hue → referee.
@@ -2558,6 +2712,10 @@ class CVService:
             return dict.fromkeys(color_data, 0)
 
         tids = list(color_data.keys())
+        has_raw = all(color_data[tid].get("samples_list") for tid in tids)
+        if has_raw:
+            return self._cluster_team_colors_from_samples(color_data, n_clusters)
+
         colors_bgr = np.array([color_data[tid]["primary_color"] for tid in tids])
 
         # BGR -> LAB (float32, as cv2 requires)
@@ -2640,3 +2798,119 @@ class CVService:
             for i, tid in enumerate(sorted_by_color):
                 result[tid] = "home" if i < len(sorted_by_color) / 2 else "away"
             return result
+
+    def _cluster_team_colors_from_samples(
+        self, color_data: dict[int, dict], n_clusters: int = 2
+    ) -> dict[int, str]:
+        """Cluster pooled raw samples, majority-vote per track.
+
+        See _cluster_team_colors for why this path exists. The label map
+        (which pooled cluster is home/away/referee) reuses the same
+        centroid heuristics as the per-track path.
+        """
+        from collections import Counter
+
+        sample_tid: list[int] = []
+        sample_colors: list[tuple[int, int, int]] = []
+        for tid, entry in color_data.items():
+            for c in entry.get("samples_list", []):
+                sample_tid.append(tid)
+                sample_colors.append(tuple(int(v) for v in c))
+        if len(set(sample_tid)) < 2 or len(sample_colors) < 4:
+            return dict.fromkeys(color_data, 0)
+
+        try:
+            from sklearn.cluster import KMeans
+        except ImportError:
+            return self._cluster_team_colors(
+                {
+                    tid: {"primary_color": color_data[tid]["primary_color"]}
+                    for tid in color_data
+                },
+                n_clusters,
+            )
+
+        # Kits are distinguished by HUE, not lightness: clustering in LAB
+        # lets a small kit population get absorbed by brightness variance in
+        # the dominant kit (observed: 29 blue samples vs 183 red -- LAB
+        # K-means split the reds and swallowed the blues, zero team
+        # assignments). Circular hue features (cos/sin, wrap-safe at 0/179)
+        # plus saturation/brightness separate kits by what actually differs.
+        hsv = cv2.cvtColor(
+            np.array(sample_colors, dtype=np.uint8).reshape(-1, 1, 3),
+            cv2.COLOR_BGR2HSV,
+        ).reshape(-1, 3).astype(np.float64)
+        angle = hsv[:, 0] * (2.0 * np.pi / 180.0)
+        features = np.column_stack(
+            [np.cos(angle), np.sin(angle), hsv[:, 1] / 255.0, hsv[:, 2] / 255.0]
+        )
+        actual_n = min(max(2, n_clusters if n_clusters < 3 else 3), len(set(sample_tid)))
+        kmeans = KMeans(n_clusters=actual_n, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(features)
+
+        # Majority vote per track over its own samples' cluster labels.
+        track_votes: dict[int, Counter] = {}
+        for tid, cl in zip(sample_tid, labels, strict=True):
+            track_votes.setdefault(tid, Counter())[int(cl)] += 1
+        majority: dict[int, int] = {}
+        for tid, votes in track_votes.items():
+            top = votes.most_common()
+            if len(top) > 1 and top[0][1] == top[1][1]:
+                # Genuine tie -- a 50/50-contaminated track is unreliable;
+                # exclude it from team assignment rather than guess.
+                continue
+            majority[tid] = top[0][0]
+
+        # Map pooled cluster ids to home/away/referee using the same
+        # heuristics as the per-track path, but computed from the mean BGR
+        # of each cluster's samples (K-means centroids here live in hue
+        # feature space, not color space).
+        cluster_bgr: dict[int, np.ndarray] = {}
+        for cl in range(actual_n):
+            members = [
+                c for c, cl_lab in zip(sample_colors, labels, strict=True) if cl_lab == cl
+            ]
+            cluster_bgr[cl] = np.mean(np.array(members, dtype=np.float64), axis=0)
+        label_map: dict[int, str] = {}
+        if actual_n >= 3:
+            import cv2 as _cv2
+
+            centroids_hsv = [
+                _cv2.cvtColor(
+                    np.uint8([[cluster_bgr[cl]]]), _cv2.COLOR_BGR2HSV
+                )[0, 0]
+                for cl in range(actual_n)
+            ]
+            ref_idx = min(
+                range(len(centroids_hsv)),
+                key=lambda i: (
+                    int(centroids_hsv[i][1]),
+                    -float(abs(centroids_hsv[i][0])),
+                ),
+            )
+            team_indices = [i for i in range(actual_n) if i != ref_idx]
+            sorted_teams = sorted(
+                team_indices,
+                key=lambda i: float(sum(cluster_bgr[i])),
+                reverse=True,
+            )
+            label_map[ref_idx] = "referee"
+            label_map[sorted_teams[0]] = "home"
+            label_map[sorted_teams[1]] = "away"
+        else:
+            sorted_idx = sorted(
+                range(actual_n),
+                key=lambda i: float(sum(cluster_bgr[i])),
+                reverse=True,
+            )
+            label_map[sorted_idx[0]] = "home"
+            label_map[sorted_idx[1]] = "away"
+
+        result: dict[int, str] = {}
+        for tid in color_data:
+            if tid in majority and majority[tid] in label_map:
+                result[tid] = label_map[majority[tid]]
+        # Tracks excluded by tie, or whose majority cluster vanished, get
+        # the referee label implicitly absent -- caller treats missing as
+        # unassigned, which is the honest outcome.
+        return result

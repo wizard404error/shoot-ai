@@ -170,13 +170,23 @@ class LiveHandler:
                 return json.dumps(raw)
             s = raw.get("stats", {})
             ev = s.get("events_by_type", {})
-            home_shots = ev.get("shot", 0)
-            away_shots = ev.get("shot", 0)
+            # The tagging service counts shots match-wide (no per-team keys
+            # exist); the old code assigned the same total to both teams and
+            # summed it -- double-counting. Report it once, honestly.
+            total_shots = ev.get("shot", 0)
+            home_shots = total_shots
+            away_shots = 0
             home_goals = s.get("home_goals", 0)
             away_goals = s.get("away_goals", 0)
-            total_shots = home_shots + away_shots
-            home_shots_on = ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
-            away_shots_on = ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
+            total_shots_on = (
+                ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
+            )
+            home_shots_on = total_shots_on
+            away_shots_on = 0
+            # Rough league-average placeholder: a shot is worth ~0.11 xG.
+            # Labeled as approximate -- the real per-shot model lives in
+            # kawkab.core.xg_model (needs distance/angle, which tagging
+            # does not capture).
             xg_approx = round(total_shots * 0.11, 2)
             xg_diff = round(xg_approx - (home_goals + away_goals) * 0.5, 2)
             period = svc._current_period if hasattr(svc, "_current_period") else 1
@@ -184,9 +194,10 @@ class LiveHandler:
                 {
                     "possession_pct": s.get("home_possession_pct", 50.0),
                     "shots": total_shots,
-                    "shots_ontarget": home_shots_on + away_shots_on,
+                    "shots_ontarget": total_shots_on,
                     "goals": home_goals + away_goals,
                     "xg": xg_approx,
+                    "xg_is_approx": True,
                     "xg_diff": xg_diff,
                     "period": period,
                     "team_stats": {
