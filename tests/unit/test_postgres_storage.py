@@ -54,17 +54,21 @@ class TestPostgresStorageAdapter:
         with pytest.raises(StorageNotInitializedError):
             asyncio.run(adapter.save_match("test", "/path/to/video.mp4"))
 
-    def test_get_all_matches_empty(self, adapter):
+    def test_get_all_matches_raises_when_not_available(self, adapter):
         import asyncio
 
-        result = asyncio.run(adapter.get_all_matches())
-        assert result == []
+        from kawkab.services.storage_errors import StorageNotInitializedError
 
-    def test_get_match_none(self, adapter):
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(adapter.get_all_matches())
+
+    def test_get_match_raises_when_not_available(self, adapter):
         import asyncio
 
-        result = asyncio.run(adapter.get_match(1))
-        assert result is None
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(adapter.get_match(1))
 
     def test_save_events_bulk_raises_when_not_available(self, adapter):
         import asyncio
@@ -74,11 +78,13 @@ class TestPostgresStorageAdapter:
         with pytest.raises(StorageNotInitializedError):
             asyncio.run(adapter.save_events_bulk(1, [{"type": "pass"}]))
 
-    def test_get_match_events_empty(self, adapter):
+    def test_get_match_events_raises_when_not_available(self, adapter):
         import asyncio
 
-        result = asyncio.run(adapter.get_match_events(1))
-        assert result == []
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(adapter.get_match_events(1))
 
     def test_save_players_bulk_raises_when_not_available(self, adapter):
         import asyncio
@@ -88,11 +94,13 @@ class TestPostgresStorageAdapter:
         with pytest.raises(StorageNotInitializedError):
             asyncio.run(adapter.save_players_bulk(1, [{"track_id": 1, "name": "P1"}]))
 
-    def test_get_match_players_empty(self, adapter):
+    def test_get_match_players_raises_when_not_available(self, adapter):
         import asyncio
 
-        result = asyncio.run(adapter.get_match_players(1))
-        assert result == []
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(adapter.get_match_players(1))
 
     def test_close_no_error(self, adapter):
         import asyncio

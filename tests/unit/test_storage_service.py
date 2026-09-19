@@ -777,11 +777,18 @@ async def test_uninitialized_service_returns_safe_defaults():
         await svc.save_benchmark(BenchmarkResult())
     with pytest.raises(StorageNotInitializedError):
         await svc.save_player_profile({})
-    # Reads (and not-yet-converted clusters) keep the legacy fail-soft defaults.
-    assert await svc.get_match(1) is None
-    assert await svc.get_all_matches() == []
-    assert await svc.get_match_events(1) == []
-    assert await svc.get_match_players(1) == []
+    # Hot reads raise too — Phase 5a: silent []/None on reads let broken
+    # backends masquerade as "no data" for months.
+    for call in (
+        lambda: svc.get_match(1),
+        lambda: svc.get_all_matches(),
+        lambda: svc.get_match_events(1),
+        lambda: svc.get_match_players(1),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await call()
+    # Remaining reads (and not-yet-converted clusters) keep the legacy
+    # fail-soft defaults.
     assert await svc.get_recent_benchmarks() == []
     # Media writes now raise when uninitialized — even before input validation
     # (guard ordering: not-initialized beats rejected-input). The empty-dict

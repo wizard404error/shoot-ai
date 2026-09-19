@@ -165,6 +165,8 @@ class PostgresStorageAdapter:
         return row["id"] if row else None
 
     async def get_all_matches(self) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_all_matches")
         return await self.fetch(
             """SELECT id, name, video_path, home_team, away_team, match_date,
                       duration_seconds, analyzed_at, created_at,
@@ -179,6 +181,8 @@ class PostgresStorageAdapter:
         )
 
     async def get_match(self, match_id: int) -> dict | None:
+        if not self._pool:
+            raise StorageNotInitializedError("get_match")
         return await self.fetchrow(
             """SELECT id, name, video_path, duration_seconds AS duration, fps, total_frames,
                       home_team_id, away_team_id, score_home, score_away,
@@ -440,6 +444,8 @@ class PostgresStorageAdapter:
     async def get_match_events(
         self, match_id: int, limit: int = 200, offset: int = 0
     ) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_match_events")
         rows = await self.fetch(
             """SELECT id, match_id, timestamp, event_type, from_track_id, to_track_id, team,
                       completed, confidence, metadata, user_corrected,
@@ -598,6 +604,8 @@ class PostgresStorageAdapter:
     async def get_match_players(
         self, match_id: int, limit: int = 50, offset: int = 0
     ) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_match_players")
         return await self.fetch(
             """SELECT id, match_id, track_id, team, jersey_number, name, confidence
                FROM players

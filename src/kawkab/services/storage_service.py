@@ -571,7 +571,7 @@ class StorageService:
         single-user desktop bridge too.
         """
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_all_matches")
         cursor = self._conn.cursor()
         cursor.execute(
             """
@@ -593,7 +593,7 @@ class StorageService:
         """Get a single match by ID. Includes owner_id/team_id/is_shared
         so callers needing access control (api_v1.py) can apply it."""
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("get_match")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, name, video_path, duration_seconds, fps, total_frames, home_team_id, away_team_id, score_home, score_away, season_id, match_date, match_type, home_team, away_team, api_match_id, competition_code, football_data_home_team_id, football_data_away_team_id, apifb_home_team_id, apifb_away_team_id, apifb_fixture_id, apifb_league_id, apifb_season, bzzoiro_home_team_id, bzzoiro_away_team_id, bzzoiro_event_id, bzzoiro_league_id, bzzoiro_competition_code, prediction_data, owner_id, team_id, is_shared, created_at FROM matches WHERE id = ? AND (is_deleted IS NULL OR is_deleted=0)",
@@ -636,7 +636,7 @@ class StorageService:
     ) -> list[dict]:
         """Get events for a match with pagination."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_match_events")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT id, match_id, timestamp, event_type, from_track_id, to_track_id, team,
@@ -1162,7 +1162,7 @@ class StorageService:
     ) -> list[dict]:
         """Get players for a match with pagination."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_match_players")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, match_id, track_id, team, jersey_number, name, confidence FROM players WHERE match_id = ? AND (is_deleted IS NULL OR is_deleted=0) ORDER BY id LIMIT ? OFFSET ?",
