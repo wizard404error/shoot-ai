@@ -755,10 +755,11 @@ class StorageService:
     async def save_benchmark(self, result: BenchmarkResult) -> int:
         """Save a benchmark result to the database."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
+            raise StorageNotInitializedError("save_benchmark")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
             INSERT INTO benchmark_results (
                 match_id, video_path, video_duration_seconds, total_frames,
                 total_time_seconds, realtime_ratio, fps_effective,
@@ -769,32 +770,35 @@ class StorageService:
                 gpu_name, cpu_name, ram_gb, model_size, frame_skip
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                result.match_id,
-                result.video_path,
-                result.video_duration_seconds,
-                result.total_frames,
-                result.total_time_seconds,
-                result.realtime_ratio,
-                result.fps_effective,
-                result.stage_enhancement_seconds,
-                result.stage_detection_seconds,
-                result.stage_tracking_seconds,
-                result.stage_analysis_seconds,
-                result.stage_advanced_metrics_seconds,
-                result.stage_save_seconds,
-                result.peak_memory_mb,
-                result.peak_gpu_memory_mb,
-                result.gpu_utilization_pct,
-                result.gpu_name,
-                result.cpu_name,
-                result.ram_gb,
-                result.model_size,
-                result.frame_skip,
-            ),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+                (
+                    result.match_id,
+                    result.video_path,
+                    result.video_duration_seconds,
+                    result.total_frames,
+                    result.total_time_seconds,
+                    result.realtime_ratio,
+                    result.fps_effective,
+                    result.stage_enhancement_seconds,
+                    result.stage_detection_seconds,
+                    result.stage_tracking_seconds,
+                    result.stage_analysis_seconds,
+                    result.stage_advanced_metrics_seconds,
+                    result.stage_save_seconds,
+                    result.peak_memory_mb,
+                    result.peak_gpu_memory_mb,
+                    result.gpu_utilization_pct,
+                    result.gpu_name,
+                    result.cpu_name,
+                    result.ram_gb,
+                    result.model_size,
+                    result.frame_skip,
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_benchmark failed: {e}")
+            raise StorageWriteError("save_benchmark", e) from e
 
     async def get_recent_benchmarks(self, limit: int = 20, offset: int = 0) -> list[dict]:
         """Get recent benchmark results with pagination."""
@@ -865,7 +869,7 @@ class StorageService:
     async def save_feedback(self, feedback: dict) -> int:
         """Save coach feedback to the database."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_feedback")
         if not feedback:
             return 0
         try:
@@ -893,8 +897,12 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_feedback failed: {e}")
+            # Rejected input keeps the legacy falsy return (contract).
+            logger.warning(f"save_feedback rejected input: {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_feedback failed: {e}")
+            raise StorageWriteError("save_feedback", e) from e
 
     async def get_all_feedback(self) -> list[dict]:
         """Get all coach feedback entries."""
@@ -909,7 +917,7 @@ class StorageService:
     async def save_issue(self, issue: dict) -> int:
         """Save an issue report to the database."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_issue")
         if not issue:
             return 0
         try:
@@ -933,8 +941,12 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_issue failed: {e}")
+            # Rejected input keeps the legacy falsy return (contract).
+            logger.warning(f"save_issue rejected input: {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_issue failed: {e}")
+            raise StorageWriteError("save_issue", e) from e
 
     async def get_all_issues(self) -> list[dict]:
         """Get all issue reports."""
@@ -949,7 +961,7 @@ class StorageService:
     async def save_usage_session(self, session: dict) -> int:
         """Save an anonymized usage session."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_usage_session")
         if not session:
             return 0
         try:
@@ -975,13 +987,17 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_usage_session failed: {e}")
+            # Rejected input keeps the legacy falsy return (contract).
+            logger.warning(f"save_usage_session rejected input: {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_usage_session failed: {e}")
+            raise StorageWriteError("save_usage_session", e) from e
 
     async def save_clip(self, clip: dict) -> int:
         """Save a video clip to the database."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_clip")
         if not clip:
             return 0
         try:
@@ -1010,8 +1026,12 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_clip failed: {e}")
+            # Rejected input keeps the legacy falsy return (contract).
+            logger.warning(f"save_clip rejected input: {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_clip failed: {e}")
+            raise StorageWriteError("save_clip", e) from e
 
     async def get_clips_for_match(self, match_id: int) -> list[dict]:
         """Get all clips for a match."""
@@ -1027,7 +1047,7 @@ class StorageService:
     async def save_playlist(self, playlist: dict) -> int:
         """Save a clip playlist to the database."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_playlist")
         if not playlist.get("name"):
             return 0
         try:
@@ -1048,8 +1068,12 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_playlist failed: {e}")
+            # Rejected input keeps the legacy falsy return (contract).
+            logger.warning(f"save_playlist rejected input: {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_playlist failed: {e}")
+            raise StorageWriteError("save_playlist", e) from e
 
     async def get_playlists(self) -> list[dict]:
         """Get all playlists."""
@@ -1077,17 +1101,21 @@ class StorageService:
     ) -> None:
         """Store face embedding and confidence for a player profile."""
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            UPDATE player_profiles
-            SET face_embedding = ?, face_confidence = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (face_embedding_json, face_confidence, profile_id),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("update_player_profile_face")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                UPDATE player_profiles
+                SET face_embedding = ?, face_confidence = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (face_embedding_json, face_confidence, profile_id),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"update_player_profile_face failed: {e}")
+            raise StorageWriteError("update_player_profile_face", e) from e
 
     async def save_events_bulk(self, match_id: int, events: list[dict]) -> int:
         """Save multiple events in a single transaction. Returns count saved."""
@@ -1248,29 +1276,35 @@ class StorageService:
     async def save_player_profile(self, profile: dict) -> int:
         """Create a new player profile."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO player_profiles (
-                global_id, display_name, jersey_number, preferred_position,
-                team, is_active, face_embedding, face_confidence
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-            """,
-            (
-                # global_id is UNIQUE NOT NULL: generate one when absent so
-                # two anonymous inserts don't collide (mirrors the PG fix).
-                profile.get("global_id") or f"auto_{uuid.uuid4().hex}",
-                profile.get("display_name", ""),
-                profile.get("jersey_number"),
-                profile.get("preferred_position"),
-                profile.get("team", "home"),
-                profile.get("face_embedding"),
-                profile.get("face_confidence", 0.0),
-            ),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_player_profile")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO player_profiles (
+                    global_id, display_name, jersey_number, preferred_position,
+                    team, is_active, face_embedding, face_confidence
+                ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                """,
+                (
+                    # global_id is UNIQUE NOT NULL: generate one when absent so
+                    # two anonymous inserts don't collide (mirrors the PG fix).
+                    profile.get("global_id") or f"auto_{uuid.uuid4().hex}",
+                    profile.get("display_name", ""),
+                    profile.get("jersey_number"),
+                    profile.get("preferred_position"),
+                    profile.get("team", "home"),
+                    profile.get("face_embedding"),
+                    profile.get("face_confidence", 0.0),
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("save_player_profile", e) from e
+            logger.warning(f"save_player_profile failed: {e}")
+            raise StorageWriteError("save_player_profile", e) from e
 
     # ── Coding Tags CRUD ──────────────────────────────────────────
 
@@ -2014,7 +2048,7 @@ class StorageService:
 
     async def rotate_encryption_key(self, key_name: str = "medical_v1") -> str | None:
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("rotate_encryption_key")
         import os
 
         new_key = os.urandom(32).hex()
@@ -2043,15 +2077,21 @@ class StorageService:
         must_reset_password: bool = False,
     ) -> int:
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (username, email, display_name, password_hash, role, int(must_reset_password)),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("create_user")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (username, email, display_name, password_hash, role, int(must_reset_password)),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("create_user", e) from e
+            logger.warning(f"create_user failed: {e}")
+            raise StorageWriteError("create_user", e) from e
 
     async def get_user_by_username(self, username: str) -> dict | None:
         if self._conn is None:
@@ -2087,56 +2127,76 @@ class StorageService:
         (unlike update_user_login) since no successful auth happened yet.
         """
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE users SET is_locked=0, failed_attempts=0, locked_until=NULL WHERE id=?",
-            (user_id,),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("clear_expired_lock")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE users SET is_locked=0, failed_attempts=0, locked_until=NULL WHERE id=?",
+                (user_id,),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"clear_expired_lock failed: {e}")
+            raise StorageWriteError("clear_expired_lock", e) from e
 
     async def update_user_login(self, user_id: int) -> None:
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE users SET last_login=datetime('now'), failed_attempts=0, is_locked=0 WHERE id=?",
-            (user_id,),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("update_user_login")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE users SET last_login=datetime('now'), failed_attempts=0, is_locked=0 WHERE id=?",
+                (user_id,),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"update_user_login failed: {e}")
+            raise StorageWriteError("update_user_login", e) from e
 
     async def record_failed_login(self, username: str) -> int:
+        """Count a failed login; returns remaining attempts, 0 = locked/unknown.
+
+        Contract: 0 is a CONTRACT outcome (unknown user — no row to count),
+        not a failure; only not-initialized/DB failure raises."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "SELECT id, failed_attempts, is_locked FROM users WHERE username=?", (username,)
-        )
-        row = cursor.fetchone()
-        if not row:
-            return 0
-        uid = row["id"]
-        attempts = (row["failed_attempts"] or 0) + 1
-        if attempts >= 5:
+            raise StorageNotInitializedError("record_failed_login")
+        try:
+            cursor = self._conn.cursor()
             cursor.execute(
-                "UPDATE users SET failed_attempts=?, is_locked=1, locked_until=datetime('now','+1 hour') WHERE id=?",
-                (attempts, uid),
+                "SELECT id, failed_attempts, is_locked FROM users WHERE username=?", (username,)
             )
-        else:
-            cursor.execute("UPDATE users SET failed_attempts=? WHERE id=?", (attempts, uid))
-        self._conn.commit()
-        return 5 - attempts
+            row = cursor.fetchone()
+            if not row:
+                return 0
+            uid = row["id"]
+            attempts = (row["failed_attempts"] or 0) + 1
+            if attempts >= 5:
+                cursor.execute(
+                    "UPDATE users SET failed_attempts=?, is_locked=1, locked_until=datetime('now','+1 hour') WHERE id=?",
+                    (attempts, uid),
+                )
+            else:
+                cursor.execute("UPDATE users SET failed_attempts=? WHERE id=?", (attempts, uid))
+            self._conn.commit()
+            return 5 - attempts
+        except Exception as e:
+            logger.warning(f"record_failed_login failed: {e}")
+            raise StorageWriteError("record_failed_login", e) from e
 
     async def save_session(self, user_id: int, token_hash: str, expires_at: str) -> int:
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-            (user_id, token_hash, expires_at),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_session")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+                (user_id, token_hash, expires_at),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_session failed: {e}")
+            raise StorageWriteError("save_session", e) from e
 
     async def validate_session(self, token_hash: str) -> dict | None:
         if self._conn is None:
@@ -2156,11 +2216,15 @@ class StorageService:
 
     async def delete_session(self, token_hash: str) -> bool:
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM user_sessions WHERE token_hash=?", (token_hash,))
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("delete_session")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("DELETE FROM user_sessions WHERE token_hash=?", (token_hash,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"delete_session failed: {e}")
+            raise StorageWriteError("delete_session", e) from e
 
     async def audit_log(
         self,
@@ -2172,15 +2236,19 @@ class StorageService:
         details: dict | None = None,
     ) -> int:
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user_id, username, action, resource_type, resource_id, json.dumps(details or {})),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("audit_log")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (user_id, username, action, resource_type, resource_id, json.dumps(details or {})),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"audit_log failed: {e}")
+            raise StorageWriteError("audit_log", e) from e
 
     async def get_audit_log(self, limit: int = 50, offset: int = 0) -> list[dict]:
         if self._conn is None:
@@ -2203,14 +2271,18 @@ class StorageService:
 
     async def change_password(self, user_id: int, new_hash: str) -> bool:
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE users SET password_hash=?, must_reset_password=0, updated_at=datetime('now') WHERE id=?",
-            (new_hash, user_id),
-        )
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("change_password")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE users SET password_hash=?, must_reset_password=0, updated_at=datetime('now') WHERE id=?",
+                (new_hash, user_id),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"change_password failed: {e}")
+            raise StorageWriteError("change_password", e) from e
 
     # ── GPS / Physical Data ────────────────────────────────────────────────────
 
@@ -2222,15 +2294,19 @@ class StorageService:
         vendor: str,
     ) -> int:
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """INSERT INTO gps_sessions (match_id, player_id, session_type, vendor)
-               VALUES (?, ?, ?, ?)""",
-            (match_id, player_id, session_type, vendor),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_gps_session")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO gps_sessions (match_id, player_id, session_type, vendor)
+                   VALUES (?, ?, ?, ?)""",
+                (match_id, player_id, session_type, vendor),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_gps_session failed: {e}")
+            raise StorageWriteError("save_gps_session", e) from e
 
     async def update_gps_session_stats(
         self,
@@ -2238,60 +2314,71 @@ class StorageService:
         summary: dict,
     ) -> None:
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """UPDATE gps_sessions SET duration_seconds=?, total_distance_m=?,
-               max_speed_kmh=?, avg_speed_kmh=?, player_load=?
-               WHERE id=?""",
-            (
-                summary.get("duration_s"),
-                summary.get("total_distance_m"),
-                summary.get("max_speed_kmh"),
-                summary.get("avg_speed_kmh"),
-                summary.get("total_player_load"),
-                session_id,
-            ),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("update_gps_session_stats")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """UPDATE gps_sessions SET duration_seconds=?, total_distance_m=?,
+                   max_speed_kmh=?, avg_speed_kmh=?, player_load=?
+                   WHERE id=?""",
+                (
+                    summary.get("duration_s"),
+                    summary.get("total_distance_m"),
+                    summary.get("max_speed_kmh"),
+                    summary.get("avg_speed_kmh"),
+                    summary.get("total_player_load"),
+                    session_id,
+                ),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"update_gps_session_stats failed: {e}")
+            raise StorageWriteError("update_gps_session_stats", e) from e
 
     async def save_gps_samples_bulk(
         self,
         session_id: int,
         samples: list[dict],
     ) -> int:
-        if self._conn is None or not samples:
+        if self._conn is None:
+            raise StorageNotInitializedError("save_gps_samples_bulk")
+        if not samples:
             return 0
         cursor = self._conn.cursor()
         count = 0
-        for s in samples:
-            cursor.execute(
-                """INSERT INTO gps_samples (session_id, timestamp, lat, lon, speed_ms,
-                   acceleration, accel_x, accel_y, accel_z, heart_rate, distance,
-                   player_load, metabolic_power, speed_zone, x_m, y_m)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    session_id,
-                    s.get("timestamp", 0.0),
-                    s.get("lat"),
-                    s.get("lon"),
-                    s.get("speed_ms"),
-                    s.get("acceleration"),
-                    s.get("accel_x"),
-                    s.get("accel_y"),
-                    s.get("accel_z"),
-                    s.get("heart_rate"),
-                    s.get("distance"),
-                    s.get("player_load"),
-                    s.get("metabolic_power"),
-                    s.get("speed_zone"),
-                    s.get("x_m"),
-                    s.get("y_m"),
-                ),
-            )
-            count += 1
-        self._conn.commit()
-        return count
+        try:
+            for s in samples:
+                cursor.execute(
+                    """INSERT INTO gps_samples (session_id, timestamp, lat, lon, speed_ms,
+                       acceleration, accel_x, accel_y, accel_z, heart_rate, distance,
+                       player_load, metabolic_power, speed_zone, x_m, y_m)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        session_id,
+                        s.get("timestamp", 0.0),
+                        s.get("lat"),
+                        s.get("lon"),
+                        s.get("speed_ms"),
+                        s.get("acceleration"),
+                        s.get("accel_x"),
+                        s.get("accel_y"),
+                        s.get("accel_z"),
+                        s.get("heart_rate"),
+                        s.get("distance"),
+                        s.get("player_load"),
+                        s.get("metabolic_power"),
+                        s.get("speed_zone"),
+                        s.get("x_m"),
+                        s.get("y_m"),
+                    ),
+                )
+                count += 1
+            self._conn.commit()
+            return count
+        except Exception as e:
+            self._conn.rollback()
+            logger.warning(f"save_gps_samples_bulk failed: {e}")
+            raise StorageWriteError("save_gps_samples_bulk", e) from e
 
     async def get_gps_sessions(self, match_id: int) -> list[dict]:
         if self._conn is None:
@@ -2329,23 +2416,27 @@ class StorageService:
         acwr: float,
     ) -> int:
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cat = "normal"
-        if acwr > 1.5:
-            cat = "very_high"
-        elif acwr > 1.3:
-            cat = "high"
-        elif acwr < 0.8:
-            cat = "low"
-        cursor.execute(
-            """INSERT OR REPLACE INTO acwr_daily
-               (player_id, date, acute_load_7d, chronic_load_28d, acwr, load_category)
-               VALUES (?,?,?,?,?,?)""",
-            (player_id, date, acute, chronic, acwr, cat),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_acwr")
+        try:
+            cursor = self._conn.cursor()
+            cat = "normal"
+            if acwr > 1.5:
+                cat = "very_high"
+            elif acwr > 1.3:
+                cat = "high"
+            elif acwr < 0.8:
+                cat = "low"
+            cursor.execute(
+                """INSERT OR REPLACE INTO acwr_daily
+                   (player_id, date, acute_load_7d, chronic_load_28d, acwr, load_category)
+                   VALUES (?,?,?,?,?,?)""",
+                (player_id, date, acute, chronic, acwr, cat),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_acwr failed: {e}")
+            raise StorageWriteError("save_acwr", e) from e
 
     async def get_player_acwr(
         self,
@@ -2419,36 +2510,40 @@ class StorageService:
     # ── Player Shortlist (migration 016) ─────────────────────────────────
 
     async def save_shortlist_entry(self, entry: dict) -> int:
-        """Insert a scouting-shortlist row, returning its id (0 on failure)."""
+        """Insert a scouting-shortlist row, returning its id."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """INSERT INTO player_shortlist (player_id, player_name, position, team, league,
+            raise StorageNotInitializedError("save_shortlist_entry")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO player_shortlist (player_id, player_name, position, team, league,
                    priority, status, notes, scout_rating, estimated_value, age, nationality)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                entry["player_id"],
-                entry["player_name"],
-                entry.get("position", ""),
-                entry.get("team", ""),
-                entry.get("league", ""),
-                entry.get("priority", "medium"),
-                entry.get("status", "scouted"),
-                entry.get("notes", ""),
-                entry.get("scout_rating", 0.0),
-                entry.get("estimated_value"),
-                entry.get("age"),
-                entry.get("nationality", ""),
-            ),
-        )
-        self._conn.commit()
-        return int(cursor.lastrowid or 0)
+                (
+                    entry["player_id"],
+                    entry["player_name"],
+                    entry.get("position", ""),
+                    entry.get("team", ""),
+                    entry.get("league", ""),
+                    entry.get("priority", "medium"),
+                    entry.get("status", "scouted"),
+                    entry.get("notes", ""),
+                    entry.get("scout_rating", 0.0),
+                    entry.get("estimated_value"),
+                    entry.get("age"),
+                    entry.get("nationality", ""),
+                ),
+            )
+            self._conn.commit()
+            return int(cursor.lastrowid or 0)
+        except Exception as e:
+            logger.warning(f"save_shortlist_entry failed: {e}")
+            raise StorageWriteError("save_shortlist_entry", e) from e
 
     async def update_shortlist_entry(self, entry_id: int, updates: dict) -> bool:
         """Update whitelisted shortlist fields; False when nothing changed."""
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("update_shortlist_entry")
         allowed = {"priority", "status", "notes", "scout_rating", "estimated_value"}
         sets = ["last_updated = datetime('now')"]
         vals: list[Any] = []
@@ -2460,10 +2555,14 @@ class StorageService:
         if len(sets) == 1:
             return False
         vals.append(entry_id)
-        cursor = self._conn.cursor()
-        cursor.execute(f"UPDATE player_shortlist SET {', '.join(sets)} WHERE id = ?", vals)
-        self._conn.commit()
-        return cursor.rowcount > 0
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(f"UPDATE player_shortlist SET {', '.join(sets)} WHERE id = ?", vals)
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"update_shortlist_entry failed: {e}")
+            raise StorageWriteError("update_shortlist_entry", e) from e
 
     async def get_shortlist(
         self, status: str | None = None, priority: str | None = None
@@ -2491,11 +2590,15 @@ class StorageService:
 
     async def delete_shortlist_entry(self, entry_id: int) -> bool:
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM player_shortlist WHERE id = ?", (entry_id,))
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("delete_shortlist_entry")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("DELETE FROM player_shortlist WHERE id = ?", (entry_id,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"delete_shortlist_entry failed: {e}")
+            raise StorageWriteError("delete_shortlist_entry", e) from e
 
     # ── Player Contracts (migration 017) ─────────────────────────────────
 
@@ -2508,31 +2611,35 @@ class StorageService:
     )
 
     async def save_contract(self, contract: dict) -> int:
-        """Insert a player-contract row, returning its id (0 on failure)."""
+        """Insert a player-contract row, returning its id."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """INSERT INTO player_contracts (player_profile_id, player_name, contract_type,
+            raise StorageNotInitializedError("save_contract")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO player_contracts (player_profile_id, player_name, contract_type,
                    start_date, end_date, club_option_years, player_option_years,
                    release_clause_millions, wage_weekly_pounds, agent_name, notes)
                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                contract["player_profile_id"],
-                contract["player_name"],
-                contract.get("contract_type", "permanent"),
-                contract["start_date"],
-                contract["end_date"],
-                contract.get("club_option_years", 0),
-                contract.get("player_option_years", 0),
-                contract.get("release_clause_millions"),
-                contract.get("wage_weekly_pounds"),
-                contract.get("agent_name", ""),
-                contract.get("notes", ""),
-            ),
-        )
-        self._conn.commit()
-        return int(cursor.lastrowid or 0)
+                (
+                    contract["player_profile_id"],
+                    contract["player_name"],
+                    contract.get("contract_type", "permanent"),
+                    contract["start_date"],
+                    contract["end_date"],
+                    contract.get("club_option_years", 0),
+                    contract.get("player_option_years", 0),
+                    contract.get("release_clause_millions"),
+                    contract.get("wage_weekly_pounds"),
+                    contract.get("agent_name", ""),
+                    contract.get("notes", ""),
+                ),
+            )
+            self._conn.commit()
+            return int(cursor.lastrowid or 0)
+        except Exception as e:
+            logger.warning(f"save_contract failed: {e}")
+            raise StorageWriteError("save_contract", e) from e
 
     async def get_contracts(self, profile_id: int | None = None) -> list[dict]:
         """List contracts (all, or for one player profile), soonest-expiring first."""

@@ -628,8 +628,7 @@ class PostgresStorageAdapter:
     # ── Player Profiles ─────────────────────────────────────────────────────
 
     async def save_player_profile(self, profile: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_player_profile")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO player_profiles (global_id, display_name, name, team, position,
@@ -681,8 +680,7 @@ class PostgresStorageAdapter:
     async def update_player_profile_face(
         self, profile_id: int, face_embedding_or_path: str, face_confidence: float = 0.0
     ) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("update_player_profile_face")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE player_profiles SET face_embedding = $1, face_confidence = $2, updated_at = NOW() WHERE id = $3",
@@ -997,8 +995,7 @@ class PostgresStorageAdapter:
     # ── Feedback ────────────────────────────────────────────────────────────
 
     async def save_feedback(self, feedback: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_feedback")
         if not feedback:
             return 0
         async with self._pool.acquire() as conn:
@@ -1031,8 +1028,7 @@ class PostgresStorageAdapter:
     # ── Issues ──────────────────────────────────────────────────────────────
 
     async def save_issue(self, issue: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_issue")
         if not issue:
             return 0
         async with self._pool.acquire() as conn:
@@ -1057,8 +1053,7 @@ class PostgresStorageAdapter:
     # ── Usage Sessions ──────────────────────────────────────────────────────
 
     async def save_usage_session(self, session: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_usage_session")
         if not session:
             return 0
         async with self._pool.acquire() as conn:
@@ -1083,8 +1078,7 @@ class PostgresStorageAdapter:
     # ── Clips ───────────────────────────────────────────────────────────────
 
     async def save_clip(self, clip: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_clip")
         if not clip:
             return 0
         async with self._pool.acquire() as conn:
@@ -1124,8 +1118,7 @@ class PostgresStorageAdapter:
     # ── Playlists ───────────────────────────────────────────────────────────
 
     async def save_playlist(self, playlist: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_playlist")
         if not playlist.get("name"):
             return 0
         async with self._pool.acquire() as conn:
@@ -1492,7 +1485,7 @@ class PostgresStorageAdapter:
         """Fill the season-context columns on a match; only non-None
         arguments are written."""
         if not self._pool:
-            return
+            raise StorageNotInitializedError("update_match_context")
         sets: list[str] = []
         vals: list[Any] = []
         if match_date is not None:
@@ -1581,8 +1574,7 @@ class PostgresStorageAdapter:
         display_name: str = "",
         must_reset_password: bool = False,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("create_user")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO users (username, email, display_name, password_hash, role, must_reset_password)
@@ -1641,8 +1633,7 @@ class PostgresStorageAdapter:
         )
 
     async def record_failed_login(self, username: str) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("record_failed_login")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT id, failed_attempts, is_locked FROM users WHERE username=$1", username
@@ -1664,8 +1655,7 @@ class PostgresStorageAdapter:
             return 5 - attempts
 
     async def save_session(self, user_id: int, token_hash: str, expires_at: str) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_session")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES ($1,$2,$3) RETURNING id",
@@ -1689,8 +1679,7 @@ class PostgresStorageAdapter:
         return dict(row) if row else None
 
     async def delete_session(self, token_hash: str) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("delete_session")
         r = await self.execute("DELETE FROM user_sessions WHERE token_hash=$1", token_hash)
         return r not in ("DELETE 0", "0")
 
@@ -1703,8 +1692,7 @@ class PostgresStorageAdapter:
         resource_id: str = "",
         details: dict | None = None,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("audit_log")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO audit_events_local (user_id, username, action, resource_type, resource_id, details)
@@ -1729,8 +1717,7 @@ class PostgresStorageAdapter:
         )
 
     async def change_password(self, user_id: int, new_hash: str) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("change_password")
         r = await self.execute(
             "UPDATE users SET password_hash=$1, must_reset_password=0, "
             "updated_at=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=$2",
@@ -1748,8 +1735,7 @@ class PostgresStorageAdapter:
         session_type: str,
         vendor: str,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_gps_session")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO gps_sessions (match_id, player_id, session_type, vendor) VALUES ($1,$2,$3,$4) RETURNING id",
@@ -1762,7 +1748,7 @@ class PostgresStorageAdapter:
 
     async def update_gps_session_stats(self, session_id: int, summary: dict) -> None:
         if not self._pool:
-            return
+            raise StorageNotInitializedError("update_gps_session_stats")
         await self.execute(
             """UPDATE gps_sessions SET duration_seconds=$1, total_distance_m=$2,
                max_speed_kmh=$3, avg_speed_kmh=$4, player_load=$5 WHERE id=$6""",
@@ -1775,7 +1761,9 @@ class PostgresStorageAdapter:
         )
 
     async def save_gps_samples_bulk(self, session_id: int, samples: list[dict]) -> int:
-        if not self._pool or not samples:
+        if not self._pool:
+            raise StorageNotInitializedError("save_gps_samples_bulk")
+        if not samples:
             return 0
         params = [
             (
@@ -1838,8 +1826,7 @@ class PostgresStorageAdapter:
         chronic: float,
         acwr: float,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_acwr")
         cat = "normal"
         if acwr > 1.5:
             cat = "very_high"
@@ -2041,8 +2028,7 @@ class PostgresStorageAdapter:
             return row["key_value"] if row else None
 
     async def rotate_encryption_key(self, key_name: str = "medical_v1") -> str | None:
-        if not self._pool:
-            return None
+        raise StorageNotInitializedError("rotate_encryption_key")
         import os as _os
 
         new_key = _os.urandom(32).hex()
@@ -2134,8 +2120,7 @@ class PostgresStorageAdapter:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_season")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO seasons (name, team_name, competition, start_date, end_date) VALUES ($1,$2,$3,$4,$5) RETURNING id",
@@ -2169,8 +2154,7 @@ class PostgresStorageAdapter:
         confidence: float = 0.0,
         is_verified: bool = False,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_player_match_link")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO player_match_links (player_id, match_id, track_id, confidence, is_verified) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (player_id, match_id) DO UPDATE SET track_id=EXCLUDED.track_id, confidence=EXCLUDED.confidence RETURNING id",
@@ -2200,8 +2184,7 @@ class PostgresStorageAdapter:
         focus_areas: list | None = None,
         notes: str = "",
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_match_comparison")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO match_comparisons (name, match_id_1, match_id_2, comparison_type, focus_areas, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
@@ -2234,8 +2217,7 @@ class PostgresStorageAdapter:
         issues: list | None = None,
         warnings: list | None = None,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_analysis_quality")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO analysis_quality (match_id, overall_score, tracking_score, event_detection_score, homography_score, team_assignment_score, issues, warnings) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
@@ -2269,8 +2251,7 @@ class PostgresStorageAdapter:
         file_path: str = "",
         file_size_bytes: int | None = None,
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_export")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO exports (match_id, season_id, export_type, format, file_path, file_size_bytes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
@@ -2288,8 +2269,7 @@ class PostgresStorageAdapter:
     async def save_batch_job(
         self, name: str, match_ids: list | None = None, options: dict | None = None
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_batch_job")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO batch_jobs (name, match_ids, options) VALUES ($1,$2,$3) RETURNING id",
@@ -2307,8 +2287,7 @@ class PostgresStorageAdapter:
         failed_matches: int | None = None,
         error_message: str | None = None,
     ) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("update_batch_job_status")
         sets = ["status = $2"]
         args = [job_id, status]
         idx = 3
@@ -2354,8 +2333,7 @@ class PostgresStorageAdapter:
     async def set_cache(
         self, cache_key: str, data: str, expires_at: float, table: str = "football_data_cache"
     ) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("set_cache")
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"INSERT INTO {table} (cache_key, data, expires_at) VALUES ($1,$2,$3) ON CONFLICT (cache_key) DO UPDATE SET data=EXCLUDED.data, expires_at=EXCLUDED.expires_at",
@@ -2378,8 +2356,7 @@ class PostgresStorageAdapter:
     # ── Match Weather ───────────────────────────────────────────────────────
 
     async def save_match_weather(self, match_id: int, weather: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_match_weather")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO match_weather (match_id, latitude, longitude, temperature_c, feels_like_c,
@@ -2415,8 +2392,7 @@ class PostgresStorageAdapter:
     # ── Card Events ─────────────────────────────────────────────────────────
 
     async def save_card_event(self, match_id: int, card: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_card_event")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO card_events (match_id, player_track_id, player_name, card_type, minute, second, detection_source, confidence, description) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",
@@ -2443,8 +2419,7 @@ class PostgresStorageAdapter:
     # ── Psychology Events ───────────────────────────────────────────────────
 
     async def save_psychology_event(self, match_id: int, event: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_psychology_event")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO psychology_events (match_id, event_type, minute, second, team, description, severity, data_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
@@ -2470,8 +2445,7 @@ class PostgresStorageAdapter:
     # ── Player Shortlist ────────────────────────────────────────────────────
 
     async def save_shortlist_entry(self, entry: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_shortlist_entry")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO player_shortlist (player_id, player_name, position, team, league,
@@ -2493,8 +2467,7 @@ class PostgresStorageAdapter:
             return row["id"] if row else 0
 
     async def update_shortlist_entry(self, entry_id: int, updates: dict) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("update_shortlist_entry")
         allowed = {"priority", "status", "notes", "scout_rating", "estimated_value"}
         sets = ["last_updated = NOW()"]
         args: list[Any] = []
@@ -2535,8 +2508,7 @@ class PostgresStorageAdapter:
         )
 
     async def delete_shortlist_entry(self, entry_id: int) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("delete_shortlist_entry")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM player_shortlist WHERE id = $1", entry_id)
             return r != "DELETE 0"
@@ -2544,8 +2516,7 @@ class PostgresStorageAdapter:
     # ── Player Contracts ────────────────────────────────────────────────────
 
     async def save_contract(self, contract: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_contract")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO player_contracts (player_profile_id, player_name, contract_type,
@@ -2595,8 +2566,7 @@ class PostgresStorageAdapter:
     # ── Collaboration Tables ────────────────────────────────────────────────
 
     async def save_collab_user(self, username: str, role: str = "analyst") -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_collab_user")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_users (username, role) VALUES ($1,$2) ON CONFLICT (username) DO UPDATE SET role=EXCLUDED.role RETURNING id",
@@ -2613,8 +2583,7 @@ class PostgresStorageAdapter:
     async def save_collab_comment(
         self, match_id: int, text: str, user_id: int = 0, username: str = "", event_id: int = 0
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_collab_comment")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_comments (match_id, event_id, user_id, username, text) VALUES ($1,$2,$3,$4,$5) RETURNING id",
@@ -2636,8 +2605,7 @@ class PostgresStorageAdapter:
     async def save_collab_mention(
         self, username: str, from_user: str, text: str, match_id: int = 0, event_id: int = 0
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_collab_mention")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO collab_mentions (username, from_user, text, match_id, event_id) VALUES ($1,$2,$3,$4,$5) RETURNING id",
@@ -2657,8 +2625,7 @@ class PostgresStorageAdapter:
         )
 
     async def mark_mention_read(self, mention_id: int) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("mark_mention_read")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE collab_mentions SET read = 1 WHERE id = $1",
@@ -2669,8 +2636,7 @@ class PostgresStorageAdapter:
     # ── Wearable Sessions ───────────────────────────────────────────────────
 
     async def save_wearable_session(self, session: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_wearable_session")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO wearable_sessions (match_id, athlete_id, athlete_name, device_type,
@@ -2724,8 +2690,7 @@ class PostgresStorageAdapter:
     # ── Medical Tables (Injuries, Rehab, Concussion, History) ───────────────
 
     async def save_injury(self, injury: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_injury")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO injuries (player_id, match_id, injury_type, body_part, severity,
@@ -2764,8 +2729,7 @@ class PostgresStorageAdapter:
         )
 
     async def update_injury(self, injury_id: int, updates: dict) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("update_injury")
         allowed = {"severity", "status", "notes", "date_recovered", "mechanism"}
         sets = ["updated_at = NOW()"]
         args: list[Any] = []
@@ -2787,8 +2751,7 @@ class PostgresStorageAdapter:
             return r != "UPDATE 0"
 
     async def save_rehab_plan(self, plan: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_rehab_plan")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO rehab_plans (injury_id, phase, start_date, target_end_date,
@@ -2815,8 +2778,7 @@ class PostgresStorageAdapter:
         )
 
     async def save_concussion_assessment(self, assessment: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_concussion_assessment")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO concussion_assessments (player_id, match_id, assessment_date,
@@ -2845,8 +2807,7 @@ class PostgresStorageAdapter:
         )
 
     async def save_medical_history(self, entry: dict) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_medical_history")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO medical_history (player_id, condition_type, diagnosis, diagnosis_date, status, severity, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
@@ -2878,8 +2839,7 @@ class PostgresStorageAdapter:
         details: dict | None = None,
         user_name: str = "local",
     ) -> int:
-        if not self._pool:
-            return 0
+        raise StorageNotInitializedError("save_audit_event")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO audit_events (action, entity_type, entity_id, details_json, user_name) VALUES ($1,$2,$3,$4,$5) RETURNING id",
@@ -2928,8 +2888,7 @@ class PostgresStorageAdapter:
             return row["value"] if row else None
 
     async def set_setting(self, key: str, value: str) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("set_setting")
         async with self._pool.acquire() as conn:
             _ = await conn.execute(
                 "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
@@ -2950,8 +2909,7 @@ class PostgresStorageAdapter:
             return row["version"] if row else None
 
     async def set_schema_version(self, version: int) -> bool:
-        if not self._pool:
-            return False
+        raise StorageNotInitializedError("set_schema_version")
         async with self._pool.acquire() as conn:
             _ = await conn.execute(
                 "INSERT INTO schema_version (version) VALUES ($1) ON CONFLICT (version) DO NOTHING",
