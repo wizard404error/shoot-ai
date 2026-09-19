@@ -70,11 +70,7 @@ class TestGoogleGeneratePayload:
                 return None
 
             def json(self):
-                return {
-                    "candidates": [
-                        {"content": {"parts": [{"text": "REPORT TEXT"}]}}
-                    ]
-                }
+                return {"candidates": [{"content": {"parts": [{"text": "REPORT TEXT"}]}}]}
 
         class _Client:
             def __init__(self, **kw):

@@ -132,9 +132,7 @@ class TestVendorImportPathValidation:
     def test_tracking_import_rejects_bad_extension(self):
         vtm, original = self._patch_tracking_service()
         try:
-            out = __import__("asyncio").run(
-                _import_handler().import_tracking_file("feed.exe")
-            )
+            out = __import__("asyncio").run(_import_handler().import_tracking_file("feed.exe"))
             assert json.loads(out)["success"] is False
             assert "unsupported" in json.loads(out).get("error", "").lower()
         finally:
@@ -143,9 +141,7 @@ class TestVendorImportPathValidation:
     def test_event_import_rejects_bad_extension(self):
         vei, original = self._patch_event_service()
         try:
-            out = __import__("asyncio").run(
-                _import_handler().import_event_file("malware.exe")
-            )
+            out = __import__("asyncio").run(_import_handler().import_event_file("malware.exe"))
             assert json.loads(out)["success"] is False
             assert "unsupported" in json.loads(out).get("error", "").lower()
         finally:

@@ -70,17 +70,28 @@ def _handler(storage=None, player_profiles=None):
 
 
 _MOVED = {
-    "get_xa_report": MatchIntelHandler, "get_pressing_report": MatchIntelHandler,
-    "get_match_quality_score": MatchIntelHandler, "compute_goals_added": MatchIntelHandler,
-    "get_gps_sessions": PhysicalHandler, "get_gps_samples": PhysicalHandler,
-    "get_player_gps_summary": PhysicalHandler, "get_player_acwr": PhysicalHandler,
-    "import_gps_file": PhysicalHandler, "generate_briefing": PhysicalHandler,
-    "check_setpiece_status": DomainHandler, "analyze_setpieces": DomainHandler,
-    "analyze_goalkeeper": DomainHandler, "analyze_goalkeeper_advanced": DomainHandler,
-    "compute_xgot": DomainHandler, "analyze_substitutions": DomainHandler,
-    "analyze_possession": DomainHandler, "analyze_match_psychology": DomainHandler,
-    "get_law_summary": DomainHandler, "classify_event_rule": DomainHandler,
-    "check_offside": DomainHandler, "infer_cards_tactically": DomainHandler,
+    "get_xa_report": MatchIntelHandler,
+    "get_pressing_report": MatchIntelHandler,
+    "get_match_quality_score": MatchIntelHandler,
+    "compute_goals_added": MatchIntelHandler,
+    "get_gps_sessions": PhysicalHandler,
+    "get_gps_samples": PhysicalHandler,
+    "get_player_gps_summary": PhysicalHandler,
+    "get_player_acwr": PhysicalHandler,
+    "import_gps_file": PhysicalHandler,
+    "generate_briefing": PhysicalHandler,
+    "check_setpiece_status": DomainHandler,
+    "analyze_setpieces": DomainHandler,
+    "analyze_goalkeeper": DomainHandler,
+    "analyze_goalkeeper_advanced": DomainHandler,
+    "compute_xgot": DomainHandler,
+    "analyze_substitutions": DomainHandler,
+    "analyze_possession": DomainHandler,
+    "analyze_match_psychology": DomainHandler,
+    "get_law_summary": DomainHandler,
+    "classify_event_rule": DomainHandler,
+    "check_offside": DomainHandler,
+    "infer_cards_tactically": DomainHandler,
     "fetch_external_cards": DomainHandler,
 }
 
@@ -95,6 +106,7 @@ def _handler_for(method, storage=None, player_profiles=None, extra=None):
         services.update(extra)
     cls = _MOVED.get(method, AnalysisHandler)
     return cls(bridge=None, services=services, rate_limiter=None)
+
 
 class TestGetDashboardStats:
     @pytest.mark.asyncio
@@ -204,7 +216,9 @@ class TestGetPressingReport:
                 {"type": "shot", "team": "home", "timestamp": 2.0, "is_goal": False},
             ],
         }
-        handler = _handler_for("get_pressing_report", MockStorageService(events_by_match=events_by_match))
+        handler = _handler_for(
+            "get_pressing_report", MockStorageService(events_by_match=events_by_match)
+        )
         result = json.loads(await handler.get_pressing_report(1))
         assert result["home"]["traps"] == 1.0
         assert result["home"]["shots_from_traps"] == 1.0
@@ -391,12 +405,14 @@ class TestGpsAcwrHandlers:
 
         handler = PhysicalHandler(
             bridge=None,
-            services={"storage_service": MagicMock(
-                get_player_acwr=AsyncMock(return_value=[{"date": "2026-01-01", "acwr": 1.1}]),
-                get_gps_sessions=AsyncMock(return_value=[{"id": 3}]),
-                get_gps_samples=AsyncMock(return_value=[{"speed": 7.2}]),
-                get_player_gps_summary=AsyncMock(return_value=[{"total_distance": 10400.0}]),
-            )},
+            services={
+                "storage_service": MagicMock(
+                    get_player_acwr=AsyncMock(return_value=[{"date": "2026-01-01", "acwr": 1.1}]),
+                    get_gps_sessions=AsyncMock(return_value=[{"id": 3}]),
+                    get_gps_samples=AsyncMock(return_value=[{"speed": 7.2}]),
+                    get_player_gps_summary=AsyncMock(return_value=[{"total_distance": 10400.0}]),
+                )
+            },
             rate_limiter=None,
         )
         acwr = json.loads(await handler.get_player_acwr("7"))

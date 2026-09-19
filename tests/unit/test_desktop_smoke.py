@@ -113,9 +113,9 @@ class TestSettingsWorkspaceWiring:
         settings_handler = (SRC / "ui" / "bridge_handlers" / "bridge_settings.py").read_text(
             encoding="utf-8"
         )
-        recruitment_handler = (
-            SRC / "ui" / "bridge_handlers" / "bridge_recruitment.py"
-        ).read_text(encoding="utf-8")
+        recruitment_handler = (SRC / "ui" / "bridge_handlers" / "bridge_recruitment.py").read_text(
+            encoding="utf-8"
+        )
         for slot, home in (
             ("get_settings_overview", settings_handler),
             ("get_contract_alerts", recruitment_handler),

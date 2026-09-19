@@ -113,9 +113,7 @@ def test_match_intel_xa_report_on_real_persisted_events(qapp, tmp_path, monkeypa
             storage = window.storage
             try:
                 await storage.initialize()
-                match_id = await storage.save_match(
-                    "C3 e2e fixture", "e2e.mp4", "Reds", "Blues"
-                )
+                match_id = await storage.save_match("C3 e2e fixture", "e2e.mp4", "Reds", "Blues")
                 assert match_id > 0
                 saved = await storage.save_events_bulk(
                     match_id,
@@ -132,9 +130,7 @@ def test_match_intel_xa_report_on_real_persisted_events(qapp, tmp_path, monkeypa
                 assert "error" not in report, f"xa report failed on real data: {report}"
                 assert report["home"] > 0, f"home xA must be non-zero: {report}"
                 assert report["away"] > 0, f"away xA must be non-zero: {report}"
-                assert report["total"] == pytest.approx(
-                    report["home"] + report["away"], abs=1e-6
-                )
+                assert report["total"] == pytest.approx(report["home"] + report["away"], abs=1e-6)
             finally:
                 await storage.close()
 
@@ -175,9 +171,7 @@ def test_pressing_report_uses_real_event_types(qapp, tmp_path, monkeypatch):
                 report = json.loads(raw)
                 assert "error" not in report, f"pressing report failed: {report}"
                 assert report["home"]["traps"] == 1.0, f"trap not counted: {report}"
-                assert report["home"]["shots_from_traps"] == 1.0, (
-                    f"conversion missed: {report}"
-                )
+                assert report["home"]["shots_from_traps"] == 1.0, f"conversion missed: {report}"
                 assert report["away"]["traps"] == 0.0
             finally:
                 await storage.close()

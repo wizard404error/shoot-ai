@@ -139,17 +139,13 @@ class TestBoxmotDetIndMapping:
 
     def test_det_ind_maps_ids_without_geomatch(self, cv_mod):
         svc = _make_service(cv_mod)
-        svc._boxmot_tracker = _FakeTracker(
-            [_boxmot_row(10, 10, 50, 60, 7, 0.9, 0, 1)]
-        )
+        svc._boxmot_tracker = _FakeTracker([_boxmot_row(10, 10, 50, 60, 7, 0.9, 0, 1)])
         # Detection 1 is far from the track box (Kalman drift) -- the old
         # Hungarian re-match (IoU gate 0.3) dropped this ID entirely.
         boxes = _FakeBoxes([[100, 100, 140, 150], [12, 12, 52, 62]], [0.9, 0.9], [0, 0])
         _patch_model(cv_mod, svc, boxes)
         frame = np.zeros((360, 640, 3), dtype=np.uint8)
-        with patch.object(
-            cv_mod.CVService, "_compute_pitch_mask", return_value=None
-        ):
+        with patch.object(cv_mod.CVService, "_compute_pitch_mask", return_value=None):
             dets = _run_detect(cv_mod, svc, frame)
         ids = sorted(d.track_id for d in dets if d.track_id is not None)
         assert 7 in ids, "det_ind mapping must survive Kalman box drift"
@@ -158,15 +154,11 @@ class TestBoxmotDetIndMapping:
         svc = _make_service(cv_mod)
         # Ball row: det_ind=5 is stale/wrong (out of range for 2 dets and
         # class mismatch) -> per-class IoU fallback should assign det 0.
-        svc._boxmot_tracker = _FakeTracker(
-            [_boxmot_row(200, 200, 210, 210, 3, 0.8, 32, 5)]
-        )
+        svc._boxmot_tracker = _FakeTracker([_boxmot_row(200, 200, 210, 210, 3, 0.8, 32, 5)])
         boxes = _FakeBoxes([[200, 200, 210, 210], [12, 12, 52, 62]], [0.9, 0.9], [32, 0])
         _patch_model(cv_mod, svc, boxes)
         frame = np.zeros((360, 640, 3), dtype=np.uint8)
-        with patch.object(
-            cv_mod.CVService, "_compute_pitch_mask", return_value=None
-        ):
+        with patch.object(cv_mod.CVService, "_compute_pitch_mask", return_value=None):
             dets = _run_detect(cv_mod, svc, frame)
         ball_ids = [d.track_id for d in dets if d.class_name == "sports ball"]
         assert ball_ids == [3], "stale det_ind must fall back to per-class IoU"
@@ -179,9 +171,7 @@ class TestBoxmotDetIndMapping:
         svc._boxmot_tracker = tracker
         svc._model = MagicMock(return_value=[])
         frame = np.zeros((360, 640, 3), dtype=np.uint8)
-        with patch.object(
-            cv_mod.CVService, "_compute_pitch_mask", return_value=None
-        ):
+        with patch.object(cv_mod.CVService, "_compute_pitch_mask", return_value=None):
             _run_detect(cv_mod, svc, frame)
         assert len(tracker.update_calls) == 1
         assert tracker.update_calls[0].shape == (0, 6)
@@ -224,9 +214,7 @@ class TestSelfHealingPitchMask:
         # And the cache must now be calibrated on grass, not the blank frame.
         rng = svc._pitch_hsv_range
         assert rng is not None
-        probe = real_cv2.inRange(
-            real_cv2.cvtColor(grass, real_cv2.COLOR_BGR2HSV), rng[0], rng[1]
-        )
+        probe = real_cv2.inRange(real_cv2.cvtColor(grass, real_cv2.COLOR_BGR2HSV), rng[0], rng[1])
         assert probe.mean() / 255.0 >= 0.10
 
     def test_tiny_mask_returns_none_not_garbage(self, cv_mod):
@@ -250,9 +238,7 @@ class TestPooledTeamClustering:
         return pytest.importorskip("cv2")
 
     def _hsv_to_bgr(self, cv2, h, s, v):
-        return tuple(
-            int(x) for x in cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2BGR)[0, 0]
-        )
+        return tuple(int(x) for x in cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2BGR)[0, 0])
 
     def test_minority_kit_survives_pooling(self, cv_mod):
         """29 blue samples among 183 red must win their tracks' majority --
@@ -316,9 +302,7 @@ class TestPooledTeamClustering:
 
         mock_km = MagicMock()
         mock_km.fit_predict.return_value = np.array([0, 1])
-        mock_km.cluster_centers_ = np.array(
-            [[200, 100, 50], [50, 100, 200]], dtype=np.float64
-        )
+        mock_km.cluster_centers_ = np.array([[200, 100, 50], [50, 100, 200]], dtype=np.float64)
         with patch("sklearn.cluster.KMeans", return_value=mock_km):
             data = {
                 1: {"primary_color": (200, 100, 50), "samples": 5},
