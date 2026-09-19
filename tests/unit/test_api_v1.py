@@ -426,6 +426,7 @@ class TestApiSeason:
         resp = client.get("/api/v1/season/summary", headers=_analyst_headers())
         assert resp.status_code == 200
 
+
 class TestStorageError503:
     """Honest storage failures surface as 503 storage_unavailable, not 500
     tracebacks or silent empty lists (storage_errors.py contract)."""
@@ -439,7 +440,8 @@ class TestStorageError503:
 
         monkeypatch.setattr(api_v1, "_storage", None, raising=False)
         monkeypatch.setattr(
-            type(api_v1._get_storage()), "get_all_matches",
+            type(api_v1._get_storage()),
+            "get_all_matches",
             lambda self: boom(),
         )
         resp = client.get("/api/v1/matches", headers=_analyst_headers())
@@ -456,7 +458,8 @@ class TestStorageError503:
             raise StorageReadError("get_all_matches", RuntimeError("disk gone"))
 
         monkeypatch.setattr(
-            type(api_v1._get_storage()), "get_all_matches",
+            type(api_v1._get_storage()),
+            "get_all_matches",
             lambda self: boom(),
         )
         resp = client.get("/api/v1/matches", headers=_analyst_headers())

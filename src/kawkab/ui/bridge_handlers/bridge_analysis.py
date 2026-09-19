@@ -2395,146 +2395,253 @@ class AnalysisHandler(BridgeHandlerBase):
     # version is defined above, next to get_squad_injury_report)
 
     # ================================================================
-    # Sprint 1 — Training Plan Auto-Generate
+    # Training Plan Auto-Generate (real reasoning engine — façade removed)
     # ================================================================
 
+    @staticmethod
+    def _normalize_storage_events(events) -> list[dict]:
+        """Storage rows -> event shape ReasoningService expects.
+
+        "event_type" -> "type", plus metadata-merged zone/situation/
+        outcome fields the rule checkers read. Shared by the single-
+        and multi-match plan slots (same boundary normalization
+        v0.13.2 applied to the xA/pressing reports).
+        """
+        normalized: list[dict] = []
+        for ev in events or []:
+            if not isinstance(ev, dict):
+                continue
+            item = dict(ev)
+            if "type" not in item:
+                item["type"] = item.get("event_type", "")
+            meta = item.get("metadata")
+            if isinstance(meta, str) and meta:
+                try:
+                    parsed = json.loads(meta)
+                    if isinstance(parsed, dict):
+                        for k, v in parsed.items():
+                            item.setdefault(k, v)
+                except json.JSONDecodeError:
+                    pass
+            normalized.append(item)
+        return normalized
+
+    @staticmethod
+    def _build_match_analysis(match_id: int, match_data: dict, normalized_events: list[dict]):
+        """Build the MatchAnalysis the reasoning engine consumes, from
+        real stored data. No diagnoses are ever invented here: if the
+        match has no events, the engine simply returns none."""
+        from kawkab.services.analysis_service import MatchAnalysis, TeamStats
+
+        home = TeamStats(team_name=str((match_data or {}).get("home_team", "Home")))
+        away = TeamStats(team_name=str((match_data or {}).get("away_team", "Away")))
+        away_name = str((match_data or {}).get("away_team", ""))
+        for ev in normalized_events:
+            etype = str(ev.get("type", ""))
+            team = str(ev.get("team", "home"))
+            target = away if team == "away" or team == away_name else home
+            if etype == "pass":
+                target.passes_attempted += 1
+                if ev.get("completed"):
+                    target.passes_completed += 1
+            elif etype == "shot":
+                target.shots += 1
+            elif etype == "tackle":
+                target.tackles += 1
+            elif etype == "corner":
+                target.corners += 1
+            elif etype == "foul":
+                target.fouls += 1
+
+        duration = float((match_data or {}).get("duration") or 0.0)
+        if duration <= 0 and normalized_events:
+            duration = max(
+                (float(e.get("timestamp", 0) or 0) for e in normalized_events),
+                default=0.0,
+            )
+
+        return MatchAnalysis(
+            match_id=match_id,
+            duration_seconds=duration,
+            home_team=home,
+            away_team=away,
+            players={},
+            events=normalized_events,
+        )
+
     async def generate_training_plan(self, match_id):
+        # Facade fix: this handler used to fabricate five hardcoded
+        # diagnoses (R001-R005) from raw event-type counts with constant
+        # confidences, reference drill IDs (D001-D009) that never existed
+        # in the knowledge base, and return a plan that was never
+        # persisted. It now runs the real ReasoningService over the
+        # stored events, flags any drill the KB cannot resolve, and
+        # persists the plan so it survives a restart. Constant-firing
+        # fabricated diagnoses are structurally impossible here: whatever
+        # fires, fires on real stored events.
         try:
             self._check_rate_limit()
             match_id = SecurityValidator.validate_match_id(match_id)
-            events = await self.storage_service.get_match_events(match_id)
-            players = await self.storage_service.get_match_players(match_id)
+            events = await self.storage_service.get_match_events(match_id, limit=5000)
+            match_data = await self.storage_service.get_match(match_id) or {}
 
             from kawkab.services.knowledge_service import KnowledgeService
-            from kawkab.services.reasoning_service import Diagnosis, DiagnosisReport
+            from kawkab.services.reasoning_service import ReasoningService
             from kawkab.services.training_plan_service import TrainingPlanGenerator
 
-            event_types = {}
-            for ev in events or []:
-                et = ev.get("event_type", "unknown")
-                event_types[et] = event_types.get(et, 0) + 1
-
-            diagnoses = []
-            if event_types.get("pass", 0) < 10:
-                diagnoses.append(
-                    Diagnosis(
-                        rule_id="R001",
-                        rule_name="Low Passing Volume",
-                        rule_name_ar="حجم تمرير منخفض",
-                        category="technical",
-                        severity="medium",
-                        confidence=0.75,
-                        evidence={"pass_count": event_types.get("pass", 0)},
-                        explanation="Low passing volume indicates poor build-up play",
-                        explanation_ar="يشير حجم التمرير المنخفض إلى ضعف في بناء الهجمات",
-                        recommended_drills=["D001", "D002", "D003"],
-                    )
-                )
-            if event_types.get("shot", 0) < 5:
-                diagnoses.append(
-                    Diagnosis(
-                        rule_id="R002",
-                        rule_name="Low Shot Creation",
-                        rule_name_ar="خلق فرص تسديد منخفض",
-                        category="attacking",
-                        severity="medium",
-                        confidence=0.7,
-                        evidence={"shot_count": event_types.get("shot", 0)},
-                        explanation="Few shots indicate lack of attacking penetration",
-                        explanation_ar="قلة التسديدات تشير إلى ضعف الاختراق الهجومي",
-                        recommended_drills=["D004", "D005"],
-                    )
-                )
-            if event_types.get("tackle", 0) < 8:
-                diagnoses.append(
-                    Diagnosis(
-                        rule_id="R003",
-                        rule_name="Low Defensive Engagement",
-                        rule_name_ar="مشاركة دفاعية منخفضة",
-                        category="defensive",
-                        severity="high",
-                        confidence=0.65,
-                        evidence={"tackle_count": event_types.get("tackle", 0)},
-                        explanation="Low tackle count indicates passive defending",
-                        explanation_ar="يشير انخفاض عدد التدخلات إلى دفاع سلبي",
-                        recommended_drills=["D006", "D007"],
-                    )
-                )
-            if event_types.get("pressing", 0) or event_types.get("pressure", 0) or 0 < 3:
-                diagnoses.append(
-                    Diagnosis(
-                        rule_id="R004",
-                        rule_name="Low Pressing Intensity",
-                        rule_name_ar="شدة ضغط منخفضة",
-                        category="defensive",
-                        severity="medium",
-                        confidence=0.6,
-                        evidence={
-                            "pressure_count": event_types.get("pressing", 0)
-                            or event_types.get("pressure", 0)
-                            or 0
-                        },
-                        explanation="Low pressing allows opponent easy build-up",
-                        explanation_ar="الضغط المنخفض يسمح للخصم ببناء الهجمات بسهولة",
-                        recommended_drills=["D008", "D009"],
-                    )
-                )
-            if not diagnoses:
-                diagnoses.append(
-                    Diagnosis(
-                        rule_id="R005",
-                        rule_name="General Match Fitness",
-                        rule_name_ar="لياقة المباراة العامة",
-                        category="fitness",
-                        severity="low",
-                        confidence=0.5,
-                        evidence={"event_count": len(events or [])},
-                        explanation="Maintain current fitness levels",
-                        explanation_ar="الحفاظ على مستويات اللياقة الحالية",
-                        recommended_drills=["D001", "D004", "D006"],
-                    )
-                )
-
-            report = DiagnosisReport(
-                match_id=match_id,
-                diagnoses=diagnoses,
-                overall_assessment="Auto-generated training plan from match analysis",
-                overall_assessment_ar="خطة تدريب مولدة تلقائياً من تحليل المباراة",
-                priority_actions=[d.rule_name for d in diagnoses[:3]],
-                priority_actions_ar=[d.rule_name_ar for d in diagnoses[:3]],
-                confidence=0.7,
-            )
+            normalized_events = self._normalize_storage_events(events)
+            analysis = self._build_match_analysis(match_id, match_data, normalized_events)
 
             kb = KnowledgeService()
             await kb.initialize()
+            reasoner = ReasoningService(kb)
+            report = await reasoner.diagnose_match(analysis, events=normalized_events)
+
             gen = TrainingPlanGenerator(kb)
-            plan = await gen.generate_plan(report)
+            game_model = await self.storage_service.get_active_game_model_for_match(match_id)
+            plan = await gen.generate_plan(report, game_model=game_model)
 
             plan_dict = gen.export_to_dict(plan)
+            plan_dict["game_model_source"] = bool(game_model)
 
-            match_data = await self.storage_service.get_match(match_id)
-            home_team = (match_data or {}).get("home_team", "Home")
-            away_team = (match_data or {}).get("away_team", "Away")
+            # Honesty gate: a plan referencing drills the knowledge base
+            # cannot resolve is flagged loudly — never silently rendered
+            # as phantom content (the old D001-D009 failure mode).
+            if plan_dict.get("unresolved_drills"):
+                plan_dict["drills_warning"] = (
+                    f"{len(plan_dict['unresolved_drills'])} referenced drill(s) are not in "
+                    f"the knowledge base and will render as unresolved: "
+                    f"{', '.join(plan_dict['unresolved_drills'])}"
+                )
 
+            # Persist (training_plans + plan_versions): the plan survives a
+            # restart and can be assigned/executed/re-measured — the loop.
+            priorities = [d.rule_name for d in report.diagnoses[:2]] or ["General development"]
+            plan_db_id = await self.storage_service.save_training_plan(
+                match_id=match_id,
+                title=f"Plan: {' + '.join(priorities)}",
+                payload=plan_dict,
+                duration_weeks=plan.duration_weeks,
+                priority_diagnoses=[
+                    {
+                        "rule_id": d.rule_id,
+                        "rule_name": d.rule_name,
+                        "confidence": d.confidence,
+                    }
+                    for d in report.diagnoses[:5]
+                ],
+                source="reasoning_engine",
+            )
+
+            persisted_id = plan_db_id if isinstance(plan_db_id, int) else None
             return json.dumps(
                 {
                     "success": True,
+                    "plan_id": persisted_id,
                     "plan": plan_dict,
-                    "match_info": {
-                        "match_id": match_id,
-                        "home_team": home_team,
-                        "away_team": away_team,
-                    },
-                    "analysis_summary": {
-                        "total_events": len(events or []),
-                        "event_breakdown": event_types,
-                        "total_players": len(players or []),
-                        "diagnoses_found": len(diagnoses),
-                    },
+                    "diagnosis_count": len(report.diagnoses),
+                    "unresolved_drills": plan_dict.get("unresolved_drills", []),
+                    "persisted": persisted_id is not None and persisted_id > 0,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"generate_training_plan failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def generate_training_plan_multi_match(self, match_ids_json: str):
+        """Multi-match diagnosis -> morphocycle plan over a pooled event set.
+
+        The KB rules declare min_matches thresholds; pooling several
+        matches lets diagnoses reach 'confirmed' (see ReasoningService
+        .diagnose_matches). Every event comes from real stored matches —
+        the pooled report is persisted with full provenance
+        (match_ids, confirmation tiers, hypothesis evaluations).
+        """
+        try:
+            self._check_rate_limit()
+            raw_ids = (
+                json.loads(match_ids_json)
+                if isinstance(match_ids_json, str)
+                else list(match_ids_json or [])
+            )
+            if not isinstance(raw_ids, list) or not raw_ids:
+                return json.dumps({"error": "match_ids must be a non-empty JSON array"})
+            match_ids = [SecurityValidator.validate_match_id(m) for m in raw_ids]
+            if len(set(match_ids)) < 2:
+                return json.dumps(
+                    {
+                        "error": "multi-match mode requires at least 2 distinct match ids "
+                        "(use generate_training_plan for a single match)"
+                    }
+                )
+
+            from kawkab.services.knowledge_service import KnowledgeService
+            from kawkab.services.reasoning_service import ReasoningService
+            from kawkab.services.training_plan_service import TrainingPlanGenerator
+
+            analyses = []
+            pooled_events: list[dict] = []
+            for mid in match_ids:
+                events = await self.storage_service.get_match_events(mid, limit=5000)
+                match_data = await self.storage_service.get_match(mid) or {}
+                normalized = self._normalize_storage_events(events)
+                analyses.append(self._build_match_analysis(mid, match_data, normalized))
+                pooled_events.extend(normalized)
+
+            kb = KnowledgeService()
+            await kb.initialize()
+            reasoner = ReasoningService(kb)
+            report = await reasoner.diagnose_matches(analyses, match_ids=match_ids)
+
+            gen = TrainingPlanGenerator(kb)
+            game_model = await self.storage_service.get_active_game_model_for_match(match_ids[0])
+            plan = await gen.generate_plan(report, game_model=game_model)
+            plan_dict = gen.export_to_dict(plan)
+            plan_dict["game_model_source"] = bool(game_model)
+
+            if plan_dict.get("unresolved_drills"):
+                plan_dict["drills_warning"] = (
+                    f"{len(plan_dict['unresolved_drills'])} referenced drill(s) are not in "
+                    f"the knowledge base and will render as unresolved: "
+                    f"{', '.join(plan_dict['unresolved_drills'])}"
+                )
+
+            priorities = [d.rule_name for d in report.diagnoses[:2]] or ["General development"]
+            plan_db_id = await self.storage_service.save_training_plan(
+                match_id=match_ids[0],
+                title=f"Multi-match plan ({len(match_ids)} matches): {' + '.join(priorities)}",
+                payload=plan_dict,
+                duration_weeks=plan.duration_weeks,
+                priority_diagnoses=[
+                    {
+                        "rule_id": d.rule_id,
+                        "rule_name": d.rule_name,
+                        "confidence": d.confidence,
+                        "confirmation": d.confirmation,
+                        "match_count": d.match_count,
+                    }
+                    for d in report.diagnoses[:5]
+                ],
+                source="reasoning_engine_multi_match",
+            )
+
+            confirmed = sum(1 for d in report.diagnoses if d.confirmation == "confirmed")
+            persisted_id = plan_db_id if isinstance(plan_db_id, int) else None
+            return json.dumps(
+                {
+                    "success": True,
+                    "plan_id": persisted_id,
+                    "plan": plan_dict,
+                    "diagnosis_count": len(report.diagnoses),
+                    "confirmed_count": confirmed,
+                    "match_ids": report.match_ids,
+                    "unresolved_drills": plan_dict.get("unresolved_drills", []),
+                    "persisted": persisted_id is not None and persisted_id > 0,
                 }
             )
         except Exception as e:
-            logger.error(f"generate_training_plan failed: {e}")
+            logger.error(f"generate_training_plan_multi_match failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
     async def get_event_timestamp(self, match_id, event_id):

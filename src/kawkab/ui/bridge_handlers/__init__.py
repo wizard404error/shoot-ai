@@ -18,6 +18,7 @@ from .bridge_recruitment import RecruitmentHandler
 from .bridge_season_analytics import SeasonAnalyticsHandler
 from .bridge_settings import SettingsHandler
 from .bridge_storage import StorageHandler
+from .bridge_training import TrainingHandler
 from .bridge_video import VideoHandler
 from .bridge_whiteboard import WhiteboardHandler
 
@@ -35,6 +36,7 @@ __all__ = [
     "ExportHandler",
     "VideoHandler",
     "StorageHandler",
+    "TrainingHandler",
     "ExternalHandler",
     "LifecycleHandler",
     "ProviderHandler",

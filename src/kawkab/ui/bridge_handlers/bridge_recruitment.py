@@ -446,7 +446,17 @@ class RecruitmentHandler(BridgeHandlerBase):
         try:
             svc = self._get_transfermarkt()
             results = svc.search_player(str(name))
-            return json.dumps({"success": True, "results": results})
+            # Honest states: the service never fabricates players (the old
+            # demo-data path returned "Demo FC" squads for any query), so
+            # an empty list means exactly that — surface the reason.
+            return json.dumps(
+                {
+                    "success": True,
+                    "results": results,
+                    "data_available": bool(results),
+                    "provider_status": svc.provider_status(),
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -454,7 +464,13 @@ class RecruitmentHandler(BridgeHandlerBase):
         try:
             svc = self._get_transfermarkt()
             details = svc.get_player_details(int(player_id))
-            return json.dumps({"success": True, "details": details})
+            return json.dumps(
+                {
+                    "success": True,
+                    "details": details,
+                    "data_available": bool(details.get("data_available", True)),
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
@@ -462,6 +478,13 @@ class RecruitmentHandler(BridgeHandlerBase):
         try:
             svc = self._get_transfermarkt()
             squad = svc.get_club_squad(str(club_name))
-            return json.dumps({"success": True, "squad": squad})
+            return json.dumps(
+                {
+                    "success": True,
+                    "squad": squad,
+                    "data_available": bool(squad),
+                    "provider_status": svc.provider_status(),
+                }
+            )
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})

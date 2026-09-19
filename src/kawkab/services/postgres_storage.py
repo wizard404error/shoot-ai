@@ -3267,3 +3267,85 @@ class PostgresStorageAdapter:
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
     """  # noqa: E501
+
+
+# ================================================================
+# Training OS cluster (migration 032) — explicit Postgres stubs.
+#
+# These tables and their full behavior currently exist only in the
+# SQLite StorageService (services/training_storage.py mixin). Stubs are
+# deliberate, not an omission: an inherited no-op would silently
+# "succeed" (write nothing, return None) in cloud mode and corrupt the
+# training loop's data guarantees. Every method here fails loudly, and
+# grep 'HONEST-UNIMPLEMENTED-PG' finds all of them.
+# ================================================================
+
+
+def _make_honest_stub(name: str):
+    """Build a fail-loud coroutine method with a stable, greppable error."""
+    # HONEST-UNIMPLEMENTED-PG factory — see block comment above.
+
+    async def _stub(*_args: Any, **_kwargs: Any) -> Any:
+        raise StorageNotInitializedError(f"{name}: not yet implemented on Postgres")
+
+    _stub.__name__ = name
+    _stub.__qualname__ = f"PostgresStorageAdapter.{name}"
+    return _stub
+
+
+for _name in [
+    "save_game_model",
+    "get_active_game_model",
+    "get_active_game_model_for_match",
+    "get_game_model_history",
+    "save_training_plan",
+    "update_training_plan_payload",
+    "set_training_plan_status",
+    "get_training_plan",
+    "get_training_plans_for_match",
+    "list_training_plans",
+    "get_plan_versions",
+    "save_training_session",
+    "set_session_status",
+    "get_training_sessions",
+    "get_training_session",
+    "add_session_drill",
+    "set_drill_execution",
+    "get_session_drills",
+    "save_attendance",
+    "get_session_attendance",
+    "save_session_rpe",
+    "get_session_rpe",
+    "get_player_rpe_history",
+    "save_wellness",
+    "get_player_wellness",
+    "get_squad_wellness_latest",
+    "save_drill_feedback",
+    "get_drill_feedback",
+    "save_testing_result",
+    "get_player_testing_history",
+    "get_testing_distribution",
+    "save_idp_goal",
+    "update_idp_goal",
+    "get_player_idp",
+    "save_nutrition_log",
+    "get_nutrition_logs",
+    "save_psych_checkin",
+    "get_psych_checkins",
+    "get_flagged_psych_checkins",
+    "save_ritual",
+    "complete_ritual",
+    "get_rituals",
+    "set_medical_clearance",
+    "get_latest_clearance",
+    "get_clearances_by_status",
+    "save_minutes_entry",
+    "get_player_minutes_history",
+    "get_squad_minutes_summary",
+]:
+    # HONEST-UNIMPLEMENTED-PG: fail-loud stub (see block comment above).
+    setattr(
+        PostgresStorageAdapter,
+        _name,
+        _make_honest_stub(_name),
+    )

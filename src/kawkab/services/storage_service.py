@@ -26,6 +26,7 @@ from kawkab.services.storage_errors import (
     StorageWriteError,
     is_duplicate_violation,
 )
+from kawkab.services.training_storage import TrainingStorageMixin
 
 if TYPE_CHECKING:
     from kawkab.services.benchmark_service import BenchmarkResult
@@ -61,7 +62,7 @@ def _merge_event_coords(event: dict) -> str:
     return json.dumps(merged)
 
 
-class StorageService:
+class StorageService(TrainingStorageMixin):
     """SQLite-based storage for Kawkab AI data (or PostgreSQL via KAWKAB_DB_URL)."""
 
     _COLUMN_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
