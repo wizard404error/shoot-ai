@@ -17,6 +17,7 @@ from typing import Any
 
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import parse_metadata_json
+from kawkab.services.storage_errors import StorageNotInitializedError
 
 logger = get_logger(__name__)
 
@@ -24,7 +25,11 @@ logger = get_logger(__name__)
 class PostgresStorageAdapter:
     """Full PostgreSQL adapter mirroring ALL StorageService async methods.
 
-    Falls back to safe defaults (0/False/None/[]) when pool is not available.
+    Contract (coding-tags cluster first; the rest migrates cluster by
+    cluster): "pool not available" raises StorageNotInitialized instead of
+    feeding silent 0/False/[] — the old fallback once made a Postgres
+    deployment return empty data for every call. Rejected input keeps the
+    legacy falsy return; database failures raise.
     Only raises NotImplementedError for SQLite-specific features (.backup() API).
     """
 
@@ -1130,7 +1135,7 @@ class PostgresStorageAdapter:
 
     async def save_coding_tag(self, match_id: int, tag: dict) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_coding_tag")
         if (
             tag.get("event_type") is None
             and tag.get("video_time") is None
@@ -1162,6 +1167,8 @@ class PostgresStorageAdapter:
             return row["id"] if row else 0
 
     async def get_coding_tags(self, match_id: int) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_coding_tags")
         # Soft-delete filter mirrors SQLite get_coding_tags (parity).
         return await self.fetch(
             "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
@@ -1169,6 +1176,8 @@ class PostgresStorageAdapter:
         )
 
     async def get_coding_tags_by_type(self, match_id: int, tag_type: str) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_coding_tags_by_type")
         return await self.fetch(
             "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND (event_type = $2 OR tag_type = $2) AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
             match_id,
@@ -1176,6 +1185,8 @@ class PostgresStorageAdapter:
         )
 
     async def get_coding_tags_by_player(self, match_id: int, player_track_id: int) -> list[dict]:
+        if not self._pool:
+            raise StorageNotInitializedError("get_coding_tags_by_player")
         return await self.fetch(
             "SELECT id, match_id, event_type, tag_type, sub_type, category, video_time, timestamp, player_track_id, player_name, team, period, notes, color, lead_ms, lag_ms, created_at FROM coding_tags WHERE match_id = $1 AND player_track_id = $2 AND (is_deleted IS NULL OR is_deleted=0) ORDER BY video_time",
             match_id,
@@ -1184,7 +1195,7 @@ class PostgresStorageAdapter:
 
     async def update_coding_tag(self, tag_id: int, updates: dict) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_coding_tag")
         allowed = {
             "event_type",
             "tag_type",
@@ -1222,7 +1233,7 @@ class PostgresStorageAdapter:
 
     async def delete_coding_tag(self, tag_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("delete_coding_tag")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE coding_tags SET is_deleted=1, deleted_at=NOW() WHERE id = $1 AND (is_deleted IS NULL OR is_deleted=0)",
@@ -1232,14 +1243,14 @@ class PostgresStorageAdapter:
 
     async def hard_delete_coding_tag(self, tag_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("hard_delete_coding_tag")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM coding_tags WHERE id = $1", tag_id)
             return r != "DELETE 0"
 
     async def restore_coding_tag(self, tag_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("restore_coding_tag")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE coding_tags SET is_deleted=0, deleted_at=NULL WHERE id = $1",
@@ -1248,6 +1259,8 @@ class PostgresStorageAdapter:
             return r != "UPDATE 0"
 
     async def get_coding_tag_stats(self, match_id: int) -> dict:
+        if not self._pool:
+            raise StorageNotInitializedError("get_coding_tag_stats")
         rows = await self.fetch(
             "SELECT event_type, tag_type, category, COUNT(*) as count FROM coding_tags WHERE match_id = $1 AND (is_deleted IS NULL OR is_deleted=0) GROUP BY event_type, tag_type, category ORDER BY category",
             match_id,

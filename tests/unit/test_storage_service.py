@@ -1052,17 +1052,26 @@ async def test_get_coding_tag_stats_empty(storage):
 
 
 @pytest.mark.asyncio
-async def test_coding_tags_uninitialized_conn():
+async def test_coding_tags_uninitialized_conn_raises():
+    """Updated for the A1 honesty contract: uninitialized storage RAISES
+    StorageNotInitialized instead of silently returning 0/[]/False — the
+    old behavior made a broken deployment look like an empty database."""
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
-    assert await svc.save_coding_tag(1, {"event_type": "pass", "video_time": 10.0}) == 0
-    assert await svc.get_coding_tags(1) == []
-    assert await svc.get_coding_tags_by_type(1, "pass") == []
-    assert await svc.get_coding_tags_by_player(1, 1) == []
-    assert await svc.update_coding_tag(1, {"event_type": "shot"}) is False
-    assert await svc.delete_coding_tag(1) is False
-    assert await svc.get_coding_tag_stats(1) == {"total": 0, "by_type": {}, "by_player": {}}
+    for coro in (
+        svc.save_coding_tag(1, {"event_type": "pass", "video_time": 10.0}),
+        svc.get_coding_tags(1),
+        svc.get_coding_tags_by_type(1, "pass"),
+        svc.get_coding_tags_by_player(1, 1),
+        svc.update_coding_tag(1, {"event_type": "shot"}),
+        svc.delete_coding_tag(1),
+        svc.get_coding_tag_stats(1),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await coro
 
 
 @pytest.mark.asyncio

@@ -19,6 +19,11 @@ from typing import TYPE_CHECKING, Any, cast
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 from kawkab.services.storage.base import parse_metadata_json
+from kawkab.services.storage_errors import (
+    StorageNotInitializedError,
+    StorageReadError,
+    StorageWriteError,
+)
 
 if TYPE_CHECKING:
     from kawkab.services.benchmark_service import BenchmarkResult
@@ -1183,9 +1188,15 @@ class StorageService:
     # ── Coding Tags CRUD ──────────────────────────────────────────
 
     async def save_coding_tag(self, match_id: int, tag: dict) -> int:
-        """Save a manual coding tag and return its ID."""
+        """Save a manual coding tag and return its ID.
+
+        Contract: returns 0 only for *rejected input* (no event_type/
+        tag_type key); a database failure raises StorageWriteError so the
+        caller never mistakes failure for rejection (the v0.13.2 lesson:
+        an FK violation surfaced as "Tag rejected: event_type required").
+        """
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_coding_tag")
         # The Postgres adapter accepts tag_type or a "timestamp" alias;
         # sqlite diverged and silently dropped every UI tag that used the
         # timestamp key while the handler reported success. Accept the
@@ -1224,12 +1235,16 @@ class StorageService:
             return cursor.lastrowid or 0
         except Exception as e:
             logger.warning(f"save_coding_tag failed: {e}")
-            return 0
+            raise StorageWriteError("save_coding_tag", e) from e
 
     async def get_coding_tags(self, match_id: int) -> list[dict]:
-        """Get all coding tags for a match, ordered by video_time."""
+        """Get all coding tags for a match, ordered by video_time.
+
+        Raises StorageNotInitialized / StorageReadError; an empty list
+        means the match genuinely has no (non-deleted) tags.
+        """
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_coding_tags")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1239,12 +1254,13 @@ class StorageService:
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             logger.warning(f"get_coding_tags failed: {e}")
-            return []
+            raise StorageReadError("get_coding_tags", e) from e
 
     async def get_coding_tags_by_type(self, match_id: int, event_type: str) -> list[dict]:
-        """Get coding tags filtered by event type."""
+        """Get coding tags filtered by event type. Raises on failure; an
+        empty list means no matching rows."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_coding_tags_by_type")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1254,12 +1270,13 @@ class StorageService:
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             logger.warning(f"get_coding_tags_by_type failed: {e}")
-            return []
+            raise StorageReadError("get_coding_tags_by_type", e) from e
 
     async def get_coding_tags_by_player(self, match_id: int, player_track_id: int) -> list[dict]:
-        """Get coding tags filtered by player track ID."""
+        """Get coding tags filtered by player track ID. Raises on failure;
+        an empty list means no matching rows."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_coding_tags_by_player")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1269,12 +1286,16 @@ class StorageService:
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             logger.warning(f"get_coding_tags_by_player failed: {e}")
-            return []
+            raise StorageReadError("get_coding_tags_by_player", e) from e
 
     async def update_coding_tag(self, tag_id: int, updates: dict) -> bool:
-        """Update a coding tag's fields. Returns True if row updated."""
+        """Update a coding tag's fields.
+
+        Returns False only for *rejected input* (no updatable field); a
+        database failure raises StorageWriteError — never a lying False.
+        """
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("update_coding_tag")
         allowed = {
             "event_type",
             "sub_type",
@@ -1303,12 +1324,16 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"update_coding_tag failed: {e}")
-            return False
+            raise StorageWriteError("update_coding_tag", e) from e
 
     async def delete_coding_tag(self, tag_id: int) -> bool:
-        """Soft-delete a coding tag by ID. Returns True if updated."""
+        """Soft-delete a coding tag by ID.
+
+        Returns False only when the row genuinely doesn't exist (or is
+        already deleted); a database failure raises StorageWriteError.
+        """
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("delete_coding_tag")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1319,12 +1344,13 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"delete_coding_tag failed: {e}")
-            return False
+            raise StorageWriteError("delete_coding_tag", e) from e
 
     async def hard_delete_coding_tag(self, tag_id: int) -> bool:
-        """Permanently delete a coding tag by ID. Returns True if deleted."""
+        """Permanently delete a coding tag by ID. False = no such row;
+        failure raises."""
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("hard_delete_coding_tag")
         try:
             cursor = self._conn.cursor()
             cursor.execute("DELETE FROM coding_tags WHERE id = ?", (tag_id,))
@@ -1332,12 +1358,13 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"hard_delete_coding_tag failed: {e}")
-            return False
+            raise StorageWriteError("hard_delete_coding_tag", e) from e
 
     async def restore_coding_tag(self, tag_id: int) -> bool:
-        """Restore a soft-deleted coding tag by ID. Returns True if updated."""
+        """Restore a soft-deleted coding tag by ID. False = no deleted row
+        with that ID; failure raises."""
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("restore_coding_tag")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1348,12 +1375,13 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"restore_coding_tag failed: {e}")
-            return False
+            raise StorageWriteError("restore_coding_tag", e) from e
 
     async def get_coding_tag_stats(self, match_id: int) -> dict:
-        """Get aggregate stats for coding tags in a match."""
+        """Get aggregate stats for coding tags in a match. Raises on
+        failure — the zeroed dict is reserved for genuinely empty matches."""
         if self._conn is None:
-            return {"total": 0, "by_type": {}, "by_player": {}}
+            raise StorageNotInitializedError("get_coding_tag_stats")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1377,7 +1405,7 @@ class StorageService:
             return {"total": total, "by_type": by_type, "by_player": by_player}
         except Exception as e:
             logger.warning(f"get_coding_tag_stats failed: {e}")
-            return {"total": 0, "by_type": {}, "by_player": {}}
+            raise StorageReadError("get_coding_tag_stats", e) from e
 
     # ── Backup / Restore ─────────────────────────────────────────────────
 
