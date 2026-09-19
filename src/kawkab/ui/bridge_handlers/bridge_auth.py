@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
@@ -44,13 +45,11 @@ def _verify_password(password: str, stored: str) -> bool:
         return False
 
 
-class AuthHandler:
+class AuthHandler(BridgeHandlerBase):
     """Handles authentication and authorization for Bridge."""
 
     def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
         self._default_admin_created = False
 
     @property

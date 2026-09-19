@@ -12,25 +12,23 @@ import logging
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class MatchIntelHandler:
+class MatchIntelHandler(BridgeHandlerBase):
     """Pro-analytics leftovers: pitch control, pass sonar, roles, dominance,
     goals added, xG chain, xA/pressing reports."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self.bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
+        self.bridge = bridge  # public alias kept for backward compatibility
 
-    def _check_rate_limit(self) -> None:
-        # acquire() (not .check()): RateLimiter has no check() method, so
-        # with the real bridge limiter wired in this raised AttributeError
-        # out of every slot that rate-checked (caught by the GUI e2e audit).
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
+    # _check_rate_limit inherited from BridgeHandlerBase ("analysis" bucket).
+    # History: the deleted override called a nonexistent RateLimiter.check(),
+    # which raised AttributeError out of every rate-checked slot once the
+    # real bridge limiter was wired in (caught by the GUI e2e audit).
 
     @property
     def storage_service(self):

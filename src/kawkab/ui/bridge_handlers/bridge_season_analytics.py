@@ -14,26 +14,21 @@ import logging
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class SeasonAnalyticsHandler:
+class SeasonAnalyticsHandler(BridgeHandlerBase):
     """Cross-match analytics: formation trends, discipline risk, fixture
     difficulty over the stored match list."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
 
     @property
     def storage_service(self):
         return self._services.get("storage_service")
-
-    def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
 
     async def get_season_pro_report(self) -> str:
         self._check_rate_limit()

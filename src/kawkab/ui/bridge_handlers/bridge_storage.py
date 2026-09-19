@@ -6,17 +6,13 @@ import json
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class StorageHandler:
+class StorageHandler(BridgeHandlerBase):
     """Handles CRUD storage operations for Bridge."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
 
     @property
     def storage_service(self):
@@ -25,10 +21,6 @@ class StorageHandler:
     @property
     def feedback_service(self):
         return self._services.get("feedback_service")
-
-    def _check_rate_limit(self, category: str = "analysis") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     # ── Event CRUD ───────────────────────────────────────────────
 

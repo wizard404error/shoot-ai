@@ -7,17 +7,13 @@ import json
 from kawkab.core.logging import get_logger
 from kawkab.core.observability import metrics
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class LifecycleHandler:
+class LifecycleHandler(BridgeHandlerBase):
     """Handles app lifecycle operations for Bridge."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
 
     # ── helpers ──────────────────────────────────────────────────
 
@@ -32,10 +28,6 @@ class LifecycleHandler:
     @property
     def profiler(self):
         return self._services.get("profiler")
-
-    def _check_rate_limit(self, category: str = "analysis") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     # ── slots ────────────────────────────────────────────────────
 

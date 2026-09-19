@@ -10,17 +10,16 @@ from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
 from kawkab.services.highlight_reel_service import HighlightReelService
 from kawkab.services.video_sync_service import MultiAngleSyncService
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class VideoHandler:
+class VideoHandler(BridgeHandlerBase):
     """Handles video / real-time streaming operations for Bridge."""
 
     def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
         self._sync_service = MultiAngleSyncService()
         reel_output = getattr(bridge, "_reel_output_dir", None)
         self._highlight_reel = HighlightReelService(output_dir=reel_output)

@@ -7,21 +7,13 @@ import json
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class CloudCollabHandler:
+class CloudCollabHandler(BridgeHandlerBase):
     """Collaboration + cloud + AI-v2 + marketplace + telestration/stream surface."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
-
-    def _check_rate_limit(self, category: str = "analysis") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     @property
     def storage_service(self):
@@ -30,7 +22,6 @@ class CloudCollabHandler:
     @property
     def roboflow_sports_service(self):
         return self._services.get("roboflow_sports_service")
-
 
     # ================================================================
     # Sprint 3 — Collaboration Service
@@ -175,7 +166,6 @@ class CloudCollabHandler:
         except Exception as e:
             logger.error(f"mark_mention_read failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
-
 
     async def rf_draw_pitch(self, scale):
         import base64

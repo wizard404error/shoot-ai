@@ -7,21 +7,13 @@ import json
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class RecruitmentHandler:
+class RecruitmentHandler(BridgeHandlerBase):
     """Recruitment-hub bridge surface: scout/shortlist/contracts/opponents."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
-
-    def _check_rate_limit(self, category: str = "analysis") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     @property
     def storage_service(self):

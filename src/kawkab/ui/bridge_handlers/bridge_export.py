@@ -8,17 +8,13 @@ from pathlib import Path
 from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class ExportHandler:
+class ExportHandler(BridgeHandlerBase):
     """Handles data export operations for Bridge."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
 
     @property
     def data_export_service(self):

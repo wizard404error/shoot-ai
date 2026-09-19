@@ -17,25 +17,20 @@ from pathlib import Path
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class ImportHandler:
+class ImportHandler(BridgeHandlerBase):
     """Vendor data import: season directories, tracking feeds, event files."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
 
     @property
     def storage_service(self):
         return self._services.get("storage_service")
-
-    def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
 
     def _err(self, exc: Exception) -> str:
         return ErrorSanitizer.sanitize_error(exc)

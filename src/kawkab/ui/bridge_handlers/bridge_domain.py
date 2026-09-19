@@ -12,25 +12,24 @@ import logging
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class DomainHandler:
+class DomainHandler(BridgeHandlerBase):
     """Domain-analysis surfaces: set pieces, goalkeeper, substitutions,
     possession, psychology, football rules, tactical cards."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self.bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
+        self.bridge = bridge  # public alias kept for backward compatibility
 
-    def _check_rate_limit(self) -> None:
-        # acquire() (not .check()): RateLimiter has no check() method, so
-        # analyze_match_psychology crashed with the real bridge limiter
-        # wired in (caught by the GUI e2e audit).
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
+    # _check_rate_limit inherited from BridgeHandlerBase ("analysis" bucket).
+    # History: the deleted override called a nonexistent RateLimiter.check(),
+    # so analyze_match_psychology crashed with the real bridge limiter wired
+    # in (caught by the GUI e2e audit) -- the duplication that allowed that
+    # drift now lives in exactly one place.
 
     @property
     def storage_service(self):

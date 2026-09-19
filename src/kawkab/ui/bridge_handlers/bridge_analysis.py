@@ -11,17 +11,16 @@ from kawkab.core.logging import get_logger
 from kawkab.core.observability import metrics
 from kawkab.core.paths import get_paths
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class AnalysisHandler:
+class AnalysisHandler(BridgeHandlerBase):
     """Handles match analysis and specialized service operations for Bridge."""
 
     def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
         self._overlay_cache: dict[int, list[dict]] = {}
         self._tracking_cache: dict[int, Any] = {}
         self._goalkeeper_analytics = None
@@ -193,10 +192,6 @@ class AnalysisHandler:
     @property
     def frame_skip(self):
         return self._services.get("frame_skip", 3)
-
-    def _check_rate_limit(self, category: str = "analysis") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     # ── private helpers ──────────────────────────────────────────
 

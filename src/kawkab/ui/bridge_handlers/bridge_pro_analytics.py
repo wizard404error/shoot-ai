@@ -26,17 +26,16 @@ import logging
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class ProAnalyticsHandler:
+class ProAnalyticsHandler(BridgeHandlerBase):
     """Aggregated elite-analytics report builder (delegation only)."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
 
     @property
     def storage_service(self):
@@ -216,10 +215,6 @@ class ProAnalyticsHandler:
                 }
             )
         return out
-
-    def _check_rate_limit(self) -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
 
     # ── block builders ────────────────────────────────────────────────
 

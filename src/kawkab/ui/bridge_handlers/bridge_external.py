@@ -7,17 +7,13 @@ import json
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class ExternalHandler:
+class ExternalHandler(BridgeHandlerBase):
     """Handles all external football data API operations for Bridge."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
 
     # ── service accessors ────────────────────────────────────────
 
@@ -56,10 +52,6 @@ class ExternalHandler:
     @property
     def storage_service(self):
         return self._services.get("storage_service")
-
-    def _check_rate_limit(self, category: str = "search") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
 
     # ================================================================
     # football-data.org

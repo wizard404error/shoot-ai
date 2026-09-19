@@ -7,15 +7,14 @@ import json
 from kawkab.core.logging import get_logger
 from kawkab.services.provider_cache import ProviderCache
 from kawkab.services.provider_health_service import ProviderHealthService
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class ProviderHandler:
+class ProviderHandler(BridgeHandlerBase):
     def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
         self._health = ProviderHealthService(check_interval_s=120)
         self._cache = ProviderCache(max_size=500, default_ttl_s=300)
         self._register_providers()

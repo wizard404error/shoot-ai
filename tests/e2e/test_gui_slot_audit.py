@@ -17,8 +17,11 @@ logins) must return an honest error payload, never garbage or a hang.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import inspect
 import json
+import sys
+import uuid
 
 import pytest
 
@@ -41,6 +44,26 @@ def qapp(monkeypatch, tmp_path):
     monkeypatch.delenv("KAWKAB_DB_URL", raising=False)
 
     import kawkab.core.paths as paths_mod
+
+    # Other e2e modules (test_e2e_full_pipeline etc.) install the conftest
+    # stub paths module via install_kawkab_stubs, which shadows the real
+    # kawkab.core.paths for the rest of the process with a SHARED
+    # /tmp/kawkab_test database -- state then leaks across tests and across
+    # pytest runs (stale users, stale external-id dedup). Booting the real
+    # app is only meaningful against the real per-user paths, so force the
+    # real module back and drop any cached singleton, plus the modules that
+    # captured get_paths at import time.
+    if not str(getattr(paths_mod, "__file__", "")).endswith(
+        "core" + __import__("os").sep + "paths.py"
+    ):
+        for mod_name in (
+            "kawkab.core.paths",
+            "kawkab.services.storage_service",
+            "kawkab.app",
+            "kawkab.ui.bridge",
+        ):
+            sys.modules.pop(mod_name, None)
+        paths_mod = importlib.import_module("kawkab.core.paths")
 
     if hasattr(paths_mod, "_paths"):
         monkeypatch.setattr(paths_mod, "_paths", None)
@@ -592,6 +615,17 @@ def test_auth_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
 
     window = MainWindow()
     try:
+        # Unique-per-run identifiers: user rows and vendor external-id
+        # registrations persist between pytest runs through cached paths
+        # singletons from stub-installing e2e modules; unique ids make this
+        # audit immune to that instead of fighting process-level state.
+        # Unique-per-run usernames: external-id state (users table) can
+        # carry over between pytest runs through cached paths singletons
+        # from stub-installing e2e modules; unique ids make this audit
+        # immune to that instead of fighting process-level module state.
+        run = uuid.uuid4().hex[:8]
+        coach_name = f"audit_coach_{run}"
+        admin_name = f"audit_admin_{run}"
 
         async def _seed_user():
             storage = window.storage
@@ -599,26 +633,26 @@ def test_auth_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
             from kawkab.ui.bridge_handlers.bridge_auth import _hash_password
 
             coach = await storage.create_user(
-                "audit_coach", _hash_password("correct horse battery"), "coach"
+                coach_name, _hash_password("correct horse battery"), "coach"
             )
             admin = await storage.create_user(
-                "audit_admin", _hash_password("admin secret 99"), "admin"
+                admin_name, _hash_password("admin secret 99"), "admin"
             )
             return coach, admin
 
         uid, _admin_uid = asyncio.run(_seed_user())
         assert uid, "user seeding failed"
 
-        bad = json.loads(dispatch(window, "login", "audit_coach", "wrong"))
+        bad = json.loads(dispatch(window, "login", coach_name, "wrong"))
         assert "error" in bad and "token" not in bad, bad  # no token on bad password
 
-        login = json.loads(dispatch(window, "login", "audit_coach", "correct horse battery"))
+        login = json.loads(dispatch(window, "login", coach_name, "correct horse battery"))
         assert login.get("token"), login
-        assert login.get("user", {}).get("username") == "audit_coach", login
+        assert login.get("user", {}).get("username") == coach_name, login
         token = login["token"]
 
         me = json.loads(dispatch(window, "get_current_user", token))
-        assert me.get("user", {}).get("username") == "audit_coach", me
+        assert me.get("user", {}).get("username") == coach_name, me
 
         # RBAC pin: non-admin tokens must be denied user management
         denied = json.loads(dispatch(window, "list_users", token))
@@ -626,7 +660,7 @@ def test_auth_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
         denied = json.loads(dispatch(window, "get_audit_log", token, "20"))
         assert denied.get("error") == "Admin only", denied
 
-        admin_login = json.loads(dispatch(window, "login", "audit_admin", "admin secret 99"))
+        admin_login = json.loads(dispatch(window, "login", admin_name, "admin secret 99"))
         assert admin_login.get("token"), admin_login
         admin_token = admin_login["token"]
 
@@ -642,7 +676,7 @@ def test_auth_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
             )
         )
         assert changed.get("success") is True, changed
-        relogin = json.loads(dispatch(window, "login", "audit_admin", "new admin secret 7"))
+        relogin = json.loads(dispatch(window, "login", admin_name, "new admin secret 7"))
         assert relogin.get("token"), relogin  # old password must be dead
 
         out = json.loads(dispatch(window, "logout", admin_token))
@@ -665,6 +699,17 @@ def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, mon
 
     window = MainWindow()
     try:
+        # Unique-per-run identifiers (see the auth audit): the vendor-id
+        # dedup table and collab usernames persist between pytest runs
+        # through cached paths singletons from stub-installing modules.
+        run = uuid.uuid4().hex[:8]
+        file_id = f"99{run[:6]}001"
+        collab_user = f"audit_analyst_{run}"
+        # analysis-category slots here (pro/season reports, two import
+        # phases) exceed the shared production bucket (5/min); widen for
+        # this audit only -- the limiter itself is unit-tested separately.
+        window.bridge._rate_limiter.configure("analysis", 1000)
+
         # every vendor status slot: dict payload, never a crash
         for slot in (
             "check_football_data_status",
@@ -731,7 +776,7 @@ def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, mon
 
         # collab users: CRUD round trip
         cu = _assert_ok(
-            dispatch(window, "create_collab_user", "audit_analyst", "Audit Analyst", "analyst"),
+            dispatch(window, "create_collab_user", collab_user, "Audit Analyst", "analyst"),
             "create_collab_user",
         )
         assert cu.get("success") is True or cu.get("user", {}).get("id"), cu
@@ -770,7 +815,7 @@ def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, mon
         d = _assert_ok(dispatch(window, "get_comments", 0), "get_comments", allow_error=True)
         assert isinstance(d, dict), d
         d = _assert_ok(
-            dispatch(window, "get_mentions", "audit_analyst"), "get_mentions", allow_error=True
+            dispatch(window, "get_mentions", collab_user), "get_mentions", allow_error=True
         )
         assert isinstance(d, dict), d
 
@@ -832,13 +877,13 @@ def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, mon
             }
             for i in range(12)
         ]
-        (import_dir / "9999001.json").write_text(json.dumps(events), encoding="utf-8")
-        (import_dir / "9999001.meta.json").write_text(
+        (import_dir / f"{file_id}.json").write_text(json.dumps(events), encoding="utf-8")
+        (import_dir / f"{file_id}.meta.json").write_text(
             json.dumps({"competition": "Audit Cup", "match_date": "2026-09-19"}),
             encoding="utf-8",
         )
         # non-event JSON (root is not a non-empty list): skipped and counted
-        (import_dir / "9999001_lineups.json").write_text(
+        (import_dir / f"{file_id}_lineups.json").write_text(
             json.dumps({"lineups": []}), encoding="utf-8"
         )
 
@@ -862,7 +907,7 @@ def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, mon
         # event-file import: the same file through the single-file slot
         async def _import_event():
             return await adispatch(
-                window, "import_event_file", str(import_dir / "9999001.json"), "", "Audit Single"
+                window, "import_event_file", str(import_dir / f"{file_id}.json"), "", "Audit Single"
             )
 
         ev_summary = json.loads(asyncio.run(_import_event()))

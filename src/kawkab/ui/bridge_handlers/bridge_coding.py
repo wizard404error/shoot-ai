@@ -7,17 +7,13 @@ from pathlib import Path
 
 from kawkab.core.logging import get_logger
 from kawkab.core.security import ErrorSanitizer
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = get_logger(__name__)
 
 
-class CodingHandler:
+class CodingHandler(BridgeHandlerBase):
     """Handles manual video tagging operations for the coding workspace."""
-
-    def __init__(self, bridge, services, rate_limiter=None):
-        self._bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
 
     @property
     def storage_service(self):
@@ -27,9 +23,10 @@ class CodingHandler:
     def clip_service(self):
         return self._services.get("clip_service")
 
+    # Keeps the narrower "coding" bucket default; the acquire() contract
+    # itself lives in BridgeHandlerBase.
     def _check_rate_limit(self, category: str = "coding") -> None:
-        if self._rate_limiter is not None and not self._rate_limiter.acquire(category):
-            raise RuntimeError(f"Rate limit exceeded for {category}")
+        super()._check_rate_limit(category)
 
     # ── Tag CRUD ─────────────────────────────────────────────────
 

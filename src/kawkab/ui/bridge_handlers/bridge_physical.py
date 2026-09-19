@@ -12,24 +12,22 @@ import logging
 from typing import Any
 
 from kawkab.core.security import ErrorSanitizer, SecurityValidator
+from kawkab.ui.bridge_handlers.base import BridgeHandlerBase
 
 logger = logging.getLogger(__name__)
 
 
-class PhysicalHandler:
+class PhysicalHandler(BridgeHandlerBase):
     """Physical surfaces: GPS file import/sessions/summaries, ACWR, and the
     pre-match briefing generator."""
 
     def __init__(self, bridge, services: dict[str, Any], rate_limiter=None) -> None:
-        self.bridge = bridge
-        self._services = services
-        self._rate_limiter = rate_limiter
+        super().__init__(bridge, services, rate_limiter)
+        self.bridge = bridge  # public alias kept for backward compatibility
 
-    def _check_rate_limit(self) -> None:
-        # acquire() (not .check()): RateLimiter has no check() method, so
-        # generate_briefing crashed with the real bridge limiter wired in.
-        if self._rate_limiter is not None and not self._rate_limiter.acquire("analysis"):
-            raise RuntimeError("Rate limit exceeded for analysis")
+    # _check_rate_limit inherited from BridgeHandlerBase ("analysis" bucket).
+    # History: the deleted override called a nonexistent RateLimiter.check(),
+    # so generate_briefing crashed with the real bridge limiter wired in.
 
     @property
     def storage_service(self):
