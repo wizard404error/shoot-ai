@@ -21,6 +21,11 @@ from conftest import install_kawkab_stubs
 
 install_kawkab_stubs()
 
+# Handlers are built through the real __init__ (real RateLimiter by default)
+# rather than __new__+attribute pokes: hand-setting _rate_limiter=None used to
+# silently disable limiting, hiding exactly the bug class the BridgeHandlerBase
+# refactor exists to prevent.
+
 from kawkab.ui.bridge_handlers.bridge_import import (  # noqa: E402
     ImportHandler,
 )
@@ -30,20 +35,11 @@ from kawkab.ui.bridge_handlers.bridge_video import (  # noqa: E402
 
 
 def _video_handler() -> VideoHandler:
-    services: dict = {"storage_service": MagicMock()}
-    h = VideoHandler.__new__(VideoHandler)
-    h.bridge = None
-    h._services = services
-    h._rate_limiter = None
-    return h
+    return VideoHandler(None, {"storage_service": MagicMock()})
 
 
 def _import_handler() -> ImportHandler:
-    h = ImportHandler.__new__(ImportHandler)
-    h.bridge = None
-    h._services = {"storage_service": MagicMock()}
-    h._rate_limiter = None
-    return h
+    return ImportHandler(None, {"storage_service": MagicMock()})
 
 
 class TestReelComposeFilenameValidation:

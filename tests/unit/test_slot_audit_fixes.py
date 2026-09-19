@@ -177,10 +177,16 @@ def test_save_coding_tag_accepts_timestamp_alias_and_persists(tmp_path, monkeypa
         storage = StorageService()
         await storage.initialize()
         try:
+            # coding_tags.match_id carries an FK to matches(id) (migration
+            # 018), and save_coding_tag swallows FK violations to 0 — so the
+            # tag MUST reference a match created here, never leftover state
+            # from a shared test database.
+            match_id = await storage.save_match("tag-persistence-test", "test.mp4")
+            assert match_id > 0, "match row for FK not created"
             h = CodingHandler(None, {"storage_service": storage}, rate_limiter=None)
             out = json.loads(
                 await h.save_tag(
-                    "1",
+                    str(match_id),
                     json.dumps(
                         {
                             "event_type": "shot",
@@ -192,7 +198,7 @@ def test_save_coding_tag_accepts_timestamp_alias_and_persists(tmp_path, monkeypa
                 )
             )
             assert out.get("success") is True and out.get("tag_id", 0) > 0, out
-            tags = json.loads(await h.get_tags("1"))
+            tags = json.loads(await h.get_tags(str(match_id)))
             assert tags["success"] is True, tags
             saved = [t for t in tags["tags"] if t["id"] == out["tag_id"]]
             assert saved, f"tag {out['tag_id']} not persisted: {tags}"

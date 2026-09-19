@@ -191,7 +191,13 @@ def _make_paths_stub() -> types.ModuleType:
 
     class _Paths:
         def __init__(self):
-            tmp = Path(tempfile.gettempdir()) / "kawkab_test"
+            # A UNIQUE directory per pytest process, not a fixed shared one.
+            # The old fixed gettempdir()/"kawkab_test" let databases, users,
+            # tags and auth artifacts accumulate ACROSS runs -- so tests
+            # silently depended on leftovers from previous runs (e.g. a match
+            # id 1 that a prior run had happened to create made the FK pass
+            # here but fail on fresh CI).
+            tmp = Path(tempfile.mkdtemp(prefix="kawkab_test_"))
             self.appdata = tmp
             self.localappdata = tmp
             self.documents = tmp
@@ -255,10 +261,15 @@ def install_kawkab_stubs() -> None:
     install_loguru_stub()
     install_httpx_stub()
 
-    # Stub core modules FIRST so real imports see them
+    # Stub core modules FIRST so real imports see them. Build the paths stub
+    # only when it is not already installed: _make_paths_stub() creates a
+    # fresh per-process directory, so calling it eagerly here would leak an
+    # unused temp dir on every repeat invocation (setdefault discards it, but
+    # the mkdir'd tree would still exist).
     if "kawkab.core.logging" not in sys.modules:
         sys.modules["kawkab.core.logging"] = _make_logging_stub()
-    sys.modules.setdefault("kawkab.core.paths", _make_paths_stub())
+    if "kawkab.core.paths" not in sys.modules:
+        sys.modules["kawkab.core.paths"] = _make_paths_stub()
 
     # Real packages — import normally instead of stubbing
     for _pkg in ["kawkab", "kawkab.core", "kawkab.services"]:

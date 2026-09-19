@@ -18,12 +18,27 @@ from kawkab.core.xg_model import compute_xg
 GT_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "ground_truth" / "statsbomb"
 EVENT_DIR = GT_DIR / "events"
 
-_has_shots = EVENT_DIR.is_dir() and len(list(EVENT_DIR.glob("*.json"))) > 0
+# data/statsbomb_corpus/ is committed to the repo and carries the same
+# StatsBomb open-data event schema. Use it as a hermetic fallback whenever
+# the network-fetched ground truth is missing or too thin: CI has seen the
+# conftest auto-fetch partially fail (2 of 5 files), which made this gate
+# nondeterministically fail on "Need >= 3 matches".
+CORPUS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "statsbomb_corpus"
 
-_need_shots = pytest.mark.skipif(
-    not _has_shots,
-    reason="StatsBomb ground truth not found. Conftest should auto-fetch on pytest_configure.",
-)
+
+def _has_enough_files(d: Path) -> bool:
+    return d.is_dir() and len(list(d.glob("*.json"))) >= 3
+
+
+def _pick_event_dir() -> Path:
+    if _has_enough_files(EVENT_DIR):
+        return EVENT_DIR
+    if _has_enough_files(CORPUS_DIR):
+        return CORPUS_DIR
+    return EVENT_DIR  # nothing viable; keep original path for the skip reason
+
+
+EVENTS = _pick_event_dir()
 
 PITCH_LENGTH = 105.0
 PITCH_WIDTH = 68.0
@@ -87,9 +102,10 @@ def _map_shot_type(sb_type):
 
 
 def load_all_shots():
-    """Load all shots from all StatsBomb match files in ground truth."""
+    """Load all shots from all StatsBomb match files (ground truth, with the
+    committed corpus as fallback when the fetched ground truth is thin)."""
     shots = []
-    for fpath in sorted(glob.glob(str(EVENT_DIR / "*.json"))):
+    for fpath in sorted(glob.glob(str(EVENTS / "*.json"))):
         try:
             events = json.loads(Path(fpath).read_text(encoding="utf-8"))
         except Exception:
@@ -134,6 +150,8 @@ def all_shots():
     global SHOTS
     if SHOTS is None:
         SHOTS = load_all_shots()
+    if not SHOTS:
+        pytest.skip("No StatsBomb shot data available (ground truth fetch failed and corpus empty)")
     return SHOTS
 
 
