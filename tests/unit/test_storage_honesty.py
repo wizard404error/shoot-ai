@@ -688,3 +688,50 @@ async def test_pg_read_pool_down_raises_with_operation_name(op, args):
     with pytest.raises(StorageNotInitializedError) as ei:
         await getattr(adapter, op)(*args)
     assert ei.value.operation == op
+
+
+# ── Phase 5: PG-only methods must exist on SQLite too ───────────────────
+
+
+@pytest.mark.asyncio
+async def test_save_wearable_session_persists_on_sqlite():
+    """wearables/service.save_session called save_wearable_session, which
+    existed only on the PG adapter — desktop (SQLite) imports crashed with
+    a bare AttributeError. The method now exists on StorageService and
+    honestly persists via migration 020's wearable_sessions table."""
+    svc = _migrated_sqlite_storage()
+
+    with pytest.raises(StorageNotInitializedError):
+        # Uninitialized service refuses honestly instead of AttributeError.
+        await StorageService().save_wearable_session({"device_type": "catapult"})
+
+    row = {
+        "match_id": None,
+        "athlete_id": "a-1",
+        "athlete_name": "Test Athlete",
+        "device_type": "catapult",
+        "duration_s": 3000.0,
+        "total_distance_m": 8500.0,
+        "point_count": 1200,
+        "metadata_json": "{}",
+    }
+    session_id = await svc.save_wearable_session(row)
+    assert session_id > 0  # type: ignore[unreachable]
+
+    # Roundtrip through the wearables facade — the production path.
+    from kawkab.services.wearables.models import WearableDataPoint, WearableSession
+    from kawkab.services.wearables.service import WearableImportService
+
+    parsed = WearableSession(
+        device_type="polar",
+        athlete_id="a-2",
+        athlete_name="Facade Athlete",
+        duration_s=60.0,
+        data=[
+            WearableDataPoint(timestamp_s=0.0, heart_rate_bpm=120.0, speed_ms=3.0),
+            WearableDataPoint(timestamp_s=1.0, heart_rate_bpm=150.0, speed_ms=5.0),
+        ],
+    )
+    result = await WearableImportService().save_session(parsed, storage_service=svc, match_id=None)
+    assert result.get("ok") is True, result
+    assert result.get("session_id", 0) > 0

@@ -1085,6 +1085,53 @@ class StorageService:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    # ── Wearable Sessions (migration 020) ─────────────────────────────────
+
+    async def save_wearable_session(self, session: dict) -> int:
+        """Persist a parsed wearable session (migration 020)."""
+        if self._conn is None:
+            raise StorageNotInitializedError("save_wearable_session")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """INSERT INTO wearable_sessions (
+                       match_id, athlete_id, athlete_name, device_type, device_serial,
+                       start_time, duration_s, sample_rate_hz, avg_hr, max_hr, min_hr,
+                       total_distance_m, max_speed_ms, avg_speed_ms, player_load, body_load,
+                       high_speed_running_m, sprint_distance_m, accelerations, decelerations,
+                       point_count, metadata_json
+                   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    session.get("match_id"),
+                    session.get("athlete_id"),
+                    session.get("athlete_name"),
+                    session.get("device_type", ""),
+                    session.get("device_serial"),
+                    session.get("start_time", ""),
+                    session.get("duration_s", 0.0),
+                    session.get("sample_rate_hz", 0.0),
+                    session.get("avg_hr"),
+                    session.get("max_hr"),
+                    session.get("min_hr"),
+                    session.get("total_distance_m", 0.0),
+                    session.get("max_speed_ms"),
+                    session.get("avg_speed_ms"),
+                    session.get("player_load"),
+                    session.get("body_load"),
+                    session.get("high_speed_running_m", 0.0),
+                    session.get("sprint_distance_m", 0.0),
+                    session.get("accelerations", 0),
+                    session.get("decelerations", 0),
+                    session.get("point_count", 0),
+                    session.get("metadata_json"),
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_wearable_session failed: {e}")
+            raise StorageWriteError("save_wearable_session", e) from e
+
     async def get_all_player_profiles(self, limit: int = 100, offset: int = 0) -> list[dict]:
         """Get player profiles from the DB with pagination."""
         if self._conn is None:

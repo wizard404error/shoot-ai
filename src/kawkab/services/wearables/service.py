@@ -15,6 +15,7 @@ change. Future cycles (C10+) add a ``save()`` path that persists the parsed
 
 from __future__ import annotations
 
+import inspect
 import json
 
 from kawkab.core.logging import get_logger
@@ -60,13 +61,15 @@ class WearableImportService:
 
     # -- persistence ------------------------------------------------------
 
-    def save_session(
+    async def save_session(
         self, session: WearableSession, storage_service=None, match_id: int = 0
     ) -> dict:
         """Persist a parsed WearableSession to the database.
 
         Requires migration 020 (wearable_sessions table). If ``storage_service``
         is not provided the method returns a dict suitable for insertion.
+        Accepts both async (StorageService/PG adapter) and sync (test stubs)
+        ``save_wearable_session`` implementations.
         """
         if storage_service is not None:
             try:
@@ -98,6 +101,8 @@ class WearableImportService:
                     "metadata_json": json.dumps(session.metadata),
                 }
                 result = storage_service.save_wearable_session(row)
+                if inspect.isawaitable(result):
+                    result = await result
                 return {"ok": True, "session_id": result}
             except Exception as e:
                 logger.error(f"save_session failed: {e}")

@@ -539,21 +539,23 @@ class TestStatsportsCsvParser:
 
 
 class TestWearableSave:
-    def test_save_session_no_storage(self):
+    @pytest.mark.asyncio
+    async def test_save_session_no_storage(self):
         s = WearableSession(device_type="catapult")
-        result = WearableImportService().save_session(s)
+        result = await WearableImportService().save_session(s)
         assert "error" in result
 
-    def test_save_session_with_mock_storage(self):
+    @pytest.mark.asyncio
+    async def test_save_session_with_mock_storage(self):
         class MockStorage:
             def save_wearable_session(self, row):
-                return 42  # simulated session_id
+                return 42  # simulated sync session_id
 
         s = WearableSession(
             device_type="catapult", athlete_id="ATH-001", athlete_name="Test Player"
         )
         s.data = [WearableDataPoint(timestamp_s=0.0, heart_rate_bpm=140, speed_ms=4.0)]
         s.finalize()
-        result = WearableImportService().save_session(s, storage_service=MockStorage())
+        result = await WearableImportService().save_session(s, storage_service=MockStorage())
         assert result.get("ok") is True
         assert result.get("session_id") == 42
