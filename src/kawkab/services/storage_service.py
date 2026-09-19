@@ -907,7 +907,7 @@ class StorageService:
     async def get_all_feedback(self) -> list[dict]:
         """Get all coach feedback entries."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_all_feedback")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, coach_id, match_id, overall_rating, tracking_rating, events_rating, report_rating, ui_rating, comments, issues, created_at FROM coach_feedback ORDER BY created_at DESC"
@@ -951,7 +951,7 @@ class StorageService:
     async def get_all_issues(self) -> list[dict]:
         """Get all issue reports."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_all_issues")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, category, severity, description, match_id, screenshot_path, logs, created_at FROM issue_reports ORDER BY created_at DESC"
@@ -1036,7 +1036,7 @@ class StorageService:
     async def get_clips_for_match(self, match_id: int) -> list[dict]:
         """Get all clips for a match."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_clips_for_match")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, match_id, event_type, start_seconds, end_seconds, duration_seconds, source_video_path, output_path, thumbnail_path, player_id, description, created_at FROM video_clips WHERE match_id = ? ORDER BY created_at DESC",
@@ -1078,7 +1078,7 @@ class StorageService:
     async def get_playlists(self) -> list[dict]:
         """Get all playlists."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_playlists")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, name, description, clip_ids, created_at FROM clip_playlists ORDER BY created_at DESC"
@@ -1829,7 +1829,7 @@ class StorageService:
     async def get_tracking_imports(self, match_id: int) -> list[dict]:
         """All (non-deleted) vendor tracking imports for a match."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_tracking_imports")
         cursor = self._conn.cursor()
         cursor.execute(
             """
@@ -1850,7 +1850,7 @@ class StorageService:
     async def get_tracking_import_by_id(self, import_id: int) -> dict | None:
         """One tracking-import row by id (dict or None)."""
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("get_tracking_import_by_id")
         cursor = self._conn.cursor()
         cursor.execute(
             """
@@ -1912,7 +1912,7 @@ class StorageService:
     async def get_match_by_external_id(self, source: str, external_id: str) -> int | None:
         """Internal match id for a vendor match id, or None."""
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("get_match_by_external_id")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT match_id FROM matches_external_ids WHERE source = ? AND external_id = ?",
@@ -1999,7 +1999,7 @@ class StorageService:
     ) -> list[dict]:
         """Alignment rows for a match, optionally narrowed to one event."""
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_event_frame_links")
         cursor = self._conn.cursor()
         if event_id is not None:
             cursor.execute(
@@ -2095,7 +2095,7 @@ class StorageService:
 
     async def get_user_by_username(self, username: str) -> dict | None:
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("get_user_by_username")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, username, email, display_name, role, team, is_active, is_locked, locked_until, password_hash, must_reset_password, last_login FROM users WHERE username = ?",
@@ -2106,7 +2106,7 @@ class StorageService:
 
     async def get_user_by_id(self, user_id: int) -> dict | None:
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("get_user_by_id")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, username, email, display_name, role, team, is_active, is_locked, locked_until, password_hash, must_reset_password, last_login FROM users WHERE id = ?",
@@ -2200,7 +2200,7 @@ class StorageService:
 
     async def validate_session(self, token_hash: str) -> dict | None:
         if self._conn is None:
-            return None
+            raise StorageNotInitializedError("validate_session")
         cursor = self._conn.cursor()
         # u.is_locked=0 added: previously a session created before a lockout
         # stayed valid through it -- locking an account did not invalidate
@@ -2252,7 +2252,7 @@ class StorageService:
 
     async def get_audit_log(self, limit: int = 50, offset: int = 0) -> list[dict]:
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_audit_log")
         cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, user_id, username, action, resource_type, resource_id, details, created_at FROM audit_events_local ORDER BY created_at DESC LIMIT ? OFFSET ?",
@@ -2382,7 +2382,7 @@ class StorageService:
 
     async def get_gps_sessions(self, match_id: int) -> list[dict]:
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_gps_sessions")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT id, player_id, session_type, vendor, start_time, end_time,
@@ -2396,7 +2396,7 @@ class StorageService:
 
     async def get_gps_samples(self, session_id: int) -> list[dict]:
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_gps_samples")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT timestamp, speed_ms, acceleration, heart_rate, distance,
@@ -2444,7 +2444,7 @@ class StorageService:
         limit: int = 30,
     ) -> list[dict]:
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_player_acwr")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT date, acute_load_7d, chronic_load_28d, acwr, load_category
@@ -2460,7 +2460,7 @@ class StorageService:
         limit: int = 10,
     ) -> list[dict]:
         if self._conn is None:
-            return []
+            raise StorageNotInitializedError("get_player_gps_summary")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT id, session_type, vendor, start_time, duration_seconds,
@@ -2491,7 +2491,7 @@ class StorageService:
             "report_date": datetime.now().isoformat(),
         }
         if self._conn is None:
-            return empty
+            raise StorageNotInitializedError("get_squad_injury_report")
         cursor = self._conn.cursor()
         cursor.execute(
             """SELECT DISTINCT pml.player_id FROM player_match_links pml

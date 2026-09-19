@@ -1412,7 +1412,7 @@ class PostgresStorageAdapter:
 
     async def get_tracking_imports(self, match_id: int) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_tracking_imports")
         rows = await self.fetch(
             """SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
                       pitch_length_m, pitch_width_m, coordinate_system,
@@ -1426,7 +1426,7 @@ class PostgresStorageAdapter:
 
     async def get_tracking_import_by_id(self, import_id: int) -> dict | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_tracking_import_by_id")
         row = await self.fetchrow(
             """SELECT id, match_id, vendor, source_path, checksum, fps, frame_count,
                       pitch_length_m, pitch_width_m, coordinate_system,
@@ -1472,7 +1472,7 @@ class PostgresStorageAdapter:
     async def get_match_by_external_id(self, source: str, external_id: str) -> int | None:
         """Internal match id for a vendor match id, or None."""
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_match_by_external_id")
         row = await self.fetchrow(
             "SELECT match_id FROM matches_external_ids WHERE source = $1 AND external_id = $2",
             source,
@@ -1551,7 +1551,7 @@ class PostgresStorageAdapter:
         self, match_id: int, event_id: int | None = None, limit: int = 10000
     ) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_event_frame_links")
         if event_id is not None:
             return await self.fetch(
                 """SELECT id, match_id, event_id, frame_number, frame_offset
@@ -1603,7 +1603,7 @@ class PostgresStorageAdapter:
 
     async def get_user_by_username(self, username: str) -> dict | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_user_by_username")
         row = await self.fetchrow(
             f"SELECT {self._USER_COLUMNS} FROM users WHERE username = $1", username
         )
@@ -1611,13 +1611,13 @@ class PostgresStorageAdapter:
 
     async def get_user_by_id(self, user_id: int) -> dict | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_user_by_id")
         row = await self.fetchrow(f"SELECT {self._USER_COLUMNS} FROM users WHERE id = $1", user_id)
         return dict(row) if row else None
 
     async def get_all_users(self) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_all_users")
         return await self.fetch(
             "SELECT id, username, email, display_name, role, team, is_active, "
             "is_locked, last_login, created_at FROM users ORDER BY id"
@@ -1625,7 +1625,7 @@ class PostgresStorageAdapter:
 
     async def clear_expired_lock(self, user_id: int) -> None:
         if not self._pool:
-            return
+            raise StorageNotInitializedError("clear_expired_lock")
         await self.execute(
             "UPDATE users SET is_locked=0, failed_attempts=0, locked_until=NULL WHERE id=$1",
             user_id,
@@ -1633,7 +1633,7 @@ class PostgresStorageAdapter:
 
     async def update_user_login(self, user_id: int) -> None:
         if not self._pool:
-            return
+            raise StorageNotInitializedError("update_user_login")
         await self.execute(
             "UPDATE users SET last_login=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), "
             "failed_attempts=0, is_locked=0 WHERE id=$1",
@@ -1675,7 +1675,7 @@ class PostgresStorageAdapter:
 
     async def validate_session(self, token_hash: str) -> dict | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("validate_session")
         row = await self.fetchrow(
             """SELECT u.id, u.username, u.role, u.team, u.display_name
                FROM user_sessions s JOIN users u ON s.user_id = u.id
@@ -1716,7 +1716,7 @@ class PostgresStorageAdapter:
 
     async def get_audit_log(self, limit: int = 50, offset: int = 0) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_audit_log")
         return await self.fetch(
             "SELECT id, user_id, username, action, resource_type, resource_id, details, created_at "
             "FROM audit_events_local ORDER BY created_at DESC LIMIT $1 OFFSET $2",
@@ -1806,7 +1806,7 @@ class PostgresStorageAdapter:
 
     async def get_gps_sessions(self, match_id: int) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_gps_sessions")
         return await self.fetch(
             """SELECT id, player_id, session_type, vendor, start_time, end_time,
                duration_seconds, total_distance_m, max_speed_kmh, avg_speed_kmh,
@@ -1818,7 +1818,7 @@ class PostgresStorageAdapter:
 
     async def get_gps_samples(self, session_id: int) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_gps_samples")
         return await self.fetch(
             """SELECT timestamp, speed_ms, acceleration, heart_rate, distance,
                player_load, metabolic_power, speed_zone, x_m, y_m
@@ -1862,7 +1862,7 @@ class PostgresStorageAdapter:
 
     async def get_player_acwr(self, player_id: int, limit: int = 30) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_player_acwr")
         return await self.fetch(
             """SELECT date, acute_load_7d, chronic_load_28d, acwr, load_category
                FROM acwr_daily WHERE player_id=$1 ORDER BY date DESC LIMIT $2""",
@@ -1872,7 +1872,7 @@ class PostgresStorageAdapter:
 
     async def get_player_gps_summary(self, player_id: int, limit: int = 10) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_player_gps_summary")
         return await self.fetch(
             """SELECT id, session_type, vendor, start_time, duration_seconds,
                total_distance_m, max_speed_kmh, avg_speed_kmh, player_load
@@ -1898,7 +1898,7 @@ class PostgresStorageAdapter:
             "report_date": datetime.now().isoformat(),
         }
         if not self._pool:
-            return empty
+            raise StorageNotInitializedError("get_squad_injury_report")
         rows = await self.fetch(
             """SELECT DISTINCT pml.player_id FROM player_match_links pml
                JOIN matches m ON m.id = pml.match_id
@@ -2008,7 +2008,7 @@ class PostgresStorageAdapter:
 
     async def get_tracking_frame_count(self, match_id: int) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("get_tracking_frame_count")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT COUNT(*) AS cnt FROM tracking_frames WHERE match_id = $1",
@@ -2027,7 +2027,7 @@ class PostgresStorageAdapter:
 
     async def get_encryption_key(self, key_name: str = "medical_v1") -> str | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_encryption_key")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT key_value FROM encryption_keys WHERE key_name = $1",
@@ -2353,7 +2353,7 @@ class PostgresStorageAdapter:
 
     async def get_cache(self, cache_key: str, table: str = "football_data_cache") -> str | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_cache")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 f"SELECT data FROM {table} WHERE cache_key = $1 AND expires_at > extract(epoch from NOW())",
@@ -2563,7 +2563,7 @@ class PostgresStorageAdapter:
 
     async def get_contracts_expiring_soon(self, days: int = 90) -> list[dict]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("get_contracts_expiring_soon")
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 f"SELECT {self._CONTRACT_COLUMNS} FROM player_contracts WHERE end_date <= CURRENT_DATE + $1::integer AND end_date >= CURRENT_DATE ORDER BY end_date ASC",
@@ -2887,7 +2887,7 @@ class PostgresStorageAdapter:
 
     async def get_setting(self, key: str) -> str | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_setting")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT value FROM settings WHERE key = $1",
@@ -2909,7 +2909,7 @@ class PostgresStorageAdapter:
 
     async def get_schema_version(self) -> int | None:
         if not self._pool:
-            return None
+            raise StorageNotInitializedError("get_schema_version")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT MAX(version) as version FROM schema_version",

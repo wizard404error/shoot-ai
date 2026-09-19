@@ -309,6 +309,96 @@ async def test_handler_reports_read_failure_honestly():
     assert "error" in out
 
 
+# ── batch 4b: every remaining write raises — media, GPS, recruitment, auth ──
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("save_benchmark", (None,)),
+        ("save_feedback", ({"match_id": 1, "overall_rating": 4},)),
+        ("save_issue", ({"description": "x"},)),
+        ("save_usage_session", ({"session_id": "s"},)),
+        ("save_clip", ({"match_id": 1},)),
+        ("save_playlist", ({"name": "p"},)),
+        ("save_player_profile", ({"display_name": "P"},)),
+        ("update_player_profile_face", (1, "[0.1]", 0.9)),
+        ("save_gps_session", (1, 1, "match", "catapult")),
+        ("update_gps_session_stats", (1, {})),
+        ("save_gps_samples_bulk", (1, [{"timestamp": 0.0}])),
+        ("save_acwr", (1, "2026-01-01", 5000, 4500, 1.11)),
+        ("save_shortlist_entry", ({"player_id": 1, "player_name": "P"},)),
+        ("update_shortlist_entry", (1, {"status": "contacted"})),
+        ("delete_shortlist_entry", (1,)),
+        (
+            "save_contract",
+            ({"player_profile_id": 1, "player_name": "P", "start_date": "d", "end_date": "d"},),
+        ),
+        ("create_user", ("u", "h")),
+        ("update_user_login", (1,)),
+        ("record_failed_login", ("u",)),
+        ("save_session", (1, "h", "e")),
+        ("delete_session", ("h",)),
+        ("audit_log", (1, "u", "login")),
+        ("change_password", (1, "h")),
+        ("clear_expired_lock", (1,)),
+    ],
+)
+async def test_batch4b_sqlite_closed_connection_raises(op, args):
+    """The whole remaining write surface raises: a silent 0 on
+    save_session or audit_log previously made authentication and the
+    security trail silently disappear when the DB handle was gone."""
+    svc = _migrated_sqlite_storage()
+    svc._conn.close()
+    svc._conn = None
+    with pytest.raises(StorageNotInitializedError):
+        if op == "save_benchmark":
+            from kawkab.services.benchmark_service import BenchmarkResult
+
+            await svc.save_benchmark(BenchmarkResult())
+        else:
+            await getattr(svc, op)(*args)
+
+
+@pytest.mark.asyncio
+async def test_batch4b_contract_outcomes_keep_falsy_returns():
+    """Rejected input and unknown-user stay falsy CONTRACT outcomes, not
+    failures — distinguishable from a DB error which raises."""
+    svc = _migrated_sqlite_storage()
+    try:
+        assert await svc.save_feedback({}) == 0
+        assert await svc.save_issue({}) == 0
+        assert await svc.save_clip({}) == 0
+        assert await svc.save_playlist({}) == 0
+        assert await svc.save_usage_session({}) == 0
+        assert await svc.save_gps_samples_bulk(1, []) == 0
+        # Unknown username in record_failed_login: 0 = nothing to count.
+        assert await svc.record_failed_login("no_such_user") == 0
+    finally:
+        svc._conn.close()
+
+
+@pytest.mark.asyncio
+async def test_batch4b_auth_lockout_flow_survives_raises():
+    """The designed lockout flow still works through the honest contract:
+    5 failed logins lock, 0 remaining, and the raise never masks it."""
+    svc = _migrated_sqlite_storage()
+    try:
+        uid = await svc.create_user("lockme", "hash", must_reset_password=False)
+        assert uid > 0
+        remaining = 5
+        for _ in range(5):
+            remaining = await svc.record_failed_login("lockme")
+        assert remaining == 0
+        user = await svc.get_user_by_id(uid)
+        assert user["is_locked"] in (1, True)
+        # Audit trail records the lock event honestly too.
+        assert await svc.audit_log(uid, "lockme", "account_locked") > 0
+    finally:
+        svc._conn.close()
+
+
 # ── duplicates: a contract outcome, not a failure ───────────────────────
 
 
@@ -523,3 +613,78 @@ def test_typed_error_operation_names_match_their_methods():
     for name in ("postgres_storage.py", "storage_service.py"):
         mismatches.extend(_assert_raise_operation_names_match_methods(backends_dir / name))
     assert not mismatches, "typed errors with wrong operation name:\n" + "\n".join(mismatches)
+
+
+# ── batch 5b: reads raise too — silent []/None hid broken backends ──────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("get_all_matches", ()),
+        ("get_match", (1,)),
+        ("get_match_events", (1,)),
+        ("get_match_players", (1,)),
+        ("get_all_feedback", ()),
+        ("get_all_issues", ()),
+        ("get_clips_for_match", (1,)),
+        ("get_playlists", ()),
+        ("get_tracking_imports", (1,)),
+        ("get_tracking_import_by_id", (1,)),
+        ("get_event_frame_links", (1,)),
+        ("get_match_by_external_id", ("skillcorner", "x")),
+        ("get_gps_sessions", (1,)),
+        ("get_gps_samples", (1,)),
+        ("get_player_acwr", (1,)),
+        ("get_player_gps_summary", (1,)),
+        ("get_squad_injury_report", (1,)),
+        ("get_user_by_username", ("admin",)),
+        ("get_user_by_id", (1,)),
+        ("get_audit_log", ()),
+        ("validate_session", ("tok",)),
+        ("rotate_encryption_key", ()),
+    ],
+)
+async def test_read_closed_connection_raises_not_initialized(op, args):
+    svc = StorageService()
+    svc._pg = None
+    svc._use_postgres = False
+    svc._conn = None
+    with pytest.raises(StorageNotInitializedError) as ei:
+        await getattr(svc, op)(*args)
+    assert ei.value.operation == op
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("get_tracking_imports", (1,)),
+        ("get_tracking_import_by_id", (1,)),
+        ("get_match_by_external_id", ("skillcorner", "x")),
+        ("get_event_frame_links", (1,)),
+        ("get_user_by_username", ("admin",)),
+        ("get_user_by_id", (1,)),
+        ("get_all_users", ()),
+        ("get_audit_log", ()),
+        ("get_gps_sessions", (1,)),
+        ("get_gps_samples", (1,)),
+        ("get_player_acwr", (1,)),
+        ("get_player_gps_summary", (1,)),
+        ("get_squad_injury_report", (1,)),
+        ("get_tracking_frame_count", (1,)),
+        ("get_encryption_key", ()),
+        ("get_cache", ("k",)),
+        ("get_contracts_expiring_soon", (30,)),
+        ("get_setting", ("k",)),
+        ("get_schema_version", ()),
+        ("validate_session", ("tok",)),
+    ],
+)
+async def test_pg_read_pool_down_raises_with_operation_name(op, args):
+    adapter = PostgresStorageAdapter("postgresql://x:x@localhost:1/db")
+    adapter._pool = None
+    with pytest.raises(StorageNotInitializedError) as ei:
+        await getattr(adapter, op)(*args)
+    assert ei.value.operation == op

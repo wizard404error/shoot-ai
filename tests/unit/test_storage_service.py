@@ -802,11 +802,16 @@ async def test_uninitialized_service_returns_safe_defaults():
     ):
         with pytest.raises(StorageNotInitializedError):
             await call()
-    # Reads stay fail-soft.
-    assert await svc.get_all_feedback() == []
-    assert await svc.get_all_issues() == []
-    assert await svc.get_clips_for_match(1) == []
-    assert await svc.get_playlists() == []
+    # Reads of the media cluster raise too (batch 5b).
+    for call in (
+        lambda: svc.get_all_feedback(),
+        lambda: svc.get_all_issues(),
+        lambda: svc.get_clips_for_match(1),
+        lambda: svc.get_playlists(),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await call()
+    # Remaining reads stay fail-soft.
     assert await svc.get_validation_results(1) == []
 
 
@@ -1236,8 +1241,7 @@ async def test_get_player_gps_summary(storage):
 
 @pytest.mark.asyncio
 async def test_gps_uninitialized_conn():
-    """GPS writes raise honestly (batch 4b); reads keep the fail-soft
-    convention until the read batch converts them."""
+    """GPS reads and writes all raise honestly (batches 4b and 5b)."""
     from kawkab.services.storage_errors import StorageNotInitializedError
 
     svc = StorageService()
@@ -1245,14 +1249,18 @@ async def test_gps_uninitialized_conn():
     svc._use_postgres = False
     with pytest.raises(StorageNotInitializedError):
         await svc.save_gps_session(1, 1, "match", "catapult")
-    assert await svc.get_gps_sessions(1) == []
-    assert await svc.get_gps_samples(1) == []
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_gps_sessions(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_gps_samples(1)
     with pytest.raises(StorageNotInitializedError):
         await svc.save_gps_samples_bulk(1, [{"timestamp": 0.0}])
     with pytest.raises(StorageNotInitializedError):
         await svc.save_acwr(1, "2026-01-01", 5000, 4500, 1.11)
-    assert await svc.get_player_acwr(1) == []
-    assert await svc.get_player_gps_summary(1) == []
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_player_acwr(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_player_gps_summary(1)
 
 
 # ─── Squad Injury Report ────────────────────────────────────────────────────
@@ -1331,13 +1339,14 @@ async def test_squad_injury_report_resolves_team_via_player_match_links(storage)
 
 
 @pytest.mark.asyncio
-async def test_squad_injury_report_uninitialized_conn():
+async def test_squad_injury_report_uninitialized_conn_raises():
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
-    report = await svc.get_squad_injury_report(1)
-    assert report["total_active"] == 0
-    assert report["injuries"] == []
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_squad_injury_report(1)
 
 
 # ── Player Contracts (migration 017) ─────────────────────────────────────
