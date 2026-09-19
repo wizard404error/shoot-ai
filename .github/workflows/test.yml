@@ -151,12 +151,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       # test_entrypoints imports kawkab.app (Qt) — needs the same system
       # libs the gui-e2e job installs, else ImportError: libEGL.so.1.
       - name: Install system libs
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1
-        with:
-          python-version: '3.12'
       - name: Cache pip
         uses: actions/cache@v4
         with:
