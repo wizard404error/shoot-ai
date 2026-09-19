@@ -104,18 +104,24 @@ class SquadAvailabilityService:
             logger.warning(f"concussion lookup failed for player {player_id}: {e}")
             verdict["provenance"]["concussion"] = f"error: {e}"
 
-        # 3) Wellness (advisory only)
+        # 3) Load state (advisory only, via LoadMonitoringService) —
+        # single source of load-flag logic for the whole app.
         try:
-            wellness = await self._storage.get_player_wellness(player_id, limit=1)
-            if wellness:
-                verdict["provenance"]["wellness"] = "recorded"
-                score = float(wellness[0].get("wellness_score", 3.0))
-                if score < 2.5:
-                    verdict["advisories"].append(
-                        f"Low wellness score ({score:.1f}/5) — check with player"
-                    )
-        except Exception:
-            pass
+            from kawkab.services.load_monitoring_service import LoadMonitoringService
+
+            load_state = await LoadMonitoringService(self._storage).player_load_state(player_id)
+            verdict["provenance"]["load_band"] = load_state.get("srpe", {}).get("band", "no_data")
+            for flag in load_state.get("flags", []):
+                verdict["advisories"].append(
+                    f"Load advisory ({flag.get('source', 'sRPE')}): {flag.get('note', '')}"
+                )
+            if load_state.get("wellness_trend") == "declining":
+                verdict["advisories"].append(
+                    "Wellness trend declining over the last two weeks — check with player"
+                )
+        except Exception as e:  # load data must never silently block or clear
+            logger.warning(f"load-state lookup failed for player {player_id}: {e}")
+            verdict["provenance"]["load_band"] = f"error: {e}"
 
         return verdict
 

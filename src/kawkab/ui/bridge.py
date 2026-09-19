@@ -964,6 +964,31 @@ class Bridge(QObject):
         return await self._training.set_medical_clearance(player_id, payload)
 
     # ================================================================
+    # Sports science slots (delegated to TrainingHandler, Phase C)
+    # ================================================================
+
+    async def get_player_load_state(self, player_id):
+        return await self._training.get_player_load_state(player_id)
+
+    async def interpret_testing_result(self, player_id, payload: str | dict = ""):
+        return await self._training.interpret_testing_result(player_id, payload)
+
+    async def get_battery_summary(self, player_id):
+        return await self._training.get_battery_summary(player_id)
+
+    async def estimate_maturity_offset(self, payload: str | dict = ""):
+        return await self._training.estimate_maturity_offset(payload)
+
+    async def get_squad_readiness(self, record_date: str):
+        return await self._training.get_squad_readiness(record_date)
+
+    async def get_player_protocol_flags(self, player_id):
+        return await self._training.get_player_protocol_flags(player_id)
+
+    async def get_squad_overview(self, record_date: str, player_ids_json: str):
+        return await self._training.get_squad_overview(record_date, player_ids_json)
+
+    # ================================================================
     # Goalkeeper
     # ================================================================
 

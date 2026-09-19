@@ -517,3 +517,172 @@ class TrainingHandler(BridgeHandlerBase):
         except Exception as e:
             logger.error(f"set_medical_clearance failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ------------------------------------------------------------------
+    # Sports science (Phase C): load, testing, maturation, protocols
+    # ------------------------------------------------------------------
+
+    async def get_player_load_state(self, player_id):
+        """Triangulated sRPE/GPS load state with descriptive flags."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.load_monitoring_service import LoadMonitoringService
+
+            pid = SecurityValidator.validate_int(player_id)
+            state = await LoadMonitoringService(
+                self._services["storage_service"]
+            ).player_load_state(pid)
+            return json.dumps({"success": True, **state})
+        except Exception as e:
+            logger.error(f"get_player_load_state failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def interpret_testing_result(self, player_id, payload: str | dict):
+        """Interpret a testing result against the club's own distribution."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.testing_battery_service import TestingBatteryService
+
+            pid = SecurityValidator.validate_int(player_id)
+            data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
+            test_type = str(data.get("test_type") or "").strip()
+            if not test_type:
+                return json.dumps({"error": "test_type is required"})
+            try:
+                value = float(data.get("value"))
+            except (TypeError, ValueError):
+                return json.dumps({"error": "value must be numeric"})
+            svc = TestingBatteryService(self._services["storage_service"])
+            out = await svc.interpret_result(
+                pid, test_type, value, str(data.get("test_date") or "") or None
+            )
+            return json.dumps({"success": True, **out})
+        except Exception as e:
+            logger.error(f"interpret_testing_result failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_battery_summary(self, player_id):
+        """Per-test-type trend summary for a player's testing battery."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.testing_battery_service import TestingBatteryService
+
+            pid = SecurityValidator.validate_int(player_id)
+            out = await TestingBatteryService(self._services["storage_service"]).battery_summary(
+                pid
+            )
+            return json.dumps({"success": True, **out})
+        except Exception as e:
+            logger.error(f"get_battery_summary failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def estimate_maturity_offset(self, payload: str | dict):
+        """PHV/maturity-offset estimate (Mirwald), validity provenance included."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.maturation_service import MaturationService
+
+            data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
+            try:
+                age = float(data.get("age_years"))
+                standing = float(data.get("standing_height_cm"))
+                sitting = float(data.get("sitting_height_cm"))
+            except (TypeError, ValueError):
+                return json.dumps(
+                    {
+                        "error": "age_years, standing_height_cm, sitting_height_cm are required numbers"
+                    }
+                )
+            out = MaturationService().estimate_offset(
+                age, standing, sitting, sex=str(data.get("sex") or "male")
+            )
+            return json.dumps({"success": out.get("maturity_offset") is not None, **out})
+        except Exception as e:
+            logger.error(f"estimate_maturity_offset failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_squad_readiness(self, record_date: str):
+        """Morning-ritual readiness summary (conversation flags only)."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.player_protocol_service import PlayerProtocolService
+
+            out = await PlayerProtocolService(
+                self._services["storage_service"]
+            ).squad_readiness_summary(str(record_date or "").strip())
+            return json.dumps({"success": True, **out})
+        except Exception as e:
+            logger.error(f"get_squad_readiness failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_player_protocol_flags(self, player_id):
+        """Wellness/psych/nutrition conversation flags for one player."""
+        try:
+            self._check_rate_limit()
+            from kawkab.services.player_protocol_service import PlayerProtocolService
+
+            pid = SecurityValidator.validate_int(player_id)
+            svc = PlayerProtocolService(self._services["storage_service"])
+            psych = await svc.psych_flags(pid)
+            nutrition = await svc.nutrition_flags(pid)
+            return json.dumps(
+                {"success": True, "player_id": pid, "psych": psych, "nutrition": nutrition}
+            )
+        except Exception as e:
+            logger.error(f"get_player_protocol_flags failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_squad_overview(self, record_date: str, player_ids_json: str):
+        """The staff's daily decision view: availability % + readiness flags.
+
+        Merges SquadAvailabilityService (hard medical gates) with the
+        readiness summary (conversation flags) — one honest picture of
+        who can train today and who needs a conversation first.
+        """
+        try:
+            self._check_rate_limit()
+            from kawkab.services.availability_service import SquadAvailabilityService
+            from kawkab.services.player_protocol_service import PlayerProtocolService
+
+            raw_ids = (
+                json.loads(player_ids_json)
+                if isinstance(player_ids_json, str)
+                else list(player_ids_json or [])
+            )
+            if not isinstance(raw_ids, list):
+                return json.dumps({"error": "player_ids must be a JSON array"})
+            player_ids = [SecurityValidator.validate_int(p) for p in raw_ids]
+
+            availability = await SquadAvailabilityService(
+                self._services["storage_service"]
+            ).squad_availability(player_ids)
+            readiness = await PlayerProtocolService(
+                self._services["storage_service"]
+            ).squad_readiness_summary(str(record_date or "").strip())
+            total = len(player_ids)
+            availability_pct = (
+                round(100.0 * availability["available_count"] / total, 1) if total else 0.0
+            )
+            return json.dumps(
+                {
+                    "success": True,
+                    "record_date": record_date,
+                    "availability_pct": availability_pct,
+                    "available_count": availability["available_count"],
+                    "unavailable_count": availability["unavailable_count"],
+                    "limited_count": availability["limited_count"],
+                    "players": availability["players"],
+                    "readiness": {
+                        "submissions": readiness["submissions"],
+                        "mean_wellness": readiness["mean_wellness"],
+                        "flagged_for_conversation": readiness["flagged_for_conversation"],
+                    },
+                    "provenance": {
+                        "availability": "hard gates: medical clearance + concussion RTP",
+                        "readiness": "advisory conversation flags only",
+                    },
+                }
+            )
+        except Exception as e:
+            logger.error(f"get_squad_overview failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
