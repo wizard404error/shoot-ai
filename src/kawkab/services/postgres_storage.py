@@ -190,14 +190,14 @@ class PostgresStorageAdapter:
 
     async def hard_delete_match(self, match_id: int) -> bool:
         if not self._pool:
-            raise StorageNotInitializedError("get_match")
+            raise StorageNotInitializedError("hard_delete_match")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM matches WHERE id = $1", match_id)
             return r != "DELETE 0"
 
     async def restore_match(self, match_id: int) -> bool:
         if not self._pool:
-            raise StorageNotInitializedError("get_all_matches")
+            raise StorageNotInitializedError("restore_match")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE matches SET is_deleted=0, deleted_at=NULL WHERE id = $1",
@@ -469,7 +469,7 @@ class PostgresStorageAdapter:
 
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._pool:
-            raise StorageNotInitializedError("get_match_events")
+            raise StorageNotInitializedError("update_event")
         allowed = {
             "event_type",
             "team",
@@ -509,7 +509,7 @@ class PostgresStorageAdapter:
 
     async def delete_event(self, event_id: int) -> bool:
         if not self._pool:
-            raise StorageNotInitializedError("save_events_bulk")
+            raise StorageNotInitializedError("delete_event")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE events SET is_deleted=1, deleted_at=NOW() WHERE id = $1 AND (is_deleted IS NULL OR is_deleted=0)",
@@ -519,14 +519,14 @@ class PostgresStorageAdapter:
 
     async def hard_delete_event(self, event_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("hard_delete_event")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM events WHERE id = $1", event_id)
             return r != "DELETE 0"
 
     async def restore_event(self, event_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("restore_event")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE events SET is_deleted=0, deleted_at=NULL WHERE id = $1",
@@ -610,7 +610,7 @@ class PostgresStorageAdapter:
 
     async def hard_delete_player(self, player_id: int) -> bool:
         if not self._pool:
-            raise StorageNotInitializedError("get_match_players")
+            raise StorageNotInitializedError("hard_delete_player")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM players WHERE id = $1", player_id)
             return r != "DELETE 0"
@@ -735,7 +735,9 @@ class PostgresStorageAdapter:
             return row["id"] if row else 0
 
     async def save_advanced_metrics_bulk(self, match_id: int, metrics_list: list[dict]) -> int:
-        if not self._pool or not metrics_list:
+        if not self._pool:
+            raise StorageNotInitializedError("save_advanced_metrics_bulk")
+        if not metrics_list:
             return 0
         params = [
             (
@@ -874,7 +876,7 @@ class PostgresStorageAdapter:
 
     async def save_benchmark(self, result: Any) -> int:
         if not self._pool:
-            raise StorageNotInitializedError("get_reports")
+            raise StorageNotInitializedError("save_benchmark")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO benchmark_results (match_id, video_path, video_duration_seconds, total_frames,
@@ -931,7 +933,7 @@ class PostgresStorageAdapter:
 
     async def save_validation_result(self, report: Any) -> list[int]:
         if not self._pool:
-            raise StorageNotInitializedError("save_advanced_metrics_bulk")
+            raise StorageNotInitializedError("save_validation_result")
         ids = []
         async with self._pool.acquire() as conn:
             cats = ["events", "possession", "team_assignment", "speed"]

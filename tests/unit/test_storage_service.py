@@ -761,6 +761,18 @@ async def test_uninitialized_service_returns_safe_defaults():
         await svc.save_correction(1, "", "", "")
     with pytest.raises(StorageNotInitializedError):
         await svc.get_reports(1, "en")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_players_bulk(1, [])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_advanced_metrics_bulk(1, [])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.update_event(1, {"team": "away"})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.delete_event(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.hard_delete_event(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.restore_event(1)
     # Reads (and not-yet-converted clusters) keep the legacy fail-soft defaults.
     assert await svc.get_match(1) is None
     assert await svc.get_all_matches() == []
@@ -779,11 +791,7 @@ async def test_uninitialized_service_returns_safe_defaults():
     assert await svc.save_playlist({}) == 0
     assert await svc.get_playlists() == []
     assert await svc.save_usage_session({}) == 0
-    assert await svc.save_advanced_metrics_bulk(1, []) == 0
-    assert await svc.save_players_bulk(1, []) == 0
     assert await svc.get_validation_results(1) == []
-    assert await svc.update_event(1, {"team": "away"}) is False
-    assert await svc.delete_event(1) is False
 
 
 @pytest.mark.asyncio

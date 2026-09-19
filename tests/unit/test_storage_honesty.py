@@ -175,7 +175,106 @@ async def test_pg_pool_down_raises_not_initialized(op, args):
         await getattr(adapter, op)(*args)
 
 
-# ── handler surface: failure vs rejection vs success ─────────────────────
+# ── event-mutation + bulk-save cluster (batch 3) ─────────────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("update_event", (1, {"team": "away"})),
+        ("delete_event", (1,)),
+        ("hard_delete_event", (1,)),
+        ("restore_event", (1,)),
+        ("save_validation_result", (None,)),
+        ("save_players_bulk", (1, [])),
+        ("save_advanced_metrics_bulk", (1, [])),
+    ],
+)
+async def test_batch3_closed_connection_raises_not_initialized(op, args):
+    """Batch-3 converts must raise — never a silent False/[]/0. The old
+    silent False on delete/update made a closed-connection failure
+    indistinguishable from 'event not found', and the empty-input 0 return
+    masked 'storage was never opened' as 'nothing to save'."""
+    svc = _migrated_sqlite_storage()
+    svc._conn.close()
+    svc._conn = None
+    with pytest.raises(StorageNotInitializedError):
+        if op == "save_validation_result":
+            from kawkab.services.validation_service import ValidationReport
+
+            await svc.save_validation_result(
+                ValidationReport(match_id=1, ground_truth_source="auto")
+            )
+        else:
+            await getattr(svc, op)(*args)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("delete_event", (1,)),
+        ("hard_delete_event", (1,)),
+        ("restore_event", (1,)),
+        ("save_players_bulk", (1, [])),
+        ("save_advanced_metrics_bulk", (1, [])),
+        ("hard_delete_match", (1,)),
+        ("restore_match", (1,)),
+        ("update_event", (1, {"team": "away"})),
+        ("hard_delete_player", (1,)),
+        ("save_benchmark", (None,)),
+    ],
+)
+async def test_batch3_pg_pool_down_raises_not_initialized(op, args):
+    """PG-side of the same contract — pool down raises, with the *correct*
+    operation name (the first pass of this batch copy-pasted
+    save_events_bulk/save_advanced_metrics_bulk into delete_event and
+    save_validation_result, and batch 2 had left get_match/get_all_matches
+    inside hard_delete_match/restore_match and get_match_events/
+    get_match_players/get_reports inside update_event/hard_delete_player/
+    save_benchmark — every failure mislabeled)."""
+    adapter = _pg_without_pool()
+    with pytest.raises(StorageNotInitializedError) as excinfo:
+        await getattr(adapter, op)(*args)
+    assert excinfo.value.operation == op
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("save_players_bulk", (424242, [{"track_id": 1, "name": "P"}])),
+        ("save_advanced_metrics_bulk", (424242, [{"metric_name": "xG", "metric_value": 0.1}])),
+    ],
+)
+async def test_batch3_fk_violation_on_bulk_save_raises_write_error(op, args):
+    """A missing match row (FK violation) during a bulk save must RAISE,
+    not return the row count as if all rows persisted — the exact lie the
+    old 0-return told importers on partial FK failures."""
+    svc = _migrated_sqlite_storage()
+    try:
+        with pytest.raises(StorageWriteError) as excinfo:
+            await getattr(svc, op)(*args)
+        assert excinfo.value.operation == op
+        assert excinfo.value.__cause__ is not None
+    finally:
+        svc._conn.close()
+
+
+@pytest.mark.asyncio
+async def test_batch3_empty_inputs_keep_zero_contract():
+    """Empty list is a CONTRACT outcome (nothing to save), not a failure —
+    the batch kept the legacy 0 return while making pool-down raise."""
+    svc = _migrated_sqlite_storage()
+    try:
+        assert await svc.save_players_bulk(1, []) == 0
+        assert await svc.save_advanced_metrics_bulk(1, []) == 0
+    finally:
+        svc._conn.close()
+
+
+# ── handler surface: failure vs rejection vs success ─────────────────────────
 
 
 @pytest.mark.asyncio
@@ -294,3 +393,60 @@ async def test_importer_dedup_contract_end_to_end():
         assert summary["events_skipped"] > 0
     finally:
         svc._conn.close()
+
+
+# ── op-name integrity: every typed error names ITS OWN method ───────────
+
+
+def _assert_raise_operation_names_match_methods(file_path: Path) -> list[str]:
+    """AST-walk a backend file; return every `Storage*Error("name")` whose
+    literal doesn't equal its enclosing function/method name."""
+    import ast
+
+    tree = ast.parse(file_path.read_text(encoding="utf-8"))
+    mismatches: list[str] = []
+
+    def _walk(node, enclosing: str | None) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _walk(child, child.name)
+                continue
+            if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
+                cls = getattr(child.func, "id", "")
+                if (
+                    cls
+                    in (
+                        "StorageNotInitializedError",
+                        "StorageWriteError",
+                        "StorageReadError",
+                        "StorageDuplicateError",
+                    )
+                    and child.args
+                    and isinstance(child.args[0], ast.Constant)
+                ):
+                    op = child.args[0].value
+                    if enclosing is not None and op != enclosing:
+                        mismatches.append(
+                            f"{file_path.name}:{child.lineno}: {enclosing} raises {cls}({op!r})"
+                        )
+            _walk(child, enclosing)
+
+    _walk(tree, None)
+    return mismatches
+
+
+def test_typed_error_operation_names_match_their_methods():
+    """THE copy-paste bug class, dead permanently. Seven real instances
+    shipped across batches 2-3 (delete_event raising 'save_events_bulk',
+    save_validation_result raising 'save_advanced_metrics_bulk',
+    hard_delete_match raising 'get_match', restore_match raising
+    'get_all_matches', update_event raising 'get_match_events',
+    hard_delete_player raising 'get_match_players', save_benchmark raising
+    'get_reports') — every DB failure in logs/handler payloads mislabeled
+    with an unrelated operation. This meta-test fails the build the moment
+    any typed error names a different method."""
+    backends_dir = Path(__file__).resolve().parents[2] / "src" / "kawkab" / "services"
+    mismatches: list[str] = []
+    for name in ("postgres_storage.py", "storage_service.py"):
+        mismatches.extend(_assert_raise_operation_names_match_methods(backends_dir / name))
+    assert not mismatches, "typed errors with wrong operation name:\n" + "\n".join(mismatches)
