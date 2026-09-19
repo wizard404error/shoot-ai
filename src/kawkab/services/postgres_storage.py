@@ -298,7 +298,7 @@ class PostgresStorageAdapter:
         apifb_season: int | None = None,
     ) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_match_apifootball")
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and apifb_home_team_id is None:
                 r = await conn.execute(
@@ -340,7 +340,7 @@ class PostgresStorageAdapter:
         prediction_data: str | None = None,
     ) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_match_bzzoiro")
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and bzzoiro_home_team_id is None:
                 r = await conn.execute(
@@ -617,7 +617,7 @@ class PostgresStorageAdapter:
 
     async def restore_player(self, player_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("restore_player")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE players SET is_deleted=0, deleted_at=NULL WHERE id = $1",
@@ -1298,7 +1298,7 @@ class PostgresStorageAdapter:
 
     async def ensure_team(self, name: str) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("ensure_team")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow("SELECT id FROM teams WHERE name = $1", (name,))
             if row:
@@ -1318,7 +1318,7 @@ class PostgresStorageAdapter:
         away_color: str = "#ffffff",
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_team")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "INSERT INTO teams (name, short_name, home_color, away_color) VALUES ($1,$2,$3,$4) ON CONFLICT (name) DO UPDATE SET short_name=EXCLUDED.short_name RETURNING id",
@@ -1351,7 +1351,7 @@ class PostgresStorageAdapter:
         ball_detections: list[dict],
     ) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("save_tracking_frame")
         async with self._pool.acquire() as conn:
             _ = await conn.execute(
                 """INSERT INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections)
@@ -1385,7 +1385,7 @@ class PostgresStorageAdapter:
         metadata: dict | None = None,
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_tracking_import")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO tracking_imports (
@@ -1438,7 +1438,7 @@ class PostgresStorageAdapter:
 
     async def delete_tracking_import(self, import_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("delete_tracking_import")
         r = await self.execute(
             "UPDATE tracking_imports SET is_deleted = 1 WHERE id = $1", import_id
         )
@@ -1456,7 +1456,7 @@ class PostgresStorageAdapter:
         mapping already existed.
         """
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("register_match_external_id")
         row = await self.fetchrow(
             """INSERT INTO matches_external_ids (match_id, source, external_id)
                VALUES ($1, $2, $3)
@@ -1521,7 +1521,9 @@ class PostgresStorageAdapter:
         await self.execute(f"UPDATE matches SET {', '.join(sets)} WHERE id = ${len(vals)}", *vals)
 
     async def save_event_frame_links_bulk(self, match_id: int, links: list[dict]) -> int:
-        if not self._pool or not links:
+        if not self._pool:
+            raise StorageNotInitializedError("save_event_frame_links_bulk")
+        if not links:
             return 0
         params = [
             (
@@ -1947,7 +1949,9 @@ class PostgresStorageAdapter:
         }
 
     async def save_tracking_frames_bulk(self, match_id: int, frames: list[dict]) -> int:
-        if not self._pool or not frames:
+        if not self._pool:
+            raise StorageNotInitializedError("save_tracking_frames_bulk")
+        if not frames:
             return 0
         params = []
         for f in frames:
@@ -2019,7 +2023,7 @@ class PostgresStorageAdapter:
 
     async def delete_tracking_frames(self, match_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("delete_tracking_frames")
         async with self._pool.acquire() as conn:
             await conn.execute("DELETE FROM tracking_frames WHERE match_id = $1", match_id)
             return True

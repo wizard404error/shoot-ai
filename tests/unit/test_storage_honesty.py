@@ -395,6 +395,79 @@ async def test_importer_dedup_contract_end_to_end():
         svc._conn.close()
 
 
+# ── batch 4a: sealing the holes in previously-converted clusters ───────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("hard_delete_match", (1,)),
+        ("restore_match", (1,)),
+        ("hard_delete_player", (1,)),
+        ("restore_player", (1,)),
+        ("ensure_team", ("T",)),
+        ("save_team", ("T",)),
+        ("save_tracking_frame", (1, 1, 0.0, [], [])),
+        ("save_tracking_frames_bulk", (1, [{"frame_number": 1}])),
+        ("save_tracking_import", (1, "skillcorner")),
+        ("delete_tracking_import", (1,)),
+        ("save_event_frame_links_bulk", (1, [{"event_id": 1}])),
+        ("register_match_external_id", (1, "statsbomb", "999")),
+        ("delete_tracking_frames", (1,)),
+    ],
+)
+async def test_batch4a_sqlite_closed_connection_raises(op, args):
+    """The delete/restore twins, team helpers, and the whole tracking/
+    provenance cluster raise like the rest of their clusters — a silent
+    False here made a lost import-provenance row look like a no-op."""
+    svc = _migrated_sqlite_storage()
+    svc._conn.close()
+    svc._conn = None
+    with pytest.raises(StorageNotInitializedError):
+        await getattr(svc, op)(*args)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "op,args",
+    [
+        ("update_match_apifootball", (1,)),
+        ("update_match_bzzoiro", (1,)),
+        ("restore_player", (1,)),
+        ("ensure_team", ("T",)),
+        ("save_team", ("T",)),
+        ("save_tracking_frame", (1, 1, 0.0, [], [])),
+        ("save_tracking_frames_bulk", (1, [{"frame_number": 1}])),
+        ("save_tracking_import", (1, "skillcorner")),
+        ("delete_tracking_import", (1,)),
+        ("save_event_frame_links_bulk", (1, [{"event_id": 1}])),
+        ("register_match_external_id", (1, "statsbomb", "999")),
+        ("delete_tracking_frames", (1,)),
+    ],
+)
+async def test_batch4a_pg_pool_down_raises(op, args):
+    """PG side of batch 4a — including the two match-cluster stragglers
+    (update_match_apifootball/bzzoiro) that batch 2 left fail-soft."""
+    adapter = _pg_without_pool()
+    with pytest.raises(StorageNotInitializedError) as excinfo:
+        await getattr(adapter, op)(*args)
+    assert excinfo.value.operation == op
+
+
+@pytest.mark.asyncio
+async def test_batch4a_tracking_import_fk_failure_raises():
+    """Import-provenance rows FK to matches: a bulk provenance save against
+    a missing match must RAISE, not return a row id that doesn't exist."""
+    svc = _migrated_sqlite_storage()
+    try:
+        with pytest.raises(StorageWriteError) as excinfo:
+            await svc.save_tracking_import(424242, "skillcorner")
+        assert excinfo.value.operation == "save_tracking_import"
+    finally:
+        svc._conn.close()
+
+
 # ── op-name integrity: every typed error names ITS OWN method ───────────
 
 

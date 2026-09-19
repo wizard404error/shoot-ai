@@ -168,18 +168,30 @@ class TestNoConnectionFallbackParity:
     def test_pg_get_tracking_imports_no_pool_returns_empty(self, pg_adapter):
         assert asyncio.run(pg_adapter.get_tracking_imports(1)) == []
 
-    def test_pg_save_tracking_import_no_pool_returns_zero(self, pg_adapter):
-        result = asyncio.run(pg_adapter.save_tracking_import(1, "skillcorner"))
-        assert result == 0
+    def test_pg_save_tracking_import_no_pool_raises(self, pg_adapter):
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        # Converted tracking cluster: a silent 0 here made a failed import
+        # provenance row indistinguishable from "saved".
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(pg_adapter.save_tracking_import(1, "skillcorner"))
 
     def test_pg_get_tracking_import_by_id_no_pool_returns_none(self, pg_adapter):
         assert asyncio.run(pg_adapter.get_tracking_import_by_id(1)) is None
 
-    def test_pg_delete_tracking_import_no_pool_returns_false(self, pg_adapter):
-        assert asyncio.run(pg_adapter.delete_tracking_import(1)) is False
+    def test_pg_delete_tracking_import_no_pool_raises(self, pg_adapter):
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(pg_adapter.delete_tracking_import(1))
 
     def test_pg_event_frame_links_no_pool(self, pg_adapter):
-        assert asyncio.run(pg_adapter.save_event_frame_links_bulk(1, [{"event_id": 1}])) == 0
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        # Writes in the tracking cluster raise; the read keeps the
+        # documented fail-soft until the read batch converts it.
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(pg_adapter.save_event_frame_links_bulk(1, [{"event_id": 1}]))
         assert asyncio.run(pg_adapter.get_event_frame_links(1)) == []
 
 

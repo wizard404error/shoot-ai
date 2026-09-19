@@ -143,17 +143,21 @@ class StorageService:
     async def ensure_team(self, name: str) -> int:
         """Get-or-create a team by name, returning its ID."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute("SELECT id FROM teams WHERE name = ?", (name,))
-        row = cursor.fetchone()
-        if row:
-            return row["id"]
-        cursor.execute(
-            "INSERT INTO teams (name, short_name) VALUES (?, ?)", (name, name[:3].upper())
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("ensure_team")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("SELECT id FROM teams WHERE name = ?", (name,))
+            row = cursor.fetchone()
+            if row:
+                return row["id"]
+            cursor.execute(
+                "INSERT INTO teams (name, short_name) VALUES (?, ?)", (name, name[:3].upper())
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"ensure_team failed: {e}")
+            raise StorageWriteError("ensure_team", e) from e
 
     async def save_match(
         self,
@@ -601,23 +605,31 @@ class StorageService:
     async def hard_delete_match(self, match_id: int) -> bool:
         """Permanently delete a match by ID. Returns True if deleted."""
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("hard_delete_match")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"hard_delete_match failed: {e}")
+            raise StorageWriteError("hard_delete_match", e) from e
 
     async def restore_match(self, match_id: int) -> bool:
         """Restore a soft-deleted match by ID. Returns True if updated."""
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE matches SET is_deleted=0, deleted_at=NULL WHERE id = ?",
-            (match_id,),
-        )
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("restore_match")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE matches SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+                (match_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"restore_match failed: {e}")
+            raise StorageWriteError("restore_match", e) from e
 
     async def get_match_events(
         self, match_id: int, limit: int = 200, offset: int = 0
@@ -1133,23 +1145,31 @@ class StorageService:
     async def hard_delete_player(self, player_id: int) -> bool:
         """Permanently delete a player by ID. Returns True if deleted."""
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM players WHERE id = ?", (player_id,))
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("hard_delete_player")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("DELETE FROM players WHERE id = ?", (player_id,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"hard_delete_player failed: {e}")
+            raise StorageWriteError("hard_delete_player", e) from e
 
     async def restore_player(self, player_id: int) -> bool:
         """Restore a soft-deleted player by ID. Returns True if updated."""
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE players SET is_deleted=0, deleted_at=NULL WHERE id = ?",
-            (player_id,),
-        )
-        self._conn.commit()
-        return cursor.rowcount > 0
+            raise StorageNotInitializedError("restore_player")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE players SET is_deleted=0, deleted_at=NULL WHERE id = ?",
+                (player_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.warning(f"restore_player failed: {e}")
+            raise StorageWriteError("restore_player", e) from e
 
     async def save_players_bulk(self, match_id: int, players: list[dict]) -> int:
         """Save multiple players in a single transaction. Returns count saved."""
@@ -1585,7 +1605,7 @@ class StorageService:
         away_color: str = "#ffffff",
     ) -> int:
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_team")
         cursor = self._conn.cursor()
         try:
             cursor.execute(
@@ -1595,8 +1615,10 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("save_team", e) from e
             logger.warning(f"save_team failed: {e}")
-            return 0
+            raise StorageWriteError("save_team", e) from e
 
     async def get_team_by_name(self, name: str) -> dict | None:
         if self._conn is None:
@@ -1629,7 +1651,7 @@ class StorageService:
         ball_detections: list[dict],
     ) -> bool:
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("save_tracking_frame")
         cursor = self._conn.cursor()
         try:
             cursor.execute(
@@ -1646,11 +1668,11 @@ class StorageService:
             return True
         except Exception as e:
             logger.warning(f"save_tracking_frame failed: {e}")
-            return False
+            raise StorageWriteError("save_tracking_frame", e) from e
 
     async def save_tracking_frames_bulk(self, match_id: int, frames: list[dict]) -> int:
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_tracking_frames_bulk")
         if not frames:
             return 0
         cursor = self._conn.cursor()
@@ -1672,12 +1694,17 @@ class StorageService:
                 )
         if not rows:
             return 0
-        cursor.executemany(
-            "INSERT OR REPLACE INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections) VALUES (?, ?, ?, ?, ?)",
-            rows,
-        )
-        self._conn.commit()
-        return len(rows)
+        try:
+            cursor.executemany(
+                "INSERT OR REPLACE INTO tracking_frames (match_id, frame_number, timestamp, player_detections, ball_detections) VALUES (?, ?, ?, ?, ?)",
+                rows,
+            )
+            self._conn.commit()
+            return len(rows)
+        except Exception as e:
+            self._conn.rollback()
+            logger.warning(f"save_tracking_frames_bulk failed: {e}")
+            raise StorageWriteError("save_tracking_frames_bulk", e) from e
 
     async def get_tracking_frames(
         self, match_id: int, start_frame: int = 0, end_frame: int | None = None, limit: int = 1000
@@ -1733,10 +1760,10 @@ class StorageService:
 
         One row per (match, vendor, file) import; frame positions live in
         ``tracking_frames`` via save_tracking_frames_bulk, this is the
-        per-match provenance row. Returns the row id, or 0 on failure.
+        per-match provenance row. Returns the row id.
         """
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_tracking_import")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1763,7 +1790,7 @@ class StorageService:
             return cursor.lastrowid or 0
         except Exception as e:
             logger.warning(f"save_tracking_import failed: {e}")
-            return 0
+            raise StorageWriteError("save_tracking_import", e) from e
 
     async def get_tracking_imports(self, match_id: int) -> list[dict]:
         """All (non-deleted) vendor tracking imports for a match."""
@@ -1809,7 +1836,7 @@ class StorageService:
     async def delete_tracking_import(self, import_id: int) -> bool:
         """Soft-delete a tracking-import provenance row."""
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("delete_tracking_import")
         try:
             cursor = self._conn.cursor()
             cursor.execute("UPDATE tracking_imports SET is_deleted = 1 WHERE id = ?", (import_id,))
@@ -1817,7 +1844,7 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"delete_tracking_import failed: {e}")
-            return False
+            raise StorageWriteError("delete_tracking_import", e) from e
 
     # ── Match external-ID registry + season context (migration 031) ─────
 
@@ -1832,7 +1859,7 @@ class StorageService:
         there" without a second query).
         """
         if self._conn is None:
-            return False
+            raise StorageNotInitializedError("register_match_external_id")
         try:
             cursor = self._conn.cursor()
             cursor.execute(
@@ -1846,7 +1873,7 @@ class StorageService:
             return cursor.rowcount > 0
         except Exception as e:
             logger.warning(f"register_match_external_id failed: {e}")
-            return False
+            raise StorageWriteError("register_match_external_id", e) from e
 
     async def get_match_by_external_id(self, source: str, external_id: str) -> int | None:
         """Internal match id for a vendor match id, or None."""
@@ -1902,7 +1929,7 @@ class StorageService:
         (same match/event/frame) are skipped via the UNIQUE constraint.
         """
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_event_frame_links_bulk")
         if not links:
             return 0
         try:
@@ -1929,8 +1956,9 @@ class StorageService:
             self._conn.commit()
             return len(rows)
         except Exception as e:
+            self._conn.rollback()
             logger.warning(f"save_event_frame_links_bulk failed: {e}")
-            return 0
+            raise StorageWriteError("save_event_frame_links_bulk", e) from e
 
     async def get_event_frame_links(
         self, match_id: int, event_id: int | None = None, limit: int = 10000
@@ -1963,11 +1991,16 @@ class StorageService:
 
     async def delete_tracking_frames(self, match_id: int) -> bool:
         if self._conn is None:
-            return False
-        cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM tracking_frames WHERE match_id = ?", (match_id,))
-        self._conn.commit()
-        return True
+            raise StorageNotInitializedError("delete_tracking_frames")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("DELETE FROM tracking_frames WHERE match_id = ?", (match_id,))
+            self._conn.commit()
+            return True
+        except Exception as e:
+            self._conn.rollback()
+            logger.warning(f"delete_tracking_frames failed: {e}")
+            raise StorageWriteError("delete_tracking_frames", e) from e
 
     # ── Encryption key management ────────────────────────────────────────
 
