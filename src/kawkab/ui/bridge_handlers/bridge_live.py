@@ -14,8 +14,11 @@ logger = get_logger(__name__)
 def _compute_hot_zones(events, grid_cols=6, grid_rows=4):
     if not events:
         return []
-    x_vals = [e["x"] for e in events if e.get("x") is not None]
-    y_vals = [e["y"] for e in events if e.get("y") is not None]
+    # Coerce to float: coordinate values can arrive as strings depending on
+    # the producer (JS bridge numbers-vs-strings), and the arithmetic below
+    # raises TypeError on str - str otherwise.
+    x_vals = [float(e["x"]) for e in events if e.get("x") is not None]
+    y_vals = [float(e["y"]) for e in events if e.get("y") is not None]
     if not x_vals or not y_vals:
         return []
     min_x, max_x = min(x_vals), max(x_vals)
@@ -26,8 +29,8 @@ def _compute_hot_zones(events, grid_cols=6, grid_rows=4):
     for e in events:
         if e.get("x") is None or e.get("y") is None:
             continue
-        cx = int((e["x"] - min_x) / x_range * grid_cols)
-        cy = int((e["y"] - min_y) / y_range * grid_rows)
+        cx = int((float(e["x"]) - min_x) / x_range * grid_cols)
+        cy = int((float(e["y"]) - min_y) / y_range * grid_rows)
         key = f"{cx},{cy}"
         cells[key] = cells.get(key, 0) + 1
     max_count = max(cells.values()) if cells else 1
@@ -57,7 +60,6 @@ class LiveHandler:
     @property
     def storage_service(self):
         return self._services.get("storage_service")
-
 
     # ================================================================
     # Sprint 4 — Live Tagging Service
@@ -178,9 +180,7 @@ class LiveHandler:
             away_shots = 0
             home_goals = s.get("home_goals", 0)
             away_goals = s.get("away_goals", 0)
-            total_shots_on = (
-                ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
-            )
+            total_shots_on = ev.get("shot_ontarget", 0) or ev.get("shot_on_target", 0) or 0
             home_shots_on = total_shots_on
             away_shots_on = 0
             # Rough league-average placeholder: a shot is worth ~0.11 xG.

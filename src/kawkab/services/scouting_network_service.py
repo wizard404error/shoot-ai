@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
@@ -30,8 +30,8 @@ class NetworkPlayer:
     tags: list[str] = field(default_factory=list)
     submitted_by: str = ""
     contact_info: str = ""
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class ScoutingNetworkService:

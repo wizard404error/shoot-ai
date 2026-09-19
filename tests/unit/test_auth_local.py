@@ -198,115 +198,113 @@ def test_password_hashing():
     assert _verify_password("WrongPass", h) is False
 
 
-def test_auth_login_success(storage):
-    import asyncio
+# Handler-surface tests drive the real async convention (the v0.13.2
+# sync implementation used asyncio.run() per storage call, which raises
+# under the app's running qasync loop -- dead login in the real app
+# while these tests stayed green; the e2e slot audit caught it).
 
+
+@pytest.mark.asyncio
+async def test_auth_login_success(storage):
     pwd_hash = _hash_password("testpass")
-    uid = asyncio.run(storage.create_user("logintest", pwd_hash, "analyst"))
+    uid = await storage.create_user("logintest", pwd_hash, "analyst")
     assert uid > 0
     auth = _make_auth(storage)
-    result = json.loads(auth.login("logintest", "testpass"))
+    result = json.loads(await auth.login("logintest", "testpass"))
     assert result.get("success") is True
     assert "token" in result
     assert result["user"]["username"] == "logintest"
     assert result["user"]["role"] == "analyst"
 
 
-def test_auth_login_wrong_password(storage):
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_auth_login_wrong_password(storage):
     pwd_hash = _hash_password("okpass")
-    asyncio.run(storage.create_user("failuser", pwd_hash, "viewer"))
+    await storage.create_user("failuser", pwd_hash, "viewer")
     auth = _make_auth(storage)
-    result = json.loads(auth.login("failuser", "wrongpass"))
+    result = json.loads(await auth.login("failuser", "wrongpass"))
     assert result.get("success") is not True
 
 
-def test_auth_login_unknown_user(storage):
+@pytest.mark.asyncio
+async def test_auth_login_unknown_user(storage):
     auth = _make_auth(storage)
-    result = json.loads(auth.login("ghost", "pass"))
+    result = json.loads(await auth.login("ghost", "pass"))
     assert result.get("success") is not True
 
 
-def test_auth_logout(storage):
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_auth_logout(storage):
     pwd_hash = _hash_password("p")
-    asyncio.run(storage.create_user("logoutuser", pwd_hash))
+    await storage.create_user("logoutuser", pwd_hash)
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("logoutuser", "p"))
+    login_resp = json.loads(await auth.login("logoutuser", "p"))
     assert login_resp.get("success") is True
     token = login_resp["token"]
-    logout_resp = json.loads(auth.logout(token))
+    logout_resp = json.loads(await auth.logout(token))
     assert logout_resp.get("success") is True
-    get_resp = json.loads(auth.get_current_user(token))
+    get_resp = json.loads(await auth.get_current_user(token))
     assert get_resp.get("success") is not True
 
 
-def test_get_current_user(storage):
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_get_current_user(storage):
     pwd_hash = _hash_password("p")
-    asyncio.run(storage.create_user("getuser", pwd_hash))
+    await storage.create_user("getuser", pwd_hash)
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("getuser", "p"))
+    login_resp = json.loads(await auth.login("getuser", "p"))
     token = login_resp["token"]
-    get_resp = json.loads(auth.get_current_user(token))
+    get_resp = json.loads(await auth.get_current_user(token))
     assert get_resp.get("success") is True
     assert get_resp["user"]["username"] == "getuser"
 
 
-def test_get_current_user_invalid_token(storage):
+@pytest.mark.asyncio
+async def test_get_current_user_invalid_token(storage):
     auth = _make_auth(storage)
-    result = json.loads(auth.get_current_user("invalid_token"))
+    result = json.loads(await auth.get_current_user("invalid_token"))
     assert result.get("success") is not True
 
 
-def test_change_password_via_auth(storage):
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_change_password_via_auth(storage):
     pwd_hash = _hash_password("oldpwd")
-    asyncio.run(storage.create_user("changepwduser", pwd_hash))
+    await storage.create_user("changepwduser", pwd_hash)
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("changepwduser", "oldpwd"))
+    login_resp = json.loads(await auth.login("changepwduser", "oldpwd"))
     token = login_resp["token"]
-    result = json.loads(auth.change_password(token, "oldpwd", "newpassword6"))
+    result = json.loads(await auth.change_password(token, "oldpwd", "newpassword6"))
     assert result.get("success") is True
 
 
-def test_change_password_wrong_old(storage):
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_change_password_wrong_old(storage):
     pwd_hash = _hash_password("okpwd")
-    asyncio.run(storage.create_user("wrongold", pwd_hash))
+    await storage.create_user("wrongold", pwd_hash)
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("wrongold", "okpwd"))
+    login_resp = json.loads(await auth.login("wrongold", "okpwd"))
     token = login_resp["token"]
-    result = json.loads(auth.change_password(token, "wrong", "newpwd6"))
+    result = json.loads(await auth.change_password(token, "wrong", "newpwd6"))
     assert result.get("success") is not True
 
 
-def test_list_users_admin(storage):
-    import asyncio
-
-    pwd_hash = _hash_password("adminpass")
-    asyncio.run(storage.create_user("adminuser", pwd_hash, "admin"))
-    asyncio.run(storage.create_user("normal", _hash_password("p"), "analyst"))
+@pytest.mark.asyncio
+async def test_list_users_admin(storage):
+    await storage.create_user("adminuser", _hash_password("adminpass"), "admin")
+    await storage.create_user("normal", _hash_password("p"), "analyst")
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("adminuser", "adminpass"))
+    login_resp = json.loads(await auth.login("adminuser", "adminpass"))
     token = login_resp["token"]
-    result = json.loads(auth.list_users(token))
+    result = json.loads(await auth.list_users(token))
     assert result.get("success") is True
     assert len(result["users"]) >= 2
 
 
-def test_list_users_non_admin(storage):
-    import asyncio
-
-    pwd_hash = _hash_password("p")
-    asyncio.run(storage.create_user("nonadmin", pwd_hash, "viewer"))
+@pytest.mark.asyncio
+async def test_list_users_non_admin(storage):
+    await storage.create_user("nonadmin", _hash_password("p"), "viewer")
     auth = _make_auth(storage)
-    login_resp = json.loads(auth.login("nonadmin", "p"))
+    login_resp = json.loads(await auth.login("nonadmin", "p"))
     token = login_resp["token"]
-    result = json.loads(auth.list_users(token))
+    result = json.loads(await auth.list_users(token))
     assert result.get("success") is not True

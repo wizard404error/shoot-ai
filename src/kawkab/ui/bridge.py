@@ -2040,27 +2040,27 @@ class Bridge(QObject):
 
     @Slot(str, str, result=str)
     async def login(self, username: str, password: str) -> str:
-        return self._auth.login(username, password)
+        return await self._auth.login(username, password)
 
     @Slot(str, result=str)
     async def logout(self, token: str) -> str:
-        return self._auth.logout(token)
+        return await self._auth.logout(token)
 
     @Slot(str, result=str)
     async def get_current_user(self, token: str) -> str:
-        return self._auth.get_current_user(token)
+        return await self._auth.get_current_user(token)
 
     @Slot(str, str, str, result=str)
     async def change_password(self, token: str, old_password: str, new_password: str) -> str:
-        return self._auth.change_password(token, old_password, new_password)
+        return await self._auth.change_password(token, old_password, new_password)
 
     @Slot(str, str, result=str)
     async def get_audit_log(self, token: str, limit: str = "50") -> str:
-        return self._auth.get_audit_log(token, limit)
+        return await self._auth.get_audit_log(token, limit)
 
     @Slot(str, result=str)
     async def list_users(self, token: str) -> str:
-        return self._auth.list_users(token)
+        return await self._auth.list_users(token)
 
     # ================================================================
     # Provider Health & Cache

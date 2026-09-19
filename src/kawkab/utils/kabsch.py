@@ -18,7 +18,9 @@ from __future__ import annotations
 import numpy as np
 
 
-def kabsch_rotation(source: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+def kabsch_rotation(
+    source: np.ndarray, target: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Find the optimal rotation that aligns source to target.
 
     Both inputs must have the same shape (N, 3) and N >= 3 (non-collinear).

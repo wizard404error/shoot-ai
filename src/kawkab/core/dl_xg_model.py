@@ -245,7 +245,10 @@ class DLXgModel:
             avg_loss = epoch_loss / max(n_batches, 1)
             history["loss"].append(avg_loss)
 
-            if validation_split > 0 and x_val is not None:
+            if validation_split > 0 and x_val is not None and y_val is not None:
+                # y_val is split independently of x_val and can be None while
+                # x_val is not (mypy caught the unguarded subtraction here --
+                # a latent crash for any caller passing X without y).
                 val_pred = self.forward(x_val)
                 val_loss = -np.mean(
                     y_val * np.log(val_pred + 1e-10)

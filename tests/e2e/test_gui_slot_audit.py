@@ -525,6 +525,357 @@ def test_storage_export_recruitment_through_real_bridge(qapp, tmp_path, monkeypa
 
 
 # ---------------------------------------------------------------------------
+# live: full tagging session lifecycle through the real bridge
+# ---------------------------------------------------------------------------
+
+
+def test_live_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
+    _reset_paths(monkeypatch, tmp_path)
+    from kawkab.app import MainWindow
+
+    window = MainWindow()
+    try:
+        started = json.loads(dispatch(window, "live_start_session", "Reds", "Blues"))
+        assert started.get("ok") is True or started.get("session_id"), started
+
+        # tags carry the session's team NAMES (the service attributes by
+        # comparing tag.team to the home/away names given at start_session)
+        tag = _assert_ok(
+            dispatch(window, "live_tag_event", "pass", "Reds", 5, "audit", 50.0, 34.0),
+            "live_tag_event",
+        )
+        assert tag.get("success") is True or "error" not in tag, tag
+        _assert_ok(dispatch(window, "live_tag_event", "shot", "Reds"), "live_tag_event#2")
+        _assert_ok(dispatch(window, "live_set_period", "2"), "live_set_period")
+
+        stats = json.loads(dispatch(window, "live_get_stats"))
+        assert "error" not in stats, stats
+        tags = json.loads(dispatch(window, "live_get_tags"))
+        assert isinstance(tags.get("tags"), list) and tags.get("total", 0) >= 2, tags
+
+        kpis = json.loads(dispatch(window, "get_live_kpis", "current"))
+        assert "error" not in kpis, kpis
+        assert 0.0 <= kpis.get("possession_pct", -1) <= 100.0, kpis
+        assert kpis.get("shots", 0) >= 1, kpis
+        assert kpis.get("xg_is_approx") is True, kpis  # honesty pin
+        pitch = json.loads(dispatch(window, "get_live_pitch_map", "current"))
+        assert isinstance(pitch.get("home_events"), list), pitch
+        xg = json.loads(dispatch(window, "get_live_xg_chart", "current"))
+        assert "timeline" in xg and "cumulative_home" in xg, xg
+        # the Reds-tagged shot must be attributed to home, not away
+        assert xg["cumulative_home"] > 0, xg
+
+        _assert_ok(dispatch(window, "live_get_hotkeys"), "live_get_hotkeys")
+        _assert_ok(dispatch(window, "live_clear_tags"), "live_clear_tags")
+        _assert_ok(
+            dispatch(
+                window,
+                "live_export",
+            ),
+            "live_export",
+            allow_error=True,
+        )
+        _assert_ok(dispatch(window, "live_stop_session"), "live_stop_session")
+    finally:
+        window.close()
+        qapp.processEvents()
+
+
+# ---------------------------------------------------------------------------
+# auth: full local lifecycle through the real bridge
+# ---------------------------------------------------------------------------
+
+
+def test_auth_cluster_through_real_bridge(qapp, tmp_path, monkeypatch):
+    _reset_paths(monkeypatch, tmp_path)
+    from kawkab.app import MainWindow
+
+    window = MainWindow()
+    try:
+
+        async def _seed_user():
+            storage = window.storage
+            await storage.initialize()
+            from kawkab.ui.bridge_handlers.bridge_auth import _hash_password
+
+            coach = await storage.create_user(
+                "audit_coach", _hash_password("correct horse battery"), "coach"
+            )
+            admin = await storage.create_user(
+                "audit_admin", _hash_password("admin secret 99"), "admin"
+            )
+            return coach, admin
+
+        uid, _admin_uid = asyncio.run(_seed_user())
+        assert uid, "user seeding failed"
+
+        bad = json.loads(dispatch(window, "login", "audit_coach", "wrong"))
+        assert "error" in bad and "token" not in bad, bad  # no token on bad password
+
+        login = json.loads(dispatch(window, "login", "audit_coach", "correct horse battery"))
+        assert login.get("token"), login
+        assert login.get("user", {}).get("username") == "audit_coach", login
+        token = login["token"]
+
+        me = json.loads(dispatch(window, "get_current_user", token))
+        assert me.get("user", {}).get("username") == "audit_coach", me
+
+        # RBAC pin: non-admin tokens must be denied user management
+        denied = json.loads(dispatch(window, "list_users", token))
+        assert denied.get("error") == "Admin only", denied
+        denied = json.loads(dispatch(window, "get_audit_log", token, "20"))
+        assert denied.get("error") == "Admin only", denied
+
+        admin_login = json.loads(dispatch(window, "login", "audit_admin", "admin secret 99"))
+        assert admin_login.get("token"), admin_login
+        admin_token = admin_login["token"]
+
+        users = json.loads(dispatch(window, "list_users", admin_token))
+        assert isinstance(users.get("users"), list) and len(users["users"]) >= 2, users
+
+        audit_log = json.loads(dispatch(window, "get_audit_log", admin_token, "20"))
+        assert isinstance(audit_log.get("events"), list), audit_log
+
+        changed = json.loads(
+            dispatch(
+                window, "change_password", admin_token, "admin secret 99", "new admin secret 7"
+            )
+        )
+        assert changed.get("success") is True, changed
+        relogin = json.loads(dispatch(window, "login", "audit_admin", "new admin secret 7"))
+        assert relogin.get("token"), relogin  # old password must be dead
+
+        out = json.loads(dispatch(window, "logout", admin_token))
+        assert out.get("success") is True, out
+        dead = json.loads(dispatch(window, "get_current_user", admin_token))
+        assert "error" in dead, dead  # logged-out token must not authenticate
+    finally:
+        window.close()
+        qapp.processEvents()
+
+
+# ---------------------------------------------------------------------------
+# external + cloud-local + analytics + import: the remaining clusters
+# ---------------------------------------------------------------------------
+
+
+def test_external_cloud_analytics_import_through_real_bridge(qapp, tmp_path, monkeypatch):
+    _reset_paths(monkeypatch, tmp_path)
+    from kawkab.app import MainWindow
+
+    window = MainWindow()
+    try:
+        # every vendor status slot: dict payload, never a crash
+        for slot in (
+            "check_football_data_status",
+            "check_bzzoiro_status",
+            "check_easy_soccer_status",
+            "check_apifootball_status",
+            "check_thesportsdb_status",
+            "check_statsbomb_status",
+            "check_openfootball_status",
+        ):
+            d = _assert_ok(dispatch(window, slot), slot, allow_error=True)
+            assert isinstance(d, dict), (slot, d)
+
+        # network-dependent listers: honest error or data, never a crash.
+        # Generous timeout: with no network these fail fast; with network
+        # they may take a couple of seconds. Assertions are shape-only.
+        d = _assert_ok(
+            dispatch(window, "get_football_competitions"),
+            "get_football_competitions",
+            allow_error=True,
+        )
+        assert isinstance(d, dict), d
+        d = _assert_ok(
+            dispatch(window, "get_statsbomb_competitions"),
+            "get_statsbomb_competitions",
+            allow_error=True,
+        )
+        assert isinstance(d, dict), d
+
+        # marketplace: full CRUD round trip (local SQLite-backed)
+        added = _assert_ok(
+            dispatch(
+                window,
+                "marketplace_add",
+                "formation",
+                "Audit 4-2-3-1",
+                "audit item",
+                "auditor",
+                "pressing",
+                json.dumps(["audit"]),
+                json.dumps({"shape": "4-2-3-1"}),
+            ),
+            "marketplace_add",
+        )
+        assert added.get("success") is True or added.get("item", {}).get("id"), added
+        item_id = (added.get("item") or {}).get("id") or added.get("id")
+        if item_id:
+            got = _assert_ok(dispatch(window, "marketplace_get", str(item_id)), "marketplace_get")
+            assert (got.get("item") or {}).get("name") == "Audit 4-2-3-1", got
+            _assert_ok(
+                dispatch(window, "marketplace_rate", str(item_id), "5"),
+                "marketplace_rate",
+                allow_error=True,
+            )
+        lst = _assert_ok(
+            dispatch(window, "marketplace_list", "formation", "", "Audit", ""),
+            "marketplace_list",
+        )
+        assert isinstance(lst.get("items"), list), lst
+        _assert_ok(
+            dispatch(window, "marketplace_categories", "formation"), "marketplace_categories"
+        )
+        _assert_ok(dispatch(window, "marketplace_stats"), "marketplace_stats")
+
+        # collab users: CRUD round trip
+        cu = _assert_ok(
+            dispatch(window, "create_collab_user", "audit_analyst", "Audit Analyst", "analyst"),
+            "create_collab_user",
+        )
+        assert cu.get("success") is True or cu.get("user", {}).get("id"), cu
+        users = json.loads(dispatch(window, "get_collab_users"))
+        assert isinstance(users.get("users"), list), users
+        cud = (cu.get("user") or {}).get("id") or cu.get("user_id")
+        if cud:
+            _assert_ok(dispatch(window, "delete_collab_user", int(cud)), "delete_collab_user")
+
+        # tactical layer presets: save/load round trip
+        _assert_ok(
+            dispatch(window, "tel_layer_add", "layer-audit", "Audit Layer"),
+            "tel_layer_add",
+            allow_error=True,
+        )
+        layers = _assert_ok(dispatch(window, "tel_get_layers"), "tel_get_layers", allow_error=True)
+        assert isinstance(layers, dict), layers
+        _assert_ok(
+            dispatch(window, "tel_save_preset", "audit-preset", json.dumps([{"id": "l1"}])),
+            "tel_save_preset",
+        )
+        loaded = _assert_ok(dispatch(window, "tel_load_preset", "audit-preset"), "tel_load_preset")
+        assert loaded.get("layers") == [{"id": "l1"}] or "layers" in loaded, loaded
+
+        # AI conversations: create + delete round trip
+        conv = _assert_ok(
+            dispatch(window, "ai_v2_create_conv", "", "Audit Chat"), "ai_v2_create_conv"
+        )
+        conv_id = (conv.get("conv") or {}).get("id") or conv.get("id")
+        if conv_id:
+            _assert_ok(dispatch(window, "ai_v2_delete_conv", str(conv_id)), "ai_v2_delete_conv")
+        convs = _assert_ok(dispatch(window, "ai_v2_list_convs", ""), "ai_v2_list_convs")
+        assert isinstance(convs.get("conversations"), list), convs
+
+        # comments + mentions (local collab)
+        d = _assert_ok(dispatch(window, "get_comments", 0), "get_comments", allow_error=True)
+        assert isinstance(d, dict), d
+        d = _assert_ok(
+            dispatch(window, "get_mentions", "audit_analyst"), "get_mentions", allow_error=True
+        )
+        assert isinstance(d, dict), d
+
+        # cloud runtime (local-first): health/status/login-state
+        d = _assert_ok(
+            dispatch(window, "cloud_check_health"), "cloud_check_health", allow_error=True
+        )
+        assert isinstance(d, dict), d
+        logged_in = json.loads(dispatch(window, "cloud_is_logged_in"))
+        assert isinstance(logged_in.get("logged_in"), bool), logged_in
+        d = _assert_ok(
+            dispatch(window, "cloud_oauth_providers"), "cloud_oauth_providers", allow_error=True
+        )
+        assert isinstance(d.get("providers"), list), d  # graceful fallback even without server
+        _assert_ok(dispatch(window, "cloud_server_status"), "cloud_server_status", allow_error=True)
+
+        # stream capture validation: file:// must be rejected before any
+        # process spawns (arbitrary-file-read guard); unknown URL fails
+        # honestly when ffmpeg is unavailable (CI has no ffmpeg... except
+        # it does -- but a bogus URL will not produce a *success* payload
+        # that pretends media was captured).
+        rejected = json.loads(dispatch(window, "stream_start_capture", "file:///etc/passwd"))
+        assert "error" in rejected, rejected  # security pin: no local reads
+        d = _assert_ok(dispatch(window, "stream_list"), "stream_list", allow_error=True)
+        assert isinstance(d, dict), d
+
+        # pro/season analytics: real seeded match, engine-backed report
+        mid = seed_match(window, "analytics audit")
+        pro = json.loads(dispatch(window, "get_pro_analytics_report", int(mid)))
+        assert isinstance(pro, dict), pro
+        if "error" in pro:
+            assert isinstance(pro["error"], str) and pro["error"], pro
+        else:
+            assert any(
+                k in pro for k in ("match_id", "report", "summary", "sections", "analytics")
+            ), pro
+        season = json.loads(dispatch(window, "get_season_pro_report"))
+        assert isinstance(season, dict), season
+
+        # import: a real directory round trip through the season importer.
+        # The importer treats a file as an event file iff its root is a
+        # non-empty JSON list; a sidecar <stem>.meta.json carries context.
+        import_dir = tmp_path / "statsbomb-import"
+        import_dir.mkdir()
+        events = [
+            {
+                "id": i + 1,
+                "index": i + 1,
+                "period": 1,
+                "timestamp": f"00:0{i}:00.000",
+                "minute": i,
+                "second": 0,
+                "type": {"id": 30, "name": "Pass"},
+                "possession_team": {"id": 1, "name": "Reds"},
+                "team": {"id": 1, "name": "Reds"},
+                "player": {"id": 100, "name": "Audit Player"},
+                "location": [50.0, 34.0],
+                "pass": {"recipient": {"id": 101, "name": "Mate"}, "outcome": None},
+            }
+            for i in range(12)
+        ]
+        (import_dir / "9999001.json").write_text(json.dumps(events), encoding="utf-8")
+        (import_dir / "9999001.meta.json").write_text(
+            json.dumps({"competition": "Audit Cup", "match_date": "2026-09-19"}),
+            encoding="utf-8",
+        )
+        # non-event JSON (root is not a non-empty list): skipped and counted
+        (import_dir / "9999001_lineups.json").write_text(
+            json.dumps({"lineups": []}), encoding="utf-8"
+        )
+
+        async def _import():
+            return await adispatch(window, "import_season_directory", str(import_dir), "Audit Cup")
+
+        summary = json.loads(asyncio.run(_import()))
+        if "error" in summary:
+            # importer unavailable in this build: honest error is acceptable
+            assert isinstance(summary["error"], str), summary
+        else:
+            assert summary.get("imported", 0) == 1, summary
+            assert summary.get("skipped_not_events", 0) == 1, summary  # lineups dict-root
+            matches = summary.get("matches") or []
+            assert matches and matches[0].get("status") == "imported", summary
+            # idempotency: second run imports 0 new (dedup by external id)
+            again = json.loads(asyncio.run(_import()))
+            assert again.get("imported", 0) == 0, again
+            assert again.get("skipped_already", 0) == 1, again
+
+        # event-file import: the same file through the single-file slot
+        async def _import_event():
+            return await adispatch(
+                window, "import_event_file", str(import_dir / "9999001.json"), "", "Audit Single"
+            )
+
+        ev_summary = json.loads(asyncio.run(_import_event()))
+        assert isinstance(ev_summary, dict), ev_summary
+        assert "error" not in ev_summary or isinstance(ev_summary["error"], str), ev_summary
+        if ev_summary.get("success") or ev_summary.get("match_id"):
+            assert ev_summary.get("match_id", 0) > 0, ev_summary
+    finally:
+        window.close()
+        qapp.processEvents()
+
+
+# ---------------------------------------------------------------------------
 # domain: analyzer slots either answer or return honest engine errors
 # ---------------------------------------------------------------------------
 

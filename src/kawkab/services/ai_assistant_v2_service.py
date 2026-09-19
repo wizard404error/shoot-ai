@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from kawkab.core.logging import get_logger
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class ConversationMessage:
     role: Literal["user", "assistant"]
     content: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 @dataclass
@@ -27,12 +27,12 @@ class Conversation:
     match_id: int | None
     title: str
     messages: list[ConversationMessage] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def add_message(self, role: Literal["user", "assistant"], content: str) -> None:
         self.messages.append(ConversationMessage(role=role, content=content))
-        self.updated_at = datetime.utcnow().isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
 
 TACTICAL_PROMPTS = {

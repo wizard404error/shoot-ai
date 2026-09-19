@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -201,7 +201,7 @@ class AuditService:
             stats["total_events"] = 0
 
         try:
-            cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+            cutoff = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
             cursor.execute("SELECT COUNT(*) FROM audit_events WHERE timestamp >= ?", (cutoff,))
             stats["events_last_24h"] = cursor.fetchone()[0]
         except Exception:
@@ -290,7 +290,7 @@ class AuditService:
 
         try:
             cursor = self._storage._conn.cursor()
-            cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
+            cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).isoformat()
 
             cursor.execute(
                 "SELECT * FROM audit_events WHERE timestamp < ? ORDER BY id",
@@ -305,7 +305,7 @@ class AuditService:
 
             archive_dir = get_paths().database.parent if get_paths().database else Path(".")
             archive_dir.mkdir(parents=True, exist_ok=True)
-            archive_name = f"audit_archive_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            archive_name = f"audit_archive_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json"
             archive_path = archive_dir / archive_name
 
             with open(archive_path, "w", encoding="utf-8") as f:

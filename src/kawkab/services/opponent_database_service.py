@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
@@ -27,8 +27,8 @@ class OpponentProfile:
     key_players: list[dict] = field(default_factory=list)
     notes: str = ""
     match_ids: list[str] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 @dataclass
@@ -48,7 +48,7 @@ class MatchUpRecord:
     our_xg: float = 0.0
     their_xg: float = 0.0
     notes: str = ""
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class OpponentDatabaseService:
@@ -153,7 +153,7 @@ class OpponentDatabaseService:
         for key, val in updates.items():
             if hasattr(p, key) and key not in ("id", "created_at"):
                 setattr(p, key, val)
-        p.updated_at = datetime.utcnow().isoformat()
+        p.updated_at = datetime.now(UTC).isoformat()
         self._save_profiles()
         return True
 
@@ -199,7 +199,7 @@ class OpponentDatabaseService:
         if opponent_id in self._profiles:
             p = self._profiles[opponent_id]
             p.match_ids.append(str(mid))
-            p.updated_at = datetime.utcnow().isoformat()
+            p.updated_at = datetime.now(UTC).isoformat()
             self._save_profiles()
 
         return {"id": mid}

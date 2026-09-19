@@ -1,4 +1,13 @@
-"""Auth bridge handler — login, logout, user management, audit log."""
+"""Auth bridge handler — login, logout, user management, audit log.
+
+All storage-touching methods are async and awaited by their bridge
+delegators (the codebase-wide handler convention). The original sync
+implementation called ``asyncio.run()`` per storage call, which raises
+"asyncio.run() cannot be called from a running event loop" the moment
+the real qasync loop is up -- every login/logout/session check died in
+the running app while the unit tests (which called the handler directly
+with no loop) stayed green. Caught by the GUI slot-dispatch audit.
+"""
 
 from __future__ import annotations
 
@@ -48,7 +57,7 @@ class AuthHandler:
     def storage_service(self):
         return self._services.get("storage_service")
 
-    def _ensure_admin(self):
+    async def _ensure_admin(self):
         """Create default admin on first run if no users exist.
 
         Previously created a fixed, publicly-documented "admin"/"admin123"
@@ -66,21 +75,20 @@ class AuthHandler:
         if svc is None:
             return
         try:
-            import asyncio
-
-            user = asyncio.run(svc.get_user_by_username("admin"))
+            svc = self.storage_service
+            if svc is None:
+                return
+            user = await svc.get_user_by_username("admin")
             if user is None:
                 initial_password = secrets.token_urlsafe(16)
                 pwd_hash = _hash_password(initial_password)
-                asyncio.run(
-                    svc.create_user(
-                        "admin",
-                        pwd_hash,
-                        "admin",
-                        "admin@kawkab.ai",
-                        "Admin",
-                        must_reset_password=True,
-                    )
+                await svc.create_user(
+                    "admin",
+                    pwd_hash,
+                    "admin",
+                    "admin@kawkab.ai",
+                    "Admin",
+                    must_reset_password=True,
                 )
                 creds_file = get_paths().appdata / "FIRST_RUN_ADMIN_PASSWORD.txt"
                 creds_file.write_text(
@@ -103,17 +111,15 @@ class AuthHandler:
         except Exception as e:
             logger.warning(f"Could not create default admin: {e}")
 
-    def login(self, username: str, password: str) -> str:
+    async def login(self, username: str, password: str) -> str:
         """Authenticate user and return session token."""
         try:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            self._ensure_admin()
+            await self._ensure_admin()
 
-            import asyncio
-
-            user = asyncio.run(svc.get_user_by_username(username))
+            user = await svc.get_user_by_username(username)
             if user is None:
                 return json.dumps({"error": "Invalid username or password"})
 
@@ -134,26 +140,26 @@ class AuthHandler:
                         pass
                 if still_locked:
                     return json.dumps({"error": "Account locked. Try again later."})
-                asyncio.run(svc.clear_expired_lock(user["id"]))
+                await svc.clear_expired_lock(user["id"])
                 user["is_locked"] = 0
 
             if not user.get("is_active"):
                 return json.dumps({"error": "Account deactivated."})
 
             if not _verify_password(password, user.get("password_hash", "")):
-                remaining = asyncio.run(svc.record_failed_login(username))
+                remaining = await svc.record_failed_login(username)
                 msg = "Invalid password"
                 if remaining > 0:
                     msg += f" ({remaining} attempts remaining)"
                 return json.dumps({"error": msg})
 
-            asyncio.run(svc.update_user_login(user["id"]))
+            await svc.update_user_login(user["id"])
 
             token_raw = secrets.token_hex(32)
             token_hash = _hash_str(token_raw)
             expires = (datetime.now(UTC) + timedelta(days=7)).isoformat()
-            asyncio.run(svc.save_session(user["id"], token_hash, expires))
-            asyncio.run(svc.audit_log(user["id"], username, "login", "auth", "session"))
+            await svc.save_session(user["id"], token_hash, expires)
+            await svc.audit_log(user["id"], username, "login", "auth", "session")
 
             return json.dumps(
                 {
@@ -174,21 +180,19 @@ class AuthHandler:
             logger.error(f"login failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def logout(self, token: str) -> str:
+    async def logout(self, token: str) -> str:
         """Invalidate user session."""
         try:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            import asyncio
-
             token_hash = _hash_str(token)
-            asyncio.run(svc.delete_session(token_hash))
+            await svc.delete_session(token_hash)
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_current_user(self, token: str) -> str:
+    async def get_current_user(self, token: str) -> str:
         """Get current user from session token."""
         try:
             if not token:
@@ -196,29 +200,25 @@ class AuthHandler:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            import asyncio
-
             token_hash = _hash_str(token)
-            user = asyncio.run(svc.validate_session(token_hash))
+            user = await svc.validate_session(token_hash)
             if user is None:
                 return json.dumps({"error": "Session expired or invalid"})
             return json.dumps({"success": True, "user": dict(user)})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def change_password(self, token: str, old_password: str, new_password: str) -> str:
+    async def change_password(self, token: str, old_password: str, new_password: str) -> str:
         """Change password for authenticated user."""
         try:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            import asyncio
-
             token_hash = _hash_str(token)
-            user = asyncio.run(svc.validate_session(token_hash))
+            user = await svc.validate_session(token_hash)
             if user is None:
                 return json.dumps({"error": "Not authenticated"})
-            full = asyncio.run(svc.get_user_by_id(user["id"]))
+            full = await svc.get_user_by_id(user["id"])
             if full is None:
                 return json.dumps({"error": "User not found"})
             if not _verify_password(old_password, full.get("password_hash", "")):
@@ -228,49 +228,43 @@ class AuthHandler:
                 # UserRegister.password) -- local auth used to allow 6.
                 return json.dumps({"error": "New password must be at least 8 characters"})
             new_hash = _hash_password(new_password)
-            asyncio.run(svc.change_password(user["id"], new_hash))
-            asyncio.run(
-                svc.audit_log(user["id"], user["username"], "change_password", "auth", "password")
-            )
+            await svc.change_password(user["id"], new_hash)
+            await svc.audit_log(user["id"], user["username"], "change_password", "auth", "password")
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def get_audit_log(self, token: str, limit: str = "50") -> str:
+    async def get_audit_log(self, token: str, limit: str = "50") -> str:
         """Get audit log (admin only)."""
         try:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            import asyncio
-
             token_hash = _hash_str(token)
-            user = asyncio.run(svc.validate_session(token_hash))
+            user = await svc.validate_session(token_hash)
             if user is None:
                 return json.dumps({"error": "Not authenticated"})
             if user["role"] != "admin":
                 return json.dumps({"error": "Admin only"})
             lim = max(1, min(200, int(limit)))
-            events = asyncio.run(svc.get_audit_log(limit=lim))
+            events = await svc.get_audit_log(limit=lim)
             return json.dumps({"success": True, "events": events})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
 
-    def list_users(self, token: str) -> str:
+    async def list_users(self, token: str) -> str:
         """List all users (admin only)."""
         try:
             svc = self.storage_service
             if svc is None:
                 return json.dumps({"error": "Storage unavailable"})
-            import asyncio
-
             token_hash = _hash_str(token)
-            user = asyncio.run(svc.validate_session(token_hash))
+            user = await svc.validate_session(token_hash)
             if user is None:
                 return json.dumps({"error": "Not authenticated"})
             if user["role"] != "admin":
                 return json.dumps({"error": "Admin only"})
-            users_list = asyncio.run(svc.get_all_users())
+            users_list = await svc.get_all_users()
             return json.dumps({"success": True, "users": users_list})
         except Exception as e:
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
