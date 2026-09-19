@@ -37,8 +37,13 @@ def _cfg(**kw) -> LLMConfig:
 class TestConfigWiring:
     """api_key must survive the Settings -> LLMConfig -> LLMService path."""
 
-    def test_settings_carries_llm_api_key(self):
-        s = Settings(llm_api_key="env-key-xyz")
+    def test_settings_carries_llm_api_key(self, monkeypatch):
+        # Through the declared env alias (the production path): name-based
+        # init kwargs on alias-declared fields depend on pydantic-settings
+        # kwarg semantics that drift across versions on CI's floating pip
+        # install, silently yielding "" there.
+        monkeypatch.setenv("LLM_API_KEY", "env-key-xyz")
+        s = Settings()
         assert s.llm_api_key == "env-key-xyz"
 
     def test_service_configures_google_provider_with_key(self):
