@@ -17,7 +17,12 @@ from typing import Any
 
 from kawkab.core.logging import get_logger
 from kawkab.services.storage.base import parse_metadata_json
-from kawkab.services.storage_errors import StorageNotInitializedError
+from kawkab.services.storage_errors import (
+    StorageDuplicateError,
+    StorageNotInitializedError,
+    StorageWriteError,
+    is_duplicate_violation,
+)
 
 logger = get_logger(__name__)
 
@@ -132,7 +137,7 @@ class PostgresStorageAdapter:
         self, name: str, video_path: str, home_team: str = "", away_team: str = ""
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_match")
         async with self._pool.acquire() as conn:
             home_id = await self._ensure_team_id(conn, home_team) if home_team else None
             away_id = await self._ensure_team_id(conn, away_team) if away_team else None
@@ -185,14 +190,14 @@ class PostgresStorageAdapter:
 
     async def hard_delete_match(self, match_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("get_match")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM matches WHERE id = $1", match_id)
             return r != "DELETE 0"
 
     async def restore_match(self, match_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("get_all_matches")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE matches SET is_deleted=0, deleted_at=NULL WHERE id = $1",
@@ -210,7 +215,7 @@ class PostgresStorageAdapter:
     ) -> bool:
         """Update match analysis fields. Accepts both dict (PG) and scalar (SQLite) signatures."""
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_match_analysis")
         async with self._pool.acquire() as conn:
             if isinstance(analysis_data, dict) and duration is None:
                 r = await conn.execute(
@@ -230,7 +235,7 @@ class PostgresStorageAdapter:
 
     async def update_match_teams(self, match_id: int, home_team: str, away_team: str) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_match_teams")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE matches SET home_team = $1, away_team = $2, updated_at = NOW() WHERE id = $3",
@@ -250,7 +255,7 @@ class PostgresStorageAdapter:
         football_data_away_team_id: int | None = None,
     ) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("update_match_football_data")
         async with self._pool.acquire() as conn:
             if isinstance(data, dict) and api_match_id is None:
                 r = await conn.execute(
@@ -370,31 +375,38 @@ class PostgresStorageAdapter:
 
     async def save_event(self, match_id: int, event: dict) -> int:
         if not self._pool:
-            return 0
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """INSERT INTO events (match_id, event_type, timestamp, from_track_id, to_track_id,
-                       team, completed, confidence, metadata, x, y, end_x, end_y, is_goal)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
-                match_id,
-                event.get("type", event.get("event_type", "")),
-                event.get("timestamp", 0.0),
-                event.get("from_track_id"),
-                event.get("to_track_id"),
-                event.get("team"),
-                event.get("completed", False),
-                event.get("confidence", 0.0),
-                json.dumps(event.get("metadata", event.get("data", {})), default=str),
-                event.get("x", 0.0),
-                event.get("y", 0.0),
-                event.get("end_x", 0.0),
-                event.get("end_y", 0.0),
-                event.get("is_goal", False),
-            )
-            return row["id"] if row else 0
+            raise StorageNotInitializedError("save_event")
+        try:
+            async with self._pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    """INSERT INTO events (match_id, event_type, timestamp, from_track_id, to_track_id,
+                           team, completed, confidence, metadata, x, y, end_x, end_y, is_goal)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
+                    match_id,
+                    event.get("type", event.get("event_type", "")),
+                    event.get("timestamp", 0.0),
+                    event.get("from_track_id"),
+                    event.get("to_track_id"),
+                    event.get("team"),
+                    event.get("completed", False),
+                    event.get("confidence", 0.0),
+                    json.dumps(event.get("metadata", event.get("data", {})), default=str),
+                    event.get("x", 0.0),
+                    event.get("y", 0.0),
+                    event.get("end_x", 0.0),
+                    event.get("end_y", 0.0),
+                    event.get("is_goal", False),
+                )
+                return row["id"] if row else 0
+        except Exception as e:
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("save_event", e) from e
+            raise StorageWriteError("save_event", e) from e
 
     async def save_events_bulk(self, match_id: int, events: list[dict]) -> int:
-        if not self._pool or not events:
+        if not self._pool:
+            raise StorageNotInitializedError("save_events_bulk")
+        if not events:
             return 0
         params = [
             (
@@ -457,7 +469,7 @@ class PostgresStorageAdapter:
 
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("get_match_events")
         allowed = {
             "event_type",
             "team",
@@ -497,7 +509,7 @@ class PostgresStorageAdapter:
 
     async def delete_event(self, event_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("save_events_bulk")
         async with self._pool.acquire() as conn:
             r = await conn.execute(
                 "UPDATE events SET is_deleted=1, deleted_at=NOW() WHERE id = $1 AND (is_deleted IS NULL OR is_deleted=0)",
@@ -526,7 +538,7 @@ class PostgresStorageAdapter:
 
     async def save_player(self, match_id: int, player_data: dict) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_player")
         if player_data.get("track_id") is None:
             return 0
         async with self._pool.acquire() as conn:
@@ -554,7 +566,7 @@ class PostgresStorageAdapter:
 
     async def save_players_bulk(self, match_id: int, players: list[dict]) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_players_bulk")
         params = [
             (
                 match_id,
@@ -598,7 +610,7 @@ class PostgresStorageAdapter:
 
     async def hard_delete_player(self, player_id: int) -> bool:
         if not self._pool:
-            return False
+            raise StorageNotInitializedError("get_match_players")
         async with self._pool.acquire() as conn:
             r = await conn.execute("DELETE FROM players WHERE id = $1", player_id)
             return r != "DELETE 0"
@@ -696,7 +708,7 @@ class PostgresStorageAdapter:
         category: str = "",
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_advanced_metrics")
         async with self._pool.acquire() as conn:
             if isinstance(metrics, dict):
                 row = await conn.fetchrow(
@@ -765,7 +777,7 @@ class PostgresStorageAdapter:
         reason: str = "",
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_correction")
         async with self._pool.acquire() as conn:
             # PG adapter dict-based signature
             if isinstance(correction, dict):
@@ -808,7 +820,7 @@ class PostgresStorageAdapter:
         llm_provider: str = "",
     ) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("save_report")
         async with self._pool.acquire() as conn:
             # PG adapter signature: save_report(match_id, report_text, language, report_type)
             if report_text_or_language and not language and not report_text:
@@ -862,7 +874,7 @@ class PostgresStorageAdapter:
 
     async def save_benchmark(self, result: Any) -> int:
         if not self._pool:
-            return 0
+            raise StorageNotInitializedError("get_reports")
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO benchmark_results (match_id, video_path, video_duration_seconds, total_frames,
@@ -919,7 +931,7 @@ class PostgresStorageAdapter:
 
     async def save_validation_result(self, report: Any) -> list[int]:
         if not self._pool:
-            return []
+            raise StorageNotInitializedError("save_advanced_metrics_bulk")
         ids = []
         async with self._pool.acquire() as conn:
             cats = ["events", "possession", "team_assignment", "speed"]

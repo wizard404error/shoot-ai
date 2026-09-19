@@ -20,9 +20,11 @@ from kawkab.core.logging import get_logger
 from kawkab.core.paths import get_paths
 from kawkab.services.storage.base import parse_metadata_json
 from kawkab.services.storage_errors import (
+    StorageDuplicateError,
     StorageNotInitializedError,
     StorageReadError,
     StorageWriteError,
+    is_duplicate_violation,
 )
 
 if TYPE_CHECKING:
@@ -171,19 +173,23 @@ class StorageService:
         knows the requesting user's id should pass it explicitly.
         """
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_match")
         home_team_id = await self.ensure_team(home_team) if home_team else None
         away_team_id = await self.ensure_team(away_team) if away_team else None
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO matches (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (name, video_path, home_team, away_team, home_team_id, away_team_id, owner_id),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_match failed: {e}")
+            raise StorageWriteError("save_match", e) from e
 
     async def update_match_analysis(
         self,
@@ -192,25 +198,32 @@ class StorageService:
         fps: float,
         total_frames: int,
     ) -> None:
-        """Update match with analysis metadata."""
+        """Update match with analysis metadata. Raises on failure."""
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            UPDATE matches
-            SET duration_seconds = ?, fps = ?, total_frames = ?,
-                analyzed_at = ?
-            WHERE id = ?
-            """,
-            (duration, fps, total_frames, datetime.now(), match_id),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("update_match_analysis")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                UPDATE matches
+                SET duration_seconds = ?, fps = ?, total_frames = ?,
+                    analyzed_at = ?
+                WHERE id = ?
+                """,
+                (duration, fps, total_frames, datetime.now(), match_id),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"update_match_analysis failed: {e}")
+            raise StorageWriteError("update_match_analysis", e) from e
 
     async def save_player(self, match_id: int, player_data: dict) -> int:
-        """Save a player and return its ID."""
+        """Save a player and return its ID.
+
+        Returns 0 only for rejected input (no track_id, malformed dict);
+        a database failure raises StorageWriteError."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_player")
         if player_data.get("track_id") is None:
             return 0
         try:
@@ -242,13 +255,19 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_player failed: {e}")
+            logger.warning(f"save_player failed (rejected input): {e}")
             return 0
+        except Exception as e:
+            logger.warning(f"save_player failed: {e}")
+            raise StorageWriteError("save_player", e) from e
 
     async def save_event(self, match_id: int, event: dict) -> int:
-        """Save an event and return its ID."""
+        """Save an event and return its ID.
+
+        Returns 0 only for rejected input (no type/timestamp); a database
+        failure raises StorageWriteError."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_event")
         if event.get("type") is None or event.get("timestamp") is None:
             return 0
         try:
@@ -275,8 +294,13 @@ class StorageService:
             self._conn.commit()
             return cursor.lastrowid or 0
         except (KeyError, TypeError, ValueError) as e:
-            logger.warning(f"save_event failed: {e}")
+            logger.warning(f"save_event failed (rejected input): {e}")
             return 0
+        except Exception as e:
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("save_event", e) from e
+            logger.warning(f"save_event failed: {e}")
+            raise StorageWriteError("save_event", e) from e
 
     async def save_advanced_metrics(
         self,
@@ -289,30 +313,34 @@ class StorageService:
         timestamp: float | None = None,
         metadata: dict | None = None,
     ) -> int:
-        """Save an advanced metric and return its ID."""
+        """Save an advanced metric and return its ID. Raises on failure."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO advanced_metrics (
-                match_id, player_id, metric_name, metric_value,
-                metric_category, pitch_zone, timestamp, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                match_id,
-                player_id,
-                metric_name,
-                metric_value,
-                metric_category,
-                pitch_zone,
-                timestamp,
-                json.dumps(metadata or {}),
-            ),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_advanced_metrics")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO advanced_metrics (
+                    match_id, player_id, metric_name, metric_value,
+                    metric_category, pitch_zone, timestamp, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    match_id,
+                    player_id,
+                    metric_name,
+                    metric_value,
+                    metric_category,
+                    pitch_zone,
+                    timestamp,
+                    json.dumps(metadata or {}),
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_advanced_metrics failed: {e}")
+            raise StorageWriteError("save_advanced_metrics", e) from e
 
     async def save_correction(
         self,
@@ -321,66 +349,83 @@ class StorageService:
         original_value: Any,
         corrected_value: Any,
     ) -> int:
-        """Save a user correction for an event."""
+        """Save a user correction for an event. Raises on failure."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO user_corrections (
-                event_id, correction_type, original_value, corrected_value
-            ) VALUES (?, ?, ?, ?)
-            """,
-            (
-                event_id,
-                correction_type,
-                json.dumps(original_value),
-                json.dumps(corrected_value),
-            ),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_correction")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO user_corrections (
+                    event_id, correction_type, original_value, corrected_value
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    correction_type,
+                    json.dumps(original_value),
+                    json.dumps(corrected_value),
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_correction failed: {e}")
+            raise StorageWriteError("save_correction", e) from e
 
     async def save_report(
         self, match_id: int, language: str, report_text: str, llm_provider: str
     ) -> int:
-        """Save a generated report."""
+        """Save a generated report. Raises on failure."""
         if self._conn is None:
-            return 0
-        cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO reports (match_id, language, report_text, llm_provider)
-            VALUES (?, ?, ?, ?)
-            """,
-            (match_id, language, report_text, llm_provider),
-        )
-        self._conn.commit()
-        return cursor.lastrowid or 0
+            raise StorageNotInitializedError("save_report")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO reports (match_id, language, report_text, llm_provider)
+                VALUES (?, ?, ?, ?)
+                """,
+                (match_id, language, report_text, llm_provider),
+            )
+            self._conn.commit()
+            return cursor.lastrowid or 0
+        except Exception as e:
+            logger.warning(f"save_report failed: {e}")
+            raise StorageWriteError("save_report", e) from e
 
     async def get_reports(
         self, match_id: int, language: str, limit: int = 20, offset: int = 0
     ) -> list[dict]:
-        """Get saved reports for a match."""
+        """Get saved reports for a match. Raises on failure; empty list
+        means no reports."""
         if self._conn is None:
-            return []
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "SELECT id, match_id, report_text, language, llm_provider, created_at FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (match_id, language, limit, offset),
-        )
-        return [dict(row) for row in cursor.fetchall()]
+            raise StorageNotInitializedError("get_reports")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "SELECT id, match_id, report_text, language, llm_provider, created_at FROM reports WHERE match_id = ? AND language = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (match_id, language, limit, offset),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_reports failed: {e}")
+            raise StorageReadError("get_reports", e) from e
 
     async def update_match_teams(self, match_id: int, home_team: str, away_team: str) -> None:
-        """Update home/away team names for a match."""
+        """Update home/away team names for a match. Raises on failure."""
         if self._conn is None:
-            return
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "UPDATE matches SET home_team = ?, away_team = ? WHERE id = ?",
-            (home_team, away_team, match_id),
-        )
-        self._conn.commit()
+            raise StorageNotInitializedError("update_match_teams")
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE matches SET home_team = ?, away_team = ? WHERE id = ?",
+                (home_team, away_team, match_id),
+            )
+            self._conn.commit()
+        except Exception as e:
+            logger.warning(f"update_match_teams failed: {e}")
+            raise StorageWriteError("update_match_teams", e) from e
 
     async def update_match_football_data(
         self,
@@ -1015,7 +1060,7 @@ class StorageService:
     async def save_events_bulk(self, match_id: int, events: list[dict]) -> int:
         """Save multiple events in a single transaction. Returns count saved."""
         if self._conn is None:
-            return 0
+            raise StorageNotInitializedError("save_events_bulk")
         for ev in events:
             if ev.get("type") is None or ev.get("timestamp") is None:
                 return 0
@@ -1046,9 +1091,11 @@ class StorageService:
             self._conn.commit()
             return len(params)
         except Exception as e:
-            logger.warning(f"save_events_bulk failed: {e}")
             self._conn.rollback()
-            return 0
+            if is_duplicate_violation(e):
+                raise StorageDuplicateError("save_events_bulk", e) from e
+            logger.warning(f"save_events_bulk failed: {e}")
+            raise StorageWriteError("save_events_bulk", e) from e
 
     async def get_match_players(
         self, match_id: int, limit: int = 50, offset: int = 0

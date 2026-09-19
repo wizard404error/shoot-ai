@@ -33,9 +33,11 @@ from kawkab.core.migration_manager import MigrationManager  # noqa: E402
 from kawkab.core.paths import get_paths  # noqa: E402
 from kawkab.services.postgres_storage import PostgresStorageAdapter  # noqa: E402
 from kawkab.services.storage_errors import (  # noqa: E402
+    StorageDuplicateError,
     StorageNotInitializedError,
     StorageReadError,
     StorageWriteError,
+    is_duplicate_violation,
 )
 from kawkab.services.storage_service import StorageService  # noqa: E402
 
@@ -206,3 +208,89 @@ async def test_handler_reports_read_failure_honestly():
     h = CodingHandler(None, {"storage_service": failing})
     out = json.loads(await h.get_tags("1"))
     assert "error" in out
+
+
+# ── duplicates: a contract outcome, not a failure ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_duplicate_event_raises_typed_duplicate_not_write_error():
+    """The events dedup index (migration 015) makes same-second-same-type
+    events a real, EXPECTED outcome (consecutive ball receipts). It must
+    raise StorageDuplicateError — catchable as failure by generic callers,
+    catchable as skip by importers — never a swallowed 0 like before, and
+    never an opaque failure that breaks importer dedup (the v0.13.2-batch
+    regression)."""
+    from kawkab.services.storage_errors import StorageDuplicateError
+
+    svc = _migrated_sqlite_storage()
+    try:
+        match_id = await svc.save_match("dup-test", "")
+        ev = {"type": "pass", "timestamp": 12.5, "team": "home", "from_track_id": 77}
+        assert await svc.save_event(match_id, ev) > 0
+        with pytest.raises(StorageDuplicateError) as excinfo:
+            await svc.save_event(match_id, ev)
+        # Subclass contract: generic failure handlers still catch it.
+        assert isinstance(excinfo.value, StorageWriteError)
+    finally:
+        svc._conn.close()
+
+
+@pytest.mark.asyncio
+async def test_fk_violation_is_not_classified_as_duplicate():
+    """Classification precision: a missing referenced row is a FAILURE,
+    not a duplicate — misclassifying it would make importers silently
+    skip data that should have failed loudly (the v0.13.2 bug class)."""
+    svc = _migrated_sqlite_storage()
+    try:
+        with pytest.raises(StorageWriteError) as excinfo:
+            await svc.save_event(424242, {"type": "pass", "timestamp": 1.0, "from_track_id": 5})
+        assert not isinstance(excinfo.value, StorageDuplicateError)
+    finally:
+        svc._conn.close()
+
+
+def test_duplicate_classification_by_driver_code_and_message():
+    """Classifier: structured codes where the driver offers them, message
+    fallback where it doesn't; FK violations never classify as duplicate."""
+
+    # sqlite extended result codes: 1555 PK, 2067 unique index.
+    pk = sqlite3.IntegrityError("UNIQUE constraint failed: events.id")
+    pk.sqlite_errorcode = 1555
+    idx = sqlite3.IntegrityError("UNIQUE constraint failed: x.y")
+    idx.sqlite_errorcode = 2067
+    assert is_duplicate_violation(pk)
+    assert is_duplicate_violation(idx)
+
+    # Postgres SQLSTATE 23505 (asyncpg carries .sqlstate).
+    pg_like = RuntimeError("x")
+    pg_like.sqlstate = "23505"
+    assert is_duplicate_violation(pg_like)
+
+    # Message fallback for drivers with neither attribute.
+    assert is_duplicate_violation(RuntimeError("duplicate key value violates"))
+    assert not is_duplicate_violation(RuntimeError("FOREIGN KEY constraint failed"))
+    assert not is_duplicate_violation(RuntimeError("disk I/O error"))
+
+
+@pytest.mark.asyncio
+async def test_importer_dedup_contract_end_to_end():
+    """The full designed flow through the real importer: the corpus sample
+    contains same-second same-type events, which hit the migration-015
+    dedup index, raise the typed error, and are SKIPPED + counted — not
+    swallowed, not fatal (the exact path broken by the opaque
+    StorageWriteError wrap)."""
+    from kawkab.services.statsbomb_import_service import StatsBombImportService
+
+    svc = _migrated_sqlite_storage()
+    try:
+        corpus = Path(__file__).resolve().parents[2] / "data" / "statsbomb_corpus"
+        sample = next(corpus.glob("*.json"), None)
+        if sample is None:
+            pytest.skip("no committed statsbomb corpus file")
+        importer = StatsBombImportService(svc)
+        summary = await importer.import_match(sample)
+        assert summary["events_imported"] > 0
+        assert summary["events_skipped"] > 0
+    finally:
+        svc._conn.close()

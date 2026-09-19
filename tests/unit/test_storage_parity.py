@@ -138,18 +138,25 @@ class TestMethodSurfaceParity:
 
 
 class TestNoConnectionFallbackParity:
-    """Both adapters must fail soft (documented convention) when the DB
-    connection is absent — never raise."""
+    """Reads fail soft on no-connection (documented convention, still
+    migrating cluster-by-cluster); writes in converted clusters raise
+    StorageNotInitialized — silent 0 on a write hid failures for months
+    (see storage_errors.py)."""
 
-    def test_sqlite_save_match_no_conn_returns_zero(self, tmp_path):
+    def test_sqlite_save_match_no_conn_raises(self, tmp_path):
+        from kawkab.services.storage_errors import StorageNotInitializedError
         from kawkab.services.storage_service import StorageService
 
         svc = StorageService()
         svc._conn = None
-        assert asyncio.run(svc.save_match("x", "")) == 0
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(svc.save_match("x", ""))
 
-    def test_pg_save_match_no_pool_returns_zero(self, pg_adapter):
-        assert asyncio.run(pg_adapter.save_match("x", "")) == 0
+    def test_pg_save_match_no_pool_raises(self, pg_adapter):
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        with pytest.raises(StorageNotInitializedError):
+            asyncio.run(pg_adapter.save_match("x", ""))
 
     def test_sqlite_get_tracking_imports_no_conn_returns_empty(self, tmp_path):
         from kawkab.services.storage_service import StorageService

@@ -739,16 +739,32 @@ async def test_update_match_bzzoiro(storage):
 
 @pytest.mark.asyncio
 async def test_uninitialized_service_returns_safe_defaults():
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None  # Force SQLite mode
     svc._use_postgres = False
     svc._conn = None
-    assert await svc.save_match("n", "") == 0
+    # Converted write clusters raise honestly — a silent 0 on a write hid
+    # DB failures for months (see storage_errors.py contract).
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_match("n", "")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_event(1, {})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_player(1, {})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_events_bulk(1, [{"type": "pass", "timestamp": 1.0}])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_advanced_metrics(1, "x", 0.0)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_correction(1, "", "", "")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_reports(1, "en")
+    # Reads (and not-yet-converted clusters) keep the legacy fail-soft defaults.
     assert await svc.get_match(1) is None
     assert await svc.get_all_matches() == []
-    assert await svc.save_event(1, {}) == 0
     assert await svc.get_match_events(1) == []
-    assert await svc.save_player(1, {}) == 0
     assert await svc.get_match_players(1) == []
     assert await svc.save_benchmark(BenchmarkResult()) == 0
     assert await svc.get_recent_benchmarks() == []
@@ -763,12 +779,8 @@ async def test_uninitialized_service_returns_safe_defaults():
     assert await svc.save_playlist({}) == 0
     assert await svc.get_playlists() == []
     assert await svc.save_usage_session({}) == 0
-    assert await svc.save_advanced_metrics(1, "x", 0.0) == 0
     assert await svc.save_advanced_metrics_bulk(1, []) == 0
-    assert await svc.save_events_bulk(1, []) == 0
     assert await svc.save_players_bulk(1, []) == 0
-    assert await svc.save_correction(1, "", "", "") == 0
-    assert await svc.get_reports(1, "en") == []
     assert await svc.get_validation_results(1) == []
     assert await svc.update_event(1, {"team": "away"}) is False
     assert await svc.delete_event(1) is False

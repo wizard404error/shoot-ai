@@ -21,6 +21,8 @@ Contract (applied cluster-by-cluster, coding tags first):
 
 from __future__ import annotations
 
+import sqlite3
+
 
 class StorageError(Exception):
     """Base class for all storage honesty errors."""
@@ -44,6 +46,38 @@ class StorageWriteError(StorageError):
         self.operation = operation
         self.cause = cause
         super().__init__(f"{operation} failed: {cause}")
+
+
+class StorageDuplicateError(StorageWriteError):
+    """A write hit a UNIQUE/PK constraint — the row already exists.
+
+    Deliberately a *subclass* of StorageWriteError: callers that treat any
+    failed write as failure keep catching duplicates unchanged, while
+    callers that treat duplicates as an expected outcome (import dedup,
+    idempotent re-imports) can catch only this. Duplicates are a *contract
+    outcome*, not a malfunction — raising them as opaque failures here once
+    broke the StatsBomb importer's designed skip path.
+    """
+
+
+def is_duplicate_violation(exc: Exception) -> bool:
+    """Classify a driver exception as a UNIQUE/PK constraint violation.
+
+    Uses the driver's structured code when available (sqlite extended
+    result codes 1555/2067, Postgres SQLSTATE 23505) and falls back to the
+    message text only for drivers that expose neither. FK violations must
+    NOT classify as duplicates — they stay hard StorageWriteErrors.
+    """
+    if isinstance(exc, sqlite3.IntegrityError) and getattr(exc, "sqlite_errorcode", None) in (
+        1555,
+        2067,
+    ):
+        return True
+    sqlstate = getattr(exc, "sqlstate", None) or getattr(exc, "pgcode", None)
+    if sqlstate == "23505":
+        return True
+    text = str(exc).lower()
+    return "unique constraint" in text or "duplicate key" in text
 
 
 class StorageReadError(StorageError):
