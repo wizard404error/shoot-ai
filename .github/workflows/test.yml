@@ -95,8 +95,13 @@ jobs:
           pip install uv
           uv sync --extra test --extra cloud
       - name: Run pytest
+        # `python -m pytest` invokes the ambient runner Python, which has
+        # no pytest -- the deps went into uv's venv, so this step failed
+        # with "No module named pytest" on every push (lint only survived
+        # via `uv run --with ruff`, gui-e2e via `uv run pytest`). `uv run`
+        # executes inside the venv `uv sync` just built.
         run: |
-          python -m pytest tests/unit/test_core_events.py tests/unit/test_xg_model.py tests/unit/test_pitch_control.py tests/unit/test_player_rating.py tests/unit/test_formation_analysis.py tests/unit/test_offball_metrics.py tests/unit/test_substitution_analysis.py tests/unit/test_export_converters.py tests/unit/test_season_aggregator.py tests/unit/test_analysis_service_xg_xt.py tests/unit/test_analysis_service_extensions.py tests/unit/test_xt_model.py tests/unit/test_pass_network.py tests/unit/test_heatmap.py tests/unit/test_tactical_periods.py tests/unit/test_game_state.py tests/unit/test_security.py tests/unit/test_xa_model.py tests/unit/test_benchmarks.py tests/unit/test_match_timeline.py tests/unit/test_migration_manager.py tests/unit/test_logging.py tests/unit/test_win_probability.py tests/unit/test_psxg_model.py tests/unit/test_momentum.py tests/unit/test_defensive_actions.py tests/unit/test_transitions.py tests/unit/test_vaep.py tests/unit/test_set_piece_analysis.py tests/unit/test_storage_service.py tests/unit/test_coding_handler.py tests/unit/test_cv_service.py tests/unit/test_api_external_services.py tests/e2e/test_e2e_pipeline.py tests/e2e/test_e2e_full_pipeline.py -v --tb=short
+          uv run --with PySide6==6.11.2 pytest tests/unit/test_core_events.py tests/unit/test_xg_model.py tests/unit/test_pitch_control.py tests/unit/test_player_rating.py tests/unit/test_formation_analysis.py tests/unit/test_offball_metrics.py tests/unit/test_substitution_analysis.py tests/unit/test_export_converters.py tests/unit/test_season_aggregator.py tests/unit/test_analysis_service_xg_xt.py tests/unit/test_analysis_service_extensions.py tests/unit/test_xt_model.py tests/unit/test_pass_network.py tests/unit/test_heatmap.py tests/unit/test_tactical_periods.py tests/unit/test_game_state.py tests/unit/test_security.py tests/unit/test_xa_model.py tests/unit/test_benchmarks.py tests/unit/test_match_timeline.py tests/unit/test_migration_manager.py tests/unit/test_logging.py tests/unit/test_win_probability.py tests/unit/test_psxg_model.py tests/unit/test_momentum.py tests/unit/test_defensive_actions.py tests/unit/test_transitions.py tests/unit/test_vaep.py tests/unit/test_set_piece_analysis.py tests/unit/test_storage_service.py tests/unit/test_coding_handler.py tests/unit/test_cv_service.py tests/unit/test_api_external_services.py tests/e2e/test_e2e_pipeline.py tests/e2e/test_e2e_full_pipeline.py -v --tb=short
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -130,7 +135,9 @@ jobs:
           pip install uv
           uv sync --extra test --extra cloud
       - name: Run benchmarks
-        run: python -m kawkab benchmark --output benchmark-results.json || echo "Benchmark suite incomplete"
+        # `uv run` for the same ambient-python reason as test-core: without
+        # it the module wasn't found and `|| echo` masked a hard failure.
+        run: uv run python -m kawkab benchmark --output benchmark-results.json || echo "Benchmark suite incomplete"
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
@@ -164,8 +171,10 @@ jobs:
           pip install uv
           uv sync --extra test --extra cloud
       - name: Run coverage
+        # uv run, not bare python -m pytest: the ambient runner Python has
+        # no pytest/pytest-cov (see test-core note).
         run: |
-          python -m pytest tests/unit/ -q --cov=src/kawkab --cov-report=xml --cov-report=term
+          uv run --with PySide6==6.11.2 pytest tests/unit/ -q --cov=src/kawkab --cov-report=xml --cov-report=term
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -220,8 +229,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install uv
           uv sync --extra test --extra cloud
+      - name: Install system GL libraries
+        # Qt's offscreen platform still dlopens libEGL/libGL; without them
+        # every boot attempt died with "ImportError: libEGL.so.1: cannot
+        # open shared object file" before a single test ran.
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1
       - name: Run GUI boot e2e
         # Boots the real MainWindow offscreen: services -> storage WAL ->
         # bridge (split handlers) -> shutdown. --with pins the Qt binding
-        # the way the lint/typecheck jobs pin ruff/mypy.
-        run: uv run --with PySide6==6.11.2 pytest tests/e2e/test_gui_boot.py -v
+        # the way the lint/typecheck jobs pin ruff/mypy. All three GUI
+        # modules run here: handler dispatch + the slot audit (the
+        # regression gate for the v0.13.2 bridge fixes) previously never
+        # gated CI, which is exactly how dead-slot regressions shipped.
+        run: |
+          uv run --with PySide6==6.11.2 pytest \
+            tests/e2e/test_gui_boot.py \
+            tests/e2e/test_gui_handler_dispatch.py \
+            tests/e2e/test_gui_slot_audit.py \
+            -v

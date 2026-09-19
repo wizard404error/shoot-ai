@@ -832,11 +832,7 @@ class CVService:
                     tid = int(tracked[r, 4])
                     tcls = int(tracked[r, 6])
                     di = int(tracked[r, 7]) if tracked.shape[1] > 7 else -1
-                    if (
-                        0 <= di < len(det_cls)
-                        and det_cls[di] == tcls
-                        and di not in assigned_ids
-                    ):
+                    if 0 <= di < len(det_cls) and det_cls[di] == tcls and di not in assigned_ids:
                         assigned_ids[di] = tid
                     else:
                         fallback_rows.append(r)
@@ -1623,9 +1619,7 @@ class CVService:
             )
             / n_det_frames
         )
-        quality = self._assess_tracking_quality(
-            fragmentation_rate, count_ratio, players_per_frame
-        )
+        quality = self._assess_tracking_quality(fragmentation_rate, count_ratio, players_per_frame)
 
         logger.info(
             f"After filtering: {len(valid_player_tracks)} validated player tracks "
@@ -2664,9 +2658,9 @@ class CVService:
         # available keeps this aligned with the pitch mask.
         import cv2 as _cv2
 
-        hsv = _cv2.cvtColor(
-            pixels.reshape(1, -1, 3).astype(np.uint8), _cv2.COLOR_BGR2HSV
-        ).reshape(-1, 3)
+        hsv = _cv2.cvtColor(pixels.reshape(1, -1, 3).astype(np.uint8), _cv2.COLOR_BGR2HSV).reshape(
+            -1, 3
+        )
         rng = getattr(self, "_pitch_hsv_range", None) or (
             np.array([25, 40, 40]),
             np.array([90, 255, 255]),
@@ -2823,10 +2817,7 @@ class CVService:
             from sklearn.cluster import KMeans
         except ImportError:
             return self._cluster_team_colors(
-                {
-                    tid: {"primary_color": color_data[tid]["primary_color"]}
-                    for tid in color_data
-                },
+                {tid: {"primary_color": color_data[tid]["primary_color"]} for tid in color_data},
                 n_clusters,
             )
 
@@ -2836,10 +2827,14 @@ class CVService:
         # K-means split the reds and swallowed the blues, zero team
         # assignments). Circular hue features (cos/sin, wrap-safe at 0/179)
         # plus saturation/brightness separate kits by what actually differs.
-        hsv = cv2.cvtColor(
-            np.array(sample_colors, dtype=np.uint8).reshape(-1, 1, 3),
-            cv2.COLOR_BGR2HSV,
-        ).reshape(-1, 3).astype(np.float64)
+        hsv = (
+            cv2.cvtColor(
+                np.array(sample_colors, dtype=np.uint8).reshape(-1, 1, 3),
+                cv2.COLOR_BGR2HSV,
+            )
+            .reshape(-1, 3)
+            .astype(np.float64)
+        )
         angle = hsv[:, 0] * (2.0 * np.pi / 180.0)
         features = np.column_stack(
             [np.cos(angle), np.sin(angle), hsv[:, 1] / 255.0, hsv[:, 2] / 255.0]
@@ -2867,18 +2862,14 @@ class CVService:
         # feature space, not color space).
         cluster_bgr: dict[int, np.ndarray] = {}
         for cl in range(actual_n):
-            members = [
-                c for c, cl_lab in zip(sample_colors, labels, strict=True) if cl_lab == cl
-            ]
+            members = [c for c, cl_lab in zip(sample_colors, labels, strict=True) if cl_lab == cl]
             cluster_bgr[cl] = np.mean(np.array(members, dtype=np.float64), axis=0)
         label_map: dict[int, str] = {}
         if actual_n >= 3:
             import cv2 as _cv2
 
             centroids_hsv = [
-                _cv2.cvtColor(
-                    np.uint8([[cluster_bgr[cl]]]), _cv2.COLOR_BGR2HSV
-                )[0, 0]
+                _cv2.cvtColor(np.uint8([[cluster_bgr[cl]]]), _cv2.COLOR_BGR2HSV)[0, 0]
                 for cl in range(actual_n)
             ]
             ref_idx = min(

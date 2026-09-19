@@ -76,7 +76,10 @@ def _install_stubs():
 
 @pytest.fixture(scope="module", autouse=True)
 def _scoped_stubs():
-    pre = {k: (k in sys.modules) for k in ("matplotlib", "matplotlib.pyplot", "daimon_runtime", "networkx")}
+    pre = {
+        k: (k in sys.modules)
+        for k in ("matplotlib", "matplotlib.pyplot", "daimon_runtime", "networkx")
+    }
     _install_stubs()
     yield
     for key, existed in pre.items():
