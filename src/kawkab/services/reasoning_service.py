@@ -10,14 +10,12 @@ This is the "Detective" layer of Kawkab AI. It:
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from kawkab.core.logging import get_logger
-from kawkab.services.knowledge_service import KnowledgeService, TacticalRule, Drill
 from kawkab.services.analysis_service import MatchAnalysis
+from kawkab.services.knowledge_service import KnowledgeService, TacticalRule
 
 logger = get_logger(__name__)
 
@@ -112,8 +110,7 @@ class ReasoningService:
         priority_actions = self._build_priority_actions(diagnoses, language)
         overall = self._build_overall_assessment(diagnoses, analysis, language)
         overall_conf = (
-            sum(d.confidence for d in diagnoses[:5]) / min(5, len(diagnoses))
-            if diagnoses else 0.0
+            sum(d.confidence for d in diagnoses[:5]) / min(5, len(diagnoses)) if diagnoses else 0.0
         )
 
         logger.info(
@@ -133,7 +130,7 @@ class ReasoningService:
 
     def _precompute_event_stats(self, events: list[dict]) -> dict:
         """Single-pass event analysis for all check methods."""
-        stats = {
+        stats: dict[str, Any] = {
             "goals": [],
             "turnovers": [],
             "shots": [],
@@ -167,7 +164,7 @@ class ReasoningService:
             etype = ev.get("type", "")
             zone = ev.get("zone", "")
             timestamp = ev.get("timestamp", 0)
-            team = ev.get("team", "")
+            _ = ev.get("team", "")
             situation = ev.get("situation", "")
             outcome = ev.get("outcome", "")
 
@@ -224,7 +221,7 @@ class ReasoningService:
         pattern_type = sig.get("type", "")
 
         confidence = 0.0
-        evidence = {}
+        evidence: dict[str, Any] = {}
 
         if pattern_type == "zone_based_goal_concession":
             confidence, evidence = self._check_zone_concession(rule, analysis, event_stats)
@@ -268,12 +265,16 @@ class ReasoningService:
                 recommended_drill_ids = primary_hyp.get("recommended_drills", [])
             elif primary_hyp.recommended_drills:
                 recommended_drill_ids = primary_hyp.recommended_drills
-        if not recommended_drill_ids and rule.recommended_drills and isinstance(rule.recommended_drills, list):
-            if isinstance(rule.recommended_drills[0], dict):
-                recommended_drill_ids = [
-                    d.get("drill_id") for d in rule.recommended_drills
-                    if isinstance(d, dict) and d.get("drill_id")
-                ]
+        if (
+            not recommended_drill_ids
+            and rule.recommended_drills
+            and isinstance(rule.recommended_drills, list)
+        ) and isinstance(rule.recommended_drills[0], dict):
+            recommended_drill_ids = [
+                d.get("drill_id")
+                for d in rule.recommended_drills
+                if isinstance(d, dict) and d.get("drill_id")
+            ]
 
         return Diagnosis(
             rule_id=rule.rule_id,
@@ -299,8 +300,7 @@ class ReasoningService:
         """Check for goals conceded from a specific zone (e.g., left channel)."""
         event_stats = self._ensure_event_stats(event_stats)
         zone_events = [
-            e for e in event_stats["goals"]
-            if e.get("zone") == rule.pattern_signature.get("zone")
+            e for e in event_stats["goals"] if e.get("zone") == rule.pattern_signature.get("zone")
         ]
         all_goals = event_stats["goals"]
         if not all_goals:
@@ -320,10 +320,7 @@ class ReasoningService:
     ) -> tuple[float, dict]:
         """Check for high possession loss in defensive third."""
         event_stats = self._ensure_event_stats(event_stats)
-        def_turnovers = [
-            e for e in event_stats["turnovers"]
-            if e.get("zone") == "defensive_third"
-        ]
+        def_turnovers = [e for e in event_stats["turnovers"] if e.get("zone") == "defensive_third"]
         all_turnovers = event_stats["turnovers"]
         if not all_turnovers:
             return 0.0, {}
@@ -409,14 +406,11 @@ class ReasoningService:
     ) -> tuple[float, dict]:
         """Check for isolated fullback situations."""
         event_stats = self._ensure_event_stats(event_stats)
-        iso_events = [
-            e for e in event_stats["1v1_situations"]
-            if e.get("position") == "fullback"
-        ]
+        iso_events = [e for e in event_stats["1v1_situations"] if e.get("position") == "fullback"]
         if len(iso_events) >= 5:
-            opp_success = sum(
-                1 for e in iso_events if e.get("outcome") == "beaten"
-            ) / len(iso_events)
+            opp_success = sum(1 for e in iso_events if e.get("outcome") == "beaten") / len(
+                iso_events
+            )
             if opp_success > 0.55:
                 return 0.6, {
                     "1v1_count": len(iso_events),
@@ -502,19 +496,19 @@ class ReasoningService:
         actions_ar = []
         for i, diag in enumerate(diagnoses[:5]):
             if diag.recommended_drills:
-                drills = [
-                    self.kb.get_drill(d_id) for d_id in diag.recommended_drills[:2]
-                ]
-                drills = [d for d in drills if d is not None]
-                if drills:
-                    drill_names_en = ", ".join(d.name for d in drills)
-                    drill_names_ar = ", ".join(getattr(d, "name_ar", None) or d.name for d in drills)
+                drills = [self.kb.get_drill(d_id) for d_id in diag.recommended_drills[:2]]
+                typed_drills = [d for d in drills if d is not None]
+                if typed_drills:
+                    drill_names_en = ", ".join(str(d.name) for d in typed_drills)
+                    drill_names_ar = ", ".join(
+                        str(getattr(d, "name_ar", None) or d.name) for d in typed_drills
+                    )
                     actions_en.append(
-                        f"Priority {i+1}: {drill_names_en} "
+                        f"Priority {i + 1}: {drill_names_en} "
                         f"(addresses {diag.rule_name}, confidence {diag.confidence:.0%})"
                     )
                     actions_ar.append(
-                        f"الأولوية {i+1}: {drill_names_ar} "
+                        f"الأولوية {i + 1}: {drill_names_ar} "
                         f"(يعالج: {diag.rule_name_ar}, الثقة {diag.confidence:.0%})"
                     )
         if not actions_en:

@@ -1,10 +1,12 @@
 """Base class for specialised storage classes.
 
-Provides connection management, _ensure_initialized, and _log_error helpers.
+Provides connection management, _ensure_initialized, and _log_error helpers,
+plus shared row-parsing helpers used by both storage backends.
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,21 @@ from typing import Any
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def parse_metadata_json(row: dict) -> dict:
+    """Move a row's raw ``metadata_json`` string into ``metadata`` (dict).
+
+    Used by every tracking-import read on both backends; malformed JSON
+    degrades to an empty dict rather than raising (an unreadable provenance
+    annotation must not kill the record it describes).
+    """
+    if isinstance(row.get("metadata_json"), str):
+        try:
+            row["metadata"] = json.loads(row["metadata_json"])
+        except (json.JSONDecodeError, TypeError):
+            row["metadata"] = {}
+    return row
 
 
 class BaseStorage:
@@ -23,8 +40,10 @@ class BaseStorage:
     @property
     def _conn(self) -> sqlite3.Connection | None:
         if self._storage is not None:
-            return self._storage._conn
-        return getattr(self, "_conn_local", None)
+            conn: sqlite3.Connection | None = self._storage._conn
+            return conn
+        conn_local: sqlite3.Connection | None = getattr(self, "_conn_local", None)
+        return conn_local
 
     @_conn.setter
     def _conn(self, value: sqlite3.Connection | None) -> None:
@@ -33,8 +52,10 @@ class BaseStorage:
     @property
     def _db_path(self) -> Path | None:
         if self._storage is not None:
-            return self._storage._db_path
-        return getattr(self, "_db_path_local", None)
+            db_path: Path | None = self._storage._db_path
+            return db_path
+        db_path_local: Path | None = getattr(self, "_db_path_local", None)
+        return db_path_local
 
     @_db_path.setter
     def _db_path(self, value: Path | None) -> None:
@@ -45,6 +66,20 @@ class BaseStorage:
             logger.error(f"{method_name}: database not initialized")
             return False
         return True
+
+    def _require_conn(self, method_name: str) -> sqlite3.Connection:
+        """Assert the connection exists, mirroring the _ensure_initialized gate.
+
+        Every caller runs ``_ensure_initialized`` (which returns False on a
+        missing connection) before touching ``self._conn``, so this only
+        fires if a method skips that gate.  Raising here keeps the types
+        honest instead of silently spraying Optional-connection attribute
+        access through the subclass CRUD methods.
+        """
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError(f"{method_name}: database connection not initialized")
+        return conn
 
     def _log_error(self, method_name: str, error: Exception) -> None:
         logger.error(f"{method_name}: {error}")

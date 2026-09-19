@@ -3,35 +3,19 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
-import re
 from kawkab.core.logging import get_logger
+from kawkab.core.security import SecurityValidator
 from kawkab.services.storage.base import BaseStorage
 
+
 def _sanitize_column_name(name: str) -> str | None:
-    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+    if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
         return name
     return None
 
-try:
-    from kawkab.core.security import SecurityValidator as _SecVal
-    SecurityValidator = _SecVal
-except ImportError:
-    class _SecurityValidator:
-        @staticmethod
-        def validate_match_id(mid): return int(mid)
-        @staticmethod
-        def validate_event_type(e): return str(e)
-        @staticmethod
-        def validate_event_dict(e): return e
-        @staticmethod
-        def validate_track_id(t): return int(t)
-        @staticmethod
-        def sanitize_string(s, max_length=255): return str(s)[:max_length]
-        @staticmethod
-        def validate_positive_float(v, n="v"): return max(0.0, float(v))
-    SecurityValidator = _SecurityValidator()
 
 logger = get_logger(__name__)
 
@@ -43,9 +27,10 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("save_event"):
             return 0
         try:
+            conn = self._require_conn("save_event")
             SecurityValidator.validate_match_id(match_id)
             SecurityValidator.validate_event_dict(event)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO events (
@@ -65,7 +50,7 @@ class EventStorage(BaseStorage):
                     json.dumps(event.get("metadata", {})),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_event", e)
@@ -75,22 +60,25 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("save_events_bulk"):
             return 0
         try:
+            conn = self._require_conn("save_events_bulk")
             SecurityValidator.validate_match_id(match_id)
-            cursor = self._conn.cursor()
+            cursor = conn.cursor()
             rows = []
             for event in events:
                 SecurityValidator.validate_event_dict(event)
-                rows.append((
-                    match_id,
-                    event["type"],
-                    event["timestamp"],
-                    event.get("from_track_id"),
-                    event.get("to_track_id"),
-                    event.get("team"),
-                    event.get("completed", False),
-                    event.get("confidence", 0.0),
-                    json.dumps(event.get("metadata", {})),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        event["type"],
+                        event["timestamp"],
+                        event.get("from_track_id"),
+                        event.get("to_track_id"),
+                        event.get("team"),
+                        event.get("completed", False),
+                        event.get("confidence", 0.0),
+                        json.dumps(event.get("metadata", {})),
+                    )
+                )
             cursor.executemany(
                 """
                 INSERT INTO events (
@@ -100,7 +88,7 @@ class EventStorage(BaseStorage):
                 """,
                 rows,
             )
-            self._conn.commit()
+            conn.commit()
             return len(rows)
         except Exception as e:
             self._log_error("save_events_bulk", e)
@@ -110,7 +98,8 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("get_match_events"):
             return []
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("get_match_events")
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, match_id, event_type, timestamp, from_track_id, to_track_id, team, completed, confidence, metadata, user_corrected FROM events WHERE match_id = ? ORDER BY timestamp",
                 (match_id,),
@@ -123,9 +112,17 @@ class EventStorage(BaseStorage):
     async def update_event(self, event_id: int, updates: dict) -> bool:
         if not self._ensure_initialized("update_event"):
             return False
-        allowed = {"event_type", "team", "from_track_id", "to_track_id",
-                    "completed", "confidence", "metadata"}
+        allowed = {
+            "event_type",
+            "team",
+            "from_track_id",
+            "to_track_id",
+            "completed",
+            "confidence",
+            "metadata",
+        }
         try:
+            conn = self._require_conn("update_event")
             SecurityValidator.validate_match_id(event_id)
             sets = []
             vals = []
@@ -151,11 +148,9 @@ class EventStorage(BaseStorage):
                 return False
             sets.append("user_corrected = 1")
             vals.append(event_id)
-            cursor = self._conn.cursor()
-            cursor.execute(
-                f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals
-            )
-            self._conn.commit()
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE events SET {', '.join(sets)} WHERE id = ?", vals)
+            conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
             self._log_error("update_event", e)
@@ -165,9 +160,10 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("delete_event"):
             return False
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("delete_event")
+            cursor = conn.cursor()
             cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
-            self._conn.commit()
+            conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
             self._log_error("delete_event", e)
@@ -187,7 +183,8 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("save_advanced_metrics"):
             return 0
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("save_advanced_metrics")
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO advanced_metrics (
@@ -206,31 +203,32 @@ class EventStorage(BaseStorage):
                     json.dumps(metadata or {}),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_advanced_metrics", e)
             return 0
 
-    async def save_advanced_metrics_bulk(
-        self, match_id: int, metrics: list[dict]
-    ) -> int:
+    async def save_advanced_metrics_bulk(self, match_id: int, metrics: list[dict]) -> int:
         if not self._ensure_initialized("save_advanced_metrics_bulk"):
             return 0
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("save_advanced_metrics_bulk")
+            cursor = conn.cursor()
             rows = []
             for m in metrics:
-                rows.append((
-                    match_id,
-                    m.get("player_id"),
-                    m["metric_name"],
-                    m["metric_value"],
-                    m.get("metric_category", ""),
-                    m.get("pitch_zone", ""),
-                    m.get("timestamp"),
-                    json.dumps(m.get("metadata", {})),
-                ))
+                rows.append(
+                    (
+                        match_id,
+                        m.get("player_id"),
+                        m["metric_name"],
+                        m["metric_value"],
+                        m.get("metric_category", ""),
+                        m.get("pitch_zone", ""),
+                        m.get("timestamp"),
+                        json.dumps(m.get("metadata", {})),
+                    )
+                )
             cursor.executemany(
                 """
                 INSERT INTO advanced_metrics (
@@ -240,7 +238,7 @@ class EventStorage(BaseStorage):
                 """,
                 rows,
             )
-            self._conn.commit()
+            conn.commit()
             return len(rows)
         except Exception as e:
             self._log_error("save_advanced_metrics_bulk", e)
@@ -256,7 +254,8 @@ class EventStorage(BaseStorage):
         if not self._ensure_initialized("save_correction"):
             return 0
         try:
-            cursor = self._conn.cursor()
+            conn = self._require_conn("save_correction")
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO user_corrections (
@@ -270,7 +269,7 @@ class EventStorage(BaseStorage):
                     json.dumps(corrected_value),
                 ),
             )
-            self._conn.commit()
+            conn.commit()
             return cursor.lastrowid or 0
         except Exception as e:
             self._log_error("save_correction", e)

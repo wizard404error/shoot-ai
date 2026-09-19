@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,15 +25,27 @@ class AuditService:
     what happened, when, and by whom.
     """
 
-    VALID_ACTIONS = frozenset({
-        "analysis.started", "analysis.completed", "analysis.failed",
-        "export.csv", "export.json", "export.pdf", "export.statsbomb",
-        "event.created", "event.updated", "event.deleted",
-        "match.imported", "match.deleted",
-        "feedback.submitted",
-        "config.changed",
-        "read", "data.erased", "data.archived",
-    })
+    VALID_ACTIONS = frozenset(
+        {
+            "analysis.started",
+            "analysis.completed",
+            "analysis.failed",
+            "export.csv",
+            "export.json",
+            "export.pdf",
+            "export.statsbomb",
+            "event.created",
+            "event.updated",
+            "event.deleted",
+            "match.imported",
+            "match.deleted",
+            "feedback.submitted",
+            "config.changed",
+            "read",
+            "data.erased",
+            "data.archived",
+        }
+    )
 
     def __init__(self, storage_service: Any = None) -> None:
         self._storage = storage_service
@@ -49,19 +61,21 @@ class AuditService:
         The canonical form concatenates the seven core fields with pipe
         separators. Missing keys default to empty string.
         """
-        canon = "|".join([
-            str(event_dict.get("action", "")),
-            str(event_dict.get("entity_type", "")),
-            str(event_dict.get("entity_id", "")),
-            json.dumps(
-                event_dict.get("details", event_dict.get("details_json", {})),
-                sort_keys=True,
-                default=str,
-            ),
-            str(event_dict.get("user", "")),
-            str(event_dict.get("timestamp", "")),
-            str(event_dict.get("prev_hash", "")),
-        ])
+        canon = "|".join(
+            [
+                str(event_dict.get("action", "")),
+                str(event_dict.get("entity_type", "")),
+                str(event_dict.get("entity_id", "")),
+                json.dumps(
+                    event_dict.get("details", event_dict.get("details_json", {})),
+                    sort_keys=True,
+                    default=str,
+                ),
+                str(event_dict.get("user", "")),
+                str(event_dict.get("timestamp", "")),
+                str(event_dict.get("prev_hash", "")),
+            ]
+        )
         return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
     def _get_last_hash(self) -> str:
@@ -91,9 +105,7 @@ class AuditService:
             return
         try:
             cursor = self._storage._conn.cursor()
-            cursor.execute(
-                "ALTER TABLE audit_events ADD COLUMN prev_hash TEXT DEFAULT ''"
-            )
+            cursor.execute("ALTER TABLE audit_events ADD COLUMN prev_hash TEXT DEFAULT ''")
             self._storage._conn.commit()
             logger.info("Added prev_hash column to audit_events")
         except Exception:
@@ -153,7 +165,10 @@ class AuditService:
         if self._storage is None or self._storage._conn is None:
             return []
         cursor = self._storage._conn.cursor()
-        sql = "SELECT * FROM audit_events WHERE 1=1"
+        sql = (
+            "SELECT id, timestamp, action, entity_type, entity_id, details_json, "
+            "user, prev_hash FROM audit_events WHERE 1=1"
+        )
         params: list[Any] = []
         if action:
             sql += " AND action = ?"
@@ -186,10 +201,8 @@ class AuditService:
             stats["total_events"] = 0
 
         try:
-            cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-            cursor.execute(
-                "SELECT COUNT(*) FROM audit_events WHERE timestamp >= ?", (cutoff,)
-            )
+            cutoff = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
+            cursor.execute("SELECT COUNT(*) FROM audit_events WHERE timestamp >= ?", (cutoff,))
             stats["events_last_24h"] = cursor.fetchone()[0]
         except Exception:
             stats["events_last_24h"] = 0
@@ -243,7 +256,11 @@ class AuditService:
         _queries: list[tuple[str, str, list[Any]]] = [
             ("coach_feedback", "SELECT * FROM coach_feedback WHERE coach_id = ?", [user_id]),
             ("collab_comments", "SELECT * FROM collab_comments WHERE username = ?", [user_id]),
-            ("collab_mentions", "SELECT * FROM collab_mentions WHERE username = ? OR from_user = ?", [user_id, user_id]),
+            (
+                "collab_mentions",
+                "SELECT * FROM collab_mentions WHERE username = ? OR from_user = ?",
+                [user_id, user_id],
+            ),
             ("collab_users", "SELECT * FROM collab_users WHERE username = ?", [user_id]),
         ]
 
@@ -273,7 +290,7 @@ class AuditService:
 
         try:
             cursor = self._storage._conn.cursor()
-            cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
+            cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).isoformat()
 
             cursor.execute(
                 "SELECT * FROM audit_events WHERE timestamp < ? ORDER BY id",
@@ -288,7 +305,7 @@ class AuditService:
 
             archive_dir = get_paths().database.parent if get_paths().database else Path(".")
             archive_dir.mkdir(parents=True, exist_ok=True)
-            archive_name = f"audit_archive_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            archive_name = f"audit_archive_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json"
             archive_path = archive_dir / archive_name
 
             with open(archive_path, "w", encoding="utf-8") as f:
@@ -304,9 +321,7 @@ class AuditService:
             )
             self._storage._conn.commit()
 
-            logger.info(
-                "Archived %d audit event(s) to %s", count, archive_path
-            )
+            logger.info("Archived %d audit event(s) to %s", count, archive_path)
             return count
         except Exception:
             return 0

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
-from datetime import datetime
 from typing import Any
 
+from kawkab.core import paths as kawkab_paths
 from kawkab.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -15,10 +16,12 @@ logger = get_logger(__name__)
 class TransfermarktIntegrationService:
     """Import and cache market values, squad data, and player profiles from Transfermarkt."""
 
-    def __init__(self) -> None:
-        self._cache_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "transfermarkt"
-        )
+    def __init__(self, cache_dir: str | None = None) -> None:
+        # Per-user app-data cache, NOT the source tree (same reason as
+        # OpponentDatabaseService: runtime writes used to land in src/data/).
+        if cache_dir is None:
+            cache_dir = str(kawkab_paths.get_paths().appdata / "data" / "transfermarkt")
+        self._cache_dir = cache_dir
         self._cache: dict[str, Any] = {}
         self._load_cache()
 
@@ -30,7 +33,7 @@ class TransfermarktIntegrationService:
         cache_file = self._cache_path("_index")
         try:
             if os.path.exists(cache_file):
-                with open(cache_file, "r", encoding="utf-8") as f:
+                with open(cache_file, encoding="utf-8") as f:
                     self._cache = json.load(f)
         except Exception as e:
             logger.warning(f"Failed to load TM cache: {e}")
@@ -53,15 +56,69 @@ class TransfermarktIntegrationService:
 
         if name.lower() == "demo":
             results = [
-                {"id": 1, "name": "Player A", "position": "CF", "club": "Demo FC", "league": "Premier League", "market_value": 25000000, "age": 25, "nationality": "England"},
-                {"id": 2, "name": "Player B", "position": "CM", "club": "Demo FC", "league": "Premier League", "market_value": 18000000, "age": 28, "nationality": "Spain"},
-                {"id": 3, "name": "Player C", "position": "CB", "club": "Demo United", "league": "LaLiga", "market_value": 12000000, "age": 23, "nationality": "Brazil"},
-                {"id": 4, "name": "Player D", "position": "LW", "club": "Academy FC", "league": "Championship", "market_value": 5000000, "age": 19, "nationality": "France"},
-                {"id": 5, "name": "Player E", "position": "GK", "club": "Top Club", "league": "Bundesliga", "market_value": 35000000, "age": 27, "nationality": "Germany"},
+                {
+                    "id": 1,
+                    "name": "Player A",
+                    "position": "CF",
+                    "club": "Demo FC",
+                    "league": "Premier League",
+                    "market_value": 25000000,
+                    "age": 25,
+                    "nationality": "England",
+                },
+                {
+                    "id": 2,
+                    "name": "Player B",
+                    "position": "CM",
+                    "club": "Demo FC",
+                    "league": "Premier League",
+                    "market_value": 18000000,
+                    "age": 28,
+                    "nationality": "Spain",
+                },
+                {
+                    "id": 3,
+                    "name": "Player C",
+                    "position": "CB",
+                    "club": "Demo United",
+                    "league": "LaLiga",
+                    "market_value": 12000000,
+                    "age": 23,
+                    "nationality": "Brazil",
+                },
+                {
+                    "id": 4,
+                    "name": "Player D",
+                    "position": "LW",
+                    "club": "Academy FC",
+                    "league": "Championship",
+                    "market_value": 5000000,
+                    "age": 19,
+                    "nationality": "France",
+                },
+                {
+                    "id": 5,
+                    "name": "Player E",
+                    "position": "GK",
+                    "club": "Top Club",
+                    "league": "Bundesliga",
+                    "market_value": 35000000,
+                    "age": 27,
+                    "nationality": "Germany",
+                },
             ]
         else:
             results = [
-                {"id": 0, "name": name, "position": "N/A", "club": "Unknown", "league": "N/A", "market_value": 0, "age": 25, "nationality": "Unknown"},
+                {
+                    "id": 0,
+                    "name": name,
+                    "position": "N/A",
+                    "club": "Unknown",
+                    "league": "N/A",
+                    "market_value": 0,
+                    "age": 25,
+                    "nationality": "Unknown",
+                },
             ]
 
         self._set_cached(f"search:{name.lower()}", results)
@@ -107,12 +164,48 @@ class TransfermarktIntegrationService:
             return cached
 
         squad = [
-            {"id": 10, "name": f"{club_name} GK", "position": "GK", "age": 28, "market_value": 8000000},
-            {"id": 11, "name": f"{club_name} RB", "position": "RB", "age": 24, "market_value": 6000000},
-            {"id": 12, "name": f"{club_name} CB", "position": "CB", "age": 26, "market_value": 10000000},
-            {"id": 13, "name": f"{club_name} LB", "position": "LB", "age": 23, "market_value": 7000000},
-            {"id": 14, "name": f"{club_name} CM", "position": "CM", "age": 27, "market_value": 12000000},
-            {"id": 15, "name": f"{club_name} CF", "position": "CF", "age": 25, "market_value": 20000000},
+            {
+                "id": 10,
+                "name": f"{club_name} GK",
+                "position": "GK",
+                "age": 28,
+                "market_value": 8000000,
+            },
+            {
+                "id": 11,
+                "name": f"{club_name} RB",
+                "position": "RB",
+                "age": 24,
+                "market_value": 6000000,
+            },
+            {
+                "id": 12,
+                "name": f"{club_name} CB",
+                "position": "CB",
+                "age": 26,
+                "market_value": 10000000,
+            },
+            {
+                "id": 13,
+                "name": f"{club_name} LB",
+                "position": "LB",
+                "age": 23,
+                "market_value": 7000000,
+            },
+            {
+                "id": 14,
+                "name": f"{club_name} CM",
+                "position": "CM",
+                "age": 27,
+                "market_value": 12000000,
+            },
+            {
+                "id": 15,
+                "name": f"{club_name} CF",
+                "position": "CF",
+                "age": 25,
+                "market_value": 20000000,
+            },
         ]
 
         self._set_cached(f"squad:{club_name.lower()}", squad)
@@ -130,7 +223,5 @@ class TransfermarktIntegrationService:
         self._save_cache()
         for f in os.listdir(self._cache_dir):
             if f.endswith(".json"):
-                try:
+                with contextlib.suppress(Exception):
                     os.remove(os.path.join(self._cache_dir, f))
-                except Exception:
-                    pass
