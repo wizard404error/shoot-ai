@@ -80,6 +80,11 @@ test = [
     "pytest-xdist>=3.5.0",
     "hypothesis>=6.100.0",
     "httpx>=0.27.0",
+    # test_tracking_real_footage.py imports sklearn at collection time
+    # (KMeans pitch-zone fixtures); undeclared, it failed coverage-job
+    # collection only after the earlier "No module named pytest" bug was
+    # fixed -- the kind of masked gap that surfaces one layer at a time.
+    "scikit-learn>=1.4.0",
 ]
 audio = [
     "faster-whisper>=1.0.0",
