@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT, global_id TEXT DEFAULT '',
     display_name TEXT DEFAULT '', jersey_number INTEGER,
     preferred_position TEXT, team TEXT DEFAULT 'home',
+    date_of_birth TEXT DEFAULT '',
     is_active INTEGER DEFAULT 1, face_embedding TEXT,
     face_confidence REAL DEFAULT 0.0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -739,39 +740,80 @@ async def test_update_match_bzzoiro(storage):
 
 @pytest.mark.asyncio
 async def test_uninitialized_service_returns_safe_defaults():
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None  # Force SQLite mode
     svc._use_postgres = False
     svc._conn = None
-    assert await svc.save_match("n", "") == 0
-    assert await svc.get_match(1) is None
-    assert await svc.get_all_matches() == []
-    assert await svc.save_event(1, {}) == 0
-    assert await svc.get_match_events(1) == []
-    assert await svc.save_player(1, {}) == 0
-    assert await svc.get_match_players(1) == []
-    assert await svc.save_benchmark(BenchmarkResult()) == 0
+    # Converted write clusters raise honestly — a silent 0 on a write hid
+    # DB failures for months (see storage_errors.py contract).
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_match("n", "")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_event(1, {})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_player(1, {})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_events_bulk(1, [{"type": "pass", "timestamp": 1.0}])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_advanced_metrics(1, "x", 0.0)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_correction(1, "", "", "")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_reports(1, "en")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_players_bulk(1, [])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_advanced_metrics_bulk(1, [])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.update_event(1, {"team": "away"})
+    with pytest.raises(StorageNotInitializedError):
+        await svc.delete_event(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.hard_delete_event(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.restore_event(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_benchmark(BenchmarkResult())
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_player_profile({})
+    # Hot reads raise too — Phase 5a: silent []/None on reads let broken
+    # backends masquerade as "no data" for months.
+    for call in (
+        lambda: svc.get_match(1),
+        lambda: svc.get_all_matches(),
+        lambda: svc.get_match_events(1),
+        lambda: svc.get_match_players(1),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await call()
+    # Remaining reads (and not-yet-converted clusters) keep the legacy
+    # fail-soft defaults.
     assert await svc.get_recent_benchmarks() == []
-    assert await svc.save_feedback({}) == 0
-    assert await svc.get_all_feedback() == []
-    assert await svc.save_issue({}) == 0
-    assert await svc.get_all_issues() == []
-    assert await svc.save_clip({}) == 0
-    assert await svc.get_clips_for_match(1) == []
-    assert await svc.save_player_profile({}) == 0
-    assert await svc.get_all_player_profiles() == []
-    assert await svc.save_playlist({}) == 0
-    assert await svc.get_playlists() == []
-    assert await svc.save_usage_session({}) == 0
-    assert await svc.save_advanced_metrics(1, "x", 0.0) == 0
-    assert await svc.save_advanced_metrics_bulk(1, []) == 0
-    assert await svc.save_events_bulk(1, []) == 0
-    assert await svc.save_players_bulk(1, []) == 0
-    assert await svc.save_correction(1, "", "", "") == 0
-    assert await svc.get_reports(1, "en") == []
+    # Media writes now raise when uninitialized — even before input validation
+    # (guard ordering: not-initialized beats rejected-input). The empty-dict
+    # rejected-input contract is pinned against a live DB further down.
+    for call in (
+        lambda: svc.save_feedback({}),
+        lambda: svc.save_issue({}),
+        lambda: svc.save_clip({}),
+        lambda: svc.save_playlist({}),
+        lambda: svc.save_usage_session({}),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await call()
+    # Reads of the media cluster raise too (batch 5b).
+    for call in (
+        lambda: svc.get_all_feedback(),
+        lambda: svc.get_all_issues(),
+        lambda: svc.get_clips_for_match(1),
+        lambda: svc.get_playlists(),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await call()
+    # Remaining reads stay fail-soft.
     assert await svc.get_validation_results(1) == []
-    assert await svc.update_event(1, {"team": "away"}) is False
-    assert await svc.delete_event(1) is False
 
 
 @pytest.mark.asyncio
@@ -1052,17 +1094,26 @@ async def test_get_coding_tag_stats_empty(storage):
 
 
 @pytest.mark.asyncio
-async def test_coding_tags_uninitialized_conn():
+async def test_coding_tags_uninitialized_conn_raises():
+    """Updated for the A1 honesty contract: uninitialized storage RAISES
+    StorageNotInitialized instead of silently returning 0/[]/False — the
+    old behavior made a broken deployment look like an empty database."""
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
-    assert await svc.save_coding_tag(1, {"event_type": "pass", "video_time": 10.0}) == 0
-    assert await svc.get_coding_tags(1) == []
-    assert await svc.get_coding_tags_by_type(1, "pass") == []
-    assert await svc.get_coding_tags_by_player(1, 1) == []
-    assert await svc.update_coding_tag(1, {"event_type": "shot"}) is False
-    assert await svc.delete_coding_tag(1) is False
-    assert await svc.get_coding_tag_stats(1) == {"total": 0, "by_type": {}, "by_player": {}}
+    for coro in (
+        svc.save_coding_tag(1, {"event_type": "pass", "video_time": 10.0}),
+        svc.get_coding_tags(1),
+        svc.get_coding_tags_by_type(1, "pass"),
+        svc.get_coding_tags_by_player(1, 1),
+        svc.update_coding_tag(1, {"event_type": "shot"}),
+        svc.delete_coding_tag(1),
+        svc.get_coding_tag_stats(1),
+    ):
+        with pytest.raises(StorageNotInitializedError):
+            await coro
 
 
 @pytest.mark.asyncio
@@ -1191,16 +1242,26 @@ async def test_get_player_gps_summary(storage):
 
 @pytest.mark.asyncio
 async def test_gps_uninitialized_conn():
+    """GPS reads and writes all raise honestly (batches 4b and 5b)."""
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
-    assert await svc.save_gps_session(1, 1, "match", "catapult") == 0
-    assert await svc.get_gps_sessions(1) == []
-    assert await svc.get_gps_samples(1) == []
-    assert await svc.save_gps_samples_bulk(1, [{"timestamp": 0.0}]) == 0
-    assert await svc.save_acwr(1, "2026-01-01", 5000, 4500, 1.11) == 0
-    assert await svc.get_player_acwr(1) == []
-    assert await svc.get_player_gps_summary(1) == []
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_gps_session(1, 1, "match", "catapult")
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_gps_sessions(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_gps_samples(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_gps_samples_bulk(1, [{"timestamp": 0.0}])
+    with pytest.raises(StorageNotInitializedError):
+        await svc.save_acwr(1, "2026-01-01", 5000, 4500, 1.11)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_player_acwr(1)
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_player_gps_summary(1)
 
 
 # ─── Squad Injury Report ────────────────────────────────────────────────────
@@ -1279,13 +1340,14 @@ async def test_squad_injury_report_resolves_team_via_player_match_links(storage)
 
 
 @pytest.mark.asyncio
-async def test_squad_injury_report_uninitialized_conn():
+async def test_squad_injury_report_uninitialized_conn_raises():
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
-    report = await svc.get_squad_injury_report(1)
-    assert report["total_active"] == 0
-    assert report["injuries"] == []
+    with pytest.raises(StorageNotInitializedError):
+        await svc.get_squad_injury_report(1)
 
 
 # ── Player Contracts (migration 017) ─────────────────────────────────────
@@ -1384,12 +1446,16 @@ async def test_get_contracts_expiring_soon_window(storage):
 
 @pytest.mark.asyncio
 async def test_contract_methods_safe_without_connection():
+    """save_contract raises on no connection (write honesty); the reads
+    keep the fail-soft convention until the read batch converts them."""
+    from kawkab.services.storage_errors import StorageNotInitializedError
+
     svc = StorageService()
     svc._pg = None
     svc._use_postgres = False
     assert await svc.get_contracts() == []
     assert await svc.get_contracts_expiring_soon(90) == []
-    assert (
+    with pytest.raises(StorageNotInitializedError):
         await svc.save_contract(
             {
                 "player_profile_id": 1,
@@ -1398,8 +1464,6 @@ async def test_contract_methods_safe_without_connection():
                 "end_date": "2026-01-01",
             }
         )
-        == 0
-    )
 
 
 @pytest.mark.asyncio

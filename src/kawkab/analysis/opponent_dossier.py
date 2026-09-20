@@ -366,8 +366,11 @@ def generate_dossier(
         weaknesses.append("Low possession — may struggle to control games")
         recs.append("Dominate possession, force them to chase")
 
+    ppda_values = [float(m["ppda"]) for m in matches if m.get("ppda") is not None]
     avg_ppda = (
-        statistics.mean([m.get("ppda", 10) for m in matches if m.get("ppda")]) if matches else 10
+        statistics.mean(ppda_values)
+        if ppda_values
+        else 10  # 10 = mid-range default when unmeasurable
     )
     if avg_ppda < 8:
         strengths.append("High pressing — aggressive out-of-possession")

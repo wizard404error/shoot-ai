@@ -8,8 +8,9 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from kawkab.api.api_v1 import router as api_v1_router
@@ -38,8 +39,33 @@ from kawkab.cloud.models import (
     UserOut,
     UserRegister,
 )
+from kawkab.services.storage_errors import StorageError
 
 app = FastAPI(title="Kawkab AI Cloud", version="0.1.0")
+
+
+@app.exception_handler(StorageError)
+async def storage_error_handler(request: Request, exc: StorageError) -> JSONResponse:
+    """Honest storage failures map to 503 (backend unavailable), not 500.
+
+    StorageNotInitializedError means the backend never came up; other
+    StorageErrors are per-operation DB failures. Both are retryable
+    server-side conditions, so 503 with the typed operation name is the
+    honest API shape.
+    """
+    status = 503
+    return JSONResponse(
+        status_code=status,
+        content={
+            "error": "storage_unavailable",
+            # Only the operation-carrying StorageError subclasses expose
+            # .operation; the bare base does not — "unknown" is the honest
+            # fallback for a typed failure without an operation name.
+            "operation": getattr(exc, "operation", "unknown"),
+            "detail": str(exc.__cause__ or exc),
+        },
+    )
+
 
 app.include_router(api_v1_router)
 

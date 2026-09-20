@@ -43,6 +43,7 @@ router = APIRouter(prefix="/api/v1", tags=["analytics"])
 
 
 _storage_instance = None
+_storage_ready = False
 
 
 def _get_storage():
@@ -53,6 +54,29 @@ def _get_storage():
 
     _storage_instance = StorageService()
     return _storage_instance
+
+
+async def _ready_storage():
+    """Storage singleton, initialized on first use.
+
+    Request handlers previously constructed StorageService without ever
+    awaiting initialize(), so the SQLite connection never existed and
+    every data endpoint answered 503 storage_unavailable. initialize()
+    is idempotent (versioned migrations no-op when current), so a
+    one-shot flag is enough; a failed init leaves the flag unset so the
+    next request retries instead of caching the failure.
+
+    A backend that is already wired (an open SQLite connection or a
+    constructed Postgres adapter) is left alone — someone owns that
+    lifecycle (tests hand-wire a scratch DB; PG owns its pool), and a
+    redundant initialize() would tear down and replace it.
+    """
+    global _storage_ready
+    svc = _get_storage()
+    if not _storage_ready and svc._conn is None and svc._pg is None:
+        await svc.initialize()
+    _storage_ready = True
+    return svc
 
 
 def _get_monitor():
@@ -140,7 +164,7 @@ async def list_matches(
     per_page: int = Query(25, ge=1, le=100),
     _user: dict = Depends(require_permission("match:read")),
 ):
-    svc = _get_storage()
+    svc = await _ready_storage()
     matches_list = await svc.get_all_matches()
     team_ids = _get_user_team_ids(_user["id"])
     visible = [
@@ -156,7 +180,7 @@ async def list_matches(
 
 @router.get("/matches/{match_id}", response_model=MatchOut)
 async def get_match(match_id: int, _user: dict = Depends(require_permission("match:read"))):
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -173,7 +197,7 @@ async def get_match_events(
     per_page: int = Query(25, ge=1, le=100),
     _user: dict = Depends(require_permission("event:read")),
 ):
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -206,7 +230,7 @@ async def get_match_players(
     per_page: int = Query(25, ge=1, le=100),
     _user: dict = Depends(require_permission("player:read")),
 ):
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -230,7 +254,7 @@ async def get_match_players(
 
 @router.get("/matches/{match_id}/analysis/shots", response_model=ShotAnalysisOut)
 async def analyze_shots(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -274,7 +298,7 @@ async def get_tactical_shapes(
 ):
     from kawkab.core.tactical_shape_analyzer import TacticalShapeAnalyzer
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -298,7 +322,7 @@ async def get_tactical_shapes(
 async def get_pressing(match_id: int, _user: dict = Depends(require_permission("analysis:read"))):
     from kawkab.core.pressing_classifier import classify_pressing_system
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -326,7 +350,7 @@ async def get_pro_analytics(
     flags. See ui/bridge_handlers/bridge_pro_analytics.py."""
     import json as _json
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -348,7 +372,7 @@ async def get_season_pro_analytics(_user: dict = Depends(require_permission("ana
     risk, fixture difficulty. See ui/bridge_handlers/bridge_season_analytics.py."""
     import json as _json
 
-    svc = _get_storage()
+    svc = await _ready_storage()
 
     from kawkab.ui.bridge_handlers.bridge_season_analytics import SeasonAnalyticsHandler
 
@@ -366,7 +390,7 @@ async def get_match_report(
 ):
     from kawkab.core.tactical_report import generate_tactical_report
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -392,7 +416,7 @@ async def ask_llm(
 ):
     from kawkab.services.llm_service import LLMConfig, LLMService
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -417,7 +441,7 @@ async def get_player_ratings(
 ):
     from kawkab.services.rating_service import RatingService
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -454,7 +478,7 @@ async def get_calibration(
 ):
     from kawkab.core.calibration import ModelCalibrator
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -503,7 +527,7 @@ async def get_player_fitness(
     # day-by-day season history respectively -- neither is derivable from
     # match events. GPS sessions and the acwr_daily table (populated by the
     # GPS import path) are the only real, already-measured source for this.
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -594,7 +618,7 @@ async def get_game_plan(
 ):
     from kawkab.core.game_plan import GamePlanGenerator
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     match = await svc.get_match(match_id)
     if not match:
         _not_found(f"Match {match_id} not found")
@@ -733,7 +757,7 @@ async def get_player_injury_risk(
 ):
     from kawkab.core.injury_risk import InjuryRiskPredictor
 
-    svc = _get_storage()
+    svc = await _ready_storage()
     acwr_history = await svc.get_player_acwr(player_id, limit=1)
     if not acwr_history:
         return {
@@ -757,7 +781,7 @@ async def get_player_injury_risk(
 async def get_squad_injury_report(
     team_id: int, _user: dict = Depends(require_permission("medical:read"))
 ):
-    svc = _get_storage()
+    svc = await _ready_storage()
     return await svc.get_squad_injury_report(team_id)
 
 
@@ -934,7 +958,7 @@ async def import_tracking_match(
         if p and not Path(p).exists():
             raise HTTPException(404, f"file not found: {p}")
 
-    storage = _get_storage()
+    storage = await _ready_storage()
     svc = VendorTrackingImportService(storage)
     try:
         summary = await svc.import_tracking_file(
@@ -1028,7 +1052,7 @@ async def import_vendor_events(
         if p and not Path(p).exists():
             raise HTTPException(404, f"file not found: {p}")
 
-    storage = _get_storage()
+    storage = await _ready_storage()
     svc = VendorEventImportService(storage)
     try:
         if vendor == "opta":
@@ -1142,7 +1166,7 @@ async def import_statsbomb_match(
     from kawkab.core.security import SecurityValidator
     from kawkab.services.statsbomb_import_service import StatsBombImportService
 
-    storage = _get_storage()
+    storage = await _ready_storage()
 
     tmp_json_path = ""
     try:
@@ -1246,7 +1270,7 @@ async def import_statsbomb_season(
     from kawkab.core.security import SecurityValidator
     from kawkab.services.season_import_service import SeasonImportService
 
-    storage = _get_storage()
+    storage = await _ready_storage()
     try:
         try:
             SecurityValidator.validate_directory_path(body.directory)

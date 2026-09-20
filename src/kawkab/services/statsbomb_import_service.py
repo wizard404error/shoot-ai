@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +36,7 @@ from kawkab.core.validation.statsbomb_loader import (
     shot_distance_angle,
 )
 from kawkab.core.xg_model import active_xg_model
+from kawkab.services.storage_errors import StorageDuplicateError
 
 logger = logging.getLogger(__name__)
 
@@ -210,12 +210,15 @@ class StatsBombImportService:
                 kawkab_event["from_track_id"] = from_track
             try:
                 await self.storage.save_event(match_id, kawkab_event)
-            except sqlite3.IntegrityError:
+            except StorageDuplicateError:
                 # The events table has a dedup unique index (migration 015)
                 # on (match_id, timestamp, event_type, from_track_id) —
                 # two same-type events by the same player in the same
                 # second (e.g. consecutive ball receipts) are true
                 # duplicates under that key. Skip them, count as skipped.
+                # Typed duplicate: works on BOTH adapters (the raw
+                # sqlite3.IntegrityError this replaces never matched
+                # Postgres's asyncpg error, so PG re-imports crashed).
                 skipped += 1
                 continue
             imported_events += 1

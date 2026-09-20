@@ -31,6 +31,19 @@ jobs:
       - name: ruff format check
         run: ruff format --check src/ tests/
 
+  docs-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Docs-truth check (doc claims must match code-inventoried counts)
+        # The docs once claimed "500+ rules / 500+ drills" over a KB of 40
+        # rule files and 24 drills. This gate makes doc drift a CI failure,
+        # not a reputation problem discovered by a user.
+        run: python scripts/check_docs_truth.py
+
   unit:
     runs-on: ubuntu-latest
     strategy:

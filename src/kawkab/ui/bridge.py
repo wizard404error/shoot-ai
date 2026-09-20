@@ -23,6 +23,7 @@ from kawkab.ui.bridge_handlers import (
     LifecycleHandler,
     LiveHandler,
     MatchIntelHandler,
+    OppositionHandler,
     PhysicalHandler,
     ProAnalyticsHandler,
     ProviderHandler,
@@ -30,6 +31,8 @@ from kawkab.ui.bridge_handlers import (
     SeasonAnalyticsHandler,
     SettingsHandler,
     StorageHandler,
+    TrainingHandler,
+    TrustHandler,
     VideoHandler,
     WhiteboardHandler,
 )
@@ -163,6 +166,9 @@ class Bridge(QObject):
         self._match_intel = MatchIntelHandler(self, services, rate_limiter=self._rate_limiter)
         self._physical = PhysicalHandler(self, services, rate_limiter=self._rate_limiter)
         self._domain = DomainHandler(self, services, rate_limiter=self._rate_limiter)
+        self._training = TrainingHandler(self, services, rate_limiter=self._rate_limiter)
+        self._opposition = OppositionHandler(self, services, rate_limiter=self._rate_limiter)
+        self._trust = TrustHandler(self, services, rate_limiter=self._rate_limiter)
         self._recruitment = RecruitmentHandler(self, services, rate_limiter=self._rate_limiter)
         self._settings = SettingsHandler(self, services, rate_limiter=self._rate_limiter)
         self._whiteboard = WhiteboardHandler(self, services, rate_limiter=self._rate_limiter)
@@ -890,6 +896,160 @@ class Bridge(QObject):
         return await self._domain.analyze_setpieces(events_json, home_team)
 
     # ================================================================
+    # Training OS slots (delegated to TrainingHandler)
+    # ================================================================
+
+    @Slot(str, str, result=str)
+    async def save_wellness(self, player_id, payload: str | dict = ""):
+        return await self._training.save_wellness(player_id, payload)
+
+    async def get_squad_wellness(self, record_date: str):
+        return await self._training.get_squad_wellness(record_date)
+
+    async def get_player_wellness(self, player_id, limit: int = 30):
+        return await self._training.get_player_wellness(player_id, limit)
+
+    async def create_training_session(
+        self, session_date: str, session_type: str, md_offset: str = "", plan_id=None, match_id=None
+    ):
+        return await self._training.create_training_session(
+            session_date, session_type, md_offset, plan_id, match_id
+        )
+
+    async def get_training_sessions(self, date_from: str = "", date_to: str = "", limit: int = 100):
+        return await self._training.get_training_sessions(date_from, date_to, limit)
+
+    async def submit_session_rpe(self, session_id, player_id, rpe, minutes_played):
+        return await self._training.submit_session_rpe(session_id, player_id, rpe, minutes_played)
+
+    async def get_session_rpe(self, session_id):
+        return await self._training.get_session_rpe(session_id)
+
+    async def save_drill_feedback(self, drill_id: str, payload: str | dict = ""):
+        return await self._training.save_drill_feedback(drill_id, payload)
+
+    async def get_drill_feedback(self, drill_id: str):
+        return await self._training.get_drill_feedback(drill_id)
+
+    async def save_game_model(self, payload: str | dict = ""):
+        return await self._training.save_game_model(payload)
+
+    async def get_game_model(self, team_id):
+        return await self._training.get_game_model(team_id)
+
+    async def save_testing_result(self, player_id, payload: str | dict = ""):
+        return await self._training.save_testing_result(player_id, payload)
+
+    async def get_player_idp(self, player_id, season: str = ""):
+        return await self._training.get_player_idp(player_id, season)
+
+    async def save_idp_goal(self, player_id, payload: str | dict = ""):
+        return await self._training.save_idp_goal(player_id, payload)
+
+    async def save_nutrition_log(self, player_id, payload: str | dict = ""):
+        return await self._training.save_nutrition_log(player_id, payload)
+
+    async def save_psych_checkin(self, player_id, payload: str | dict = ""):
+        return await self._training.save_psych_checkin(player_id, payload)
+
+    async def save_ritual(self, ritual_type: str, scheduled_for: str, payload: str | dict = ""):
+        return await self._training.save_ritual(ritual_type, scheduled_for, payload)
+
+    async def complete_ritual(self, ritual_type: str, scheduled_for: str, payload: str | dict = ""):
+        return await self._training.complete_ritual(ritual_type, scheduled_for, payload)
+
+    async def get_rituals(self, scheduled_for: str = "", ritual_type: str = ""):
+        return await self._training.get_rituals(scheduled_for, ritual_type)
+
+    async def save_minutes_entry(self, player_id, payload: str | dict = ""):
+        return await self._training.save_minutes_entry(player_id, payload)
+
+    async def set_medical_clearance(self, player_id, payload: str | dict = ""):
+        return await self._training.set_medical_clearance(player_id, payload)
+
+    # ================================================================
+    # Sports science slots (delegated to TrainingHandler, Phase C)
+    # ================================================================
+
+    async def get_player_load_state(self, player_id):
+        return await self._training.get_player_load_state(player_id)
+
+    async def interpret_testing_result(self, player_id, payload: str | dict = ""):
+        return await self._training.interpret_testing_result(player_id, payload)
+
+    async def get_battery_summary(self, player_id):
+        return await self._training.get_battery_summary(player_id)
+
+    async def estimate_maturity_offset(self, payload: str | dict = ""):
+        return await self._training.estimate_maturity_offset(payload)
+
+    async def get_squad_readiness(self, record_date: str):
+        return await self._training.get_squad_readiness(record_date)
+
+    async def get_player_protocol_flags(self, player_id):
+        return await self._training.get_player_protocol_flags(player_id)
+
+    async def get_squad_overview(self, record_date: str, player_ids_json: str):
+        return await self._training.get_squad_overview(record_date, player_ids_json)
+
+    # ================================================================
+    # Academy + operating program (delegated to TrainingHandler, Phase D)
+    # ================================================================
+
+    async def get_academy_squad_phases(self, ref_date: str = ""):
+        return await self._training.get_academy_squad_phases(ref_date)
+
+    async def get_bio_banded_groups(self, measurements_json: str = ""):
+        return await self._training.get_bio_banded_groups(measurements_json)
+
+    async def get_minutes_management(self, player_id):
+        return await self._training.get_minutes_management(player_id)
+
+    async def get_academy_selection_view(self, player_ids_json: str = ""):
+        return await self._training.get_academy_selection_view(player_ids_json)
+
+    async def get_current_program(self):
+        return await self._training.get_current_program()
+
+    async def publish_program_document(self, doc_type: str, payload: str | dict = ""):
+        return await self._training.publish_program_document(doc_type, payload)
+
+    async def instantiate_week_rituals(self, week_start_date: str):
+        return await self._training.instantiate_week_rituals(week_start_date)
+
+    async def get_kpi_snapshot(self):
+        return await self._training.get_kpi_snapshot()
+
+    # ================================================================
+    # Opposition intelligence (delegated to OppositionHandler, Phase D)
+    # ================================================================
+
+    async def get_opponent_dossier(self, opponent_team: str):
+        return await self._opposition.get_opponent_dossier(opponent_team)
+
+    async def get_vendor_import_status(self):
+        return await self._opposition.get_vendor_import_status()
+
+    async def get_set_play_library(self):
+        return await self._opposition.get_set_play_library()
+
+    # ================================================================
+    # Trust layer (delegated to TrustHandler, Phase D)
+    # ================================================================
+
+    async def measure_intervention(self, plan_id):
+        return await self._trust.measure_intervention(plan_id)
+
+    async def register_match_evidence(self, match_id):
+        return await self._trust.register_match_evidence(match_id)
+
+    async def gate_report_claims(self, review_text: str, evidence_ids_json: str = ""):
+        return await self._trust.gate_report_claims(review_text, evidence_ids_json)
+
+    async def generate_and_gate_report(self, match_id, language: str = "en", summary: str = ""):
+        return await self._trust.generate_and_gate_report(match_id, language, summary)
+
+    # ================================================================
     # Goalkeeper
     # ================================================================
 
@@ -1380,6 +1540,9 @@ class Bridge(QObject):
     @Slot(str, result=str)
     async def generate_training_plan(self, match_id: str) -> str:
         return await self._analysis.generate_training_plan(match_id)
+
+    async def generate_training_plan_multi_match(self, match_ids_json: str) -> str:
+        return await self._analysis.generate_training_plan_multi_match(match_ids_json)
 
     # ================================================================
     # Sprint 3 — Collaboration

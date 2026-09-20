@@ -188,6 +188,12 @@ def _make_logging_stub() -> types.ModuleType:
 
 def _make_paths_stub() -> types.ModuleType:
     mod = _make_module("kawkab.core.paths")
+    # Carry a real __file__: _ensure_package_loaded re-imports any cached
+    # module whose __file__ is None, which would swap this stub for a fresh
+    # real module MID-RUN. Two kawkab.core.paths objects then coexist with
+    # two separate _paths caches -- one reset per test by the GUI e2e
+    # helpers, one stale -- and databases silently cross-test-pollute.
+    mod.__file__ = str(SRC_DIR / "kawkab" / "core" / "paths.py")
 
     class _Paths:
         def __init__(self):
@@ -209,10 +215,40 @@ def _make_paths_stub() -> types.ModuleType:
             self.migrations = SRC_DIR / "kawkab" / "migrations"
             self.database = tmp / "kawkab.db"
             self.config_file = tmp / "config.json"
+            # knowledge_base is a separate path outside tmp (real YAML rules
+            # live in the repo). It must be on the CLASS, not patched onto
+            # one instance afterwards: per-test resets re-instantiate _Paths,
+            # and an instance-patched attribute vanishes on the fresh copy.
+            self.knowledge_base = SRC_DIR / "kawkab" / "knowledge"
+            # Every instance creates its own directories: with the caching
+            # contract, get_paths() may build a fresh instance at any time,
+            # and code that writes into exports/ etc. must not depend on an
+            # earlier instance having mkdir'd them.
+            for _d in (self.videos, self.exports, self.cache, self.logs, self.models):
+                _d.mkdir(parents=True, exist_ok=True)
 
     mod.Paths = _Paths
     mod._default_paths = _Paths()
-    mod.get_paths = lambda: mod._default_paths
+    # Mirror the real module's caching contract (get_paths() returns a
+    # cached instance until someone resets `mod._paths`). The old
+    # hard-wired `lambda: mod._default_paths` meant every get_paths()
+    # call in the process hit ONE directory forever, so any e2e file
+    # that installs these stubs leaked its DB into every later GUI e2e
+    # in the same pytest run (observed as cross-file wellness/match
+    # row pollution). With the cache contract, the GUI tests' existing
+    # `_reset_paths` (`paths_mod._paths = None` per test) isolates them.
+    # Default to the SAME instance the private helpers (_get_appdata_dir
+    # etc.) return: two live instances would disagree on directories, and
+    # code seeded through one path helper while serving through another
+    # fails with spurious storage_unavailable (observed as RBAC 503s).
+    mod._paths: types.ModuleType | None = mod._default_paths
+
+    def _get_paths():
+        if mod._paths is None:
+            mod._paths = _Paths()
+        return mod._paths
+
+    mod.get_paths = _get_paths
 
     # Private helpers expected by some tests
     def _get_appdata_dir():
@@ -228,12 +264,6 @@ def _make_paths_stub() -> types.ModuleType:
     mod._get_localappdata_dir = _get_localappdata_dir
     mod._get_documents_dir = _get_documents_dir
 
-    # Ensure tmp directories exist (some tests check Path.exists())
-    _p = mod._default_paths
-    for _d in [_p.videos, _p.exports, _p.cache, _p.logs, _p.models]:
-        _d.mkdir(parents=True, exist_ok=True)
-    # knowledge_base is a separate path outside tmp
-    _p.knowledge_base = SRC_DIR / "kawkab" / "knowledge"
     return mod
 
 

@@ -1,6 +1,8 @@
 """Knowledge base service - loads tactical rules and drills from YAML.
 
-Manages the knowledge graph of 500+ rules and 500+ drills.
+Current inventory: 40 rule files across 5 categories (defensive, offensive,
+transitions, individual, meta) and 24 drills. Counted from the files by
+scripts/check_docs_truth.py — do not state larger numbers here.
 """
 
 from __future__ import annotations

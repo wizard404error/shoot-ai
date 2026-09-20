@@ -64,6 +64,10 @@ class TestApiHealth:
 
 class TestApiMatches:
     def test_list_matches(self):
+        # Hot reads now raise on an uninitialized store (honesty contract),
+        # so these tests must run against a real scratch DB instead of
+        # silently passing against a never-initialized singleton.
+        _ensure_storage_ready()
         resp = client.get("/api/v1/matches", headers=_analyst_headers())
         assert resp.status_code == 200
         data = resp.json()
@@ -421,3 +425,43 @@ class TestApiSeason:
     def test_season_summary(self):
         resp = client.get("/api/v1/season/summary", headers=_analyst_headers())
         assert resp.status_code == 200
+
+
+class TestStorageError503:
+    """Honest storage failures surface as 503 storage_unavailable, not 500
+    tracebacks or silent empty lists (storage_errors.py contract)."""
+
+    def test_not_initialized_maps_to_503(self, monkeypatch):
+        from kawkab.api import api_v1
+        from kawkab.services.storage_errors import StorageNotInitializedError
+
+        async def boom(*args, **kwargs):
+            raise StorageNotInitializedError("get_all_matches")
+
+        monkeypatch.setattr(api_v1, "_storage", None, raising=False)
+        monkeypatch.setattr(
+            type(api_v1._get_storage()),
+            "get_all_matches",
+            lambda self: boom(),
+        )
+        resp = client.get("/api/v1/matches", headers=_analyst_headers())
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["error"] == "storage_unavailable"
+        assert data["operation"] == "get_all_matches"
+
+    def test_read_failure_maps_to_503(self, monkeypatch):
+        from kawkab.api import api_v1
+        from kawkab.services.storage_errors import StorageReadError
+
+        async def boom(*args, **kwargs):
+            raise StorageReadError("get_all_matches", RuntimeError("disk gone"))
+
+        monkeypatch.setattr(
+            type(api_v1._get_storage()),
+            "get_all_matches",
+            lambda self: boom(),
+        )
+        resp = client.get("/api/v1/matches", headers=_analyst_headers())
+        assert resp.status_code == 503
+        assert "disk gone" in resp.json()["detail"]
