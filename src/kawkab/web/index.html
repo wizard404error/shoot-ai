@@ -637,6 +637,20 @@
                                 <button id="event-import-btn" class="btn btn-primary">Import Events</button>
                             </div>
                             <div id="event-import-result" class="feedback-result" style="margin-top:6px"></div>
+                            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                            <div class="form-row">
+                                <input type="text" id="kloppy-sb-path" placeholder="StatsBomb events JSON via kloppy (e.g., data/statsbomb_corpus/3825872.json)" class="input" style="flex:1">
+                                <input type="text" id="kloppy-sb-lineup" placeholder="Lineup JSON (optional; synthesized from events if empty)" class="input" style="flex:0.6">
+                                <button id="kloppy-sb-btn" class="btn btn-primary">Import Events via kloppy</button>
+                            </div>
+                            <div id="kloppy-sb-result" class="feedback-result" style="margin-top:6px"></div>
+                            <hr style="margin: 12px 0; border-color: #e2e8f0;">
+                            <div class="form-row">
+                                <input type="text" id="kloppy-sc-meta" placeholder="SkillCorner meta JSON (kloppy)" class="input" style="flex:1">
+                                <input type="text" id="kloppy-sc-raw" placeholder="SkillCorner raw JSONL (kloppy)" class="input" style="flex:1">
+                                <button id="kloppy-sc-btn" class="btn btn-primary">Import Tracking via kloppy</button>
+                            </div>
+                            <div id="kloppy-sc-result" class="feedback-result" style="margin-top:6px"></div>
                         </div>
 
                         <div id="openfootball-section" class="benchmark-section">
