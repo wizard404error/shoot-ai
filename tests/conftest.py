@@ -237,7 +237,11 @@ def _make_paths_stub() -> types.ModuleType:
     # in the same pytest run (observed as cross-file wellness/match
     # row pollution). With the cache contract, the GUI tests' existing
     # `_reset_paths` (`paths_mod._paths = None` per test) isolates them.
-    mod._paths: types.ModuleType | None = None
+    # Default to the SAME instance the private helpers (_get_appdata_dir
+    # etc.) return: two live instances would disagree on directories, and
+    # code seeded through one path helper while serving through another
+    # fails with spurious storage_unavailable (observed as RBAC 503s).
+    mod._paths: types.ModuleType | None = mod._default_paths
 
     def _get_paths():
         if mod._paths is None:
