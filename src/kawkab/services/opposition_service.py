@@ -48,7 +48,13 @@ KLOPPY_FORMATS = (
 
 
 def _probe_kloppy() -> dict[str, Any]:
-    """Return the honest provider state for kloppy-backed imports."""
+    """Return the honest provider state for kloppy-backed imports.
+
+    When kloppy is importable the probe goes beyond availability: it
+    reports the per-provider capability report from the import service
+    (which providers this installation can actually convert), so the UI
+    shows "available with these loaders", not just "importable".
+    """
     try:
         import kloppy  # noqa: F401
     except ImportError:
@@ -59,6 +65,16 @@ def _probe_kloppy() -> dict[str, Any]:
                 "kloppy is not installed in this environment; install it "
                 "(pip install kloppy) to enable vendor data imports"
             ),
+            "providers": [
+                {
+                    "provider": p,
+                    "kind": kind,
+                    "available": False,
+                    "status": "provider_unavailable",
+                    "reason": "kloppy is not installed",
+                }
+                for p, kind in (("statsbomb", "events"), ("skillcorner", "tracking"))
+            ],
             "supported_formats": list(KLOPPY_FORMATS),
         }
     except Exception as e:  # pragma: no cover - defensive
@@ -66,6 +82,7 @@ def _probe_kloppy() -> dict[str, Any]:
             "provider_available": False,
             "provider": "kloppy",
             "reason": f"kloppy import failed: {e}",
+            "providers": [],
             "supported_formats": list(KLOPPY_FORMATS),
         }
     import importlib.metadata as _md
@@ -74,10 +91,14 @@ def _probe_kloppy() -> dict[str, Any]:
         version = _md.version("kloppy")
     except Exception:  # pragma: no cover - defensive
         version = "unknown"
+
+    from kawkab.services.kloppy_import_service import KloppyImportService
+
     return {
         "provider_available": True,
         "provider": "kloppy",
         "version": version,
+        "providers": KloppyImportService.provider_capabilities(),
         "supported_formats": list(KLOPPY_FORMATS),
         "honesty_note": (
             "availability probe only; no vendor account, credentials, or "

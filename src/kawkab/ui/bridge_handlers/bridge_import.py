@@ -110,6 +110,83 @@ class ImportHandler(BridgeHandlerBase):
             logger.warning("tracking import failed: %s", exc)
             return json.dumps({"success": False, "error": self._err(exc)})
 
+    # ── kloppy-backed vendor imports (available when kloppy is installed) ──
+
+    async def import_kloppy_statsbomb(
+        self,
+        path: str,
+        lineup_path: str = "",
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
+        """Import a StatsBomb events file through the kloppy library.
+
+        Without a lineup file, lineups are synthesized from the events'
+        own Starting XI / Substitution rows (the corpus ships no lineup
+        files). An uninstalled kloppy is an explicit no-provider result,
+        never an empty success.
+        """
+        self._check_rate_limit()
+        try:
+            from kawkab.core.security import SecurityValidator
+
+            SecurityValidator.validate_data_file_path(path)
+            if lineup_path:
+                SecurityValidator.validate_data_file_path(lineup_path)
+            from kawkab.services.kloppy_import_service import KloppyImportService
+
+            svc = KloppyImportService(self.storage_service)
+            result = await svc.import_statsbomb_events(
+                path,
+                lineup_path=lineup_path or None,
+                match_name=match_name or None,
+                home_team=home_team or None,
+                away_team=away_team or None,
+            )
+            return json.dumps({"success": True, **result})
+        except ImportError as exc:
+            # Honest no-provider state: the actionable reason verbatim,
+            # flagged so the UI renders it as availability, not a crash.
+            logger.info("kloppy unavailable for StatsBomb import: %s", exc)
+            return json.dumps({"success": False, "provider_unavailable": True, "error": str(exc)})
+        except Exception as exc:
+            logger.warning("kloppy StatsBomb import failed: %s", exc)
+            return json.dumps({"success": False, "error": self._err(exc)})
+
+    async def import_kloppy_skillcorner(
+        self,
+        meta_path: str,
+        raw_path: str,
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
+        """Import SkillCorner meta+raw through kloppy into tracking frames."""
+        self._check_rate_limit()
+        try:
+            from kawkab.core.security import SecurityValidator
+
+            SecurityValidator.validate_data_file_path(meta_path)
+            SecurityValidator.validate_data_file_path(raw_path)
+            from kawkab.services.kloppy_import_service import KloppyImportService
+
+            svc = KloppyImportService(self.storage_service)
+            result = await svc.import_skillcorner_tracking(
+                meta_path,
+                raw_path,
+                match_name=match_name or None,
+                home_team=home_team or None,
+                away_team=away_team or None,
+            )
+            return json.dumps({"success": True, **result})
+        except ImportError as exc:
+            logger.info("kloppy unavailable for SkillCorner import: %s", exc)
+            return json.dumps({"success": False, "provider_unavailable": True, "error": str(exc)})
+        except Exception as exc:
+            logger.warning("kloppy SkillCorner import failed: %s", exc)
+            return json.dumps({"success": False, "error": self._err(exc)})
+
     # ── Vendor events (Opta F24 / Wyscout) ──────────────────────────────
 
     async def import_event_file(

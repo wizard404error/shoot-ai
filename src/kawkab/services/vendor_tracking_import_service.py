@@ -495,48 +495,36 @@ class VendorTrackingImportService:
     def __init__(self, storage_service: Any) -> None:
         self.storage = storage_service
 
-    async def import_tracking_file(
+    async def import_frames(
         self,
-        path: str | Path,
+        frames: list[dict],
         *,
-        vendor: str | None = None,
+        player_meta: dict[int, dict],
+        vendor: str,
+        source_path: str,
+        source: str = "file",
         match_id: int | None = None,
         match_name: str | None = None,
         home_team: str | None = None,
         away_team: str | None = None,
-        away_csv: str | Path | None = None,  # metrica only
-        max_frames: int | None = None,
         fps: float | None = None,
         pitch_length_m: float = KAWKAB_X_MAX,
         pitch_width_m: float = KAWKAB_Y_MAX,
     ) -> dict[str, Any]:
-        """Import one tracking feed. Creates the match unless match_id given."""
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"tracking file not found: {path}")
+        """Persist an in-memory frame list through the tracking pipeline.
 
-        if vendor is None:
-            vendor = "metrica" if away_csv is not None else detect_vendor(path)
-        if vendor not in SUPPORTED_VENDORS:
-            raise ValueError(f"unsupported vendor {vendor!r}; supported: {SUPPORTED_VENDORS}")
+        This is steps 1-7 of ``import_tracking_file`` factored out so
+        parsers that don't start from a file on disk (kloppy-backed
+        vendor datasets) land in the exact same tables with the same
+        provenance row, quality report, idempotence and metric caching.
 
-        if vendor == "metrica":
-            if away_csv is None:
-                raise ValueError("metrica import requires both home and away CSVs (away_csv=)")
-            frames, player_meta, parsed_fps = parse_metrica(path, away_csv)
-        elif vendor == "epts":
-            frames, player_meta, parsed_fps = parse_epts(
-                path, pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m
-            )
-        else:
-            frames, player_meta, parsed_fps = parse_skillcorner(
-                path, pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m
-            )
-
-        if fps is None:
-            fps = parsed_fps
-        if max_frames is not None and max_frames > 0:
-            frames = frames[:max_frames]
+        ``frames`` are already in Kawkab meters in the canonical shape
+        documented at the top of this module. ``source`` travels through
+        the provenance row's metadata so consumers can distinguish a
+        file-parsed feed from a library-deserialized one.
+        """
+        if not frames:
+            raise ValueError("no frames to import")
 
         # 1. Match row (or attach to an existing match)
         if match_id is None:
@@ -549,11 +537,10 @@ class VendorTrackingImportService:
             if not match_id:
                 raise RuntimeError("storage refused to create the match row")
         elif match_name or home_team or away_team:
-            # Update labels on an existing match if the caller provided them
             await self._relabel_match(match_id, match_name, home_team, away_team)
 
         # 2. Idempotence: same checksum + vendor on the same match -> skip
-        checksum = _sha256_file(path)
+        checksum = _sha256_file(Path(source_path)) if Path(source_path).exists() else ""
         existing = await self.storage.get_tracking_imports(match_id)
         if any(e.get("vendor") == vendor and e.get("checksum") == checksum for e in existing):
             return {
@@ -602,23 +589,22 @@ class VendorTrackingImportService:
 
         # 4. Register players (from metadata, else first frame's track ids)
         registered = 0
-        seen_teams: dict[int, str] = {}
-        if not player_meta and frames and frames[0]["player_detections"]:
-            player_meta = {
+        meta = player_meta
+        if not meta and frames and frames[0]["player_detections"]:
+            meta = {
                 p["track_id"]: {"name": f"Player {p['track_id']}", "team": "home", "position": ""}
                 for p in frames[0]["player_detections"]
             }
-        for tid, meta in player_meta.items():
-            team = meta.get("team") or "home"
-            seen_teams[tid] = team
+        for tid, pmeta in meta.items():
+            team = pmeta.get("team") or "home"
             ok = await self.storage.save_player(
                 match_id,
                 {
                     "track_id": tid,
-                    "name": meta.get("name") or f"Player {tid}",
+                    "name": pmeta.get("name") or f"Player {tid}",
                     "team": team,
-                    "position": meta.get("position") or None,
-                    "jersey_number": meta.get("jersey_number"),
+                    "position": pmeta.get("position") or None,
+                    "jersey_number": pmeta.get("jersey_number"),
                 },
             )
             if ok:
@@ -627,12 +613,13 @@ class VendorTrackingImportService:
         # 5. Data-quality report — surface what came in BEFORE models run
         quality = assess_tracking_quality(frames, fps=fps)
 
-        # 6. Provenance row (migration 030) — carries the quality report so
+        # 6. Provenance row (migration 030) — carries the quality report
+        # and the source label ("file" parser vs "kloppy" library) so
         # downstream consumers see the feed's condition, not just its size
         await self.storage.save_tracking_import(
             match_id,
             vendor,
-            source_path=str(path),
+            source_path=source_path,
             checksum=checksum,
             fps=fps,
             frame_count=frames_saved,
@@ -640,7 +627,8 @@ class VendorTrackingImportService:
             pitch_width_m=pitch_width_m,
             metadata={
                 "periods": sorted({fr["period"] for fr in frames if fr.get("period")}),
-                "players_meta_count": len(player_meta),
+                "players_meta_count": len(meta),
+                "source": source,
                 "quality": quality,
             },
         )
@@ -659,9 +647,69 @@ class VendorTrackingImportService:
             "events_aligned": 0,
             "checksum": checksum,
             "fps": fps,
-            "source_file": str(path),
+            "source": source,
             "quality": quality,
         }
+
+    async def import_tracking_file(
+        self,
+        path: str | Path,
+        *,
+        vendor: str | None = None,
+        match_id: int | None = None,
+        match_name: str | None = None,
+        home_team: str | None = None,
+        away_team: str | None = None,
+        away_csv: str | Path | None = None,  # metrica only
+        max_frames: int | None = None,
+        fps: float | None = None,
+        pitch_length_m: float = KAWKAB_X_MAX,
+        pitch_width_m: float = KAWKAB_Y_MAX,
+    ) -> dict[str, Any]:
+        """Import one tracking feed. Creates the match unless match_id given."""
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"tracking file not found: {path}")
+
+        if vendor is None:
+            vendor = "metrica" if away_csv is not None else detect_vendor(path)
+        if vendor not in SUPPORTED_VENDORS:
+            raise ValueError(f"unsupported vendor {vendor!r}; supported: {SUPPORTED_VENDORS}")
+
+        if vendor == "metrica":
+            if away_csv is None:
+                raise ValueError("metrica import requires both home and away CSVs (away_csv=)")
+            frames, player_meta, parsed_fps = parse_metrica(path, away_csv)
+        elif vendor == "epts":
+            frames, player_meta, parsed_fps = parse_epts(
+                path, pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m
+            )
+        else:
+            frames, player_meta, parsed_fps = parse_skillcorner(
+                path, pitch_length_m=pitch_length_m, pitch_width_m=pitch_width_m
+            )
+
+        if fps is None:
+            fps = parsed_fps
+        if max_frames is not None and max_frames > 0:
+            frames = frames[:max_frames]
+
+        # Parse-time provenance: this path parsed a file on disk itself.
+        # (kloppy-backed feeds arrive via import_frames with source="kloppy".)
+        return await self.import_frames(
+            frames,
+            player_meta=player_meta,
+            vendor=vendor,
+            source_path=str(path),
+            source="file",
+            match_id=match_id,
+            match_name=match_name,
+            home_team=home_team,
+            away_team=away_team,
+            fps=fps,
+            pitch_length_m=pitch_length_m,
+            pitch_width_m=pitch_width_m,
+        )
 
     async def align_events(
         self,

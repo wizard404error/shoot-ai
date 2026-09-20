@@ -223,6 +223,32 @@ class Bridge(QObject):
         )
 
     @Slot(str, str, str, str, str, result=str)
+    async def import_kloppy_statsbomb(
+        self,
+        path: str,
+        lineup_path: str = "",
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
+        return await self._import.import_kloppy_statsbomb(
+            path, lineup_path, match_name, home_team, away_team
+        )
+
+    @Slot(str, str, str, str, str, result=str)
+    async def import_kloppy_skillcorner(
+        self,
+        meta_path: str,
+        raw_path: str,
+        match_name: str = "",
+        home_team: str = "",
+        away_team: str = "",
+    ) -> str:
+        return await self._import.import_kloppy_skillcorner(
+            meta_path, raw_path, match_name, home_team, away_team
+        )
+
+    @Slot(str, str, str, str, str, result=str)
     async def import_event_file(
         self,
         path: str,

@@ -45,6 +45,26 @@ Track progress in the desktop app during long imports: the Vendor Import
 panel shows a live per-file progress signal (imported / skipped / failed),
 and the same results table appears when the run completes.
 
+### kloppy-backed imports (desktop UI)
+
+**Data Providers → Vendor Import** in the desktop app also exposes the
+kloppy library path (available only when `kloppy` is installed — the
+Vendor Import panel's availability probe reports the per-provider state
+honestly, never a fabricated middle):
+
+- **Import Events via kloppy** — a StatsBomb events JSON through
+  kloppy's deserializer. Without a lineup file, lineups are synthesized
+  from the events' own Starting XI / Substitution rows. Shots carry the
+  vendor's xG labeled `vendor_xg` (source `kloppy` on every event row);
+  Kawkab's own xG model is NOT re-run over kloppy imports.
+- **Import Tracking via kloppy** — SkillCorner meta + raw JSON/JSONL
+  through kloppy, normalized to Kawkab meters and persisted through the
+  same frame pipeline (quality report, provenance row) as the file
+  parsers.
+
+Imported matches feed the opposition dossier and the training-plan
+engine exactly like video- or CLI-imported matches.
+
 ### Tracking data (desktop UI)
 
 **Data Providers → Vendor Import** in the desktop app:
