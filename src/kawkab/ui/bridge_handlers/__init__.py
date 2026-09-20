@@ -11,6 +11,7 @@ from .bridge_import import ImportHandler
 from .bridge_lifecycle import LifecycleHandler
 from .bridge_live import LiveHandler
 from .bridge_match_intel import MatchIntelHandler
+from .bridge_opposition import OppositionHandler
 from .bridge_physical import PhysicalHandler
 from .bridge_pro_analytics import ProAnalyticsHandler
 from .bridge_provider import ProviderHandler
@@ -19,6 +20,7 @@ from .bridge_season_analytics import SeasonAnalyticsHandler
 from .bridge_settings import SettingsHandler
 from .bridge_storage import StorageHandler
 from .bridge_training import TrainingHandler
+from .bridge_trust import TrustHandler
 from .bridge_video import VideoHandler
 from .bridge_whiteboard import WhiteboardHandler
 
@@ -37,6 +39,8 @@ __all__ = [
     "VideoHandler",
     "StorageHandler",
     "TrainingHandler",
+    "OppositionHandler",
+    "TrustHandler",
     "ExternalHandler",
     "LifecycleHandler",
     "ProviderHandler",

@@ -237,6 +237,11 @@ def _parse_threshold(raw: Any) -> tuple[str, float] | None:
     return (op, float(m.group(2)))
 
 
+def parse_threshold(raw: Any) -> tuple[str, float] | None:
+    """Public threshold parsing for callers outside the engine (efficacy)."""
+    return _parse_threshold(raw)
+
+
 def _satisfies(value: float, op: str, ref: float) -> bool:
     if op == ">":
         return value > ref

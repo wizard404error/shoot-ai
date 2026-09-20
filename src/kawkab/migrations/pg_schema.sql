@@ -1081,4 +1081,35 @@ CREATE INDEX IF NOT EXISTS idx_matches_external_ids_match ON matches_external_id
 CREATE INDEX IF NOT EXISTS idx_matches_competition ON matches(competition);
 CREATE INDEX IF NOT EXISTS idx_matches_season ON matches(season_id);
 
+-- ── 33. program_documents (Phase D operating program) ───────────────────
+-- Versioned club documents: weekly_rhythm, raci_matrix, kpi_tree.
+-- Mirrors migration 033; see that file for the honesty-contract notes.
+
+CREATE TABLE IF NOT EXISTS program_documents (
+    id SERIAL PRIMARY KEY,
+    doc_type TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by TEXT DEFAULT '',
+    supersedes_id INTEGER REFERENCES program_documents(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_program_docs_type
+    ON program_documents(doc_type, name, is_current);
+
+-- ── 34. evidence_records (trust layer: groundedness gate) ──────────────
+CREATE TABLE IF NOT EXISTS evidence_records (
+    id SERIAL PRIMARY KEY,
+    match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    label TEXT DEFAULT '',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_evidence_match ON evidence_records(match_id);
+
 COMMIT;

@@ -1139,7 +1139,7 @@ class StorageService(TrainingStorageMixin):
             return []
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, global_id, display_name, preferred_position AS position, team, jersey_number, is_active, face_embedding, face_confidence, updated_at, created_at FROM player_profiles WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?",
+            "SELECT id, global_id, display_name, preferred_position AS position, team, jersey_number, date_of_birth, is_active, face_embedding, face_confidence, updated_at, created_at FROM player_profiles WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?",
             (limit, offset),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -1331,8 +1331,8 @@ class StorageService(TrainingStorageMixin):
                 """
                 INSERT INTO player_profiles (
                     global_id, display_name, jersey_number, preferred_position,
-                    team, is_active, face_embedding, face_confidence
-                ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                    team, date_of_birth, is_active, face_embedding, face_confidence
+                ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
                 """,
                 (
                     # global_id is UNIQUE NOT NULL: generate one when absent so
@@ -1342,6 +1342,9 @@ class StorageService(TrainingStorageMixin):
                     profile.get("jersey_number"),
                     profile.get("preferred_position"),
                     profile.get("team", "home"),
+                    # date_of_birth drives the academy's EPPP phase view;
+                    # dropping it silently would classify every player unknown.
+                    profile.get("date_of_birth"),
                     profile.get("face_embedding"),
                     profile.get("face_confidence", 0.0),
                 ),

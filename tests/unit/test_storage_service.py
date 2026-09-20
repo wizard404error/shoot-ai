@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT, global_id TEXT DEFAULT '',
     display_name TEXT DEFAULT '', jersey_number INTEGER,
     preferred_position TEXT, team TEXT DEFAULT 'home',
+    date_of_birth TEXT DEFAULT '',
     is_active INTEGER DEFAULT 1, face_embedding TEXT,
     face_confidence REAL DEFAULT 0.0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

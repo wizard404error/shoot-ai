@@ -686,3 +686,146 @@ class TrainingHandler(BridgeHandlerBase):
         except Exception as e:
             logger.error(f"get_squad_overview failed: {e}")
             return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ------------------------------------------------------------------
+    # Academy (Phase D / D1)
+    # ------------------------------------------------------------------
+
+    async def get_academy_squad_phases(self, ref_date: str = ""):
+        """EPPP-mapped development phases for the registered squad."""
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.academy_service import AcademyService
+
+            report = await AcademyService(self._services["storage_service"]).squad_phases(
+                str(ref_date or "").strip() or None
+            )
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_academy_squad_phases failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_bio_banded_groups(self, measurements_json: str = ""):
+        """Bio-banded training groups from somatic measurements (JSON list)."""
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.academy_service import AcademyService
+
+            measurements = json.loads(measurements_json or "[]")
+            if not isinstance(measurements, list):
+                return json.dumps({"error": "measurements_json must be a JSON array"})
+            report = await AcademyService(self._services["storage_service"]).bio_banded_groups(
+                measurements
+            )
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_bio_banded_groups failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_minutes_management(self, player_id):
+        """Development-minutes management for one player (age-phase caps)."""
+        try:
+            self._check_rate_limit("training")
+            pid = SecurityValidator.validate_int(player_id)
+            from kawkab.services.academy_service import AcademyService
+
+            report = await AcademyService(self._services["storage_service"]).minutes_management(pid)
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_minutes_management failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_academy_selection_view(self, player_ids_json: str = ""):
+        """Safeguarding-aware selection view for a player-id list."""
+        try:
+            self._check_rate_limit("training")
+            ids_raw = json.loads(player_ids_json or "[]")
+            if not isinstance(ids_raw, list):
+                return json.dumps({"error": "player_ids_json must be a JSON array"})
+            ids = [int(i) for i in ids_raw]
+            from kawkab.services.academy_service import AcademyService
+
+            report = await AcademyService(self._services["storage_service"]).academy_selection_view(ids)
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_academy_selection_view failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    # ------------------------------------------------------------------
+    # Operating program (Phase D / D3)
+    # ------------------------------------------------------------------
+
+    async def get_current_program(self):
+        """The club's published weekly rhythm, RACI, and KPI tree."""
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.operating_program_service import OperatingProgramService
+
+            report = await OperatingProgramService(self._services["storage_service"]).current_program()
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_current_program failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def publish_program_document(self, doc_type: str, payload: str | dict = ""):
+        """Publish one program document version.
+
+        doc_type=weekly_rhythm takes a JSON *array* of day entries;
+        raci and kpi_tree take JSON objects.
+        """
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.operating_program_service import OperatingProgramService
+
+            svc = OperatingProgramService(self._services["storage_service"])
+            if doc_type == "weekly_rhythm":
+                week = json.loads(payload) if isinstance(payload, str) else payload
+                if not isinstance(week, list):
+                    return json.dumps({"error": "weekly_rhythm payload must be a JSON array of day entries"})
+                result = await svc.publish_weekly_rhythm(week)
+            elif doc_type == "raci":
+                data = json.loads(payload) if isinstance(payload, str) else payload
+                roles = data.get("roles") if isinstance(data, dict) else data
+                if not isinstance(roles, list):
+                    return json.dumps({"error": "raci payload must be a JSON array of roles (or {\"roles\": [...]})"})
+                result = await svc.publish_raci(roles)
+            elif doc_type == "kpi_tree":
+                data = json.loads(payload) if isinstance(payload, str) else payload
+                kpis = data.get("kpis") if isinstance(data, dict) else data
+                if not isinstance(kpis, list):
+                    return json.dumps({"error": "kpi_tree payload must be a JSON array of KPIs (or {\"kpis\": [...]})"})
+                result = await svc.publish_kpi_tree(kpis)
+            else:
+                return json.dumps(
+                    {"error": "doc_type must be weekly_rhythm | raci | kpi_tree"}
+                )
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"publish_program_document failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def instantiate_week_rituals(self, week_start_date: str):
+        """Schedule the published rhythm's rituals for the week starting Monday."""
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.operating_program_service import OperatingProgramService
+
+            report = await OperatingProgramService(
+                self._services["storage_service"]
+            ).instantiate_week_rituals(str(week_start_date or "").strip())
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"instantiate_week_rituals failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})
+
+    async def get_kpi_snapshot(self):
+        """Live KPI snapshot over the published tree (measured or not_measured)."""
+        try:
+            self._check_rate_limit("training")
+            from kawkab.services.operating_program_service import OperatingProgramService
+
+            report = await OperatingProgramService(self._services["storage_service"]).kpi_snapshot()
+            return json.dumps(report, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"get_kpi_snapshot failed: {e}")
+            return json.dumps({"error": ErrorSanitizer.sanitize_error(e)})

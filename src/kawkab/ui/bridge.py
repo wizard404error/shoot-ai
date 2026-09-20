@@ -23,6 +23,7 @@ from kawkab.ui.bridge_handlers import (
     LifecycleHandler,
     LiveHandler,
     MatchIntelHandler,
+    OppositionHandler,
     PhysicalHandler,
     ProAnalyticsHandler,
     ProviderHandler,
@@ -31,6 +32,7 @@ from kawkab.ui.bridge_handlers import (
     SettingsHandler,
     StorageHandler,
     TrainingHandler,
+    TrustHandler,
     VideoHandler,
     WhiteboardHandler,
 )
@@ -165,6 +167,8 @@ class Bridge(QObject):
         self._physical = PhysicalHandler(self, services, rate_limiter=self._rate_limiter)
         self._domain = DomainHandler(self, services, rate_limiter=self._rate_limiter)
         self._training = TrainingHandler(self, services, rate_limiter=self._rate_limiter)
+        self._opposition = OppositionHandler(self, services, rate_limiter=self._rate_limiter)
+        self._trust = TrustHandler(self, services, rate_limiter=self._rate_limiter)
         self._recruitment = RecruitmentHandler(self, services, rate_limiter=self._rate_limiter)
         self._settings = SettingsHandler(self, services, rate_limiter=self._rate_limiter)
         self._whiteboard = WhiteboardHandler(self, services, rate_limiter=self._rate_limiter)
@@ -987,6 +991,63 @@ class Bridge(QObject):
 
     async def get_squad_overview(self, record_date: str, player_ids_json: str):
         return await self._training.get_squad_overview(record_date, player_ids_json)
+
+    # ================================================================
+    # Academy + operating program (delegated to TrainingHandler, Phase D)
+    # ================================================================
+
+    async def get_academy_squad_phases(self, ref_date: str = ""):
+        return await self._training.get_academy_squad_phases(ref_date)
+
+    async def get_bio_banded_groups(self, measurements_json: str = ""):
+        return await self._training.get_bio_banded_groups(measurements_json)
+
+    async def get_minutes_management(self, player_id):
+        return await self._training.get_minutes_management(player_id)
+
+    async def get_academy_selection_view(self, player_ids_json: str = ""):
+        return await self._training.get_academy_selection_view(player_ids_json)
+
+    async def get_current_program(self):
+        return await self._training.get_current_program()
+
+    async def publish_program_document(self, doc_type: str, payload: str | dict = ""):
+        return await self._training.publish_program_document(doc_type, payload)
+
+    async def instantiate_week_rituals(self, week_start_date: str):
+        return await self._training.instantiate_week_rituals(week_start_date)
+
+    async def get_kpi_snapshot(self):
+        return await self._training.get_kpi_snapshot()
+
+    # ================================================================
+    # Opposition intelligence (delegated to OppositionHandler, Phase D)
+    # ================================================================
+
+    async def get_opponent_dossier(self, opponent_team: str):
+        return await self._opposition.get_opponent_dossier(opponent_team)
+
+    async def get_vendor_import_status(self):
+        return await self._opposition.get_vendor_import_status()
+
+    async def get_set_play_library(self):
+        return await self._opposition.get_set_play_library()
+
+    # ================================================================
+    # Trust layer (delegated to TrustHandler, Phase D)
+    # ================================================================
+
+    async def measure_intervention(self, plan_id):
+        return await self._trust.measure_intervention(plan_id)
+
+    async def register_match_evidence(self, match_id):
+        return await self._trust.register_match_evidence(match_id)
+
+    async def gate_report_claims(self, review_text: str, evidence_ids_json: str = ""):
+        return await self._trust.gate_report_claims(review_text, evidence_ids_json)
+
+    async def generate_and_gate_report(self, match_id, language: str = "en", summary: str = ""):
+        return await self._trust.generate_and_gate_report(match_id, language, summary)
 
     # ================================================================
     # Goalkeeper

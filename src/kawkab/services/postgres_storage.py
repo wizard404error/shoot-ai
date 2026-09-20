@@ -3342,6 +3342,12 @@ for _name in [
     "save_minutes_entry",
     "get_player_minutes_history",
     "get_squad_minutes_summary",
+    "get_player_profile",
+    "save_program_document",
+    "get_current_program_document",
+    "list_program_documents",
+    "save_evidence_record",
+    "get_evidence_records",
 ]:
     # HONEST-UNIMPLEMENTED-PG: fail-loud stub (see block comment above).
     setattr(

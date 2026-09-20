@@ -20,7 +20,11 @@ import sqlite3
 from typing import Any
 
 from kawkab.core.logging import get_logger
-from kawkab.services.storage_errors import StorageNotInitializedError, StorageWriteError
+from kawkab.services.storage_errors import (
+    StorageNotInitializedError,
+    StorageReadError,
+    StorageWriteError,
+)
 
 logger = get_logger(__name__)
 
@@ -1198,3 +1202,200 @@ class TrainingStorageMixin:
                    FROM minutes_log GROUP BY player_id ORDER BY total_minutes DESC"""
             )
         return [_row_to_dict(r) for r in cur.fetchall()]
+
+    # ── Phase D: persistent player profiles (academy phases need DOB) ───
+
+    async def get_player_profile(self, player_id: int) -> dict[str, Any] | None:
+        """A persistent player profile by id (date_of_birth lives here).
+
+        Read is soft: an unknown id returns None; a lookup failure raises.
+        """
+        if self._conn is None:
+            raise StorageNotInitializedError("get_player_profile")
+        try:
+            cur = self._conn.cursor()
+            cur.execute(
+                """SELECT id, global_id, display_name, jersey_number, preferred_position,
+                          height_cm, weight_kg, dominant_foot, date_of_birth, nationality,
+                          team, is_active
+                   FROM player_profiles WHERE id = ?""",
+                (int(player_id),),
+            )
+            row = cur.fetchone()
+            return _row_to_dict(row) if row else None
+        except Exception as e:
+            logger.warning(f"get_player_profile failed: {e}")
+            raise StorageReadError("get_player_profile", e) from e
+
+    # ── Phase D: versioned program documents (operating program) ────────
+
+    async def save_program_document(
+        self,
+        doc_type: str,
+        name: str,
+        payload: dict[str, Any],
+        created_by: str = "",
+    ) -> int:
+        """Publish a new version of a program document.
+
+        Exactly one is_current row per (doc_type, name): the previous
+        current version is superseded, not deleted — the audit trail is
+        the point. Write fails loudly on any error.
+        """
+        if self._conn is None:
+            raise StorageNotInitializedError("save_program_document")
+        if not str(doc_type).strip():
+            raise StorageWriteError("save_program_document", "doc_type must not be empty")
+        try:
+            cur = self._conn.cursor()
+            cur.execute(
+                """SELECT id, version FROM program_documents
+                   WHERE doc_type = ? AND name = ? AND is_current = 1""",
+                (doc_type, name),
+            )
+            prev = cur.fetchone()
+            prev_id = prev["id"] if prev else None
+            next_version = (prev["version"] + 1) if prev else 1
+            if prev_id is not None:
+                cur.execute(
+                    "UPDATE program_documents SET is_current = 0 WHERE id = ?", (prev_id,)
+                )
+            cur.execute(
+                """INSERT INTO program_documents
+                   (doc_type, name, version, is_current, payload, created_by, supersedes_id)
+                   VALUES (?, ?, ?, 1, ?, ?, ?)""",
+                (
+                    doc_type,
+                    name,
+                    next_version,
+                    json.dumps(payload, ensure_ascii=False),
+                    created_by,
+                    prev_id,
+                ),
+            )
+            self._conn.commit()
+            new_id = cur.lastrowid
+            return int(new_id) if new_id else 0
+        except Exception as e:
+            self._conn.commit()
+            logger.warning(f"save_program_document failed: {e}")
+            raise StorageWriteError("save_program_document", e) from e
+
+    async def get_current_program_document(
+        self, doc_type: str, name: str = ""
+    ) -> dict[str, Any] | None:
+        """The current version of a program document, or None (soft read)."""
+        if self._conn is None:
+            raise StorageNotInitializedError("get_current_program_document")
+        try:
+            cur = self._conn.cursor()
+            if name:
+                cur.execute(
+                    """SELECT id, doc_type, name, version, payload, created_by,
+                              supersedes_id, created_at
+                       FROM program_documents
+                       WHERE doc_type = ? AND name = ? AND is_current = 1""",
+                    (doc_type, name),
+                )
+            else:
+                cur.execute(
+                    """SELECT id, doc_type, name, version, payload, created_by,
+                              supersedes_id, created_at
+                       FROM program_documents
+                       WHERE doc_type = ? AND is_current = 1""",
+                    (doc_type,),
+                )
+            row = cur.fetchone()
+            if not row:
+                return None
+            out = _row_to_dict(row)
+            out["payload"] = _load_json_dict(out.get("payload"))
+            return out
+        except Exception as e:
+            logger.warning(f"get_current_program_document failed: {e}")
+            raise StorageReadError("get_current_program_document", e) from e
+
+    async def list_program_documents(self, doc_type: str) -> list[dict[str, Any]]:
+        """All versions of a document kind, newest first (audit trail)."""
+        if self._conn is None:
+            raise StorageNotInitializedError("list_program_documents")
+        try:
+            cur = self._conn.cursor()
+            cur.execute(
+                """SELECT id, doc_type, name, version, is_current, payload, created_by,
+                          supersedes_id, created_at
+                   FROM program_documents WHERE doc_type = ?
+                   ORDER BY created_at DESC, version DESC""",
+                (doc_type,),
+            )
+            rows = [_row_to_dict(r) for r in cur.fetchall()]
+            for r in rows:
+                r["payload"] = _load_json_dict(r.get("payload"))
+            return rows
+        except Exception as e:
+            logger.warning(f"list_program_documents failed: {e}")
+            raise StorageReadError("list_program_documents", e) from e
+
+    # ── Phase D: evidence registry (trust layer groundedness gate) ─────
+
+    async def save_evidence_record(
+        self,
+        kind: str,
+        payload: dict[str, Any],
+        match_id: int | None = None,
+        label: str = "",
+    ) -> int:
+        """Persist one evidence record; returns its registry id.
+
+        Fail-loud write: the groundedness gate is only as honest as
+        this registry is durable.
+        """
+        if self._conn is None:
+            raise StorageNotInitializedError("save_evidence_record")
+        if not str(kind).strip():
+            raise StorageWriteError("save_evidence_record", "kind must not be empty")
+        try:
+            cur = self._conn.cursor()
+            cur.execute(
+                """INSERT INTO evidence_records (match_id, kind, label, payload)
+                   VALUES (?, ?, ?, ?)""",
+                (match_id, kind, label, json.dumps(payload, ensure_ascii=False)),
+            )
+            self._conn.commit()
+            new_id = cur.lastrowid
+            return int(new_id) if new_id else 0
+        except Exception as e:
+            self._conn.commit()
+            logger.warning(f"save_evidence_record failed: {e}")
+            raise StorageWriteError("save_evidence_record", e) from e
+
+    async def get_evidence_records(
+        self, record_ids: list[int] | None = None, match_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch evidence records by ids and/or match (soft read)."""
+        if self._conn is None:
+            raise StorageNotInitializedError("get_evidence_records")
+        try:
+            cur = self._conn.cursor()
+            clauses: list[str] = []
+            params: list[Any] = []
+            if record_ids:
+                placeholders = ",".join("?" for _ in record_ids)
+                clauses.append(f"id IN ({placeholders})")
+                params.extend(int(i) for i in record_ids)
+            if match_id is not None:
+                clauses.append("match_id = ?")
+                params.append(int(match_id))
+            where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            cur.execute(
+                f"""SELECT id, match_id, kind, label, payload, created_at
+                    FROM evidence_records {where} ORDER BY id""",
+                params,
+            )
+            rows = [_row_to_dict(r) for r in cur.fetchall()]
+            for r in rows:
+                r["payload"] = _load_json_dict(r.get("payload"))
+            return rows
+        except Exception as e:
+            logger.warning(f"get_evidence_records failed: {e}")
+            raise StorageReadError("get_evidence_records", e) from e
