@@ -200,8 +200,8 @@ class TrainingHandler(BridgeHandlerBase):
                 return json.dumps({"error": "drill_id is required"})
             data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
             try:
-                effectiveness = int(data.get("effectiveness"))
-            except (TypeError, ValueError):
+                effectiveness = int(data["effectiveness"])
+            except (TypeError, ValueError, KeyError):
                 return json.dumps({"error": "effectiveness must be an integer 1-5"})
             if not 1 <= effectiveness <= 5:
                 return json.dumps({"error": "effectiveness must be within 1-5"})
@@ -304,8 +304,8 @@ class TrainingHandler(BridgeHandlerBase):
             if not test_type or not record_date:
                 return json.dumps({"error": "test_type and test_date are required"})
             try:
-                value = float(data.get("value"))
-            except (TypeError, ValueError):
+                value = float(data["value"])
+            except (TypeError, ValueError, KeyError):
                 return json.dumps({"error": "value must be numeric"})
             rid = await self._services["storage_service"].save_testing_result(
                 player_id=pid,
@@ -549,8 +549,8 @@ class TrainingHandler(BridgeHandlerBase):
             if not test_type:
                 return json.dumps({"error": "test_type is required"})
             try:
-                value = float(data.get("value"))
-            except (TypeError, ValueError):
+                value = float(data["value"])
+            except (TypeError, ValueError, KeyError):
                 return json.dumps({"error": "value must be numeric"})
             svc = TestingBatteryService(self._services["storage_service"])
             out = await svc.interpret_result(
@@ -584,10 +584,10 @@ class TrainingHandler(BridgeHandlerBase):
 
             data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
             try:
-                age = float(data.get("age_years"))
-                standing = float(data.get("standing_height_cm"))
-                sitting = float(data.get("sitting_height_cm"))
-            except (TypeError, ValueError):
+                age = float(data["age_years"])
+                standing = float(data["standing_height_cm"])
+                sitting = float(data["sitting_height_cm"])
+            except (TypeError, ValueError, KeyError):
                 return json.dumps(
                     {
                         "error": "age_years, standing_height_cm, sitting_height_cm are required numbers"
@@ -745,7 +745,9 @@ class TrainingHandler(BridgeHandlerBase):
             ids = [int(i) for i in ids_raw]
             from kawkab.services.academy_service import AcademyService
 
-            report = await AcademyService(self._services["storage_service"]).academy_selection_view(ids)
+            report = await AcademyService(self._services["storage_service"]).academy_selection_view(
+                ids
+            )
             return json.dumps(report, ensure_ascii=False)
         except Exception as e:
             logger.error(f"get_academy_selection_view failed: {e}")
@@ -761,7 +763,9 @@ class TrainingHandler(BridgeHandlerBase):
             self._check_rate_limit("training")
             from kawkab.services.operating_program_service import OperatingProgramService
 
-            report = await OperatingProgramService(self._services["storage_service"]).current_program()
+            report = await OperatingProgramService(
+                self._services["storage_service"]
+            ).current_program()
             return json.dumps(report, ensure_ascii=False)
         except Exception as e:
             logger.error(f"get_current_program failed: {e}")
@@ -781,24 +785,32 @@ class TrainingHandler(BridgeHandlerBase):
             if doc_type == "weekly_rhythm":
                 week = json.loads(payload) if isinstance(payload, str) else payload
                 if not isinstance(week, list):
-                    return json.dumps({"error": "weekly_rhythm payload must be a JSON array of day entries"})
+                    return json.dumps(
+                        {"error": "weekly_rhythm payload must be a JSON array of day entries"}
+                    )
                 result = await svc.publish_weekly_rhythm(week)
             elif doc_type == "raci":
                 data = json.loads(payload) if isinstance(payload, str) else payload
                 roles = data.get("roles") if isinstance(data, dict) else data
                 if not isinstance(roles, list):
-                    return json.dumps({"error": "raci payload must be a JSON array of roles (or {\"roles\": [...]})"})
+                    return json.dumps(
+                        {
+                            "error": 'raci payload must be a JSON array of roles (or {"roles": [...]})'
+                        }
+                    )
                 result = await svc.publish_raci(roles)
             elif doc_type == "kpi_tree":
                 data = json.loads(payload) if isinstance(payload, str) else payload
                 kpis = data.get("kpis") if isinstance(data, dict) else data
                 if not isinstance(kpis, list):
-                    return json.dumps({"error": "kpi_tree payload must be a JSON array of KPIs (or {\"kpis\": [...]})"})
+                    return json.dumps(
+                        {
+                            "error": 'kpi_tree payload must be a JSON array of KPIs (or {"kpis": [...]})'
+                        }
+                    )
                 result = await svc.publish_kpi_tree(kpis)
             else:
-                return json.dumps(
-                    {"error": "doc_type must be weekly_rhythm | raci | kpi_tree"}
-                )
+                return json.dumps({"error": "doc_type must be weekly_rhythm | raci | kpi_tree"})
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"publish_program_document failed: {e}")

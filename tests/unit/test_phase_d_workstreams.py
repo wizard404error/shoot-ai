@@ -225,19 +225,25 @@ class TestOpposition:
         # Scoreline "prediction" carries its naive-average disclaimer:
         assert "not a model forecast" in out["provenance"]["scoreline_note"]
 
-    def test_kloppy_probe_is_honest_no_provider(self):
+    def test_kloppy_probe_honesty_contract(self):
+        """The probe reports reality in either direction — never a middle state."""
         from kawkab.services.opposition_service import _probe_kloppy
 
         status = _probe_kloppy()
+        assert status["provider"] == "kloppy"
+        assert "statsbomb" in status["supported_formats"]
         try:
             import kloppy  # noqa: F401
 
-            pytest.skip("kloppy installed in this environment")
+            available = True
         except ImportError:
-            pass
-        assert status["provider_available"] is False
-        assert "not installed" in status["reason"]
-        assert "statsbomb" in status["supported_formats"]
+            available = False
+        assert status["provider_available"] is available
+        if available:
+            assert status["version"]
+            assert "no vendor account" in status["honesty_note"]
+        else:
+            assert "not installed" in status["reason"]
 
     @pytest.mark.asyncio
     async def test_set_play_library_structure(self, storage, monkeypatch):

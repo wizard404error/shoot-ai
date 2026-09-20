@@ -182,11 +182,15 @@ def test_opposition_dossier_and_vendor_honesty_through_bridge(qapp, tmp_path, mo
 
                 vendor = json.loads(await window.bridge.get_vendor_import_status())
                 assert "error" not in vendor, str(vendor)
-                # kloppy is not installed in this environment: honest
-                # no-provider, same contract as the Transfermarkt probe.
-                assert vendor["provider_available"] is False, str(vendor)
-                assert "not installed" in vendor["reason"]
+                # The honesty contract is environment-independent: the
+                # probe reports reality (available + version, or absent +
+                # reason), never a fabricated middle state.
+                assert vendor["provider"] == "kloppy", str(vendor)
                 assert vendor["supported_formats"], str(vendor)
+                if vendor["provider_available"]:
+                    assert "no vendor account" in vendor["honesty_note"], str(vendor)
+                else:
+                    assert vendor["reason"], str(vendor)
 
                 lib = json.loads(await window.bridge.get_set_play_library())
                 assert "error" not in lib, str(lib)

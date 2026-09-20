@@ -112,8 +112,8 @@ class AuditService:
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    return ex.submit(asyncio.run, maybe_coro).result()
-            return asyncio.run(maybe_coro)
+                    return ex.submit(asyncio.run, maybe_coro).result()  # type: ignore[arg-type]
+            return asyncio.run(maybe_coro)  # type: ignore[arg-type]
         return maybe_coro
 
     # ── Core logging ────────────────────────────────────────────────────

@@ -58,7 +58,10 @@ async def storage_error_handler(request: Request, exc: StorageError) -> JSONResp
         status_code=status,
         content={
             "error": "storage_unavailable",
-            "operation": exc.operation,
+            # Only the operation-carrying StorageError subclasses expose
+            # .operation; the bare base does not — "unknown" is the honest
+            # fallback for a typed failure without an operation name.
+            "operation": getattr(exc, "operation", "unknown"),
             "detail": str(exc.__cause__ or exc),
         },
     )

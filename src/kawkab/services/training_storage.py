@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 from kawkab.core.logging import get_logger
@@ -59,6 +60,14 @@ def _load_json_dict(raw: Any) -> dict[str, Any]:
 
 class TrainingStorageMixin:
     """Training-OS CRUD. Mixed into StorageService (see storage_service.py)."""
+
+    # Shared backend state, declared here for type checking only: the
+    # owning StorageService assigns these in its __init__ (mixin methods
+    # must go through StorageNotInitializedError guards, never assume
+    # they are set).
+    _conn: sqlite3.Connection | None
+    _db_path: Path | None
+    _use_postgres: bool
 
     # ── Game model ──────────────────────────────────────────────────────
 
@@ -1257,9 +1266,7 @@ class TrainingStorageMixin:
             prev_id = prev["id"] if prev else None
             next_version = (prev["version"] + 1) if prev else 1
             if prev_id is not None:
-                cur.execute(
-                    "UPDATE program_documents SET is_current = 0 WHERE id = ?", (prev_id,)
-                )
+                cur.execute("UPDATE program_documents SET is_current = 0 WHERE id = ?", (prev_id,))
             cur.execute(
                 """INSERT INTO program_documents
                    (doc_type, name, version, is_current, payload, created_by, supersedes_id)

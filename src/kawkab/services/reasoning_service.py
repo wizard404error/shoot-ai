@@ -165,7 +165,7 @@ class ReasoningService:
         n = len(analyses)
         home.possession_pct /= n
         away.possession_pct /= n
-        formations = next((a.formations for a in analyses if a.formations), {})
+        formations: dict[Any, Any] = next((a.formations for a in analyses if a.formations), {})
         players: dict[Any, Any] = {}
         for a in analyses:
             players.update(a.players or {})

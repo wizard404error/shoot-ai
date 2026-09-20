@@ -349,9 +349,12 @@ def evaluate_hypothesis(
         parsed = _parse_threshold(threshold_raw)
         observed = extract_metric(metric, evidence, event_stats)
         known = parsed is not None and observed is not None
+        if parsed is not None and observed is not None:
+            met = _satisfies(float(observed), parsed[0], parsed[1])
+        else:
+            met = False
         if not known:
             known_all = False
-        met = bool(known and _satisfies(float(observed), parsed[0], parsed[1]))
         criteria.append(
             {
                 "metric": metric,
